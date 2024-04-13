@@ -1,0 +1,5 @@
+argcomplete
+colorama
+pylink-square
+pyserial
+tabulate
