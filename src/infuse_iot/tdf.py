@@ -6,6 +6,7 @@ import enum
 from infuse_iot.time import InfuseTime
 from infuse_iot.generated import tdf_definitions
 
+
 class TDF:
     class flags(enum.IntEnum):
         TIMESTAMP_NONE = 0x0000
@@ -51,7 +52,7 @@ class TDF:
 
         @property
         def offset(self):
-            return int.from_bytes(self._offset, byteorder='little', signed=True)
+            return int.from_bytes(self._offset, byteorder="little", signed=True)
 
     def __init__(self):
         pass
@@ -59,7 +60,7 @@ class TDF:
     @staticmethod
     def _buffer_pull(buffer: bytes, type: ctypes.LittleEndianStructure):
         v = type.from_buffer_copy(buffer)
-        b = buffer[ctypes.sizeof(type):]
+        b = buffer[ctypes.sizeof(type) :]
         return v, b
 
     def decode(self, buffer: bytes):
@@ -70,8 +71,8 @@ class TDF:
             header, buffer = self._buffer_pull(buffer, self.CoreHeader)
             time_flags = header.id_flags & self.flags.TIMESTAMP_MASK
 
-            id = header.id_flags & 0x0FFF
-            id_type = tdf_definitions.id_type_mapping[id]
+            tdf_id = header.id_flags & 0x0FFF
+            id_type = tdf_definitions.id_type_mapping[tdf_id]
 
             if time_flags == self.flags.TIMESTAMP_NONE:
                 time = None
@@ -96,16 +97,19 @@ class TDF:
                 buffer = buffer[total_len:]
 
                 time = InfuseTime.unix_time_from_civil(buffer_time)
-                data = [id_type.from_buffer_copy(total_data[x:x+header.len]) for x in range(0, total_len, header.len)]
+                data = [
+                    id_type.from_buffer_copy(total_data[x : x + header.len])
+                    for x in range(0, total_len, header.len)
+                ]
             else:
-                data_bytes = buffer[:header.len]
-                buffer = buffer[header.len:]
+                data_bytes = buffer[: header.len]
+                buffer = buffer[header.len :]
 
                 data = [id_type.from_buffer_copy(data_bytes)]
 
-            reading = {'time': time, 'data': data}
+            reading = {"time": time, "data": data}
             if array_header is not None:
-                reading['period'] = array_header.period / 65536
+                reading["period"] = array_header.period / 65536
 
             output.append(reading)
 

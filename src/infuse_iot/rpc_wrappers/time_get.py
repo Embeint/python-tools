@@ -4,9 +4,10 @@ import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 
+
 class time_get(InfuseRpcCommand):
-    HELP = 'Get the current device time'
-    DESCRIPTION = 'Get the current device time'
+    HELP = "Get the current device time"
+    DESCRIPTION = "Get the current device time"
     COMMAND_ID = 3
 
     class request(ctypes.LittleEndianStructure):

@@ -5,9 +5,10 @@ import errno
 
 from infuse_iot.commands import InfuseRpcCommand
 
+
 class kv_read(InfuseRpcCommand):
-    HELP = 'Read KV store values'
-    DESCRIPTION = 'Read KV store values'
+    HELP = "Read KV store values"
+    DESCRIPTION = "Read KV store values"
     COMMAND_ID = 6
 
     class request(ctypes.LittleEndianStructure):
@@ -21,31 +22,35 @@ class kv_read(InfuseRpcCommand):
         def from_buffer_copy(cls, source, offset=0):
             values = []
             while len(source) > 0:
+
                 class kv_store_header(ctypes.LittleEndianStructure):
-                        _fields_ = [
-                            ("id", ctypes.c_uint16),
-                            ("len", ctypes.c_int16),
-                        ]
-                        _pack_ = 1
+                    _fields_ = [
+                        ("id", ctypes.c_uint16),
+                        ("len", ctypes.c_int16),
+                    ]
+                    _pack_ = 1
+
                 header = kv_store_header.from_buffer_copy(source)
                 if header.len > 0:
+
                     class kv_store_value(ctypes.LittleEndianStructure):
                         _fields_ = [
                             ("id", ctypes.c_uint16),
                             ("len", ctypes.c_int16),
-                            ("data", ctypes.c_char * header.len)
+                            ("data", ctypes.c_char * header.len),
                         ]
                         _pack_ = 1
+
                     struct = kv_store_value.from_buffer_copy(source)
                 else:
                     struct = header
                 values.append(struct)
-                source = source[ctypes.sizeof(struct):]
+                source = source[ctypes.sizeof(struct) :]
             return values
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--keys', '-k', type=int, nargs='+', help='Keys to read')
+        parser.add_argument("--keys", "-k", type=int, nargs="+", help="Keys to read")
 
     def __init__(self, args):
         self.keys = args.keys

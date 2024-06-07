@@ -8,8 +8,10 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-from infuse_iot.argparse import ValidFile
+from infuse_iot.util.argparse import ValidFile
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.epacket import ePacketHop
+
 
 class challenge_response_header(ctypes.LittleEndianStructure):
     _fields_ = [
@@ -19,6 +21,7 @@ class challenge_response_header(ctypes.LittleEndianStructure):
         ("challenge_response_type", ctypes.c_uint8),
     ]
     _pack_ = 1
+
 
 class challenge_response_basic_encr(ctypes.LittleEndianStructure):
     _fields_ = [
@@ -30,6 +33,7 @@ class challenge_response_basic_encr(ctypes.LittleEndianStructure):
     ]
     _pack_ = 1
 
+
 class challenge_response_basic(ctypes.LittleEndianStructure):
     _fields_ = [
         ("challenge", 16 * ctypes.c_uint8),
@@ -38,9 +42,10 @@ class challenge_response_basic(ctypes.LittleEndianStructure):
     ]
     _pack_ = 1
 
+
 class security_state(InfuseRpcCommand):
-    HELP = 'Get the current device security state'
-    DESCRIPTION = 'Get the current device security state'
+    HELP = "Get the current device security state"
+    DESCRIPTION = "Get the current device security state"
     COMMAND_ID = 30000
 
     class request(ctypes.LittleEndianStructure):
@@ -58,11 +63,16 @@ class security_state(InfuseRpcCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--pem', type=ValidFile, help='Cloud .pem file for identity validation')
+        parser.add_argument(
+            "--pem", type=ValidFile, help="Cloud .pem file for identity validation"
+        )
 
     def __init__(self, args):
         self.challenge = random.randbytes(16)
         self.pem = args.pem
+
+    def auth_level(self):
+        return ePacketHop.auths.NETWORK
 
     def request_struct(self):
         return self.request(self.challenge)
@@ -72,14 +82,18 @@ class security_state(InfuseRpcCommand):
         rsp = response.response
 
         rb = bytes(response.response)
-        with self.pem.open('r') as f:
-            cloud_private_key = serialization.load_pem_private_key(f.read().encode('utf-8'), password=None)
-        device_public_key = x25519.X25519PublicKey.from_public_bytes(bytes(hdr.device_public_key))
+        with self.pem.open("r") as f:
+            cloud_private_key = serialization.load_pem_private_key(
+                f.read().encode("utf-8"), password=None
+            )
+        device_public_key = x25519.X25519PublicKey.from_public_bytes(
+            bytes(hdr.device_public_key)
+        )
         shared_secret = cloud_private_key.exchange(device_public_key)
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=0x1234.to_bytes(4, 'little'),
+            salt=0x1234.to_bytes(4, "little"),
             info=b"sign",
         )
         sign_key = hkdf.derive(shared_secret)
@@ -101,7 +115,7 @@ class security_state(InfuseRpcCommand):
         print(f"\t Cloud Public Key: {bytes(hdr.cloud_public_key).hex()}")
         print(f"\t          Network: 0x{hdr.network_id:06x}")
         if self.pem is None:
-            print(f"\t         Identity: Cannot validate")
+            print("\t         Identity: Cannot validate")
         else:
             challenge_rsp = self._decrypt_response(response)
 

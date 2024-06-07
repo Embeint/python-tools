@@ -3,6 +3,7 @@
 import datetime
 import enum
 
+
 class InfuseTimeSource(enum.IntFlag):
     NONE = 0
     GNSS = 1
@@ -17,6 +18,7 @@ class InfuseTimeSource(enum.IntFlag):
             postfix = " (recovered after reboot)"
             v ^= self.RECOVERED
         return InfuseTimeSource(v).name + postfix
+
 
 class InfuseTime:
     GPS_UNIX_OFFSET = 315964800
@@ -45,9 +47,11 @@ class InfuseTime:
     @classmethod
     def utc_time_string(cls, unix_time: float) -> str:
         # Trim timezone prefix and microseconds
-        return str(datetime.datetime.fromtimestamp(unix_time, datetime.timezone.utc))[:-9]
+        return str(datetime.datetime.fromtimestamp(unix_time, datetime.timezone.utc))[
+            :-9
+        ]
 
     @classmethod
     def utc_time_string_log(cls, unix_time: float) -> str:
         obj = datetime.datetime.fromtimestamp(unix_time, datetime.timezone.utc)
-        return obj.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        return obj.strftime("%Y-%m-%dT%H:%M:%S.%f")

@@ -7,6 +7,7 @@ from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import wifi as z_wifi
 
+
 class interface_state(ctypes.LittleEndianStructure):
     _fields_ = [
         ("_state", ctypes.c_uint8),
@@ -29,6 +30,7 @@ class interface_state(ctypes.LittleEndianStructure):
     @property
     def l2_flags(self):
         return z_nif.L2Flags(self._l2_flags)
+
 
 class wifi_state_struct(ctypes.LittleEndianStructure):
     _fields_ = [
@@ -66,14 +68,14 @@ class wifi_state_struct(ctypes.LittleEndianStructure):
     def security_type(self):
         return z_wifi.SecurityType(self._security)
 
+
 class wifi_state(InfuseRpcCommand):
-    HELP = 'Get WiFi state'
-    DESCRIPTION = 'Get WiFi state'
+    HELP = "Get WiFi state"
+    DESCRIPTION = "Get WiFi state"
     COMMAND_ID = 11
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -104,7 +106,7 @@ class wifi_state(InfuseRpcCommand):
         # Address formatting
         ipv4 = ipaddress.IPv4Address(bytes(common.ipv4))
         ipv6 = ipaddress.IPv6Address(bytes(common.ipv6))
-        bssid = ':'.join([f'{b:02x}' for b in wifi.bssid])
+        bssid = ":".join([f"{b:02x}" for b in wifi.bssid])
 
         print("Interface State:")
         print(f"\t          State: {common.state.name}")

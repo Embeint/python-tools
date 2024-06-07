@@ -1,4 +1,4 @@
-# Infuse IoT Python Tools
+# Infuse-IoT Python Tools
 
 ## Installation
 

@@ -3,4 +3,4 @@
 import logging
 
 # https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
-logging.getLogger('infuse').addHandler(logging.NullHandler())
+logging.getLogger("infuse").addHandler(logging.NullHandler())

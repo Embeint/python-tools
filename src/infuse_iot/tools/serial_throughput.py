@@ -8,16 +8,24 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import random
 import time
 
-from infuse_iot.epacket import data_types
+from infuse_iot.epacket import ePacket, ePacketHop, ePacketHopOut
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 
-class serial_throughput(InfuseCommand):
+
+class SubCommand(InfuseCommand):
+    NAME = "serial_throughput"
     HELP = "Test serial throughput to local gateway"
     DESCRIPTION = "Test serial throughput to local gateway"
 
+    @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--iterations', type=int, default=20, help='Number of times to send each sized packet')
+        parser.add_argument(
+            "--iterations",
+            type=int,
+            default=20,
+            help="Number of times to send each sized packet",
+        )
         return
 
     def __init__(self, args):
@@ -35,16 +43,22 @@ class serial_throughput(InfuseCommand):
         while (sent != num) or (pending > 0):
             # Queue packets up to the maximum queue size
             while (sent != num) and (pending < queue_size):
-                pkt = {
-                    "pkt_type": data_types.ECHO_REQ,
-                    "raw": (sent.to_bytes(4, 'little') + random.randbytes(size - 4)).hex(),
-                }
+                payload = sent.to_bytes(4, "little") + random.randbytes(size - 4)
+                pkt = ePacket(
+                    [
+                        ePacketHop(
+                            0, ePacketHop.interfaces.SERIAL, ePacketHopOut.auths.DEVICE
+                        )
+                    ],
+                    ePacket.types.ECHO_REQ,
+                    payload,
+                )
                 self._client.send(pkt)
                 sent += 1
                 pending += 1
             # Wait for responses
             if rsp := self._client.receive():
-                if rsp['pkt_type'] != data_types.ECHO_RSP:
+                if rsp.ptype != ePacket.types.ECHO_RSP:
                     continue
                 responses += 1
                 pending -= 1
@@ -57,7 +71,9 @@ class serial_throughput(InfuseCommand):
         throughput = total / duration
         if responses != num:
             print(f"\tOnly received {responses}/{num} responses")
-        print(f"\t{num} packets with {size:3d} bytes payload complete in {duration:.2f} seconds ({int(8*throughput):6d} bps)")
+        print(
+            f"\t{num} packets with {size:3d} bytes payload complete in {duration:.2f} seconds ({int(8*throughput):6d} bps)"
+        )
 
     def run(self):
         # No queuing

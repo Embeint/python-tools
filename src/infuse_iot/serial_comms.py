@@ -2,7 +2,10 @@
 
 import serial
 
+
 class SerialFrame:
+    """Serial frame reconstructor"""
+
     SYNC = b"\xD5\xCA"
 
     @classmethod
@@ -25,13 +28,16 @@ class SerialFrame:
                     continue
             # Store length
             elif len(buffered) == 4:
-                length = int.from_bytes(buffered[2:], 'little')
+                length = int.from_bytes(buffered[2:], "little")
             # Complete packet received
             elif len(buffered) == 4 + length:
                 packet = buffered[4:]
                 buffered = bytearray()
 
+
 class SerialPort:
+    """Serial Port handling"""
+
     def __init__(self, serial_port):
         self._ser = serial.Serial()
         self._ser.port = str(serial_port)
@@ -39,22 +45,26 @@ class SerialPort:
         self._ser.timeout = 0.05
 
     def open(self):
+        """Open serial port"""
         self._ser.open()
 
     def read_bytes(self, num):
+        """Read arbitrary number of bytes from serial port"""
         return self._ser.read(num)
 
     def ping(self):
-        "0 length data frame to request a response"
+        """0 length data frame to request a response"""
         self._ser.write(SerialFrame.SYNC + b"\x00\x00")
         self._ser.flush()
 
-    def write(self, packet):
+    def write(self, packet: bytes):
+        """Write a serial frame to the port"""
         # Add header
-        pkt = SerialFrame.SYNC + len(packet).to_bytes(2, 'little') + packet
+        pkt = SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
         # Write packet to serial port
         self._ser.write(pkt)
         self._ser.flush()
 
     def close(self):
+        """Close the serial port"""
         self._ser.close()

@@ -4,9 +4,10 @@ import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 
+
 class fault(InfuseRpcCommand):
-    HELP = 'Trigger a fault on the device'
-    DESCRIPTION = 'Trigger a fault on the device'
+    HELP = "Trigger a fault on the device"
+    DESCRIPTION = "Trigger a fault on the device"
     COMMAND_ID = 2
 
     class request(ctypes.LittleEndianStructure):
@@ -23,11 +24,41 @@ class fault(InfuseRpcCommand):
     @classmethod
     def add_parser(cls, parser):
         group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--div-0', dest='fault', action='store_const', const=30, help='Divide by zero exception')
-        group.add_argument('--null-deref', dest='fault', action='store_const', const=19, help='NULL dereference exception')
-        group.add_argument('--stack-overflow', dest='fault', action='store_const', const=2, help='Stack overflow exception')
-        group.add_argument('--undef-instr', dest='fault', action='store_const', const=36, help='Undefined instruction exception')
-        group.add_argument('--instr-access', dest='fault', action='store_const', const=20, help='Instruction access exception')
+        group.add_argument(
+            "--div-0",
+            dest="fault",
+            action="store_const",
+            const=30,
+            help="Divide by zero exception",
+        )
+        group.add_argument(
+            "--null-deref",
+            dest="fault",
+            action="store_const",
+            const=19,
+            help="NULL dereference exception",
+        )
+        group.add_argument(
+            "--stack-overflow",
+            dest="fault",
+            action="store_const",
+            const=2,
+            help="Stack overflow exception",
+        )
+        group.add_argument(
+            "--undef-instr",
+            dest="fault",
+            action="store_const",
+            const=36,
+            help="Undefined instruction exception",
+        )
+        group.add_argument(
+            "--instr-access",
+            dest="fault",
+            action="store_const",
+            const=20,
+            help="Instruction access exception",
+        )
 
     def __init__(self, args):
         self._fault_type = args.fault

@@ -8,61 +8,96 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import time
 import threading
 import queue
+import ctypes
 import datetime
+import random
 import cryptography
+import cryptography.exceptions
 
 import colorama
 
-import cryptography.exceptions
-from infuse_iot.argparse import ValidFile
+from infuse_iot.util.argparse import ValidFile
+from infuse_iot.util.console import Console
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
-from infuse_iot.epacket import ePacketDecoder, ePacketSerialHeader, data_types
+from infuse_iot.epacket import ePacketIn, ePacketOut, ePacketHop, ePacketHopOut
+from infuse_iot.database import DeviceDatabase
 
-gateway_addr = None
+# from infuse_iot.rpc_wrappers.security_state import security_state
+from infuse_iot.tools.rpc import SubCommand as RpcSubCommand
 
-class Console:
-    """Common terminal logging functions"""
-    @staticmethod
-    def log_error(message):
-        Console.log(datetime.datetime.now(), colorama.Fore.RED, message)
 
-    @staticmethod
-    def log_info(message):
-        Console.log(datetime.datetime.now(), colorama.Fore.MAGENTA, message)
+class LocalRpcServer:
+    """Basic class supporting locally generated commands"""
 
-    @staticmethod
-    def log_tx(data_type, length):
-        Console.log(datetime.datetime.now(), colorama.Fore.BLUE, f"TX {data_type.name} {length} bytes")
+    def __init__(self, database: DeviceDatabase):
+        self._cnt = random.randint(0, 2**31)
+        self._ddb = database
+        self._queued = {}
 
-    @staticmethod
-    def log_rx(data_type, length):
-        Console.log(datetime.datetime.now(), colorama.Fore.GREEN, f"RX {data_type.name} {length} bytes")
+    def generate(self, command: int, args: bytes, cb):
+        """Generate RPC packet from arguments"""
+        cmd_bytes = bytes(RpcSubCommand.rpc_request_header(self._cnt, command)) + args
+        cmd_pkt = ePacketOut(
+            [ePacketHopOut.serial(ePacketHopOut.auths.NETWORK)],
+            ePacketOut.types.RPC_CMD,
+            cmd_bytes,
+        )
+        cmd_pkt.route[0].address = self._ddb.gateway
+        self._queued[self._cnt] = cb
+        self._cnt += 1
+        return cmd_pkt
 
-    @staticmethod
-    def log(timestamp: datetime.datetime, colour, string: str):
-        ts = timestamp.strftime("%H:%M:%S.%f")[:-3]
-        print(f"[{ts}]{colour} {string}")
+    def handle(self, pkt: ePacketIn):
+        """Handle received packets"""
+        # Only care about RPC responses
+        if pkt.ptype != ePacketIn.types.RPC_RSP:
+            return
+
+        # Determine if the response is to a command we initiated
+        header = RpcSubCommand.rpc_response_header.from_buffer_copy(pkt.payload)
+        if header.request_id not in self._queued:
+            return
+
+        # Run the callback
+        cb = self._queued.pop(header.request_id)
+        if cb is not None:
+            cb(pkt, header.return_code, pkt.payload[ctypes.sizeof(header) :])
+
 
 class SignaledThread(threading.Thread):
+    """Thread that can be signaled to terminate"""
+
     def __init__(self, fn):
         self._fn = fn
         self._sig = threading.Event()
         super().__init__(target=self.run_loop)
 
     def stop(self):
+        """Signal thread to terminate"""
         self._sig.set()
 
     def run_loop(self):
+        """Run the thread function in a loop"""
         while not self._sig.is_set():
             self._fn()
 
+
 class SerialRxThread(SignaledThread):
-    def __init__(self, server: LocalServer, port: SerialPort):
+    """Receive serial frames from the serial port"""
+
+    def __init__(
+        self,
+        server: LocalServer,
+        port: SerialPort,
+        ddb: DeviceDatabase,
+        rpc: LocalRpcServer,
+    ):
         self._server = server
         self._port = port
-        self._decoder = ePacketDecoder()
+        self._ddb = ddb
+        self._rpc = rpc
         self._reconstructor = SerialFrame.reconstructor()
         self._reconstructor.send(None)
         self._line = ""
@@ -80,7 +115,7 @@ class SerialRxThread(SignaledThread):
 
             if not frame_byte:
                 c = chr(b)
-                if c == '\n':
+                if c == "\n":
                     print(self._line)
                     self._line = ""
                 else:
@@ -88,65 +123,106 @@ class SerialRxThread(SignaledThread):
 
     def _handle_serial_frame(self, frame):
         try:
-            header, data_len = ePacketSerialHeader.parse(frame)
-            global gateway_addr
-            if gateway_addr is None:
-                Console.log_info(f"Local gateway is {header.device_id}")
-                gateway_addr = header.device_id
             # Decode the serial packet
             try:
-                decoded = self._decoder.decode_serial(frame)
-            except cryptography.exceptions.InvalidTag as e:
-                Console.log_error(f"Failed to decode {data_len} byte packet")
+                decoded = ePacketIn.from_serial(self._ddb, frame)
+            except (KeyError, cryptography.exceptions.InvalidTag) as e:
+                Console.log_error(f"Failed to decode {len(frame)} byte packet {e}")
                 return
-            Console.log_rx(decoded['pkt_type'], data_len)
+            Console.log_rx(decoded.ptype, len(frame))
+            # Handle any local RPC responses
+            self._rpc.handle(decoded)
             # Forward to clients
             self._server.broadcast(decoded)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 
+
 class SerialTxThread(SignaledThread):
-    def __init__(self, server: LocalServer, port: SerialPort):
+    """Send serial frames down the serial port"""
+
+    def __init__(
+        self,
+        server: LocalServer,
+        port: SerialPort,
+        ddb: DeviceDatabase,
+        rpc: LocalRpcServer,
+    ):
         self._server = server
         self._port = port
+        self._ddb = ddb
+        self._rpc = rpc
         self._queue = queue.Queue()
-        self._decoder = ePacketDecoder()
         super().__init__(self._iter)
 
     def send(self, pkt):
+        """Queue packet for transmission"""
         self._queue.put(pkt)
 
     def _iter(self):
-
-        # Loop while there are packets to receive
+        # Loop while there are packets to send
         while pkt := self._server.receive():
-            global gateway_addr
-            if gateway_addr is None:
-                Console.log_error(f"Gateway address unknown")
+            if self._ddb.gateway is None:
+                Console.log_error("Gateway address unknown")
                 continue
 
-            # Assign destination address
-            pkt['device'] = gateway_addr
+            # Set gateway address
+            if pkt.route[-1].interface == ePacketHop.interfaces.SERIAL:
+                pkt.route[-1].address = self._ddb.gateway
+
+            # Do we have the final public key if required?
+            final = pkt.route[0]
+            if final.auth == ePacketHop.auths.DEVICE and not self._ddb.has_public_key(
+                final.address
+            ):
+                cb_event = threading.Event()
+
+                def security_state_done(pkt: ePacketIn, _: int, response: bytes):
+                    cloud_key = response[:32]
+                    device_key = response[32:64]
+                    network_id = int.from_bytes(response[64:68], "little")
+
+                    self._ddb.observe_security_state(
+                        pkt.route[0].address, cloud_key, device_key, network_id
+                    )
+                    cb_event.set()
+
+                # Generate security_state RPC
+                cmd_pkt = self._rpc.generate(
+                    30000, random.randbytes(16), security_state_done
+                )
+                encrypted = cmd_pkt.to_serial(self._ddb)
+                # Write to serial port
+                Console.log_tx(cmd_pkt.ptype, len(encrypted))
+                self._port.write(encrypted)
+                # Wait for the response
+                cb_event.wait(1.0)
 
             # Encode and encrypt payload
-            encrypted = self._decoder.encode_serial(pkt)
+            encrypted = pkt.to_serial(self._ddb)
 
             # Write to serial port
-            Console.log_tx(data_types(pkt['pkt_type']), len(pkt['raw']) // 2)
+            Console.log_tx(pkt.ptype, len(encrypted))
             self._port.write(encrypted)
 
 
-class gateway(InfuseCommand):
+class SubCommand(InfuseCommand):
+    NAME = "gateway"
     HELP = "Connect to a local gateway device"
     DESCRIPTION = "Connect to a gateway device over serial and route commands to Bluetooth devices"
 
+    @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--serial', type=ValidFile, required=True, help='Gateway serial port')
+        parser.add_argument(
+            "--serial", type=ValidFile, required=True, help="Gateway serial port"
+        )
 
     def __init__(self, args):
         self.port = SerialPort(args.serial)
         self.server = LocalServer(default_multicast_address())
-        colorama.init(autoreset=True)
+        self.ddb = DeviceDatabase()
+        self.rpc_server = LocalRpcServer(self.ddb)
+        Console.init()
 
     def run(self):
         # Open the serial port
@@ -155,8 +231,8 @@ class gateway(InfuseCommand):
         self.port.ping()
 
         # Start threads
-        rx_thread = SerialRxThread(self.server, self.port)
-        tx_thread = SerialTxThread(self.server, self.port)
+        rx_thread = SerialRxThread(self.server, self.port, self.ddb, self.rpc_server)
+        tx_thread = SerialTxThread(self.server, self.port, self.ddb, self.rpc_server)
         rx_thread.start()
         tx_thread.start()
 
@@ -177,5 +253,5 @@ class gateway(InfuseCommand):
         # Cleanup serial port
         try:
             self.port.close()
-        except:
+        except Exception:
             pass

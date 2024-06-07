@@ -4,9 +4,10 @@ import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 
+
 class wifi_configure(InfuseRpcCommand):
-    HELP = 'Set the WiFi network SSID and PSK'
-    DESCRIPTION = 'Set the WiFi network SSID and PSK'
+    HELP = "Set the WiFi network SSID and PSK"
+    DESCRIPTION = "Set the WiFi network SSID and PSK"
     COMMAND_ID = 5
 
     class request(ctypes.LittleEndianStructure):
@@ -17,34 +18,39 @@ class wifi_configure(InfuseRpcCommand):
 
     class response(InfuseRpcCommand.VariableSizeResponse):
         base_fields = []
-        var_name = 'rc'
+        var_name = "rc"
         var_type = ctypes.c_int16
 
     @staticmethod
     def kv_store_value_factory(id, value_bytes):
         class kv_store_value(ctypes.LittleEndianStructure):
-                _fields_ = [
-                    ("id", ctypes.c_uint16),
-                    ("len", ctypes.c_uint16),
-                    ("data", ctypes.c_char * len(value_bytes))
-                ]
-                _pack_ = 1
+            _fields_ = [
+                ("id", ctypes.c_uint16),
+                ("len", ctypes.c_uint16),
+                ("data", ctypes.c_char * len(value_bytes)),
+            ]
+            _pack_ = 1
+
         return kv_store_value(id, len(value_bytes), value_bytes)
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--ssid', '-s', type=str, help='Network name')
-        parser.add_argument('--psk', '-p', type=str, help='Network password')
+        parser.add_argument("--ssid", "-s", type=str, help="Network name")
+        parser.add_argument("--psk", "-p", type=str, help="Network password")
 
     def __init__(self, args):
         self.args = args
 
     def request_struct(self):
-        ssid_bytes = self.args.ssid.encode('utf-8') + b"\x00"
-        psk_bytes = self.args.psk.encode('utf-8') + b"\x00"
+        ssid_bytes = self.args.ssid.encode("utf-8") + b"\x00"
+        psk_bytes = self.args.psk.encode("utf-8") + b"\x00"
 
-        ssid_struct = self.kv_store_value_factory(20, (len(ssid_bytes) + 1).to_bytes(1, 'little') + ssid_bytes)
-        psk_struct = self.kv_store_value_factory(21, (len(psk_bytes) + 1).to_bytes(1, 'little') + psk_bytes)
+        ssid_struct = self.kv_store_value_factory(
+            20, (len(ssid_bytes) + 1).to_bytes(1, "little") + ssid_bytes
+        )
+        psk_struct = self.kv_store_value_factory(
+            21, (len(psk_bytes) + 1).to_bytes(1, "little") + psk_bytes
+        )
 
         request_bytes = bytes(ssid_struct) + bytes(psk_struct)
         return bytes(self.request(2)) + request_bytes
@@ -61,5 +67,6 @@ class wifi_configure(InfuseRpcCommand):
                 print(f"{name} already matched")
             else:
                 print(f"{name} updated")
+
         print_status("SSID", response.rc[0])
         print_status("PSK", response.rc[1])

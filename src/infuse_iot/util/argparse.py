@@ -3,10 +3,13 @@
 import argparse
 import pathlib
 
+
 class ValidFile:
-    def __new__(self, string) -> pathlib.Path:
+    """Filesystem path that exists"""
+
+    def __new__(cls, string) -> pathlib.Path:
         p = pathlib.Path(string)
         if p.exists():
             return p
         else:
-            raise argparse.ArgumentTypeError(f'{string} does not exist')
+            raise argparse.ArgumentTypeError(f"{string} does not exist")

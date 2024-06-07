@@ -5,15 +5,18 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
-from infuse_iot.argparse import ValidFile
+from infuse_iot.util.argparse import ValidFile
 from infuse_iot.commands import InfuseCommand
 
-class csv_plot(InfuseCommand):
+
+class SubCommand(InfuseCommand):
+    NAME = "csv_plot"
     HELP = "Plot CSV data"
     DESCRIPTION = "Plot CSV data"
 
+    @classmethod
     def add_parser(cls, parser):
-        parser.add_argument('--file', '-f', required=True, type=ValidFile)
+        parser.add_argument("--file", "-f", required=True, type=ValidFile)
 
     def __init__(self, args):
         self.file = args.file
@@ -24,11 +27,9 @@ class csv_plot(InfuseCommand):
         import plotly.express as px
 
         df = pd.read_csv(self.file)
-        fig = px.line(df, x = 'time', y = df.columns.values[1:], title=str(self.file))
+        fig = px.line(df, x="time", y=df.columns.values[1:], title=str(self.file))
 
         app = Dash()
-        app.layout = html.Div([
-            dcc.Graph(figure=fig)
-        ])
+        app.layout = html.Div([dcc.Graph(figure=fig)])
 
         app.run_server(debug=True)

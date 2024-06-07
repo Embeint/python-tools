@@ -4,97 +4,177 @@ import ctypes
 import time
 import random
 import enum
+import base64
+import typing
+from typing import List
 
-from infuse_iot.crypto import hkdf_derive, chachapoly_decrypt, chachapoly_encrypt
+from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
 from infuse_iot.time import InfuseTime
+from infuse_iot.database import DeviceDatabase
 
-class data_types(enum.IntEnum):
-    ECHO_REQ = 0
-    ECHO_RSP = 1
-    TDF = 2
-    RPC_CMD = 3
-    RPC_DATA = 4
-    RPC_DATA_ACK = 5
-    RPC_RSP = 6
 
-class KeyDeriver:
-    _network_keys = {
-        0x123456: b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-    }
-    _network_rotation_freq = {
-        0: 60,
-        1: 60*60,
-        2: 24*60*60,
-        3: 7*24*60*60,
-    }
-    _device_keys = {
-        1234: b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f",
-        1235: b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x20",
-    }
+class JsonSerializer:
+    """ "
+    Class that can be trivially serialized to json.
+    Requires that every internal field maps to an argument
+    of the same name in __init__, with proper type hints.
+    """
 
-    def __init__(self):
-        self._cache = {}
+    def to_json(self):
+        """Convert simple class to json"""
+        out = {}
+        for name, val in self.__dict__.items():
+            if isinstance(val, enum.Enum):
+                out[name] = val.value
+            elif isinstance(val, bytes):
+                out[name] = base64.b64encode(val).decode("utf-8")
+            elif isinstance(val, list):
+                out[name] = [x.to_json() for x in val]
+            elif isinstance(val, JsonSerializer):
+                out[name] = val.to_json()
+            else:
+                out[name] = val
+        return out
 
-    def derive(self, ids):
-        if ids in self._cache:
-            return self._cache[ids]
+    @classmethod
+    def from_json(cls, json):
+        """Construct simple class from json"""
+        args = {}
+        for name, type_hint in typing.get_type_hints(cls.__init__).items():
+            if type_hint is bytes:
+                val = base64.b64decode(json[name].encode("utf-8"))
+            elif isinstance(json[name], list):
+                val = [typing.get_args(type_hint)[0].from_json(x) for x in json[name]]
+            else:
+                val = type_hint(json[name])
+            args[name] = val
+        return cls(**args)
 
-        if ids[2] & 0x8000:
-            # Device Encryption
-            base = self._device_keys[ids[1]]
-            salt = ids[3]
+
+class ePacketHop(JsonSerializer):
+    """Base ePacket hop class"""
+
+    class interfaces(enum.Enum):
+        """Interface options"""
+
+        SERIAL = 0
+        UDP = 1
+
+    class auths(enum.Enum):
+        """Authorisation options"""
+
+        DEVICE = 0
+        NETWORK = 1
+
+    def __init__(self, address: int, interface: interfaces, auth: auths):
+        self.address = address
+        self.interface = interface
+        self.auth = auth
+
+
+class ePacketHopIn(ePacketHop):
+    """Incoming ePacket hops"""
+
+    def __init__(
+        self,
+        address: int,
+        interface: ePacketHop.interfaces,
+        auth: ePacketHop.auths,
+        auth_id: int,
+        gps_time: int,
+        sequence: int,
+        rssi: int,
+    ):
+        super().__init__(address, interface, auth)
+        self.auth_id = auth_id
+        self.sequence = sequence
+        self.gps_time = gps_time
+        self.rssi = rssi
+
+
+class ePacketHopOut(ePacketHop):
+    """Outgoing ePacket hops"""
+
+    @classmethod
+    def serial(cls, auth=ePacketHop.auths.DEVICE):
+        """Local serial hop"""
+        return cls(0, cls.interfaces.SERIAL, auth)
+
+
+class ePacket(JsonSerializer):
+    class types(enum.Enum):
+        ECHO_REQ = 0
+        ECHO_RSP = 1
+        TDF = 2
+        RPC_CMD = 3
+        RPC_DATA = 4
+        RPC_DATA_ACK = 5
+        RPC_RSP = 6
+
+    def __init__(self, route: List[ePacketHop], ptype: types, payload: bytes):
+        self.ptype = ptype
+        self.route = route
+        self.payload = payload
+
+
+class ePacketIn(ePacket):
+    """ePacket received by a gateway"""
+
+    @classmethod
+    def from_serial(cls, database: DeviceDatabase, frame: bytes):
+        header = ePacketSerialHeader.from_buffer_copy(frame)
+        if header.flags & 0x8000:
+            database.observe_serial(header.device_id, device_id=header.key_metadata)
+            key = database.serial_device_key(header.device_id, header.gps_time)
         else:
-            # Network Encryption
-            base = self._network_keys[ids[3]]
-            freq_idx = (ids[2] & 0x7000) >> 12
-            salt = ids[4] // self._network_rotation_freq[freq_idx]
+            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            key = database.serial_network_key(header.device_id, header.gps_time)
 
-        derived = hkdf_derive(base, salt.to_bytes(4, 'little'), ids[0])
-        self._cache[ids] = derived
-        return derived
+        decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
 
-class ePacketDecoder:
-    def __init__(self):
-        self._key_deriver = KeyDeriver()
-        self._seq = 0
+        return cls([header.hop_info()], cls.types(header.type), decrypted)
 
-    def decode_serial(self, serial_frame: bytes) -> dict:
-        header = ePacketSerialHeader.from_buffer_copy(serial_frame)
-        derived_key = self._key_deriver.derive(header.key_identifiers())
-        decrypted = chachapoly_decrypt(derived_key, serial_frame[:11], serial_frame[11:23], serial_frame[23:])
 
-        packet = {
-            "device": header.device_id,
-            "pkt_type": data_types(header.type),
-            "unix_time": InfuseTime.unix_time_from_gps_seconds(header.gps_time),
-            "sequence": header.sequence,
-            "raw": decrypted.hex(),
-        }
-        return packet
+class ePacketOut(ePacket):
+    """ePacket to be transmitted by gateway"""
 
-    def encode_serial(self, packet: dict) -> bytes:
-        # Create header
+    def to_serial(self, database: DeviceDatabase):
+        """Encode and encrypt packet for serial transmission"""
         gps_time = InfuseTime.gps_seconds_from_unix(int(time.time()))
+        route = self.route[0]
+
+        if route.auth == ePacketHop.auths.NETWORK:
+            flags = 0x0000
+            key_metadata = database.devices[route.address].network_id
+            key = database.serial_network_key(route.address, gps_time)
+        else:
+            flags = 0x8000
+            key_metadata = database.devices[route.address].device_id
+            key = database.serial_device_key(route.address, gps_time)
+
+        # Create header
         header = ePacketSerialHeader(
-            version = 0,
-            type = packet['pkt_type'],
-            flags = 0x8000,
-            gps_time = gps_time,
-            sequence = self._seq,
-            entropy = random.randint(0, 65535)
+            version=0,
+            type=self.ptype.value,
+            flags=flags,
+            gps_time=gps_time,
+            sequence=0,
+            entropy=random.randint(0, 65535),
         )
-        header.key_metadata = 1
-        header.device_id = packet['device']
-        self._seq += 1
+        header.key_metadata = key_metadata
+        header.device_id = database.gateway
 
         # Encrypt and return payload
         header_bytes = bytes(header)
-        derived_key = self._key_deriver.derive(header.key_identifiers())
-        ciphertext = chachapoly_encrypt(derived_key, header_bytes[:11], header_bytes[11:], bytes.fromhex(packet['raw']))
+        ciphertext = chachapoly_encrypt(
+            key, header_bytes[:11], header_bytes[11:], self.payload
+        )
         return header_bytes + ciphertext
+
 
 class ePacketSerialHeader(ctypes.Structure):
     """Serial packet header"""
+
     _fields_ = [
         ("version", ctypes.c_uint8),
         ("type", ctypes.c_uint8),
@@ -110,11 +190,11 @@ class ePacketSerialHeader(ctypes.Structure):
 
     @property
     def key_metadata(self):
-        return int.from_bytes(self._key_metadata, 'little')
+        return int.from_bytes(self._key_metadata, "little")
 
     @key_metadata.setter
     def key_metadata(self, value):
-        self._key_metadata[:] = value.to_bytes(3, 'little')
+        self._key_metadata[:] = value.to_bytes(3, "little")
 
     @property
     def device_id(self):
@@ -122,13 +202,27 @@ class ePacketSerialHeader(ctypes.Structure):
 
     @device_id.setter
     def device_id(self, value):
-        self._device_id_upper = (value >> 32)
-        self._device_id_lower = (value & 0xFFFFFF)
+        self._device_id_upper = value >> 32
+        self._device_id_lower = value & 0xFFFFFF
 
     @classmethod
     def parse(cls, frame: bytes):
         """Parse serial frame into header and payload length"""
-        return ePacketSerialHeader.from_buffer_copy(frame), len(frame) - ctypes.sizeof(ePacketSerialHeader) - 16
+        return (
+            ePacketSerialHeader.from_buffer_copy(frame),
+            len(frame) - ctypes.sizeof(ePacketSerialHeader) - 16,
+        )
 
-    def key_identifiers(self):
-        return (b"serial", self.device_id, self.flags, self.key_metadata, self.gps_time)
+    def hop_info(self) -> ePacketHopIn:
+        auth_level = (
+            ePacketHop.auths.DEVICE if self.flags & 0x8000 else ePacketHop.auths.NETWORK
+        )
+        return ePacketHopIn(
+            self.device_id,
+            ePacketHop.interfaces.SERIAL,
+            auth_level,
+            self.key_metadata,
+            self.gps_time,
+            self.sequence,
+            0,
+        )
