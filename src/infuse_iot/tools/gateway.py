@@ -66,6 +66,34 @@ class LocalRpcServer:
             cb(pkt, header.return_code, pkt.payload[ctypes.sizeof(header) :])
 
 
+def query_device_key(
+    port: SerialPort,
+    ddb: DeviceDatabase,
+    rpc: LocalRpcServer,
+    cb_event: threading.Event = None,
+):
+    def security_state_done(pkt: ePacketIn, _: int, response: bytes):
+        cloud_key = response[:32]
+        device_key = response[32:64]
+        network_id = int.from_bytes(response[64:68], "little")
+
+        ddb.observe_security_state(
+            pkt.route[0].address, cloud_key, device_key, network_id
+        )
+        if cb_event is not None:
+            cb_event.set()
+
+    # Generate security_state RPC
+    cmd_pkt = rpc.generate(30000, random.randbytes(16), security_state_done)
+    encrypted = cmd_pkt.to_serial(ddb)
+    # Write to serial port
+    Console.log_tx(cmd_pkt.ptype, len(encrypted))
+    port.write(encrypted)
+    if cb_event is not None:
+        # Wait for the response
+        cb_event.wait(1.0)
+
+
 class SignaledThread(threading.Thread):
     """Thread that can be signaled to terminate"""
 
@@ -110,7 +138,7 @@ class SerialRxThread(SignaledThread):
             return
         for b in rx:
             frame_byte, frame = self._reconstructor.send(b)
-            if frame:
+            if frame and self._server is not None:
                 self._handle_serial_frame(frame)
 
             if not frame_byte:
@@ -126,14 +154,23 @@ class SerialRxThread(SignaledThread):
             # Decode the serial packet
             try:
                 decoded = ePacketIn.from_serial(self._ddb, frame)
-            except (KeyError, cryptography.exceptions.InvalidTag) as e:
+            except KeyError:
+                query_device_key(self._port, self._ddb, self._rpc, None)
+                Console.log_info(
+                    f"Dropping {len(frame)} byte packet to query device key..."
+                )
+                return
+            except cryptography.exceptions.InvalidTag as e:
                 Console.log_error(f"Failed to decode {len(frame)} byte packet {e}")
                 return
-            Console.log_rx(decoded.ptype, len(frame))
-            # Handle any local RPC responses
-            self._rpc.handle(decoded)
-            # Forward to clients
-            self._server.broadcast(decoded)
+
+            # Iterate over all contained subpackets
+            for pkt in decoded:
+                Console.log_rx(pkt.ptype, len(frame))
+                # Handle any local RPC responses
+                self._rpc.handle(pkt)
+                # Forward to clients
+                self._server.broadcast(pkt)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 
@@ -160,6 +197,10 @@ class SerialTxThread(SignaledThread):
         self._queue.put(pkt)
 
     def _iter(self):
+        if self._server is None:
+            time.sleep(1.0)
+            return
+
         # Loop while there are packets to send
         while pkt := self._server.receive():
             if self._ddb.gateway is None:
@@ -176,27 +217,7 @@ class SerialTxThread(SignaledThread):
                 final.address
             ):
                 cb_event = threading.Event()
-
-                def security_state_done(pkt: ePacketIn, _: int, response: bytes):
-                    cloud_key = response[:32]
-                    device_key = response[32:64]
-                    network_id = int.from_bytes(response[64:68], "little")
-
-                    self._ddb.observe_security_state(
-                        pkt.route[0].address, cloud_key, device_key, network_id
-                    )
-                    cb_event.set()
-
-                # Generate security_state RPC
-                cmd_pkt = self._rpc.generate(
-                    30000, random.randbytes(16), security_state_done
-                )
-                encrypted = cmd_pkt.to_serial(self._ddb)
-                # Write to serial port
-                Console.log_tx(cmd_pkt.ptype, len(encrypted))
-                self._port.write(encrypted)
-                # Wait for the response
-                cb_event.wait(1.0)
+                query_device_key(self._port, self._ddb, self._rpc, cb_event)
 
             # Encode and encrypt payload
             encrypted = pkt.to_serial(self._ddb)
@@ -216,12 +237,22 @@ class SubCommand(InfuseCommand):
         parser.add_argument(
             "--serial", type=ValidFile, required=True, help="Gateway serial port"
         )
+        parser.add_argument(
+            "--display-only",
+            "-d",
+            action="store_true",
+            help="No networking, only display serial",
+        )
 
     def __init__(self, args):
         self.port = SerialPort(args.serial)
-        self.server = LocalServer(default_multicast_address())
         self.ddb = DeviceDatabase()
-        self.rpc_server = LocalRpcServer(self.ddb)
+        if args.display_only:
+            self.server = None
+            self.rpc_server = None
+        else:
+            self.server = LocalServer(default_multicast_address())
+            self.rpc_server = LocalRpcServer(self.ddb)
         Console.init()
 
     def run(self):

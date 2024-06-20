@@ -26,7 +26,6 @@ class SubCommand(InfuseCommand):
             default=20,
             help="Number of times to send each sized packet",
         )
-        return
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)

@@ -37,6 +37,7 @@ class SubCommand(InfuseCommand):
 
         _fields_ = [
             ("request_id", ctypes.c_uint32),
+            ("command_id", ctypes.c_uint16),
             ("return_code", ctypes.c_int16),
         ]
         _pack_ = 1
@@ -93,5 +94,6 @@ class SubCommand(InfuseCommand):
                 rsp.payload[ctypes.sizeof(self.rpc_response_header) :]
             )
             # Handle the response
+            print(f"ADDR: {rsp.route[0].address}")
             self._command.handle_response(rsp_header.return_code, rsp_data)
             break

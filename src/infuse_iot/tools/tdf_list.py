@@ -31,6 +31,7 @@ class SubCommand(InfuseCommand):
             if msg.ptype != ePacket.types.TDF:
                 continue
             decoded = self._decoder.decode(msg.payload)
+            source = msg.route[0]
 
             table = []
 
@@ -44,9 +45,14 @@ class SubCommand(InfuseCommand):
 
                 for idx, (n, f, p) in enumerate(t.iter_fields()):
                     if idx == 0:
-                        t = tdf["time"] if tdf["time"] is not None else 0
-                        table.append([InfuseTime.utc_time_string(t), name, n, f, p])
+                        if tdf["time"] is not None:
+                            t = InfuseTime.utc_time_string(tdf["time"])
+                        else:
+                            t = "N/A"
+                        table.append([t, name, n, f, p])
                     else:
                         table.append([None, None, n, f, p])
 
+            h = f"ID: {source.address:016x} Interface: {source.interface.name} RSSI: {source.rssi} dBm"
+            print(h)
             print(tabulate.tabulate(table, tablefmt="simple"))

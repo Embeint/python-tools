@@ -43,6 +43,11 @@ class DeviceDatabase:
         if network_id is not None:
             self.devices[address].network_id = network_id
         if device_id is not None:
+            if (
+                self.devices[address].device_id is not None
+                and self.devices[address].device_id != device_id
+            ):
+                raise KeyError(f"Device key for {address:016x} has changed")
             self.devices[address].device_id = device_id
 
     def observe_security_state(
