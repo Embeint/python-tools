@@ -7,7 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import os
 
-from infuse_iot.epacket import ePacket
+from infuse_iot.epacket import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot.tdf import TDF
@@ -30,9 +30,10 @@ class SubCommand(InfuseCommand):
             msg = self._client.receive()
             if msg is None:
                 continue
-            if msg.ptype != ePacket.types.TDF:
+            if msg.ptype != InfuseType.TDF:
                 continue
             decoded = self._decoder.decode(msg.payload)
+            source = msg.route[0]
 
             for tdf in decoded:
 
@@ -40,7 +41,10 @@ class SubCommand(InfuseCommand):
                 lines = []
                 reading_time = tdf["time"]
                 for reading in tdf["data"]:
-                    time_str = InfuseTime.utc_time_string_log(reading_time)
+                    if reading_time is None:
+                        time_str = ""
+                    else:
+                        time_str = InfuseTime.utc_time_string_log(reading_time)
                     line = (
                         time_str
                         + ","
@@ -52,7 +56,7 @@ class SubCommand(InfuseCommand):
 
                 # Handle file creation/opening
                 first = tdf["data"][0]
-                filename = f"{msg['device']}_{first.name}.csv"
+                filename = f"{source.infuse_id:016x}_{first.name}.csv"
                 if filename not in files:
                     if os.path.exists(filename):
                         print(f"Appending to existing {filename}")

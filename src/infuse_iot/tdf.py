@@ -3,6 +3,8 @@
 import ctypes
 import enum
 
+from typing import List, Dict
+
 from infuse_iot.time import InfuseTime
 from infuse_iot.generated import tdf_definitions
 
@@ -63,7 +65,7 @@ class TDF:
         b = buffer[ctypes.sizeof(type) :]
         return v, b
 
-    def decode(self, buffer: bytes):
+    def decode(self, buffer: bytes) -> List[Dict]:
         output = []
         buffer_time = None
 

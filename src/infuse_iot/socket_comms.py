@@ -4,7 +4,7 @@ import socket
 import struct
 import json
 
-from infuse_iot.epacket import ePacketIn, ePacketOut
+from infuse_iot.epacket import PacketReceived, PacketOutput
 
 
 def default_multicast_address():
@@ -27,17 +27,17 @@ class LocalServer:
         self._input_sock.bind(unicast_address)
         self._input_sock.settimeout(0.2)
 
-    def broadcast(self, packet: ePacketIn):
+    def broadcast(self, packet: PacketReceived):
         self._output_sock.sendto(
             json.dumps(packet.to_json()).encode("utf-8"), self._output_addr
         )
 
-    def receive(self) -> ePacketOut | None:
+    def receive(self) -> PacketOutput | None:
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return ePacketOut.from_json(json.loads(data.decode("utf-8")))
+        return PacketOutput.from_json(json.loads(data.decode("utf-8")))
 
     def close(self):
         self._input_sock.close()
@@ -66,17 +66,17 @@ class LocalClient:
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
 
-    def send(self, packet: ePacketOut):
+    def send(self, packet: PacketOutput):
         self._output_sock.sendto(
             json.dumps(packet.to_json()).encode("utf-8"), self._output_addr
         )
 
-    def receive(self) -> ePacketIn | None:
+    def receive(self) -> PacketReceived | None:
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return ePacketIn.from_json(json.loads(data.decode("utf-8")))
+        return PacketReceived.from_json(json.loads(data.decode("utf-8")))
 
     def close(self):
         self._input_sock.close()

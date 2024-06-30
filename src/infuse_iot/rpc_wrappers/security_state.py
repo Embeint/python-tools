@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.epacket import ePacketHop
+from infuse_iot.epacket import Auth
 
 
 class challenge_response_header(ctypes.LittleEndianStructure):
@@ -72,7 +72,7 @@ class security_state(InfuseRpcCommand):
         self.pem = args.pem
 
     def auth_level(self):
-        return ePacketHop.auths.NETWORK
+        return Auth.NETWORK
 
     def request_struct(self):
         return self.request(self.challenge)

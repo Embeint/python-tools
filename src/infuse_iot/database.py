@@ -11,6 +11,14 @@ from requests.auth import HTTPBasicAuth
 from infuse_iot.util.crypto import hkdf_derive
 
 
+class NoKeyError(KeyError):
+    pass
+
+
+class KeyChangedError(KeyError):
+    pass
+
+
 class DeviceDatabase:
     """Database of current device state"""
 
@@ -47,7 +55,7 @@ class DeviceDatabase:
                 self.devices[address].device_id is not None
                 and self.devices[address].device_id != device_id
             ):
-                raise KeyError(f"Device key for {address:016x} has changed")
+                raise KeyChangedError(f"Device key for {address:016x} has changed")
             self.devices[address].device_id = device_id
 
     def observe_security_state(
@@ -86,7 +94,7 @@ class DeviceDatabase:
     def serial_network_key(self, address: int, gps_time: int):
         """Network key for serial interface"""
         if address not in self.devices:
-            raise KeyError
+            raise NoKeyError
         base = self._network_keys[self.devices[address].network_id]
         time_idx = gps_time // (60 * 60 * 24)
 
@@ -95,11 +103,13 @@ class DeviceDatabase:
     def serial_device_key(self, address: int, gps_time: int):
         """Device key for serial interface"""
         if address not in self.devices:
-            raise KeyError
+            raise NoKeyError
         d = self.devices[address]
         if d.device_id is None:
-            raise KeyError
+            raise NoKeyError
         base = self.devices[address].shared_key
+        if base is None:
+            raise NoKeyError
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._serial_key(base, time_idx)

@@ -7,7 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import tabulate
 
-from infuse_iot.epacket import ePacket
+from infuse_iot.epacket import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot.tdf import TDF
@@ -28,7 +28,7 @@ class SubCommand(InfuseCommand):
             msg = self._client.receive()
             if msg is None:
                 continue
-            if msg.ptype != ePacket.types.TDF:
+            if msg.ptype != InfuseType.TDF:
                 continue
             decoded = self._decoder.decode(msg.payload)
             source = msg.route[0]
@@ -53,6 +53,8 @@ class SubCommand(InfuseCommand):
                     else:
                         table.append([None, None, n, f, p])
 
-            h = f"ID: {source.address:016x} Interface: {source.interface.name} RSSI: {source.rssi} dBm"
-            print(h)
+            print(f"Infuse ID: {source.infuse_id:016x}")
+            print(f"Interface: {source.interface.name}")
+            print(f"  Address: {source.interface_address}")
+            print(f"     RSSI: {source.rssi} dBm")
             print(tabulate.tabulate(table, tablefmt="simple"))

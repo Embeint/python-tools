@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import argparse
 import ctypes
 
-from infuse_iot.epacket import ePacketHop
+from infuse_iot.epacket import Auth
 
 
 class InfuseCommand:
@@ -36,7 +36,7 @@ class InfuseRpcCommand:
 
     def auth_level(self):
         """Authentication level to run command with"""
-        return ePacketHop.auths.DEVICE
+        return Auth.DEVICE
 
     def request_struct(self):
         raise NotImplementedError

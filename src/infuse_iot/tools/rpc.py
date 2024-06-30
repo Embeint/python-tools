@@ -11,7 +11,7 @@ import ctypes
 import importlib
 import pkgutil
 
-from infuse_iot.epacket import ePacket, ePacketOut, ePacketHopOut
+from infuse_iot.epacket import InfuseType, PacketOutput, HopOutput
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 
@@ -74,16 +74,16 @@ class SubCommand(InfuseCommand):
         params = self._command.request_struct()
 
         request_packet = bytes(header) + bytes(params)
-        pkt = ePacketOut(
-            [ePacketHopOut.serial(self._command.auth_level())],
-            ePacket.types.RPC_CMD,
+        pkt = PacketOutput(
+            [HopOutput.serial(self._command.auth_level())],
+            InfuseType.RPC_CMD,
             request_packet,
         )
         self._client.send(pkt)
         # Wait for responses
         while rsp := self._client.receive():
             # RPC response packet
-            if rsp.ptype != ePacket.types.RPC_RSP:
+            if rsp.ptype != InfuseType.RPC_RSP:
                 continue
             rsp_header = self.rpc_response_header.from_buffer_copy(rsp.payload)
             # Response to the request we sent
@@ -94,6 +94,6 @@ class SubCommand(InfuseCommand):
                 rsp.payload[ctypes.sizeof(self.rpc_response_header) :]
             )
             # Handle the response
-            print(f"ADDR: {rsp.route[0].address}")
+            print(f"INFUSE ID: {rsp.route[0].infuse_id:016x}")
             self._command.handle_response(rsp_header.return_code, rsp_data)
             break

@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import random
 import time
 
-from infuse_iot.epacket import ePacket, ePacketHop, ePacketHopOut
+from infuse_iot.epacket import InfuseType, PacketOutput, HopOutput
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 
@@ -43,13 +43,9 @@ class SubCommand(InfuseCommand):
             # Queue packets up to the maximum queue size
             while (sent != num) and (pending < queue_size):
                 payload = sent.to_bytes(4, "little") + random.randbytes(size - 4)
-                pkt = ePacket(
-                    [
-                        ePacketHop(
-                            0, ePacketHop.interfaces.SERIAL, ePacketHopOut.auths.DEVICE
-                        )
-                    ],
-                    ePacket.types.ECHO_REQ,
+                pkt = PacketOutput(
+                    [HopOutput.serial()],
+                    InfuseType.ECHO_REQ,
                     payload,
                 )
                 self._client.send(pkt)
@@ -57,7 +53,7 @@ class SubCommand(InfuseCommand):
                 pending += 1
             # Wait for responses
             if rsp := self._client.receive():
-                if rsp.ptype != ePacket.types.ECHO_RSP:
+                if rsp.ptype != InfuseType.ECHO_RSP:
                     continue
                 responses += 1
                 pending -= 1

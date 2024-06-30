@@ -18,8 +18,16 @@ from infuse_iot.util.console import Console
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
-from infuse_iot.epacket import ePacketIn, ePacketOut, ePacketHop, ePacketHopOut
 from infuse_iot.database import DeviceDatabase
+
+from infuse_iot.epacket import (
+    InfuseType,
+    Auth,
+    PacketReceived,
+    PacketOutput,
+    Interface,
+    HopOutput,
+)
 
 # from infuse_iot.rpc_wrappers.security_state import security_state
 from infuse_iot.tools.rpc import SubCommand as RpcSubCommand
@@ -36,9 +44,9 @@ class LocalRpcServer:
     def generate(self, command: int, args: bytes, cb):
         """Generate RPC packet from arguments"""
         cmd_bytes = bytes(RpcSubCommand.rpc_request_header(self._cnt, command)) + args
-        cmd_pkt = ePacketOut(
-            [ePacketHopOut.serial(ePacketHopOut.auths.NETWORK)],
-            ePacketOut.types.RPC_CMD,
+        cmd_pkt = PacketOutput(
+            [HopOutput.serial(Auth.NETWORK)],
+            InfuseType.RPC_CMD,
             cmd_bytes,
         )
         cmd_pkt.route[0].address = self._ddb.gateway
@@ -46,10 +54,10 @@ class LocalRpcServer:
         self._cnt += 1
         return cmd_pkt
 
-    def handle(self, pkt: ePacketIn):
+    def handle(self, pkt: PacketReceived):
         """Handle received packets"""
         # Only care about RPC responses
-        if pkt.ptype != ePacketIn.types.RPC_RSP:
+        if pkt.ptype != InfuseType.RPC_RSP:
             return
 
         # Determine if the response is to a command we initiated
@@ -77,13 +85,13 @@ class CommonThreadState:
         self.rpc = rpc
 
     def query_device_key(self, cb_event: threading.Event = None):
-        def security_state_done(pkt: ePacketIn, _: int, response: bytes):
+        def security_state_done(pkt: PacketReceived, _: int, response: bytes):
             cloud_key = response[:32]
             device_key = response[32:64]
             network_id = int.from_bytes(response[64:68], "little")
 
             self.ddb.observe_security_state(
-                pkt.route[0].address, cloud_key, device_key, network_id
+                pkt.route[0].infuse_id, cloud_key, device_key, network_id
             )
             if cb_event is not None:
                 cb_event.set()
@@ -152,7 +160,7 @@ class SerialRxThread(SignaledThread):
         try:
             # Decode the serial packet
             try:
-                decoded = ePacketIn.from_serial(self._common.ddb, frame)
+                decoded = PacketReceived.from_serial(self._common.ddb, frame)
             except KeyError:
                 self._common.query_device_key(None)
                 Console.log_info(
@@ -201,17 +209,16 @@ class SerialTxThread(SignaledThread):
                 continue
 
             # Set gateway address
-            if pkt.route[-1].interface == ePacketHop.interfaces.SERIAL:
-                pkt.route[-1].address = self._common.ddb.gateway
+            assert pkt.route[0].interface == Interface.SERIAL
+            pkt.route[0].address = self._common.ddb.gateway
 
-            # Do we have the final public key if required?
-            final = pkt.route[0]
-            if (
-                final.auth == ePacketHop.auths.DEVICE
-                and not self._common.ddb.has_public_key(final.address)
-            ):
-                cb_event = threading.Event()
-                self._common.query_device_key(cb_event)
+            # Do we have the device public keys we need?
+            for hop in pkt.route:
+                if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(
+                    hop.infuse_id
+                ):
+                    cb_event = threading.Event()
+                    self._common.query_device_key(cb_event)
 
             # Encode and encrypt payload
             encrypted = pkt.to_serial(self._common.ddb)
