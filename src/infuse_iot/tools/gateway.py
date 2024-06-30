@@ -9,12 +9,9 @@ import time
 import threading
 import queue
 import ctypes
-import datetime
 import random
 import cryptography
 import cryptography.exceptions
-
-import colorama
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
@@ -66,32 +63,40 @@ class LocalRpcServer:
             cb(pkt, header.return_code, pkt.payload[ctypes.sizeof(header) :])
 
 
-def query_device_key(
-    port: SerialPort,
-    ddb: DeviceDatabase,
-    rpc: LocalRpcServer,
-    cb_event: threading.Event = None,
-):
-    def security_state_done(pkt: ePacketIn, _: int, response: bytes):
-        cloud_key = response[:32]
-        device_key = response[32:64]
-        network_id = int.from_bytes(response[64:68], "little")
+class CommonThreadState:
+    def __init__(
+        self,
+        server: LocalServer,
+        port: SerialPort,
+        ddb: DeviceDatabase,
+        rpc: LocalRpcServer,
+    ):
+        self.server = server
+        self.port = port
+        self.ddb = ddb
+        self.rpc = rpc
 
-        ddb.observe_security_state(
-            pkt.route[0].address, cloud_key, device_key, network_id
-        )
+    def query_device_key(self, cb_event: threading.Event = None):
+        def security_state_done(pkt: ePacketIn, _: int, response: bytes):
+            cloud_key = response[:32]
+            device_key = response[32:64]
+            network_id = int.from_bytes(response[64:68], "little")
+
+            self.ddb.observe_security_state(
+                pkt.route[0].address, cloud_key, device_key, network_id
+            )
+            if cb_event is not None:
+                cb_event.set()
+
+        # Generate security_state RPC
+        cmd_pkt = self.rpc.generate(30000, random.randbytes(16), security_state_done)
+        encrypted = cmd_pkt.to_serial(self.ddb)
+        # Write to serial port
+        Console.log_tx(cmd_pkt.ptype, len(encrypted))
+        self.port.write(encrypted)
         if cb_event is not None:
-            cb_event.set()
-
-    # Generate security_state RPC
-    cmd_pkt = rpc.generate(30000, random.randbytes(16), security_state_done)
-    encrypted = cmd_pkt.to_serial(ddb)
-    # Write to serial port
-    Console.log_tx(cmd_pkt.ptype, len(encrypted))
-    port.write(encrypted)
-    if cb_event is not None:
-        # Wait for the response
-        cb_event.wait(1.0)
+            # Wait for the response
+            cb_event.wait(1.0)
 
 
 class SignaledThread(threading.Thread):
@@ -117,15 +122,9 @@ class SerialRxThread(SignaledThread):
 
     def __init__(
         self,
-        server: LocalServer,
-        port: SerialPort,
-        ddb: DeviceDatabase,
-        rpc: LocalRpcServer,
+        common: CommonThreadState,
     ):
-        self._server = server
-        self._port = port
-        self._ddb = ddb
-        self._rpc = rpc
+        self._common = common
         self._reconstructor = SerialFrame.reconstructor()
         self._reconstructor.send(None)
         self._line = ""
@@ -133,12 +132,12 @@ class SerialRxThread(SignaledThread):
 
     def _iter(self):
         # Read bytes from serial port
-        rx = self._port.read_bytes(1024)
+        rx = self._common.port.read_bytes(1024)
         if len(rx) == 0:
             return
         for b in rx:
             frame_byte, frame = self._reconstructor.send(b)
-            if frame and self._server is not None:
+            if frame and self._common.server is not None:
                 self._handle_serial_frame(frame)
 
             if not frame_byte:
@@ -153,9 +152,9 @@ class SerialRxThread(SignaledThread):
         try:
             # Decode the serial packet
             try:
-                decoded = ePacketIn.from_serial(self._ddb, frame)
+                decoded = ePacketIn.from_serial(self._common.ddb, frame)
             except KeyError:
-                query_device_key(self._port, self._ddb, self._rpc, None)
+                self._common.query_device_key(None)
                 Console.log_info(
                     f"Dropping {len(frame)} byte packet to query device key..."
                 )
@@ -168,9 +167,9 @@ class SerialRxThread(SignaledThread):
             for pkt in decoded:
                 Console.log_rx(pkt.ptype, len(frame))
                 # Handle any local RPC responses
-                self._rpc.handle(pkt)
+                self._common.rpc.handle(pkt)
                 # Forward to clients
-                self._server.broadcast(pkt)
+                self._common.server.broadcast(pkt)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 
@@ -180,15 +179,9 @@ class SerialTxThread(SignaledThread):
 
     def __init__(
         self,
-        server: LocalServer,
-        port: SerialPort,
-        ddb: DeviceDatabase,
-        rpc: LocalRpcServer,
+        common: CommonThreadState,
     ):
-        self._server = server
-        self._port = port
-        self._ddb = ddb
-        self._rpc = rpc
+        self._common = common
         self._queue = queue.Queue()
         super().__init__(self._iter)
 
@@ -197,34 +190,35 @@ class SerialTxThread(SignaledThread):
         self._queue.put(pkt)
 
     def _iter(self):
-        if self._server is None:
+        if self._common.server is None:
             time.sleep(1.0)
             return
 
         # Loop while there are packets to send
-        while pkt := self._server.receive():
-            if self._ddb.gateway is None:
+        while pkt := self._common.server.receive():
+            if self._common.ddb.gateway is None:
                 Console.log_error("Gateway address unknown")
                 continue
 
             # Set gateway address
             if pkt.route[-1].interface == ePacketHop.interfaces.SERIAL:
-                pkt.route[-1].address = self._ddb.gateway
+                pkt.route[-1].address = self._common.ddb.gateway
 
             # Do we have the final public key if required?
             final = pkt.route[0]
-            if final.auth == ePacketHop.auths.DEVICE and not self._ddb.has_public_key(
-                final.address
+            if (
+                final.auth == ePacketHop.auths.DEVICE
+                and not self._common.ddb.has_public_key(final.address)
             ):
                 cb_event = threading.Event()
-                query_device_key(self._port, self._ddb, self._rpc, cb_event)
+                self._common.query_device_key(cb_event)
 
             # Encode and encrypt payload
-            encrypted = pkt.to_serial(self._ddb)
+            encrypted = pkt.to_serial(self._common.ddb)
 
             # Write to serial port
             Console.log_tx(pkt.ptype, len(encrypted))
-            self._port.write(encrypted)
+            self._common.port.write(encrypted)
 
 
 class SubCommand(InfuseCommand):
@@ -253,6 +247,9 @@ class SubCommand(InfuseCommand):
         else:
             self.server = LocalServer(default_multicast_address())
             self.rpc_server = LocalRpcServer(self.ddb)
+        self._common = CommonThreadState(
+            self.server, self.port, self.ddb, self.rpc_server
+        )
         Console.init()
 
     def run(self):
@@ -262,8 +259,8 @@ class SubCommand(InfuseCommand):
         self.port.ping()
 
         # Start threads
-        rx_thread = SerialRxThread(self.server, self.port, self.ddb, self.rpc_server)
-        tx_thread = SerialTxThread(self.server, self.port, self.ddb, self.rpc_server)
+        rx_thread = SerialRxThread(self._common)
+        tx_thread = SerialTxThread(self._common)
         rx_thread.start()
         tx_thread.start()
 
