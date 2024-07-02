@@ -36,8 +36,8 @@ class SubCommand(InfuseCommand):
             table = []
 
             for tdf in decoded:
-                t = tdf["data"][-1]
-                num = len(tdf["data"])
+                t = tdf.data[-1]
+                num = len(tdf.data)
                 if num > 1:
                     name = f"{t.name}[{num-1}]"
                 else:
@@ -45,8 +45,12 @@ class SubCommand(InfuseCommand):
 
                 for idx, (n, f, p) in enumerate(t.iter_fields()):
                     if idx == 0:
-                        if tdf["time"] is not None:
-                            t = InfuseTime.utc_time_string(tdf["time"])
+                        if tdf.time is not None:
+                            if tdf.period is None:
+                                t = ""
+                            else:
+                                offset = (len(tdf.data) - 1) * tdf.period
+                                t = InfuseTime.utc_time_string(tdf.time + offset)
                         else:
                             t = "N/A"
                         table.append([t, name, n, f, p])

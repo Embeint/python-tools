@@ -55,6 +55,7 @@ class readings:
         _fields_ = [
 	        ('application', ctypes.c_uint32),
 	        ('version', structs.tdf_struct_mcuboot_img_sem_ver),
+	        ('kv_crc', ctypes.c_uint32),
 	        ('uptime', ctypes.c_uint32),
 	        ('reboots', ctypes.c_uint16),
         ]
@@ -62,6 +63,7 @@ class readings:
         _postfix_ = {
 	        'application': '',
 	        'version': '',
+	        'kv_crc': '',
 	        'uptime': '',
 	        'reboots': '',
         }

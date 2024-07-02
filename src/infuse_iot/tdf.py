@@ -56,16 +56,27 @@ class TDF:
         def offset(self):
             return int.from_bytes(self._offset, byteorder="little", signed=True)
 
+    class Reading:
+        def __init__(
+            self,
+            time: float,
+            period: None | float,
+            data: List[tdf_definitions.readings._reading_type],
+        ):
+            self.time = time
+            self.period = period
+            self.data = data
+
     def __init__(self):
         pass
 
     @staticmethod
-    def _buffer_pull(buffer: bytes, type: ctypes.LittleEndianStructure):
-        v = type.from_buffer_copy(buffer)
-        b = buffer[ctypes.sizeof(type) :]
+    def _buffer_pull(buffer: bytes, ctype: ctypes.LittleEndianStructure):
+        v = ctype.from_buffer_copy(buffer)
+        b = buffer[ctypes.sizeof(ctype) :]
         return v, b
 
-    def decode(self, buffer: bytes) -> List[Dict]:
+    def decode(self, buffer: bytes) -> List[Reading]:
         output = []
         buffer_time = None
 
@@ -109,10 +120,10 @@ class TDF:
 
                 data = [id_type.from_buffer_copy(data_bytes)]
 
-            reading = {"time": time, "data": data}
+            period = None
             if array_header is not None:
-                reading["period"] = array_header.period / 65536
+                period = array_header.period / 65536
 
-            output.append(reading)
+            output.append(self.Reading(time, period, data))
 
         return output

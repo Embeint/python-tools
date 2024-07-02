@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import os
+import time
 
 from infuse_iot.epacket import InfuseType
 from infuse_iot.commands import InfuseCommand
@@ -39,10 +40,11 @@ class SubCommand(InfuseCommand):
 
                 # Construct reading strings
                 lines = []
-                reading_time = tdf["time"]
-                for reading in tdf["data"]:
+                reading_time = tdf.time
+                for reading in tdf.data:
                     if reading_time is None:
-                        time_str = ""
+                        # Log with local time
+                        time_str = InfuseTime.utc_time_string_log(time.time())
                     else:
                         time_str = InfuseTime.utc_time_string_log(reading_time)
                     line = (
@@ -51,19 +53,19 @@ class SubCommand(InfuseCommand):
                         + ",".join([str(r[1]) for r in reading.iter_fields()])
                     )
                     lines.append(line)
-                    if "period" in tdf:
-                        reading_time += tdf["period"]
+                    if tdf.period is not None:
+                        reading_time += tdf.period
 
                 # Handle file creation/opening
-                first = tdf["data"][0]
+                first = tdf.data[0]
                 filename = f"{source.infuse_id:016x}_{first.name}.csv"
                 if filename not in files:
                     if os.path.exists(filename):
                         print(f"Appending to existing {filename}")
-                        files[filename] = open(filename, "a")
+                        files[filename] = open(filename, "a", encoding="utf-8")
                     else:
                         print(f"Opening new {filename}")
-                        files[filename] = open(filename, "w")
+                        files[filename] = open(filename, "w", encoding="utf-8")
                         headings = "time," + ",".join(
                             [r[0] for r in first.iter_fields()]
                         )
