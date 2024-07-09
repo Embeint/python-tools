@@ -59,6 +59,13 @@ class fault(InfuseRpcCommand):
             const=20,
             help="Instruction access exception",
         )
+        group.add_argument(
+            "--wdog",
+            dest="fault",
+            action="store_const",
+            const=128,
+            help="Watchdog timeout exception",
+        )
 
     def __init__(self, args):
         self._fault_type = args.fault

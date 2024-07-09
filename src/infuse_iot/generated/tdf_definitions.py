@@ -4,9 +4,11 @@
 
 import ctypes
 
+from collections.abc import Generator
+
 class structs:
     class _struct_type(ctypes.LittleEndianStructure):
-        def iter_fields(self):
+        def iter_fields(self) -> Generator[str, ctypes._SimpleCData]:
             for field in self._fields_:
                 if field[0][0] == '_':
                     f_name = field[0][1:]
@@ -36,7 +38,7 @@ class structs:
 
 class readings:
     class _reading_type(ctypes.LittleEndianStructure):
-        def iter_fields(self):
+        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, str]:
             for field in self._fields_:
                 if field[0][0] == '_':
                     f_name = field[0][1:]
@@ -87,9 +89,9 @@ class readings:
         def soc(self):
             return self._soc * 0.01
 
-    class environmental(_reading_type):
-        """General battery state"""
-        name = "ENVIRONMENTAL"
+    class ambient_temp_pres_hum(_reading_type):
+        """Ambient temperature, pressure & humidity"""
+        name = "AMBIENT_TEMP_PRES_HUM"
         _fields_ = [
 	        ('_temperature', ctypes.c_int32),
 	        ('_pressure', ctypes.c_uint32),
@@ -113,6 +115,21 @@ class readings:
         @property
         def humidity(self):
             return self._humidity * 0.01
+
+    class ambient_temperature(_reading_type):
+        """Ambient temperature"""
+        name = "AMBIENT_TEMPERATURE"
+        _fields_ = [
+	        ('_temperature', ctypes.c_int32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+	        'temperature': 'deg',
+        }
+
+        @property
+        def temperature(self):
+            return self._temperature * 0.001
 
     class acc_2g(_reading_type):
         """Accelerometer +-2G"""
@@ -227,7 +244,8 @@ class readings:
 id_type_mapping = {
     1: readings.announce,
     2: readings.battery_state,
-    3: readings.environmental,
+    3: readings.ambient_temp_pres_hum,
+    4: readings.ambient_temperature,
     10: readings.acc_2g,
     11: readings.acc_4g,
     12: readings.acc_8g,

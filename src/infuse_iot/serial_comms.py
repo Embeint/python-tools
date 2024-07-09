@@ -53,8 +53,8 @@ class SerialPort:
         return self._ser.read(num)
 
     def ping(self):
-        """0 length data frame to request a response"""
-        self._ser.write(SerialFrame.SYNC + b"\x00\x00")
+        """Magic 1 byte frame to request a response"""
+        self._ser.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4D")
         self._ser.flush()
 
     def write(self, packet: bytes):

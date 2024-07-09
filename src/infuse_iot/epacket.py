@@ -36,6 +36,7 @@ class InfuseType(enum.Enum):
     RPC_DATA_ACK = 5
     RPC_RSP = 6
     RECEIVED_EPACKET = 7
+    KEY_IDS = 127
 
 
 class Interface(enum.Enum):

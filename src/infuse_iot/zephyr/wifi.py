@@ -2,6 +2,7 @@
 
 import enum
 
+
 class WiFiState(enum.IntEnum):
     DISCONNECTED = 0
     INTERFACE_DISABLED = 1
@@ -13,6 +14,8 @@ class WiFiState(enum.IntEnum):
     HANDSHAKE_4WAY = 7
     GROUP_HANDSHAKE = 8
     COMPLETED = 9
+    UNKNOWN = 10
+
 
 class InterfaceMode(enum.IntEnum):
     INFRASTRUCTURE_STATION = 0
@@ -21,6 +24,7 @@ class InterfaceMode(enum.IntEnum):
     P2P_GO = 3
     P2P_GROUP_FORMATION = 4
     MESH = 5
+
 
 class FrequencyBand(enum.IntEnum):
     BAND_2_4_GHZ = 0
@@ -34,6 +38,7 @@ class FrequencyBand(enum.IntEnum):
             self.BAND_6_GHZ: "6 GHz",
         }
         return pretty_names[self.value]
+
 
 class LinkMode(enum.IntEnum):
     WIFI_802_11 = 0
@@ -59,6 +64,7 @@ class LinkMode(enum.IntEnum):
             self.WIFI_802_11be: "802.11.be",
         }
         return pretty_names[self.value]
+
 
 class SecurityType(enum.IntEnum):
     NONE = 0
