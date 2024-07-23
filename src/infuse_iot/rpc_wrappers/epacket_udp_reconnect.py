@@ -5,15 +5,13 @@ import ctypes
 from infuse_iot.commands import InfuseRpcCommand
 
 
-class time_set(InfuseRpcCommand):
-    HELP = "Set the current device time"
-    DESCRIPTION = "Set the current device time"
-    COMMAND_ID = 4
+class epacket_udp_reconnect(InfuseRpcCommand):
+    HELP = "Request device to reconnect to UDP server"
+    DESCRIPTION = "Request device to reconnect to UDP server"
+    COMMAND_ID = 15
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("epoch_time", ctypes.c_uint64),
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -28,14 +26,10 @@ class time_set(InfuseRpcCommand):
         pass
 
     def request_struct(self):
-        from infuse_iot.time import InfuseTime
-        import time
-
-        return self.request(InfuseTime.epoch_time_from_unix(time.time()))
+        return self.request()
 
     def handle_response(self, return_code, response):
+        print(return_code)
         if return_code != 0:
-            print(f"Failed to set current time ({return_code})")
+            print(f"Failed to request reconnect ({return_code})")
             return
-        else:
-            print("Set current time on device")

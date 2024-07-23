@@ -2,13 +2,12 @@
 
 import binascii
 import base64
-import urllib.parse
 from typing import Dict
 
 import requests
-from requests.auth import HTTPBasicAuth
 
 from infuse_iot.util.crypto import hkdf_derive
+from infuse_iot.credentials import get_api_key
 
 
 class NoKeyError(KeyError):
@@ -46,6 +45,7 @@ class DeviceDatabase:
         """Update device state based on observed packet"""
         if self.gateway is None:
             self.gateway = address
+            print("GATEWAY", hex(self.gateway))
         if address not in self.devices:
             self.devices[address] = self.DeviceState(address)
         if network_id is not None:
@@ -70,11 +70,15 @@ class DeviceDatabase:
         self.devices[address].public_key = device_key
 
         # Query cloud for shared key
-        key_enc = base64.b64encode(device_key).decode("utf-8")
-        url = f"http://api.dev.infuse-iot.com/key/sharedSecret?publicKey={urllib.parse.quote_plus(key_enc)}"
-        resp = requests.get(
+        url = "https://api.dev.infuse-iot.com/key/sharedSecret"
+        headers = {
+            "x-api-key": f"Bearer {get_api_key()}",
+            "Content-Type": "application/json",
+        }
+        resp = requests.post(
             url,
-            auth=HTTPBasicAuth("admin", "eBrtfxwUpgVv"),
+            headers=headers,
+            json={"key": base64.b64encode(device_key).decode("utf-8")},
             timeout=2.0,
         )
         # Decode and save shared key response
@@ -88,6 +92,7 @@ class DeviceDatabase:
     def has_public_key(self, address: int):
         """Does the database have the public key for this device?"""
         if address not in self.devices:
+            print(address, "not in list")
             return False
         return self.devices[address].public_key is not None
 

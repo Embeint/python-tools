@@ -115,8 +115,11 @@ class lte_state(InfuseRpcCommand):
             or lte.state == reg_class.SEARCHING
         )
         if valid:
-            freq_dl, freq_ul = z_lte.LteBands.earfcn_to_freq(lte.earfcn)
-            freq_string = f"(UL: {int(freq_ul)}MHz, DL: {int(freq_dl)}MHz)"
+            if lte.earfcn != 0:
+                freq_dl, freq_ul = z_lte.LteBands.earfcn_to_freq(lte.earfcn)
+                freq_string = f" (UL: {int(freq_ul)}MHz, DL: {int(freq_dl)}MHz)"
+            else:
+                freq_string = ""
             country = z_lte.MobileCountryCodes.name_from_mcc(lte.mcc)
             active_str = (
                 f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
@@ -133,7 +136,7 @@ class lte_state(InfuseRpcCommand):
             print(f"\t        Cell ID: {lte.cell_id}")
             print(f"\t  Tracking Area: {lte.tac}")
             print(f"\t            TAU: {lte.tau} s")
-            print(f"\t         EARFCN: {lte.earfcn} {freq_string}")
+            print(f"\t         EARFCN: {lte.earfcn}{freq_string}")
             print(f"\t           Band: {lte.band}")
             print(f"\tPSM Active Time: {active_str}")
             print(f"\t  eDRX Interval: {edrx_interval_str}")

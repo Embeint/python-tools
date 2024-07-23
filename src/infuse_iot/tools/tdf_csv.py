@@ -20,9 +20,16 @@ class SubCommand(InfuseCommand):
     HELP = "Save received TDFs in CSV files"
     DESCRIPTION = "Save received TDFs in CSV files"
 
-    def __init__(self, _):
+    @classmethod
+    def add_parser(cls, parser):
+        parser.add_argument(
+            "--unix", action="store_true", help="Save timestamps as unix"
+        )
+
+    def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
+        self.args = args
 
     def run(self):
         files = {}
@@ -42,11 +49,16 @@ class SubCommand(InfuseCommand):
                 lines = []
                 reading_time = tdf.time
                 for reading in tdf.data:
+                    if self.args.unix:
+                        time_func = str
+                    else:
+                        time_func = InfuseTime.utc_time_string_log
+
                     if reading_time is None:
                         # Log with local time
-                        time_str = InfuseTime.utc_time_string_log(time.time())
+                        time_str = time_func(time.time())
                     else:
-                        time_str = InfuseTime.utc_time_string_log(reading_time)
+                        time_str = time_func(reading_time)
                     line = (
                         time_str
                         + ","

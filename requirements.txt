@@ -3,3 +3,4 @@ colorama
 pylink-square
 pyserial
 tabulate
+keyring

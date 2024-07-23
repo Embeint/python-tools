@@ -29,9 +29,9 @@ class InfuseTime:
         return gps_seconds + cls.GPS_UNIX_OFFSET - cls.UNIX_LEAP_SECONDS
 
     @classmethod
-    def unix_time_from_civil(cls, civil_time: int) -> float:
-        whole = civil_time // 65536
-        partial = civil_time % 65536
+    def unix_time_from_epoch(cls, epoch_time: int) -> float:
+        whole = epoch_time // 65536
+        partial = epoch_time % 65536
         return cls.unix_time_from_gps_seconds(whole) + (partial / 65536)
 
     @classmethod
@@ -39,7 +39,7 @@ class InfuseTime:
         return unix_seconds - cls.GPS_UNIX_OFFSET + cls.UNIX_LEAP_SECONDS
 
     @classmethod
-    def civil_time_from_unix(cls, unix_time: float) -> int:
+    def epoch_time_from_unix(cls, unix_time: float) -> int:
         whole = int(unix_time)
         frac = unix_time - whole
         return (cls.gps_seconds_from_unix(whole) * 65536) + int(frac * 65536)

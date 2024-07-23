@@ -66,7 +66,7 @@ class zbus_channel_state(InfuseRpcCommand):
 
         from infuse_iot.time import InfuseTime
 
-        pub_time = InfuseTime.unix_time_from_civil(response.pub_timestamp)
+        pub_time = InfuseTime.unix_time_from_epoch(response.pub_timestamp)
         data_bytes = bytes(response.data)
 
         print(f"\t  Publish time: {InfuseTime.utc_time_string(pub_time)}")

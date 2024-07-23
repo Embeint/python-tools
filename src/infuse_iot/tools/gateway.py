@@ -16,9 +16,10 @@ import cryptography.exceptions
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.serial_comms import SerialPort, SerialFrame
+from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
 from infuse_iot.database import DeviceDatabase
+from infuse_iot.credentials import set_api_key
 
 from infuse_iot.epacket import (
     InfuseType,
@@ -49,7 +50,7 @@ class LocalRpcServer:
             InfuseType.RPC_CMD,
             cmd_bytes,
         )
-        cmd_pkt.route[0].address = self._ddb.gateway
+        cmd_pkt.route[0].infuse_id = self._ddb.gateway
         self._queued[self._cnt] = cb
         self._cnt += 1
         return cmd_pkt
@@ -210,7 +211,7 @@ class SerialTxThread(SignaledThread):
 
             # Set gateway address
             assert pkt.route[0].interface == Interface.SERIAL
-            pkt.route[0].address = self._common.ddb.gateway
+            pkt.route[0].infuse_id = self._common.ddb.gateway
 
             # Do we have the device public keys we need?
             for hop in pkt.route:
@@ -235,18 +236,24 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument(
-            "--serial", type=ValidFile, required=True, help="Gateway serial port"
-        )
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument("--serial", type=ValidFile, help="Gateway serial port")
+        group.add_argument("--rtt", type=str, help="RTT serial port")
         parser.add_argument(
             "--display-only",
             "-d",
             action="store_true",
             help="No networking, only display serial",
         )
+        parser.add_argument("--api-key", type=str, help="Update saved API key")
 
     def __init__(self, args):
-        self.port = SerialPort(args.serial)
+        if args.api_key is not None:
+            set_api_key(args.api_key)
+        if args.serial is not None:
+            self.port = SerialPort(args.serial)
+        elif args.rtt is not None:
+            self.port = RttPort(args.rtt)
         self.ddb = DeviceDatabase()
         if args.display_only:
             self.server = None

@@ -17,7 +17,7 @@ class time_get(InfuseRpcCommand):
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
             ("time_source", ctypes.c_uint8),
-            ("civil_time", ctypes.c_uint64),
+            ("epoch_time", ctypes.c_uint64),
             ("sync_age", ctypes.c_uint32),
         ]
         _pack_ = 1
@@ -40,7 +40,7 @@ class time_get(InfuseRpcCommand):
         from infuse_iot.time import InfuseTime, InfuseTimeSource
         import time
 
-        t_remote = InfuseTime.unix_time_from_civil(response.civil_time)
+        t_remote = InfuseTime.unix_time_from_epoch(response.epoch_time)
         t_local = time.time()
 
         print(f"\t     Source: {InfuseTimeSource(response.time_source)}")

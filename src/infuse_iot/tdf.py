@@ -92,15 +92,15 @@ class TDF:
             elif time_flags == self.flags.TIMESTAMP_ABSOLUTE:
                 t, buffer = self._buffer_pull(buffer, self.AbsoluteTime)
                 buffer_time = t.seconds * 65536 + t.subseconds
-                time = InfuseTime.unix_time_from_civil(buffer_time)
+                time = InfuseTime.unix_time_from_epoch(buffer_time)
             elif time_flags == self.flags.TIMESTAMP_RELATIVE:
                 t, buffer = self._buffer_pull(buffer, self.RelativeTime)
                 buffer_time += t.offset
-                time = InfuseTime.unix_time_from_civil(buffer_time)
+                time = InfuseTime.unix_time_from_epoch(buffer_time)
             elif time_flags == self.flags.TIMESTAMP_EXTENDED_RELATIVE:
                 t, buffer = self._buffer_pull(buffer, self.ExtendedRelativeTime)
                 buffer_time += t.offset
-                time = InfuseTime.unix_time_from_civil(buffer_time)
+                time = InfuseTime.unix_time_from_epoch(buffer_time)
 
             array_header = None
             if header.id_flags & self.flags.TIME_ARRAY:
@@ -109,7 +109,7 @@ class TDF:
                 total_data = buffer[:total_len]
                 buffer = buffer[total_len:]
 
-                time = InfuseTime.unix_time_from_civil(buffer_time)
+                time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
                     id_type.from_buffer_copy(total_data[x : x + header.len])
                     for x in range(0, total_len, header.len)

@@ -309,12 +309,12 @@ class PacketOutput(Serializable):
 
         if route.auth == Auth.NETWORK:
             flags = Flags.ENCR_NETWORK
-            key_metadata = database.devices[route.address].network_id
-            key = database.serial_network_key(route.address, gps_time)
+            key_metadata = database.devices[route.infuse_id].network_id
+            key = database.serial_network_key(route.infuse_id, gps_time)
         else:
             flags = Flags.ENCR_DEVICE
-            key_metadata = database.devices[route.address].device_id
-            key = database.serial_device_key(route.address, gps_time)
+            key_metadata = database.devices[route.infuse_id].device_id
+            key = database.serial_device_key(route.infuse_id, gps_time)
 
         # Create header
         header = CtypeSerialFrame(

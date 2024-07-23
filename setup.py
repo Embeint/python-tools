@@ -25,6 +25,7 @@ setuptools.setup(
         "pylink-square",
         "pyserial",
         "tabulate",
+        "keyring",
     ],
     python_requires=">=3.10",
     entry_points={"console_scripts": ("infuse = infuse_iot.app.main:main",)},
