@@ -6,6 +6,9 @@ from typing import Dict
 
 import requests
 
+from infuse_iot.api_client import Client
+from infuse_iot.api_client.api.default import get_shared_secret
+from infuse_iot.api_client.models import Key
 from infuse_iot.util.crypto import hkdf_derive
 from infuse_iot.credentials import get_api_key
 
@@ -69,22 +72,15 @@ class DeviceDatabase:
         self.devices[address].network_id = network_id
         self.devices[address].public_key = device_key
 
-        # Query cloud for shared key
-        url = "https://api.dev.infuse-iot.com/key/sharedSecret"
-        headers = {
-            "x-api-key": f"Bearer {get_api_key()}",
-            "Content-Type": "application/json",
-        }
-        resp = requests.post(
-            url,
-            headers=headers,
-            json={"key": base64.b64encode(device_key).decode("utf-8")},
-            timeout=2.0,
+        client = Client(base_url="https://api.dev.infuse-iot.com").with_headers(
+            {"x-api-key": f"Bearer {get_api_key()}"}
         )
-        # Decode and save shared key response
-        self.devices[address].shared_key = base64.b64decode(
-            resp.json()["key"].encode("utf-8")
-        )
+
+        with client as client:
+            body = Key(base64.b64encode(device_key).decode("utf-8"))
+            response = get_shared_secret.sync(client=client, body=body)
+            key = base64.b64decode(response.key)
+            self.devices[address].shared_key = key
 
     def _serial_key(self, base, time_idx):
         return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"serial")
