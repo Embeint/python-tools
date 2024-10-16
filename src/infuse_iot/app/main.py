@@ -36,7 +36,7 @@ class InfuseApp:
         tool.run()
 
     def _load_tools(self, parser: argparse.ArgumentParser):
-        tools_parser = parser.add_subparsers(title="commands", metavar="<command>")
+        tools_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         # Iterate over tools
         for _, name, _ in pkgutil.walk_packages(infuse_iot.tools.__path__):
