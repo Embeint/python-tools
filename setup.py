@@ -21,8 +21,11 @@ setuptools.setup(
     include_package_data=True,
     install_requires=[
         "argcomplete",
+        "attrs",
         "colorama",
+        "httpx",
         "pylink-square",
+        "pynrfjprog",
         "pyserial",
         "tabulate",
         "keyring",
