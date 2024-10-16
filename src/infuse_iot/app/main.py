@@ -14,6 +14,7 @@ import argcomplete
 
 import infuse_iot.tools
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.version import __version__
 
 
 class InfuseApp:
@@ -22,6 +23,9 @@ class InfuseApp:
     def __init__(self):
         self.args = None
         self.parser = argparse.ArgumentParser("infuse")
+        self.parser.add_argument(
+            "--version", action="version", version=f"{__version__}"
+        )
         self._tools = {}
         # Load tools
         self._load_tools(self.parser)
@@ -36,7 +40,9 @@ class InfuseApp:
         tool.run()
 
     def _load_tools(self, parser: argparse.ArgumentParser):
-        tools_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
+        tools_parser = parser.add_subparsers(
+            title="commands", metavar="<command>", required=True
+        )
 
         # Iterate over tools
         for _, name, _ in pkgutil.walk_packages(infuse_iot.tools.__path__):
