@@ -1,6 +1,9 @@
 argcomplete
+attrs
 colorama
+httpx
 pylink-square
+pynrfjprog
 pyserial
 tabulate
 keyring
