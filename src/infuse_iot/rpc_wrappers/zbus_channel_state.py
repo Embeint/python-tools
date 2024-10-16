@@ -75,7 +75,7 @@ class zbus_channel_state(InfuseRpcCommand):
         try:
             data = self._channel.data.from_buffer_copy(data_bytes)
             table = []
-            for n, f, p in data.iter_fields():
+            for n, f, p, d in data.iter_fields():
                 table.append([n, f, p])
             print(tabulate.tabulate(table, tablefmt="simple"))
         except Exception as _:

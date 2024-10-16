@@ -20,6 +20,7 @@ class InfuseApp:
     """The infuse 'application' object"""
 
     def __init__(self):
+        self.args = None
         self.parser = argparse.ArgumentParser("infuse")
         self._tools = {}
         # Load tools

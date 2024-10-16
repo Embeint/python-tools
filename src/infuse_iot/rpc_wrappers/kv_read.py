@@ -37,7 +37,7 @@ class kv_read(InfuseRpcCommand):
                         _fields_ = [
                             ("id", ctypes.c_uint16),
                             ("len", ctypes.c_int16),
-                            ("data", ctypes.c_char * header.len),
+                            ("data", ctypes.c_ubyte * header.len),
                         ]
                         _pack_ = 1
 
@@ -66,8 +66,13 @@ class kv_read(InfuseRpcCommand):
 
         for r in response:
             if r.len > 0:
+                b = bytes(r.data)
+
                 print(f"Key: {r.id} ({r.len} bytes):")
-                print(f"\tHex: {r.data.hex()}")
-                print(f"\tStr: {str(r.data)}")
+                print(f"\tHex: {b.hex()}")
+                try:
+                    print(f"\tStr: {b.decode('utf-8')}")
+                except UnicodeDecodeError:
+                    pass
             else:
                 print(f"Key: {r.id} (Failed to read '{errno.errorcode[-r.len]}')")

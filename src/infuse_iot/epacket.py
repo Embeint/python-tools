@@ -36,6 +36,9 @@ class InfuseType(enum.Enum):
     RPC_DATA_ACK = 5
     RPC_RSP = 6
     RECEIVED_EPACKET = 7
+    ACK = 8
+    MEMFAULT_CHUNK = 30
+
     KEY_IDS = 127
 
 

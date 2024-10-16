@@ -46,6 +46,13 @@ class fault(InfuseRpcCommand):
             help="Stack overflow exception",
         )
         group.add_argument(
+            "--assert",
+            dest="fault",
+            action="store_const",
+            const=3,
+            help="Assertion failure",
+        )
+        group.add_argument(
             "--undef-instr",
             dest="fault",
             action="store_const",

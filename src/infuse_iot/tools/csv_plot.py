@@ -17,9 +17,13 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--file", "-f", required=True, type=ValidFile)
+        parser.add_argument(
+            "--start", type=str, default="2024-01-01", help="Display data after"
+        )
 
     def __init__(self, args):
         self.file = args.file
+        self.start = args.start
 
     def run(self):
         from dash import Dash, dcc, html
@@ -27,7 +31,16 @@ class SubCommand(InfuseCommand):
         import plotly.express as px
 
         df = pd.read_csv(self.file)
-        fig = px.line(df, x="time", y=df.columns.values[1:], title=str(self.file))
+
+        mask = df["time"] >= self.start
+        filtered_df = df.loc[mask]
+
+        fig = px.line(
+            filtered_df,
+            x="time",
+            y=filtered_df.columns.values[1:],
+            title=str(self.file),
+        )
 
         app = Dash()
         app.layout = html.Div([dcc.Graph(figure=fig)])

@@ -37,14 +37,14 @@ class lte_modem_info(InfuseRpcCommand):
             print(f"Failed to query modem info ({return_code})")
             return
 
-        modem_model = response[0]
-        modem_firmware = response[1]
-        modem_esn = response[2]
-        modem_imei = response[3]
-        sim_uicc = response[4]
+        modem_model = bytes(response[0].data)
+        modem_firmware = bytes(response[1].data)
+        modem_esn = bytes(response[2].data)
+        modem_imei = bytes(response[3].data)
+        sim_uicc = bytes(response[4].data)
 
-        print(f"\t   Model: {modem_model.data[1:].decode('utf-8')}")
-        print(f"\tFirmware: {modem_firmware.data[1:].decode('utf-8')}")
-        print(f"\t     ESN: {modem_esn.data[1:].decode('utf-8')}")
-        print(f"\t    IMEI: {int.from_bytes(modem_imei.data, 'little')}")
-        print(f"\t     SIM: {sim_uicc.data[1:].decode('utf-8')}")
+        print(f"\t   Model: {modem_model[1:].decode('utf-8')}")
+        print(f"\tFirmware: {modem_firmware[1:].decode('utf-8')}")
+        print(f"\t     ESN: {modem_esn[1:].decode('utf-8')}")
+        print(f"\t    IMEI: {int.from_bytes(modem_imei, 'little')}")
+        print(f"\t     SIM: {sim_uicc[1:].decode('utf-8')}")

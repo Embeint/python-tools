@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
+import argparse
 import time
 import threading
 import queue
@@ -12,6 +13,8 @@ import ctypes
 import random
 import cryptography
 import cryptography.exceptions
+import io
+import base64
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
@@ -129,14 +132,12 @@ class SignaledThread(threading.Thread):
 class SerialRxThread(SignaledThread):
     """Receive serial frames from the serial port"""
 
-    def __init__(
-        self,
-        common: CommonThreadState,
-    ):
+    def __init__(self, common: CommonThreadState, log: io.TextIOWrapper):
         self._common = common
         self._reconstructor = SerialFrame.reconstructor()
         self._reconstructor.send(None)
         self._line = ""
+        self._log = log
         super().__init__(self._iter)
 
     def _iter(self):
@@ -152,10 +153,29 @@ class SerialRxThread(SignaledThread):
             if not frame_byte:
                 c = chr(b)
                 if c == "\n":
+                    if self._log is not None:
+                        self._log.write(self._line)
                     print(self._line)
                     self._line = ""
                 else:
                     self._line += c
+
+    def _handle_memfault_pkt(self, pkt: PacketReceived):
+        class memfault_chunk_header(ctypes.LittleEndianStructure):
+            _fields_ = [
+                ("len", ctypes.c_uint16),
+                ("cnt", ctypes.c_uint8),
+            ]
+            _pack_ = 1
+
+        p = pkt.payload
+        while len(p) > 0:
+            hdr = memfault_chunk_header.from_buffer_copy(p)
+            chunk = p[3 : 3 + hdr.len]
+            p = p[3 + hdr.len :]
+            print(
+                f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}"
+            )
 
     def _handle_serial_frame(self, frame):
         try:
@@ -177,6 +197,9 @@ class SerialRxThread(SignaledThread):
                 Console.log_rx(pkt.ptype, len(frame))
                 # Handle any local RPC responses
                 self._common.rpc.handle(pkt)
+                # Handle any Memfault chunks
+                if pkt.ptype == InfuseType.MEMFAULT_CHUNK:
+                    self._handle_memfault_pkt(pkt)
                 # Forward to clients
                 self._common.server.broadcast(pkt)
         except (ValueError, KeyError) as e:
@@ -245,6 +268,15 @@ class SubCommand(InfuseCommand):
             action="store_true",
             help="No networking, only display serial",
         )
+        parser.add_argument(
+            "--log",
+            "-l",
+            metavar="filename",
+            const=f"{int(time.time())}_log.txt",
+            nargs="?",
+            type=argparse.FileType("w"),
+            help="Save serial output to file",
+        )
         parser.add_argument("--api-key", type=str, help="Update saved API key")
 
     def __init__(self, args):
@@ -264,6 +296,7 @@ class SubCommand(InfuseCommand):
         self._common = CommonThreadState(
             self.server, self.port, self.ddb, self.rpc_server
         )
+        self.log = args.log
         Console.init()
 
     def run(self):
@@ -273,7 +306,7 @@ class SubCommand(InfuseCommand):
         self.port.ping()
 
         # Start threads
-        rx_thread = SerialRxThread(self._common)
+        rx_thread = SerialRxThread(self._common, self.log)
         tx_thread = SerialTxThread(self._common)
         rx_thread.start()
         tx_thread.start()
@@ -297,3 +330,6 @@ class SubCommand(InfuseCommand):
             self.port.close()
         except Exception:
             pass
+
+        if self.log:
+            self.log.flush()

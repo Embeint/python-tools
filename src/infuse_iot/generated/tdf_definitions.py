@@ -5,17 +5,18 @@
 import ctypes
 
 from collections.abc import Generator
+from typing import Callable
 
 class structs:
     class _struct_type(ctypes.LittleEndianStructure):
-        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str]:
+        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, Callable]:
             for field in self._fields_:
                 if field[0][0] == '_':
                     f_name = field[0][1:]
                 else:
                     f_name = field[0]
                 val = getattr(self, f_name)
-                yield f_name, val, self._postfix_[f_name]
+                yield f_name, val, self._postfix_[f_name], self._display_fn_.get(f_name)
 
     class tdf_struct_mcuboot_img_sem_ver(_struct_type):
         """MCUboot semantic versioning struct"""
@@ -32,6 +33,9 @@ class structs:
             'revision': '',
             'build_num': '',
         }
+        _display_fn_ = {
+            'build_num': hex,
+        }
 
     class tdf_struct_xyz_16bit(_struct_type):
         """Generic 3-axis sensor reading"""
@@ -46,6 +50,8 @@ class structs:
             'y': '',
             'z': '',
         }
+        _display_fn_ = {
+        }
 
     class tdf_struct_gcs_location(_struct_type):
         """Geographic Coordinate System location"""
@@ -59,6 +65,8 @@ class structs:
             'latitude': 'deg',
             'longitude': 'deg',
             'height': 'm',
+        }
+        _display_fn_ = {
         }
 
         @property
@@ -84,6 +92,8 @@ class structs:
             'eci': '',
             'tac': '',
         }
+        _display_fn_ = {
+        }
 
     class tdf_struct_lte_cell_id_global(_struct_type):
         """LTE cell ID (Global)"""
@@ -100,10 +110,12 @@ class structs:
             'eci': '',
             'tac': '',
         }
+        _display_fn_ = {
+        }
 
 class readings:
     class _reading_type(ctypes.LittleEndianStructure):
-        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str]:
+        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, Callable]:
             for field in self._fields_:
                 if field[0][0] == '_':
                     f_name = field[0][1:]
@@ -111,12 +123,12 @@ class readings:
                     f_name = field[0]
                 val = getattr(self, f_name)
                 if isinstance(val, ctypes.LittleEndianStructure):
-                    for subfield_name, subfield_val, subfield_postfix in val.iter_fields():
-                        yield f'{f_name}.{subfield_name}', subfield_val, subfield_postfix
+                    for subfield_name, subfield_val, subfield_postfix, display_fn in val.iter_fields():
+                        yield f'{f_name}.{subfield_name}', subfield_val, subfield_postfix, display_fn
                 elif isinstance(val, ctypes.Array):
-                    yield f_name, list(val), self._postfix_[f_name]
+                    yield f_name, list(val), self._postfix_[f_name], self._display_fn_.get(f_name)
                 else:
-                    yield f_name, val, self._postfix_[f_name]
+                    yield f_name, val, self._postfix_[f_name], self._display_fn_.get(f_name)
 
     class announce(_reading_type):
         """Common announcement packet"""
@@ -140,6 +152,10 @@ class readings:
             'reboots': '',
             'flags': '',
         }
+        _display_fn_ = {
+            'kv_crc': hex,
+            'flags': hex,
+        }
 
     class battery_state(_reading_type):
         """General battery state"""
@@ -155,6 +171,8 @@ class readings:
             'current_ua': 'uA',
             'soc': '%',
         }
+        _display_fn_ = {
+        }
 
     class ambient_temp_pres_hum(_reading_type):
         """Ambient temperature, pressure & humidity"""
@@ -169,6 +187,8 @@ class readings:
             'temperature': 'deg',
             'pressure': 'kPa',
             'humidity': '%',
+        }
+        _display_fn_ = {
         }
 
         @property
@@ -193,6 +213,8 @@ class readings:
         _postfix_ = {
             'temperature': 'deg',
         }
+        _display_fn_ = {
+        }
 
         @property
         def temperature(self):
@@ -209,6 +231,8 @@ class readings:
         _postfix_ = {
             'source': '',
             'shift': 'us',
+        }
+        _display_fn_ = {
         }
 
         @property
@@ -237,6 +261,11 @@ class readings:
             'param_2': '',
             'thread': '',
         }
+        _display_fn_ = {
+            'hardware_flags': hex,
+            'param_1': hex,
+            'param_2': hex,
+        }
 
     class acc_2g(_reading_type):
         """Accelerometer +-2G"""
@@ -247,6 +276,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'sample': '',
+        }
+        _display_fn_ = {
         }
 
     class acc_4g(_reading_type):
@@ -259,6 +290,8 @@ class readings:
         _postfix_ = {
             'sample': '',
         }
+        _display_fn_ = {
+        }
 
     class acc_8g(_reading_type):
         """Accelerometer +-8G"""
@@ -269,6 +302,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'sample': '',
+        }
+        _display_fn_ = {
         }
 
     class acc_16g(_reading_type):
@@ -281,6 +316,8 @@ class readings:
         _postfix_ = {
             'sample': '',
         }
+        _display_fn_ = {
+        }
 
     class gyr_125dps(_reading_type):
         """Gyroscope +-125 DPS"""
@@ -291,6 +328,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'sample': '',
+        }
+        _display_fn_ = {
         }
 
     class gyr_250dps(_reading_type):
@@ -303,6 +342,8 @@ class readings:
         _postfix_ = {
             'sample': '',
         }
+        _display_fn_ = {
+        }
 
     class gyr_500dps(_reading_type):
         """Gyroscope +-500 DPS"""
@@ -313,6 +354,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'sample': '',
+        }
+        _display_fn_ = {
         }
 
     class gyr_1000dps(_reading_type):
@@ -325,6 +368,8 @@ class readings:
         _postfix_ = {
             'sample': '',
         }
+        _display_fn_ = {
+        }
 
     class gyr_2000dps(_reading_type):
         """Gyroscope +-2000 DPS"""
@@ -335,6 +380,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'sample': '',
+        }
+        _display_fn_ = {
         }
 
     class gcs_wgs84_llha(_reading_type):
@@ -350,6 +397,8 @@ class readings:
             'location': '',
             'h_acc': 'm',
             'v_acc': 'm',
+        }
+        _display_fn_ = {
         }
 
         @property
@@ -433,6 +482,12 @@ class readings:
             'head_veh': 'deg',
             'mag_dec': 'deg',
             'mag_acc': 'deg',
+        }
+        _display_fn_ = {
+            'valid': hex,
+            'flags': hex,
+            'flags2': hex,
+            'flags3': hex,
         }
 
         @property
@@ -523,6 +578,8 @@ class readings:
             'rsrp': 'dBm',
             'rsrq': 'dB',
         }
+        _display_fn_ = {
+        }
 
         @property
         def rsrp(self):
@@ -537,6 +594,8 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             'array': '',
+        }
+        _display_fn_ = {
         }
 
 id_type_mapping = {

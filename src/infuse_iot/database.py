@@ -4,8 +4,6 @@ import binascii
 import base64
 from typing import Dict
 
-import requests
-
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.default import get_shared_secret
 from infuse_iot.api_client.models import Key
