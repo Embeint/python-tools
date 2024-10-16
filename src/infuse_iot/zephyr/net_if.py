@@ -2,6 +2,7 @@
 
 import enum
 
+
 class OperationalState(enum.IntEnum):
     UNKNOWN = 0
     NOTPRESENT = 1
@@ -10,6 +11,7 @@ class OperationalState(enum.IntEnum):
     TESTING = 4
     DORMANT = 5
     UP = 6
+
 
 class InterfaceFlags(enum.Flag):
     UP = 0x0001
@@ -26,6 +28,7 @@ class InterfaceFlags(enum.Flag):
     IPV6_NO_ND = 0x0800
     IPV6_NO_MLD = 0x1000
     NO_TX_LOCK = 0x2000
+
 
 class L2Flags(enum.Flag):
     MULTICAST = 0x0001
