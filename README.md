@@ -14,6 +14,8 @@ pip install -e python-tools
 To register for autocompletion (tab complete).
 
 ```
+autoload -Uz compinit
+compinit
 eval "$(register-python-argcomplete infuse)"
 ```
 
