@@ -1,9 +1,13 @@
 argcomplete
 attrs
+cryptography
 colorama
 httpx
 pylink-square
 pynrfjprog
 pyserial
+python-dateutil
+simple-term-menu
 tabulate
+typing-extensions
 keyring
