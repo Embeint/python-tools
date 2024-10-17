@@ -5,10 +5,8 @@ import enum
 import ctypes
 import binascii
 
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from typing import List, Dict, Tuple
-
-from functools import cmp_to_key
 
 
 class ValidationError(Exception):
@@ -26,11 +24,10 @@ class OpCode(enum.IntEnum):
     WRITE_LEN_U12 = 5 << 4
     WRITE_LEN_U20 = 6 << 4
     WRITE_LEN_U32 = 7 << 4
-    WRITE_CACHED = 8 << 4
-    ADDR_SHIFT_S8 = 9 << 4
-    ADDR_SHIFT_S16 = 10 << 4
-    ADDR_SET_U32 = 11 << 4
-    PATCH = 12 << 4
+    ADDR_SHIFT_S8 = 8 << 4
+    ADDR_SHIFT_S16 = 9 << 4
+    ADDR_SET_U32 = 10 << 4
+    PATCH = 11 << 4
     OPCODE_MASK = 0xF0
     DATA_MASK = 0x0F
 
@@ -62,7 +59,6 @@ class Instr:
         b: bytes,
         offset: int,
         original_offset: int,
-        write_cache: List[bytes],
     ):
         """Reconstruct class from bytes"""
         opcode = OpCode.from_byte(b[offset])
@@ -72,24 +68,22 @@ class Instr:
             or opcode == OpCode.COPY_LEN_U20
             or opcode == OpCode.COPY_LEN_U32
         ):
-            return CopyInstr.from_bytes(b, offset, original_offset, write_cache)
+            return CopyInstr.from_bytes(b, offset, original_offset)
         if (
             opcode == OpCode.WRITE_LEN_U4
             or opcode == OpCode.WRITE_LEN_U12
             or opcode == OpCode.WRITE_LEN_U20
             or opcode == OpCode.WRITE_LEN_U32
         ):
-            return WriteInstr.from_bytes(b, offset, original_offset, write_cache)
-        if opcode == OpCode.WRITE_CACHED:
-            return WriteCachedInstr.from_bytes(b, offset, original_offset, write_cache)
+            return WriteInstr.from_bytes(b, offset, original_offset)
         if (
             opcode == OpCode.ADDR_SHIFT_S8
             or opcode == OpCode.ADDR_SHIFT_S16
             or opcode == OpCode.ADDR_SET_U32
         ):
-            return SetAddrInstr.from_bytes(b, offset, original_offset, write_cache)
+            return SetAddrInstr.from_bytes(b, offset, original_offset)
         if opcode == OpCode.PATCH:
-            return PatchInstr.from_bytes(b, offset, original_offset, write_cache)
+            return PatchInstr.from_bytes(b, offset, original_offset)
 
         raise NotImplementedError
 
@@ -133,9 +127,7 @@ class SetAddrInstr(Instr):
             return self.SetAddrU32
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int, _write_cache: List[bytes]
-    ):
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         opcode = b[offset]
         if opcode == OpCode.ADDR_SHIFT_S8:
             s = cls.ShiftAddrS8.from_buffer_copy(b, offset)
@@ -233,9 +225,7 @@ class CopyInstr(Instr):
             return self.CopyU32
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int, _write_cache: List[bytes]
-    ):
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         opcode = OpCode.from_byte(b[offset])
         if opcode == OpCode.COPY_LEN_U4:
             s = cls.CopyU4.from_buffer_copy(b, offset)
@@ -329,9 +319,7 @@ class WriteInstr(Instr):
             return self.WriteU32
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int, _write_cache: List[bytes]
-    ):
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         opcode = OpCode.from_byte(b[offset])
         if opcode == OpCode.WRITE_LEN_U4:
             s = cls.WriteU4.from_buffer_copy(b, offset)
@@ -376,47 +364,6 @@ class WriteInstr(Instr):
         return ctypes.sizeof(self.ctypes_class()) + len(self.data)
 
 
-class WriteCachedInstr(Instr):
-    class WriteCached(ctypes.LittleEndianStructure):
-        op = OpCode.WRITE_CACHED
-        _fields_ = [
-            ("opcode", ctypes.c_uint8),
-        ]
-        _pack_ = 1
-
-    def __init__(self, idx, write_len):
-        self.idx = idx
-        self.write_len = write_len
-
-    def ctypes_class(self):
-        return self.WriteCached
-
-    @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int, write_cache: List[bytes]
-    ):
-        """Reconstruct class from bytes"""
-        instr = cls.WriteCached.from_buffer_copy(b, offset)
-        idx = OpCode.data(instr.opcode)
-        write_len = len(write_cache[idx])
-        return (
-            cls(idx, write_len),
-            ctypes.sizeof(instr),
-            original_offset + write_len,
-        )
-
-    def __bytes__(self):
-        instr = self.ctypes_class()
-        op = instr.op.value | self.idx
-        return bytes(instr(op))
-
-    def __str__(self):
-        return f"WRITE: Cache index {self.idx} ({self.write_len} bytes)"
-
-    def __len__(self):
-        return ctypes.sizeof(self.ctypes_class())
-
-
 class PatchInstr(Instr):
     class PatchData(ctypes.LittleEndianStructure):
         op = OpCode.PATCH
@@ -430,9 +377,7 @@ class PatchInstr(Instr):
         return self.PatchData
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int, _write_cache: List[bytes]
-    ):
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         assert b[offset] == OpCode.PATCH
         operations = []
         length = 1
@@ -525,7 +470,6 @@ class diff:
             ("original_file", ArrayValidation),
             ("constructed_file", ArrayValidation),
             ("patch_file", ArrayValidation),
-            ("write_cache", 128 * ctypes.c_uint8),
             ("header_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
@@ -613,51 +557,6 @@ class diff:
             write_pending = 0
 
         return instr
-
-    @classmethod
-    def _common_writes(cls, instructions: List[Instr]) -> OrderedDict:
-        common = OrderedDict()
-
-        write_chunks = defaultdict(int)
-        for instr in instructions:
-            if isinstance(instr, WriteInstr):
-                if len(instr.data) < 8:
-                    continue
-                write_chunks[instr.data] += 1
-
-        for val, cnt in write_chunks.items():
-            if cnt > 2:
-                common[val] = (cnt - 1) * len(val)
-
-        by_savings = sorted(common.items(), key=lambda x: x[1], reverse=True)
-        allocated = 0
-
-        # This allocation scheme is not necessarily the most efficient.
-        # A 100 byte chunk that saves 1000 bytes would be chosen over
-        # two 50 byte chunks that save 800 bytes each
-        cached = []
-        for write_bytes, _ in by_savings:
-            if len(cached) > 16:
-                break
-            if (1 + len(write_bytes) + allocated) > cls.PatchHeader.cache_size:
-                continue
-            cached.append(write_bytes)
-            allocated += 1 + len(write_bytes)
-
-        # Replace the writes that are of common values
-        out_instr = []
-        for instr in instructions:
-            if isinstance(instr, WriteInstr):
-                if instr.data in cached:
-                    out_instr.append(
-                        WriteCachedInstr(cached.index(instr.data), len(instr.data))
-                    )
-                else:
-                    out_instr.append(instr)
-            else:
-                out_instr.append(instr)
-
-        return cached, out_instr
 
     @classmethod
     def _cleanup_jumps(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
@@ -832,7 +731,6 @@ class diff:
     @classmethod
     def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> List[Instr]:
         best_patch = None
-        best_write_cache = None
         best_patch_len = 2**32
 
         # Find best diff across range
@@ -840,13 +738,11 @@ class diff:
             instr = cls._naive_diff(bin_orig, bin_new, i)
             instr = cls._cleanup_jumps(bin_orig, instr)
             instr = cls._write_crack(bin_orig, instr)
-            write_cache, instr = cls._common_writes(instr)
             instr = cls._merge_operations(instr)
             patch_len = sum([len(i) for i in instr])
 
             if patch_len < best_patch_len:
                 best_patch = instr
-                best_write_cache = write_cache
                 best_patch_len = patch_len
 
         metadata = {
@@ -860,19 +756,10 @@ class diff:
             },
         }
 
-        return metadata, best_write_cache, best_patch
+        return metadata, best_patch
 
     @classmethod
-    def _gen_patch_header(
-        cls, patch_metadata: Dict, write_cache: List[bytes], patch_data: bytes
-    ):
-        cache_bin = b""
-        for entry in write_cache:
-            cache_bin += len(entry).to_bytes(1, "little") + entry
-        cache_bin += (cls.PatchHeader.cache_size - len(cache_bin)) * b"\x00"
-        assert len(cache_bin) == cls.PatchHeader.cache_size
-        c = (ctypes.c_uint8 * cls.PatchHeader.cache_size).from_buffer_copy(cache_bin)
-
+    def _gen_patch_header(cls, patch_metadata: Dict, patch_data: bytes):
         hdr = cls.PatchHeader(
             cls.PatchHeader.magic_value,
             cls.PatchHeader.ArrayValidation(
@@ -887,7 +774,7 @@ class diff:
                 len(patch_data),
                 binascii.crc32(patch_data),
             ),
-            c,
+            # c,
             0,
         )
         hdr_no_crc = bytes(hdr)
@@ -935,24 +822,17 @@ class diff:
                 f"Patch data CRC does not match patch information ({binascii.crc32(data):08x} != {hdr.patch_file.crc:08x})"
             )
 
-        cache = []
-        cache_bin = bytes(hdr.write_cache)
-        while len(cache_bin) and cache_bin[0] != 0:
-            l = cache_bin[0]
-            cache.append(cache_bin[1 : 1 + l])
-            cache_bin = cache_bin[1 + l :]
-
         instructions = []
         patch_offset = 0
         original_offset = 0
         while patch_offset < len(data):
             instr, length, original_offset = Instr.from_bytes(
-                data, patch_offset, original_offset, cache
+                data, patch_offset, original_offset
             )
             patch_offset += length
             instructions.append(instr)
 
-        return metadata, cache, instructions
+        return metadata, instructions
 
     @classmethod
     def generate(
@@ -961,9 +841,9 @@ class diff:
         bin_new: bytes,
         verbose: bool,
     ) -> bytes:
-        meta, cache, instructions = diff._gen_patch_instr(bin_original, bin_new)
+        meta, instructions = diff._gen_patch_instr(bin_original, bin_new)
         patch_data = diff._gen_patch_data(instructions)
-        patch_header = diff._gen_patch_header(meta, cache, patch_data)
+        patch_header = diff._gen_patch_header(meta, patch_data)
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
 
@@ -996,7 +876,7 @@ class diff:
         bin_original: bytes,
         bin_patch: bytes,
     ) -> bytes:
-        meta, cache, instructions = diff._patch_load(bin_patch)
+        meta, instructions = diff._patch_load(bin_patch)
         patched = b""
         orig_offset = 0
 
@@ -1016,9 +896,6 @@ class diff:
             elif isinstance(instr, WriteInstr):
                 patched += instr.data
                 orig_offset += len(instr.data)
-            elif isinstance(instr, WriteCachedInstr):
-                patched += cache[instr.idx]
-                orig_offset += len(cache[instr.idx])
             elif isinstance(instr, SetAddrInstr):
                 orig_offset = instr.new
             elif isinstance(instr, PatchInstr):
@@ -1051,19 +928,14 @@ class diff:
         cls,
         bin_patch: bytes,
     ):
-        meta, cache, instructions = diff._patch_load(bin_patch)
+        meta, instructions = diff._patch_load(bin_patch)
         total_write_bytes = 0
 
         print(f"Original File: {meta['original']['len']:6d} bytes")
         print(f"     New File: {meta['new']['len']:6d} bytes")
         print(
-            f"   Patch File: {meta['patch']['len']:6d} bytes ({len(instructions):5d} instructions)"
+            f"   Patch File: {len(bin_patch)} bytes ({len(instructions):5d} instructions)"
         )
-        print("")
-        print("Write Cache:")
-        for idx, entry in enumerate(cache):
-            total_write_bytes += len(entry)
-            print(f"\t{idx:2d}: {entry.hex()}")
 
         class_count = defaultdict(int)
         for instr in instructions:
@@ -1076,9 +948,9 @@ class diff:
                         total_write_bytes += len(op.data)
 
         print("")
-        print("Patch Data Split")
+        print("Total WRITE data:")
         print(
-            f"\tWRITE data: {total_write_bytes} bytes ({100*total_write_bytes/len(bin_patch):.2f}%)"
+            f"\t{total_write_bytes} bytes ({100*total_write_bytes/len(bin_patch):.2f}%)"
         )
 
         print("")
