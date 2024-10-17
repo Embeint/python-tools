@@ -532,7 +532,7 @@ class diff:
 
     @classmethod
     def _naive_diff(cls, old: bytes, new: bytes, hash_len: int = 8):
-        """Construct basic runs Merge runs of COPY and WRITE into PATCH"""
+        """Construct basic runs of WRITE, COPY, and SET_ADDR instructions"""
         instr = []
         old_offset = 0
         new_offset = 0
@@ -750,97 +750,84 @@ class diff:
         return merged
 
     @classmethod
-    def _merge_crack(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
-        """Crack a WRITE operation in a PATCH into a [WRITE,COPY,WRITE] if COPY is at least 2 bytes"""
+    def _write_crack(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
+        """Crack a WRITE operation into a [WRITE,COPY,WRITE] if COPY is at least 2 bytes"""
 
-        for instr in instructions:
-            if not isinstance(instr, PatchInstr):
+        cracked = []
+        old_offset = 0
+
+        while len(instructions):
+            instr = instructions.pop(0)
+
+            if isinstance(instr, CopyInstr):
+                old_offset = instr.original_offset + instr.length
+                cracked.append(instr)
                 continue
+            elif isinstance(instr, SetAddrInstr):
+                old_offset = instr.new
+                cracked.append(instr)
+                continue
+            assert isinstance(instr, WriteInstr)
 
-            old_offset = 0
-            updated_ops = []
-            while len(instr.operations) > 0:
-                if len(instr.operations) == 1:
-                    updated_ops.append(instr.operations.pop())
-                    continue
-
-                copy_op = instr.operations.pop(0)
-                write_op = instr.operations.pop(0)
-                assert isinstance(copy_op, CopyInstr)
-                assert isinstance(write_op, WriteInstr)
-                assert copy_op.original_offset != -1
-
-                old_offset = copy_op.original_offset + copy_op.length
-                updated_ops.append(copy_op)
-
-                if len(write_op.data) < 4:
-                    # Too small to crack
-                    updated_ops.append(write_op)
-                    continue
-
-                split = [0]
-                for idx, b in enumerate(write_op.data):
-                    if old[old_offset + idx] != b:
-                        if len(split) % 2:
-                            # Already on a WRITE
-                            split[-1] += 1
-                        else:
-                            # On a COPY, swap to a WRITE
-                            split.append(1)
-                        continue
-
+            split = [0]
+            for idx, b in enumerate(instr.data):
+                if old_offset + idx >= len(old):
+                    # Add remainder of write to last split
+                    split[-1] += len(instr.data) - idx
+                    break
+                if old[old_offset + idx] != b:
                     if len(split) % 2:
-                        # On a WRITE, switch to a COPY
-                        split.append(1)
-                    else:
-                        # Already on a COPY
+                        # Already on a WRITE
                         split[-1] += 1
-
-                # Total data count should remain the same
-                assert sum(split) == len(write_op.data)
-
-                if len(split) % 2 == 0:
-                    # Ended on a copy
-                    copy_len = split.pop()
-                    if len(instr.operations) > 0:
-                        # Push the match into the next instruction if possible
-                        assert isinstance(instr.operations[0], CopyInstr)
-                        instr.operations[0].length += copy_len
-                        instr.operations[0].original_offset -= copy_len
                     else:
-                        # Merge the copy back into the previous write
-                        split[-1] += copy_len
+                        # On a COPY, swap to a WRITE
+                        split.append(1)
+                    continue
 
-                # Should now have N*[WRITE, COPY] + [WRITE]
-                assert len(split) % 2 == 1
+                if len(split) % 2:
+                    # On a WRITE, switch to a COPY
+                    split.append(1)
+                else:
+                    # Already on a COPY
+                    split[-1] += 1
 
-                # Construct the [WRITE, COPY] pairs
-                offset = 0
-                while len(split) > 1:
-                    write_len = split.pop(0)
-                    copy_len = split.pop(0)
+            # Total data count should remain the same
+            assert sum(split) == len(instr.data)
 
-                    # If the copy was only 1 byte, roll it back
-                    if copy_len == 1:
-                        split[0] += write_len + copy_len
-                    else:
-                        updated_ops.append(
-                            WriteInstr(write_op.data[offset : offset + write_len])
-                        )
-                        offset += write_len
-                        updated_ops.append(CopyInstr(copy_len, old_offset + offset))
-                        offset += copy_len
+            if len(split) % 2 == 0:
+                # Ended on a copy
+                copy_len = split.pop()
+                if len(instructions) > 0 and isinstance(instructions[0], CopyInstr):
+                    # Push the match into the next instruction if possible
+                    instructions[0].length += copy_len
+                    instructions[0].original_offset -= copy_len
+                else:
+                    # Merge the copy back into the previous write
+                    split[-1] += copy_len
 
-                # Append the final WRITE
-                write_len = split.pop()
-                updated_ops.append(
-                    WriteInstr(write_op.data[offset : offset + write_len])
-                )
+            # Should now have N*[WRITE, COPY] + [WRITE]
+            assert len(split) % 2 == 1
 
-            # Update the PATCH operations
-            instr.operations = updated_ops
+            # Construct the [WRITE, COPY] pairs
+            offset = 0
+            while len(split) > 1:
+                write_len = split.pop(0)
+                copy_len = split.pop(0)
 
-        return instructions
+                # If the copy was only 1 byte, roll it back
+                if copy_len == 1:
+                    split[0] += write_len + copy_len
+                else:
+                    cracked.append(WriteInstr(instr.data[offset : offset + write_len]))
+                    offset += write_len
+                    cracked.append(CopyInstr(copy_len, old_offset + offset))
+                    offset += copy_len
+
+            # Append the final WRITE
+            write_len = split.pop()
+            cracked.append(WriteInstr(instr.data[offset : offset + write_len]))
+
+        return cracked
 
     @classmethod
     def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> List[Instr]:
@@ -852,9 +839,9 @@ class diff:
         for i in range(4, 8):
             instr = cls._naive_diff(bin_orig, bin_new, i)
             instr = cls._cleanup_jumps(bin_orig, instr)
+            instr = cls._write_crack(bin_orig, instr)
             write_cache, instr = cls._common_writes(instr)
             instr = cls._merge_operations(instr)
-            instr = cls._merge_crack(bin_orig, instr)
             patch_len = sum([len(i) for i in instr])
 
             if patch_len < best_patch_len:
