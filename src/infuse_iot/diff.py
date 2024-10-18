@@ -113,12 +113,16 @@ class SetAddrInstr(Instr):
         ]
         _pack_ = 1
 
-    def __init__(self, old_addr, new_addr):
+    def __init__(self, old_addr, new_addr, cls_override=None):
         self.old = old_addr
         self.new = new_addr
         self.shift = self.new - self.old
+        self._cls_override = cls_override
 
     def ctypes_class(self):
+        if self._cls_override is not None:
+            return self._cls_override
+
         if -128 <= self.shift <= 127:
             return self.ShiftAddrS8
         elif -32768 <= self.shift <= 32767:
@@ -143,17 +147,15 @@ class SetAddrInstr(Instr):
         return c, ctypes.sizeof(s), c.new
 
     def __bytes__(self):
-        if -128 <= self.shift <= 127:
-            instr_cls = self.ShiftAddrS8
+        instr = self.ctypes_class()
+        if instr == self.ShiftAddrS8:
             val = self.shift
-        elif -32768 <= self.shift <= 32767:
-            instr_cls = self.ShiftAddrS16
+        elif instr == self.ShiftAddrS16:
             val = self.shift
         else:
-            instr_cls = self.SetAddrU32
             val = self.new
 
-        return bytes(instr_cls(instr_cls.op.value, val))
+        return bytes(instr(instr.op.value, val))
 
     def __str__(self):
         if -32768 <= self.shift <= 32767:
@@ -208,13 +210,16 @@ class CopyInstr(Instr):
         ]
         _pack_ = 1
 
-    def __init__(self, length: int, original_offset: int = -1):
+    def __init__(self, length: int, original_offset: int = -1, cls_override=None):
         assert length != 0
         self.length = length
         # Used in construction to simplify optimisations
         self.original_offset = original_offset
+        self._cls_override = cls_override
 
     def ctypes_class(self):
+        if self._cls_override is not None:
+            return self._cls_override
         if self.length < 16:
             return self.CopyU4
         elif self.length < 4096:
@@ -242,13 +247,13 @@ class CopyInstr(Instr):
 
     def __bytes__(self):
         instr = self.ctypes_class()
-        if self.length < 16:
+        if instr == self.CopyU4:
             return bytes(instr(instr.op.value | self.length))
-        elif self.length < 4096:
+        elif instr == self.CopyU12:
             top = self.length >> 8
             bottom = self.length & 0xFF
             return bytes(instr(instr.op.value | top, bottom))
-        elif self.length < 1048576:
+        elif instr == self.CopyU20:
             top = self.length >> 16
             bottom = self.length & 0xFFFF
             return bytes(instr(instr.op.value | top, bottom))
@@ -304,11 +309,14 @@ class WriteInstr(Instr):
         ]
         _pack_ = 1
 
-    def __init__(self, data):
+    def __init__(self, data, cls_override=None):
         assert len(data) != 0
         self.data = data
+        self._cls_override = cls_override
 
     def ctypes_class(self):
+        if self._cls_override is not None:
+            return self._cls_override
         if len(self.data) < 16:
             return self.WriteU4
         elif len(self.data) < 4096:
@@ -341,13 +349,13 @@ class WriteInstr(Instr):
 
     def __bytes__(self):
         instr = self.ctypes_class()
-        if len(self.data) < 16:
+        if instr == self.WriteU4:
             return bytes(instr(instr.op.value | len(self.data))) + self.data
-        elif len(self.data) < 4096:
+        elif instr == self.WriteU12:
             top = len(self.data) >> 8
             bottom = len(self.data) & 0xFF
             return bytes(instr(instr.op.value | top, bottom)) + self.data
-        elif len(self.data) < 1048576:
+        elif instr == self.WriteU20:
             top = len(self.data) >> 16
             bottom = len(self.data) & 0xFFFF
             return bytes(instr(instr.op.value | top, bottom)) + self.data
@@ -456,6 +464,9 @@ class PatchInstr(Instr):
 
 class diff:
     class PatchHeader(ctypes.LittleEndianStructure):
+        VERSION_MAJOR = 1
+        VERSION_MINOR = 0
+
         class ArrayValidation(ctypes.LittleEndianStructure):
             _fields_ = [
                 ("length", ctypes.c_uint32),
@@ -467,6 +478,8 @@ class diff:
         cache_size = 128
         _fields_ = [
             ("magic", ctypes.c_uint32),
+            ("version_major", ctypes.c_uint8),
+            ("version_minor", ctypes.c_uint8),
             ("original_file", ArrayValidation),
             ("constructed_file", ArrayValidation),
             ("patch_file", ArrayValidation),
@@ -762,6 +775,8 @@ class diff:
     def _gen_patch_header(cls, patch_metadata: Dict, patch_data: bytes):
         hdr = cls.PatchHeader(
             cls.PatchHeader.magic_value,
+            cls.PatchHeader.VERSION_MAJOR,
+            cls.PatchHeader.VERSION_MINOR,
             cls.PatchHeader.ArrayValidation(
                 patch_metadata["original"]["len"],
                 patch_metadata["original"]["crc"],
@@ -774,7 +789,6 @@ class diff:
                 len(patch_data),
                 binascii.crc32(patch_data),
             ),
-            # c,
             0,
         )
         hdr_no_crc = bytes(hdr)
@@ -868,6 +882,66 @@ class diff:
         assert bin_new == patched
 
         # Return complete file
+        return bin_patch
+
+    @classmethod
+    def validation(
+        cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool
+    ) -> bytes:
+        assert len(bin_original) > 1024
+
+        # Manually construct an instruction set that runs all instructions
+        instructions = []
+        instructions.append(
+            WriteInstr(bin_original[:8], cls_override=WriteInstr.WriteU4)
+        )
+        instructions.append(
+            WriteInstr(bin_original[8:16], cls_override=WriteInstr.WriteU12)
+        )
+        instructions.append(SetAddrInstr(16, 8, cls_override=SetAddrInstr.ShiftAddrS8))
+        instructions.append(
+            WriteInstr(bin_original[16:128], cls_override=WriteInstr.WriteU20)
+        )
+        instructions.append(
+            SetAddrInstr(120, 200, cls_override=SetAddrInstr.ShiftAddrS16)
+        )
+        instructions.append(
+            WriteInstr(bin_original[128:256], cls_override=WriteInstr.WriteU32)
+        )
+        instructions.append(
+            SetAddrInstr(328, 256, cls_override=SetAddrInstr.SetAddrU32)
+        )
+        instructions.append(CopyInstr(8, cls_override=CopyInstr.CopyU4))
+        instructions.append(CopyInstr(8, cls_override=CopyInstr.CopyU12))
+        instructions.append(CopyInstr(128 - 16, cls_override=CopyInstr.CopyU20))
+        instructions.append(CopyInstr(128, cls_override=CopyInstr.CopyU32))
+        instructions.append(
+            PatchInstr(
+                [
+                    CopyInstr(15),
+                    WriteInstr(bin_original[512 + 15 : 512 + 16]),
+                    CopyInstr(14),
+                    WriteInstr(bin_original[512 + 30 : 512 + 32]),
+                ]
+            )
+        )
+        instructions.append(CopyInstr(len(bin_original) - 544))
+
+        meta, _ = diff._gen_patch_instr(bin_original, bin_original)
+        if invalid_length:
+            meta["new"]["len"] -= 1
+        if invalid_crc:
+            meta["new"]["crc"] -= 1
+
+        patch_data = diff._gen_patch_data(instructions)
+        patch_header = diff._gen_patch_header(meta, patch_data)
+        bin_patch = patch_header + patch_data
+
+        # Validate that file can be reconstructed
+        if not invalid_length and not invalid_crc:
+            patched = cls.patch(bin_original, bin_patch)
+            assert bin_original == patched
+
         return bin_patch
 
     @classmethod
@@ -979,6 +1053,21 @@ if __name__ == "__main__":
     )
     generate_args.add_argument("patch", help="Output patch file name")
 
+    # Generate validation patch file
+    validation_args = subparser.add_parser(
+        "validation", help="Generate a patch file for validating appliers"
+    )
+    validation_args.add_argument(
+        "--invalid-length", action="store_true", help="Incorrect output file length"
+    )
+    validation_args.add_argument(
+        "--invalid-crc", action="store_true", help="Incorrect output file CRC"
+    )
+    validation_args.add_argument(
+        "input_file", help="File to use as base image and desired output"
+    )
+    validation_args.add_argument("patch", help="Output patch file name")
+
     # Apply patch file
     patch_args = subparser.add_parser("patch", help="Apply a patch file")
     patch_args.add_argument("original", help="Original file to use as base image")
@@ -1003,6 +1092,13 @@ if __name__ == "__main__":
                     f_new.read(-1),
                     args.verbose,
                 )
+        with open(args.patch, "wb") as f_output:
+            f_output.write(patch)
+    elif args.command == "validation":
+        with open(args.input_file, "rb") as f_input:
+            patch = diff.validation(
+                f_input.read(-1), args.invalid_length, args.invalid_crc
+            )
         with open(args.patch, "wb") as f_output:
             f_output.write(patch)
     elif args.command == "patch":
