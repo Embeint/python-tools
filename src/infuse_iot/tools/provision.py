@@ -9,7 +9,10 @@ import ctypes
 from http import HTTPStatus
 import sys
 
-from simple_term_menu import TerminalMenu
+try:
+    from simple_term_menu import TerminalMenu
+except NotImplementedError:
+    TerminalMenu = None
 
 from pynrfjprog import LowLevel, Parameters
 
@@ -91,6 +94,8 @@ class SubCommand(InfuseCommand):
                 sys.exit(f"Unknown device: {device_info[1]}")
             soc = socs[device_info[1]]
 
+        uicr_addr = None
+        dev_id = None
         for desc in api.read_memory_descriptors():
             if desc.type == Parameters.MemoryType.UICR:
                 uicr_addr = desc.start + customer_offsets[family]
@@ -104,16 +109,24 @@ class SubCommand(InfuseCommand):
     def create_device(self, client, soc, hardware_id_str):
         if self._org is None:
             orgs = get_all_organisations.sync(client=client)
-
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
+
+            if TerminalMenu is None:
+                sys.exit(
+                    "Specify organisation with --organisation:\n" + "\n".join(options)
+                )
+
             terminal_menu = TerminalMenu(options)
             idx = terminal_menu.show()
             self._org = orgs[idx].id
 
         if self._board is None:
             boards = get_boards.sync(client=client, organisation_id=self._org)
-
             options = [f"{b.name:20s} ({b.id})" for b in boards]
+
+            if TerminalMenu is None:
+                sys.exit("Specify board with --board:\n" + "\n".join(options))
+
             terminal_menu = TerminalMenu(options)
             idx = terminal_menu.show()
             self._board = boards[idx].id
