@@ -7,6 +7,7 @@ import ctypes
 from collections.abc import Generator
 from typing import Callable
 
+
 class structs:
     class _struct_type(ctypes.LittleEndianStructure):
         def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, Callable]:
@@ -20,51 +21,54 @@ class structs:
 
     class tdf_struct_mcuboot_img_sem_ver(_struct_type):
         """MCUboot semantic versioning struct"""
+
         _fields_ = [
-            ('major', ctypes.c_uint8),
-            ('minor', ctypes.c_uint8),
-            ('revision', ctypes.c_uint16),
-            ('build_num', ctypes.c_uint32),
+            ("major", ctypes.c_uint8),
+            ("minor", ctypes.c_uint8),
+            ("revision", ctypes.c_uint16),
+            ("build_num", ctypes.c_uint32),
         ]
         _pack_ = 1
         _postfix_ = {
-            'major': '',
-            'minor': '',
-            'revision': '',
-            'build_num': '',
+            "major": "",
+            "minor": "",
+            "revision": "",
+            "build_num": "",
         }
         _display_fn_ = {
-            'build_num': hex,
+            "build_num": hex,
         }
 
     class tdf_struct_xyz_16bit(_struct_type):
         """Generic 3-axis sensor reading"""
+
         _fields_ = [
-            ('x', ctypes.c_int16),
-            ('y', ctypes.c_int16),
-            ('z', ctypes.c_int16),
+            ("x", ctypes.c_int16),
+            ("y", ctypes.c_int16),
+            ("z", ctypes.c_int16),
         ]
         _pack_ = 1
         _postfix_ = {
-            'x': '',
-            'y': '',
-            'z': '',
+            "x": "",
+            "y": "",
+            "z": "",
         }
         _display_fn_ = {
         }
 
     class tdf_struct_gcs_location(_struct_type):
         """Geographic Coordinate System location"""
+
         _fields_ = [
-            ('_latitude', ctypes.c_int32),
-            ('_longitude', ctypes.c_int32),
-            ('_height', ctypes.c_int32),
+            ("_latitude", ctypes.c_int32),
+            ("_longitude", ctypes.c_int32),
+            ("_height", ctypes.c_int32),
         ]
         _pack_ = 1
         _postfix_ = {
-            'latitude': 'deg',
-            'longitude': 'deg',
-            'height': 'm',
+            "latitude": "deg",
+            "longitude": "deg",
+            "height": "m",
         }
         _display_fn_ = {
         }
@@ -83,32 +87,34 @@ class structs:
 
     class tdf_struct_lte_cell_id_local(_struct_type):
         """LTE cell ID (Local)"""
+
         _fields_ = [
-            ('eci', ctypes.c_uint32),
-            ('tac', ctypes.c_uint16),
+            ("eci", ctypes.c_uint32),
+            ("tac", ctypes.c_uint16),
         ]
         _pack_ = 1
         _postfix_ = {
-            'eci': '',
-            'tac': '',
+            "eci": "",
+            "tac": "",
         }
         _display_fn_ = {
         }
 
     class tdf_struct_lte_cell_id_global(_struct_type):
         """LTE cell ID (Global)"""
+
         _fields_ = [
-            ('mcc', ctypes.c_uint16),
-            ('mnc', ctypes.c_uint16),
-            ('eci', ctypes.c_uint32),
-            ('tac', ctypes.c_uint16),
+            ("mcc", ctypes.c_uint16),
+            ("mnc", ctypes.c_uint16),
+            ("eci", ctypes.c_uint32),
+            ("tac", ctypes.c_uint16),
         ]
         _pack_ = 1
         _postfix_ = {
-            'mcc': '',
-            'mnc': '',
-            'eci': '',
-            'tac': '',
+            "mcc": "",
+            "mnc": "",
+            "eci": "",
+            "tac": "",
         }
         _display_fn_ = {
         }
@@ -132,61 +138,64 @@ class readings:
 
     class announce(_reading_type):
         """Common announcement packet"""
+
         name = "ANNOUNCE"
         _fields_ = [
-            ('application', ctypes.c_uint32),
-            ('version', structs.tdf_struct_mcuboot_img_sem_ver),
-            ('kv_crc', ctypes.c_uint32),
-            ('blocks', ctypes.c_uint32),
-            ('uptime', ctypes.c_uint32),
-            ('reboots', ctypes.c_uint16),
-            ('flags', ctypes.c_uint8),
+            ("application", ctypes.c_uint32),
+            ("version", structs.tdf_struct_mcuboot_img_sem_ver),
+            ("kv_crc", ctypes.c_uint32),
+            ("blocks", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+            ("reboots", ctypes.c_uint16),
+            ("flags", ctypes.c_uint8),
         ]
         _pack_ = 1
         _postfix_ = {
-            'application': '',
-            'version': '',
-            'kv_crc': '',
-            'blocks': '',
-            'uptime': '',
-            'reboots': '',
-            'flags': '',
+            "application": "",
+            "version": "",
+            "kv_crc": "",
+            "blocks": "",
+            "uptime": "",
+            "reboots": "",
+            "flags": "",
         }
         _display_fn_ = {
-            'kv_crc': hex,
-            'flags': hex,
+            "kv_crc": hex,
+            "flags": hex,
         }
 
     class battery_state(_reading_type):
         """General battery state"""
+
         name = "BATTERY_STATE"
         _fields_ = [
-            ('voltage_mv', ctypes.c_uint32),
-            ('current_ua', ctypes.c_int32),
-            ('soc', ctypes.c_uint8),
+            ("voltage_mv", ctypes.c_uint32),
+            ("current_ua", ctypes.c_int32),
+            ("soc", ctypes.c_uint8),
         ]
         _pack_ = 1
         _postfix_ = {
-            'voltage_mv': 'mV',
-            'current_ua': 'uA',
-            'soc': '%',
+            "voltage_mv": "mV",
+            "current_ua": "uA",
+            "soc": "%",
         }
         _display_fn_ = {
         }
 
     class ambient_temp_pres_hum(_reading_type):
         """Ambient temperature, pressure & humidity"""
+
         name = "AMBIENT_TEMP_PRES_HUM"
         _fields_ = [
-            ('_temperature', ctypes.c_int32),
-            ('_pressure', ctypes.c_uint32),
-            ('_humidity', ctypes.c_uint16),
+            ("_temperature", ctypes.c_int32),
+            ("_pressure", ctypes.c_uint32),
+            ("_humidity", ctypes.c_uint16),
         ]
         _pack_ = 1
         _postfix_ = {
-            'temperature': 'deg',
-            'pressure': 'kPa',
-            'humidity': '%',
+            "temperature": "deg",
+            "pressure": "kPa",
+            "humidity": "%",
         }
         _display_fn_ = {
         }
@@ -205,13 +214,14 @@ class readings:
 
     class ambient_temperature(_reading_type):
         """Ambient temperature"""
+
         name = "AMBIENT_TEMPERATURE"
         _fields_ = [
-            ('_temperature', ctypes.c_int32),
+            ("_temperature", ctypes.c_int32),
         ]
         _pack_ = 1
         _postfix_ = {
-            'temperature': 'deg',
+            "temperature": "deg",
         }
         _display_fn_ = {
         }
@@ -222,15 +232,16 @@ class readings:
 
     class time_sync(_reading_type):
         """Time synchronised to new source"""
+
         name = "TIME_SYNC"
         _fields_ = [
-            ('source', ctypes.c_uint8),
-            ('_shift', ctypes.c_int32),
+            ("source", ctypes.c_uint8),
+            ("_shift", ctypes.c_int32),
         ]
         _pack_ = 1
         _postfix_ = {
-            'source': '',
-            'shift': 'us',
+            "source": "",
+            "shift": "us",
         }
         _display_fn_ = {
         }
@@ -241,162 +252,173 @@ class readings:
 
     class reboot_info(_reading_type):
         """Information pertaining to the previous reboot"""
+
         name = "REBOOT_INFO"
         _fields_ = [
-            ('reason', ctypes.c_uint8),
-            ('hardware_flags', ctypes.c_uint32),
-            ('count', ctypes.c_uint32),
-            ('uptime', ctypes.c_uint32),
-            ('param_1', ctypes.c_uint32),
-            ('param_2', ctypes.c_uint32),
-            ('thread', 8 * ctypes.c_char),
+            ("reason", ctypes.c_uint8),
+            ("hardware_flags", ctypes.c_uint32),
+            ("count", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+            ("param_1", ctypes.c_uint32),
+            ("param_2", ctypes.c_uint32),
+            ("thread", 8 * ctypes.c_char),
         ]
         _pack_ = 1
         _postfix_ = {
-            'reason': '',
-            'hardware_flags': '',
-            'count': '',
-            'uptime': '',
-            'param_1': '',
-            'param_2': '',
-            'thread': '',
+            "reason": "",
+            "hardware_flags": "",
+            "count": "",
+            "uptime": "",
+            "param_1": "",
+            "param_2": "",
+            "thread": "",
         }
         _display_fn_ = {
-            'hardware_flags': hex,
-            'param_1': hex,
-            'param_2': hex,
+            "hardware_flags": hex,
+            "param_1": hex,
+            "param_2": hex,
         }
 
     class acc_2g(_reading_type):
         """Accelerometer +-2G"""
+
         name = "ACC_2G"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class acc_4g(_reading_type):
         """Accelerometer +-4G"""
+
         name = "ACC_4G"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class acc_8g(_reading_type):
         """Accelerometer +-8G"""
+
         name = "ACC_8G"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class acc_16g(_reading_type):
         """Accelerometer +-16G"""
+
         name = "ACC_16G"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gyr_125dps(_reading_type):
         """Gyroscope +-125 DPS"""
+
         name = "GYR_125DPS"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gyr_250dps(_reading_type):
         """Gyroscope +-250 DPS"""
+
         name = "GYR_250DPS"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gyr_500dps(_reading_type):
         """Gyroscope +-500 DPS"""
+
         name = "GYR_500DPS"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gyr_1000dps(_reading_type):
         """Gyroscope +-1000 DPS"""
+
         name = "GYR_1000DPS"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gyr_2000dps(_reading_type):
         """Gyroscope +-2000 DPS"""
+
         name = "GYR_2000DPS"
         _fields_ = [
-            ('sample', structs.tdf_struct_xyz_16bit),
+            ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
         _postfix_ = {
-            'sample': '',
+            "sample": "",
         }
         _display_fn_ = {
         }
 
     class gcs_wgs84_llha(_reading_type):
         """Geo-location (WGS-84) + accuracy"""
+
         name = "GCS_WGS84_LLHA"
         _fields_ = [
-            ('location', structs.tdf_struct_gcs_location),
-            ('_h_acc', ctypes.c_int32),
-            ('_v_acc', ctypes.c_int32),
+            ("location", structs.tdf_struct_gcs_location),
+            ("_h_acc", ctypes.c_int32),
+            ("_v_acc", ctypes.c_int32),
         ]
         _pack_ = 1
         _postfix_ = {
-            'location': '',
-            'h_acc': 'm',
-            'v_acc': 'm',
+            "location": "",
+            "h_acc": "m",
+            "v_acc": "m",
         }
         _display_fn_ = {
         }
@@ -411,83 +433,84 @@ class readings:
 
     class ubx_nav_pvt(_reading_type):
         """u-blox GNSS NAV-PVT message"""
+
         name = "UBX_NAV_PVT"
         _fields_ = [
-            ('itow', ctypes.c_uint32),
-            ('year', ctypes.c_uint16),
-            ('month', ctypes.c_uint8),
-            ('day', ctypes.c_uint8),
-            ('hour', ctypes.c_uint8),
-            ('min', ctypes.c_uint8),
-            ('sec', ctypes.c_uint8),
-            ('valid', ctypes.c_uint8),
-            ('t_acc', ctypes.c_uint32),
-            ('nano', ctypes.c_int32),
-            ('fix_type', ctypes.c_uint8),
-            ('flags', ctypes.c_uint8),
-            ('flags2', ctypes.c_uint8),
-            ('num_sv', ctypes.c_uint8),
-            ('_lon', ctypes.c_int32),
-            ('_lat', ctypes.c_int32),
-            ('_height', ctypes.c_int32),
-            ('_h_msl', ctypes.c_int32),
-            ('_h_acc', ctypes.c_uint32),
-            ('_v_acc', ctypes.c_uint32),
-            ('_vel_n', ctypes.c_int32),
-            ('_vel_e', ctypes.c_int32),
-            ('_vel_d', ctypes.c_int32),
-            ('_g_speed', ctypes.c_int32),
-            ('_head_mot', ctypes.c_int32),
-            ('_s_acc', ctypes.c_uint32),
-            ('_head_acc', ctypes.c_uint32),
-            ('_p_dop', ctypes.c_uint16),
-            ('flags3', ctypes.c_uint16),
-            ('reserved0', 4 * ctypes.c_uint8),
-            ('_head_veh', ctypes.c_int32),
-            ('_mag_dec', ctypes.c_int16),
-            ('_mag_acc', ctypes.c_uint16),
+            ("itow", ctypes.c_uint32),
+            ("year", ctypes.c_uint16),
+            ("month", ctypes.c_uint8),
+            ("day", ctypes.c_uint8),
+            ("hour", ctypes.c_uint8),
+            ("min", ctypes.c_uint8),
+            ("sec", ctypes.c_uint8),
+            ("valid", ctypes.c_uint8),
+            ("t_acc", ctypes.c_uint32),
+            ("nano", ctypes.c_int32),
+            ("fix_type", ctypes.c_uint8),
+            ("flags", ctypes.c_uint8),
+            ("flags2", ctypes.c_uint8),
+            ("num_sv", ctypes.c_uint8),
+            ("_lon", ctypes.c_int32),
+            ("_lat", ctypes.c_int32),
+            ("_height", ctypes.c_int32),
+            ("_h_msl", ctypes.c_int32),
+            ("_h_acc", ctypes.c_uint32),
+            ("_v_acc", ctypes.c_uint32),
+            ("_vel_n", ctypes.c_int32),
+            ("_vel_e", ctypes.c_int32),
+            ("_vel_d", ctypes.c_int32),
+            ("_g_speed", ctypes.c_int32),
+            ("_head_mot", ctypes.c_int32),
+            ("_s_acc", ctypes.c_uint32),
+            ("_head_acc", ctypes.c_uint32),
+            ("_p_dop", ctypes.c_uint16),
+            ("flags3", ctypes.c_uint16),
+            ("reserved0", 4 * ctypes.c_uint8),
+            ("_head_veh", ctypes.c_int32),
+            ("_mag_dec", ctypes.c_int16),
+            ("_mag_acc", ctypes.c_uint16),
         ]
         _pack_ = 1
         _postfix_ = {
-            'itow': '',
-            'year': '',
-            'month': '',
-            'day': '',
-            'hour': '',
-            'min': '',
-            'sec': '',
-            'valid': '',
-            't_acc': 'ns',
-            'nano': 'ns',
-            'fix_type': '',
-            'flags': '',
-            'flags2': '',
-            'num_sv': '',
-            'lon': 'deg',
-            'lat': 'deg',
-            'height': 'm',
-            'h_msl': 'm',
-            'h_acc': 'm',
-            'v_acc': 'm',
-            'vel_n': 'm/s',
-            'vel_e': 'm/s',
-            'vel_d': 'm/s',
-            'g_speed': 'm/s',
-            'head_mot': 'deg',
-            's_acc': 'm/s',
-            'head_acc': 'deg',
-            'p_dop': '',
-            'flags3': '',
-            'reserved0': '',
-            'head_veh': 'deg',
-            'mag_dec': 'deg',
-            'mag_acc': 'deg',
+            "itow": "",
+            "year": "",
+            "month": "",
+            "day": "",
+            "hour": "",
+            "min": "",
+            "sec": "",
+            "valid": "",
+            "t_acc": "ns",
+            "nano": "ns",
+            "fix_type": "",
+            "flags": "",
+            "flags2": "",
+            "num_sv": "",
+            "lon": "deg",
+            "lat": "deg",
+            "height": "m",
+            "h_msl": "m",
+            "h_acc": "m",
+            "v_acc": "m",
+            "vel_n": "m/s",
+            "vel_e": "m/s",
+            "vel_d": "m/s",
+            "g_speed": "m/s",
+            "head_mot": "deg",
+            "s_acc": "m/s",
+            "head_acc": "deg",
+            "p_dop": "",
+            "flags3": "",
+            "reserved0": "",
+            "head_veh": "deg",
+            "mag_dec": "deg",
+            "mag_acc": "deg",
         }
         _display_fn_ = {
-            'valid': hex,
-            'flags': hex,
-            'flags2': hex,
-            'flags3': hex,
+            "valid": hex,
+            "flags": hex,
+            "flags2": hex,
+            "flags3": hex,
         }
 
         @property
@@ -560,23 +583,24 @@ class readings:
 
     class lte_conn_status(_reading_type):
         """Information on service cell and registration status"""
+
         name = "LTE_CONN_STATUS"
         _fields_ = [
-            ('cell', structs.tdf_struct_lte_cell_id_global),
-            ('earfcn', ctypes.c_uint32),
-            ('status', ctypes.c_uint8),
-            ('tech', ctypes.c_uint8),
-            ('_rsrp', ctypes.c_uint8),
-            ('rsrq', ctypes.c_int8),
+            ("cell", structs.tdf_struct_lte_cell_id_global),
+            ("earfcn", ctypes.c_uint32),
+            ("status", ctypes.c_uint8),
+            ("tech", ctypes.c_uint8),
+            ("_rsrp", ctypes.c_uint8),
+            ("rsrq", ctypes.c_int8),
         ]
         _pack_ = 1
         _postfix_ = {
-            'cell': '',
-            'earfcn': '',
-            'status': '',
-            'tech': '',
-            'rsrp': 'dBm',
-            'rsrq': 'dB',
+            "cell": "",
+            "earfcn": "",
+            "status": "",
+            "tech": "",
+            "rsrp": "dBm",
+            "rsrq": "dB",
         }
         _display_fn_ = {
         }
@@ -587,13 +611,14 @@ class readings:
 
     class array_type(_reading_type):
         """Example array type"""
+
         name = "ARRAY_TYPE"
         _fields_ = [
-            ('array', 4 * ctypes.c_uint8),
+            ("array", 4 * ctypes.c_uint8),
         ]
         _pack_ = 1
         _postfix_ = {
-            'array': '',
+            "array": "",
         }
         _display_fn_ = {
         }

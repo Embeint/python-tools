@@ -3,6 +3,7 @@
 import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 
 
 class coap_download(InfuseRpcCommand):
@@ -43,15 +44,22 @@ class coap_download(InfuseRpcCommand):
             "--discard",
             dest="action",
             action="store_const",
-            const=0,
+            const=rpc_enum_file_action.DISCARD,
             help="Download file and discard without action",
         )
         group.add_argument(
             "--dfu",
             dest="action",
             action="store_const",
-            const=1,
+            const=rpc_enum_file_action.APP_IMG,
             help="Download complete image file and perform DFU",
+        )
+        group.add_argument(
+            "--nrf91-modem",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.NRF91_MODEM_DIFF,
+            help="nRF91 LTE modem diff upgrade",
         )
 
     def __init__(self, args):

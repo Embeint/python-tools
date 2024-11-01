@@ -24,11 +24,38 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Run remote procedure calls on devices"
 
     class rpc_request_header(ctypes.LittleEndianStructure):
-        """Serial packet header"""
+        """RPC_CMD packet header"""
 
         _fields_ = [
             ("request_id", ctypes.c_uint32),
             ("command_id", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class rpc_request_data_header(ctypes.LittleEndianStructure):
+        """RPC_CMD additional header for RPC_DATA"""
+
+        _fields_ = [
+            ("size", ctypes.c_uint32),
+            ("rx_ack_period", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class rpc_data_header(ctypes.LittleEndianStructure):
+        """RPC_DATA header"""
+
+        _fields_ = [
+            ("request_id", ctypes.c_uint32),
+            ("offset", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class rpc_data_ack(ctypes.LittleEndianStructure):
+        """RPC_DATA_ACK payload"""
+
+        _fields_ = [
+            ("request_id", ctypes.c_uint32),
+            ("offset", 0 * ctypes.c_uint32),
         ]
         _pack_ = 1
 
@@ -69,17 +96,17 @@ class SubCommand(InfuseCommand):
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
 
-    def run(self):
-        header = self.rpc_request_header(self._request_id, self._command.COMMAND_ID)
-        params = self._command.request_struct()
+    def _wait_data_ack(self):
+        while rsp := self._client.receive():
+            if rsp.ptype != InfuseType.RPC_DATA_ACK:
+                continue
+            data_ack = self.rpc_data_ack.from_buffer_copy(rsp.payload)
+            # Response to the request we sent
+            if data_ack.request_id != self._request_id:
+                continue
+            break
 
-        request_packet = bytes(header) + bytes(params)
-        pkt = PacketOutput(
-            [HopOutput.serial(self._command.auth_level())],
-            InfuseType.RPC_CMD,
-            request_packet,
-        )
-        self._client.send(pkt)
+    def _wait_rpc_rsp(self):
         # Wait for responses
         while rsp := self._client.receive():
             # RPC response packet
@@ -97,3 +124,69 @@ class SubCommand(InfuseCommand):
             print(f"INFUSE ID: {rsp.route[0].infuse_id:016x}")
             self._command.handle_response(rsp_header.return_code, rsp_data)
             break
+
+    def _run_data_cmd(self):
+        ack_period = 1
+        header = self.rpc_request_header(self._request_id, self._command.COMMAND_ID)
+        params = self._command.request_struct()
+        data = self._command.data_payload()
+        data_hdr = self.rpc_request_data_header(len(data), ack_period)
+
+        request_packet = bytes(header) + bytes(data_hdr) + bytes(params)
+        pkt = PacketOutput(
+            [HopOutput.serial(self._command.auth_level())],
+            InfuseType.RPC_CMD,
+            request_packet,
+        )
+        self._client.send(pkt)
+
+        # Wait for initial ACK
+        self._wait_data_ack()
+
+        # Send data payloads (384 byte chunks for now)
+        ack_cnt = -ack_period
+        offset = 0
+        size = 384
+        while len(data) > 0:
+            size = min(size, len(data))
+            payload = data[:size]
+
+            hdr = self.rpc_data_header(self._request_id, offset)
+            pkt_bytes = bytes(hdr) + payload
+            pkt = PacketOutput(
+                [HopOutput.serial(self._command.auth_level())],
+                InfuseType.RPC_DATA,
+                pkt_bytes,
+            )
+            self._client.send(pkt)
+            ack_cnt += 1
+
+            # Wait for ACKs at the period
+            if ack_cnt == ack_period:
+                self._wait_data_ack()
+                ack_cnt = 0
+
+            offset += size
+            data = data[size:]
+            self._command.data_progress_cb(offset)
+
+        self._wait_rpc_rsp()
+
+    def _run_standard_cmd(self):
+        header = self.rpc_request_header(self._request_id, self._command.COMMAND_ID)
+        params = self._command.request_struct()
+
+        request_packet = bytes(header) + bytes(params)
+        pkt = PacketOutput(
+            [HopOutput.serial(self._command.auth_level())],
+            InfuseType.RPC_CMD,
+            request_packet,
+        )
+        self._client.send(pkt)
+        self._wait_rpc_rsp()
+
+    def run(self):
+        if self._command.RPC_DATA:
+            self._run_data_cmd()
+        else:
+            self._run_standard_cmd()
