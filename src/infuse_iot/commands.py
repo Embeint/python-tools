@@ -27,6 +27,8 @@ class InfuseCommand:
 
 
 class InfuseRpcCommand:
+    RPC_DATA = False
+
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
         raise NotImplementedError
@@ -34,14 +36,23 @@ class InfuseRpcCommand:
     def __init__(self, **kwargs):
         pass
 
-    def auth_level(self):
+    def auth_level(self) -> Auth:
         """Authentication level to run command with"""
         return Auth.DEVICE
 
-    def request_struct(self):
+    def request_struct(self) -> ctypes.LittleEndianStructure:
+        """RPC_CMD request structure"""
         raise NotImplementedError
 
+    def data_payload(self) -> bytes:
+        """Payload to send with RPC_DATA"""
+        raise NotImplementedError
+
+    def data_progress_cb(self, offset: int) -> None:
+        """Progress callback"""
+
     def handle_response(self, return_code, response):
+        """Handle RPC_RSP"""
         raise NotImplementedError
 
     class VariableSizeResponse:
