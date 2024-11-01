@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "infuse_iot"
+version = "0.1.0"
+authors = [{name = "Embeint Holdings Pty Ltd", email = "support@embeint.com"}]
+description = "Infuse-IoT Platform python package"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "argcomplete",
+    "attrs",
+    "cryptography",
+    "colorama",
+    "httpx",
+    "pylink-square",
+    "pynrfjprog",
+    "pyserial",
+    "python-dateutil",
+    "rich",
+    "simple-term-menu",
+    "tabulate",
+    "typing-extensions",
+    "keyring",
+]
+
+[project.license]
+file = "LICENSE"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.scripts]
+infuse = "infuse_iot.app.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+zip-safe = false
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
