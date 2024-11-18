@@ -45,6 +45,11 @@ class bt_connect_infuse(InfuseRpcCommand):
         parser.add_argument(
             "--data", action="store_true", help="Subscribe to data characteristic"
         )
+        parser.add_argument(
+            "--logging",
+            action="store_true",
+            help="Subscribe to serial logging characteristic",
+        )
         addr_group = parser.add_mutually_exclusive_group(required=True)
         addr_group.add_argument(
             "--public", type=BtLeAddress, help="Public Bluetooth address"
@@ -72,6 +77,8 @@ class bt_connect_infuse(InfuseRpcCommand):
         sub = rpc_enum_infuse_bt_characteristic.COMMAND
         if self.args.data:
             sub |= rpc_enum_infuse_bt_characteristic.DATA
+        if self.args.logging:
+            sub |= rpc_enum_infuse_bt_characteristic.LOGGING
 
         return self.request(
             peer,

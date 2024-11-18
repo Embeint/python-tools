@@ -59,6 +59,13 @@ class file_write_basic(InfuseRpcCommand):
             help="Write complete image file and perform DFU",
         )
         group.add_argument(
+            "--cpatch",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.APP_CPATCH,
+            help="Write complete image file and perform DFU",
+        )
+        group.add_argument(
             "--bt-ctlr-dfu",
             dest="action",
             action="store_const",
