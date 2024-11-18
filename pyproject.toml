@@ -16,6 +16,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "argcomplete",
+    "aiohttp",
     "attrs",
     "cryptography",
     "colorama",

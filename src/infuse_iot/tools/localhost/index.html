@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDF Viewer</title>
+    <link href="https://unpkg.com/tabulator-tables@6.3.0/dist/css/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.0/dist/js/tabulator.min.js"></script>
+</head>
+<style>
+    .tabulator {
+        font-family: monospace;
+    }
+</style>
+
+<body>
+    <h1>Infuse-IoT TDF Viewer</h1>
+    <p>
+    <div id="data-table"></div>
+    </p>
+    <p>
+    <h2>Table Control</h2>
+    <div id="tdf-disable"></div>
+    </p>
+
+    <script>
+        // Initialize the Tabulator table
+        const dataTable = new Tabulator("#data-table", {
+            layout: "fitDataTable",
+        });
+        const disableTable = new Tabulator("#tdf-disable", {
+            layout: "fitDataTable",
+            columns: [
+                { title: "TDF", field: "name", width: 200 },
+                {
+                    title: "Show",
+                    field: "checked",
+                    hozAlign: "center",
+                    formatter: "tickCross",
+                    cellClick: function (ev, cell) {
+                        cell.setValue(!cell.getValue());
+                    },
+                },
+            ]
+        });
+
+        // Connect to the WebSocket server
+        const ws = new WebSocket('ws://localhost:8080/ws');
+        let shownTDFs = {};
+        let currentTDFs = [];
+
+        const arraysEqual = (a, b) =>
+            a.length === b.length &&
+            a.every((element, index) => element === b[index]);
+
+        ws.onmessage = function (event) {
+            const { columns, rows, tdfs } = JSON.parse(event.data);
+
+            if (!arraysEqual(currentTDFs, tdfs)) {
+                // Merge new data with the existing table data
+                const currentRows = disableTable.getData();
+                const updatedData = tdfs.map((str, index) => {
+                    const existingRow = currentRows.find(row => row.name === str);
+                    return existingRow
+                        ? existingRow // Preserve the existing row if found
+                        : { id: `row-${index}`, name: str, checked: true };
+                });
+                // Update table and refresh the checked state map
+                disableTable.setData(updatedData);
+                shownTDFs = Object.fromEntries(
+                    updatedData.map(row => [row.name, row.checked])
+                );
+                currentTDFs = tdfs;
+            }
+            const disableData = disableTable.getData();
+            shownTDFs = Object.fromEntries(
+                disableData.map(row => [row.name, row.checked])
+            );
+
+            // Dynamically set the table content
+            dataTable.setColumns(columns);
+            dataTable.setData(rows);
+
+            // Hide columns as requested
+            console.log(dataTable.getColumnDefinitions());
+            const tableColumns = dataTable.getColumns();
+            for (col of columns) {
+                if (!(col.title in shownTDFs)) {
+                    continue;
+                }
+                if (shownTDFs[col.title]) {
+                    continue;
+                }
+                tableColumns.forEach(column => {
+                    const field = column.getField();
+                    if (field && field.startsWith(col.title)) {
+                        column.hide();
+                    }
+                });
+            }
+        };
+
+        ws.onopen = function () {
+            console.log("WebSocket connected");
+        };
+
+        ws.onerror = function (error) {
+            console.error("WebSocket error:", error);
+        };
+    </script>
+</body>
+
+</html>
