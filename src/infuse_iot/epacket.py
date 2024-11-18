@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple, Any
 from typing_extensions import Self
 
 from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
-from infuse_iot.database import DeviceDatabase
+from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.time import InfuseTime
 
 
@@ -235,17 +235,7 @@ class PacketReceived(Serializable):
 
     @classmethod
     def from_serial(cls, database: DeviceDatabase, serial_frame: bytes) -> List[Self]:
-        header = CtypeSerialFrame.from_buffer_copy(serial_frame)
-        if header.flags & Flags.ENCR_DEVICE:
-            database.observe_serial(header.device_id, device_id=header.key_metadata)
-            key = database.serial_device_key(header.device_id, header.gps_time)
-        else:
-            database.observe_serial(header.device_id, network_id=header.key_metadata)
-            key = database.serial_network_key(header.device_id, header.gps_time)
-
-        decrypted = chachapoly_decrypt(
-            key, serial_frame[:11], serial_frame[11:23], serial_frame[23:]
-        )
+        header, decrypted = CtypeSerialFrame.decrypt(database, serial_frame)
 
         # Packet from local gateway
         if header.type != InfuseType.RECEIVED_EPACKET:
@@ -263,32 +253,65 @@ class PacketReceived(Serializable):
             # Only Bluetooth advertising supported for now
             if common_header.interface != Interface.BT_ADV:
                 raise NotImplementedError
-            # Decrypting payloads not currently supported
-            if common_header.encrypted:
-                raise NotImplementedError
 
             # Extract interface address (Only Bluetooth supported)
             addr = InterfaceAddress.from_bytes(common_header.interface, packet_bytes)
             del packet_bytes[: addr.len()]
-            # Extract payload metadata
-            decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(
-                packet_bytes
-            )
-            del packet_bytes[: ctypes.sizeof(decr_header)]
 
-            bt_hop = HopReceived(
-                decr_header.device_id,
-                common_header.interface,
-                addr,
-                Auth.DEVICE if decr_header.flags & Flags.ENCR_DEVICE else Auth.NETWORK,
-                decr_header.key_id,
-                decr_header.gps_time,
-                decr_header.sequence,
-                common_header.rssi,
-            )
-            packet = cls(
-                [bt_hop, header.hop_received()], decr_header.type, bytes(packet_bytes)
-            )
+            # Decrypting packet
+            if common_header.encrypted:
+                try:
+                    bt_header, bt_decrypted = CtypeBtAdvFrame.decrypt(
+                        database, packet_bytes
+                    )
+                except NoKeyError:
+                    continue
+
+                bt_hop = HopReceived(
+                    bt_header.device_id,
+                    common_header.interface,
+                    addr,
+                    (
+                        Auth.DEVICE
+                        if bt_header.flags & Flags.ENCR_DEVICE
+                        else Auth.NETWORK
+                    ),
+                    bt_header.key_metadata,
+                    bt_header.gps_time,
+                    bt_header.sequence,
+                    common_header.rssi,
+                )
+                packet = cls(
+                    [bt_hop, header.hop_received()],
+                    bt_header.type,
+                    bytes(bt_decrypted),
+                )
+            else:
+                # Extract payload metadata
+                decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(
+                    packet_bytes
+                )
+                del packet_bytes[: ctypes.sizeof(decr_header)]
+
+                bt_hop = HopReceived(
+                    decr_header.device_id,
+                    common_header.interface,
+                    addr,
+                    (
+                        Auth.DEVICE
+                        if decr_header.flags & Flags.ENCR_DEVICE
+                        else Auth.NETWORK
+                    ),
+                    decr_header.key_id,
+                    decr_header.gps_time,
+                    decr_header.sequence,
+                    common_header.rssi,
+                )
+                packet = cls(
+                    [bt_hop, header.hop_received()],
+                    decr_header.type,
+                    bytes(packet_bytes),
+                )
             packets.append(packet)
 
         return packets
@@ -354,9 +377,7 @@ class PacketOutput(Serializable):
         )
 
 
-class CtypeSerialFrame(ctypes.Structure):
-    """Serial packet header"""
-
+class CtypeV0VersionedFrame(ctypes.Structure):
     _fields_ = [
         ("version", ctypes.c_uint8),
         ("_type", ctypes.c_uint8),
@@ -395,9 +416,13 @@ class CtypeSerialFrame(ctypes.Structure):
     def parse(cls, frame: bytes) -> Tuple[Self, int]:
         """Parse serial frame into header and payload length"""
         return (
-            CtypeSerialFrame.from_buffer_copy(frame),
-            len(frame) - ctypes.sizeof(CtypeSerialFrame) - 16,
+            CtypeV0VersionedFrame.from_buffer_copy(frame),
+            len(frame) - ctypes.sizeof(CtypeV0VersionedFrame) - 16,
         )
+
+
+class CtypeSerialFrame(CtypeV0VersionedFrame):
+    """Serial packet header"""
 
     def hop_received(self) -> HopReceived:
         auth = Auth.DEVICE if self.flags & Flags.ENCR_DEVICE else Auth.NETWORK
@@ -411,6 +436,35 @@ class CtypeSerialFrame(ctypes.Structure):
             self.sequence,
             0,
         )
+
+    @classmethod
+    def decrypt(cls, database: DeviceDatabase, frame: bytes):
+        header = cls.from_buffer_copy(frame)
+        if header.flags & Flags.ENCR_DEVICE:
+            database.observe_serial(header.device_id, device_id=header.key_metadata)
+            key = database.serial_device_key(header.device_id, header.gps_time)
+        else:
+            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            key = database.serial_network_key(header.device_id, header.gps_time)
+
+        decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
+        return header, decrypted
+
+
+class CtypeBtAdvFrame(CtypeV0VersionedFrame):
+    """Bluetooth Advertising packet header"""
+
+    @classmethod
+    def decrypt(cls, database: DeviceDatabase, frame: bytes):
+        header = cls.from_buffer_copy(frame)
+        if header.flags & Flags.ENCR_DEVICE:
+            raise NotImplementedError
+        else:
+            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            key = database.bt_adv_network_key(header.device_id, header.gps_time)
+
+        decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
+        return header, decrypted
 
 
 class CtypePacketReceived:
