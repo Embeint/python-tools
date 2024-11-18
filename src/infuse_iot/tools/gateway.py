@@ -200,6 +200,9 @@ class SerialRxThread(SignaledThread):
                 # Handle any Memfault chunks
                 if pkt.ptype == InfuseType.MEMFAULT_CHUNK:
                     self._handle_memfault_pkt(pkt)
+                # Proactively requery keys
+                elif pkt.ptype == InfuseType.KEY_IDS:
+                    self._common.query_device_key(None)
                 # Forward to clients
                 self._common.server.broadcast(pkt)
         except (ValueError, KeyError) as e:
