@@ -44,8 +44,7 @@ class SubCommand(InfuseCommand):
                     name = t.name
 
                 for idx, (n, f, p, d) in enumerate(t.iter_fields()):
-                    if d is not None:
-                        f = d(f)
+                    f = d.format(f)
                     if idx == 0:
                         if tdf.time is not None:
                             if tdf.period is None:

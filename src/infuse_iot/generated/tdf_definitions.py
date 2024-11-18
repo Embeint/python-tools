@@ -17,7 +17,7 @@ class structs:
                 else:
                     f_name = field[0]
                 val = getattr(self, f_name)
-                yield f_name, val, self._postfix_[f_name], self._display_fn_.get(f_name)
+                yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
 
     class tdf_struct_mcuboot_img_sem_ver(_struct_type):
         """MCUboot semantic versioning struct"""
@@ -35,8 +35,11 @@ class structs:
             "revision": "",
             "build_num": "",
         }
-        _display_fn_ = {
-            "build_num": hex,
+        _display_fmt_ = {
+            "major": "{}",
+            "minor": "{}",
+            "revision": "{}",
+            "build_num": "0x{:08x}",
         }
 
     class tdf_struct_xyz_16bit(_struct_type):
@@ -53,7 +56,10 @@ class structs:
             "y": "",
             "z": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "x": "{}",
+            "y": "{}",
+            "z": "{}",
         }
 
     class tdf_struct_gcs_location(_struct_type):
@@ -70,7 +76,10 @@ class structs:
             "longitude": "deg",
             "height": "m",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "latitude": "{:.5f}",
+            "longitude": "{:.5f}",
+            "height": "{:.3f}",
         }
 
         @property
@@ -97,7 +106,9 @@ class structs:
             "eci": "",
             "tac": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "eci": "{}",
+            "tac": "{}",
         }
 
     class tdf_struct_lte_cell_id_global(_struct_type):
@@ -116,7 +127,11 @@ class structs:
             "eci": "",
             "tac": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "mcc": "{}",
+            "mnc": "{}",
+            "eci": "{}",
+            "tac": "{}",
         }
 
 class readings:
@@ -129,12 +144,12 @@ class readings:
                     f_name = field[0]
                 val = getattr(self, f_name)
                 if isinstance(val, ctypes.LittleEndianStructure):
-                    for subfield_name, subfield_val, subfield_postfix, display_fn in val.iter_fields():
-                        yield f'{f_name}.{subfield_name}', subfield_val, subfield_postfix, display_fn
+                    for subfield_name, subfield_val, subfield_postfix, display_fmt in val.iter_fields():
+                        yield f'{f_name}.{subfield_name}', subfield_val, subfield_postfix, display_fmt
                 elif isinstance(val, ctypes.Array):
-                    yield f_name, list(val), self._postfix_[f_name], self._display_fn_.get(f_name)
+                    yield f_name, list(val), self._postfix_[f_name], self._display_fmt_[f_name]
                 else:
-                    yield f_name, val, self._postfix_[f_name], self._display_fn_.get(f_name)
+                    yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
 
     class announce(_reading_type):
         """Common announcement packet"""
@@ -159,9 +174,14 @@ class readings:
             "reboots": "",
             "flags": "",
         }
-        _display_fn_ = {
-            "kv_crc": hex,
-            "flags": hex,
+        _display_fmt_ = {
+            "application": "0x{:08x}",
+            "version": "{}",
+            "kv_crc": "0x{:08x}",
+            "blocks": "{}",
+            "uptime": "{}",
+            "reboots": "{}",
+            "flags": "0x{:02x}",
         }
 
     class battery_state(_reading_type):
@@ -179,7 +199,10 @@ class readings:
             "current_ua": "uA",
             "soc": "%",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "voltage_mv": "{}",
+            "current_ua": "{}",
+            "soc": "{}",
         }
 
     class ambient_temp_pres_hum(_reading_type):
@@ -194,10 +217,13 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             "temperature": "deg",
-            "pressure": "kPa",
+            "pressure": "kPA",
             "humidity": "%",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "temperature": "{:.3f}",
+            "pressure": "{:.3f}",
+            "humidity": "{:.2f}",
         }
 
         @property
@@ -223,7 +249,8 @@ class readings:
         _postfix_ = {
             "temperature": "deg",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "temperature": "{:.3f}",
         }
 
         @property
@@ -243,7 +270,9 @@ class readings:
             "source": "",
             "shift": "us",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "source": "{}",
+            "shift": "{}",
         }
 
         @property
@@ -273,10 +302,14 @@ class readings:
             "param_2": "",
             "thread": "",
         }
-        _display_fn_ = {
-            "hardware_flags": hex,
-            "param_1": hex,
-            "param_2": hex,
+        _display_fmt_ = {
+            "reason": "{}",
+            "hardware_flags": "0x{:08x}",
+            "count": "{}",
+            "uptime": "{}",
+            "param_1": "0x{:08x}",
+            "param_2": "0x{:08x}",
+            "thread": "{}",
         }
 
     class acc_2g(_reading_type):
@@ -290,7 +323,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class acc_4g(_reading_type):
@@ -304,7 +338,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class acc_8g(_reading_type):
@@ -318,7 +353,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class acc_16g(_reading_type):
@@ -332,7 +368,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gyr_125dps(_reading_type):
@@ -346,7 +383,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gyr_250dps(_reading_type):
@@ -360,7 +398,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gyr_500dps(_reading_type):
@@ -374,7 +413,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gyr_1000dps(_reading_type):
@@ -388,7 +428,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gyr_2000dps(_reading_type):
@@ -402,7 +443,8 @@ class readings:
         _postfix_ = {
             "sample": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "sample": "{}",
         }
 
     class gcs_wgs84_llha(_reading_type):
@@ -420,7 +462,10 @@ class readings:
             "h_acc": "m",
             "v_acc": "m",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "location": "{}",
+            "h_acc": "{:.3f}",
+            "v_acc": "{:.3f}",
         }
 
         @property
@@ -506,11 +551,40 @@ class readings:
             "mag_dec": "deg",
             "mag_acc": "deg",
         }
-        _display_fn_ = {
-            "valid": hex,
-            "flags": hex,
-            "flags2": hex,
-            "flags3": hex,
+        _display_fmt_ = {
+            "itow": "{}",
+            "year": "{}",
+            "month": "{}",
+            "day": "{}",
+            "hour": "{}",
+            "min": "{}",
+            "sec": "{}",
+            "valid": "{}",
+            "t_acc": "{}",
+            "nano": "{}",
+            "fix_type": "{}",
+            "flags": "{}",
+            "flags2": "{}",
+            "num_sv": "{}",
+            "lon": "{}",
+            "lat": "{}",
+            "height": "{}",
+            "h_msl": "{}",
+            "h_acc": "{}",
+            "v_acc": "{}",
+            "vel_n": "{}",
+            "vel_e": "{}",
+            "vel_d": "{}",
+            "g_speed": "{}",
+            "head_mot": "{}",
+            "s_acc": "{}",
+            "head_acc": "{}",
+            "p_dop": "{}",
+            "flags3": "{}",
+            "reserved0": "{}",
+            "head_veh": "{}",
+            "mag_dec": "{}",
+            "mag_acc": "{}",
         }
 
         @property
@@ -602,12 +676,141 @@ class readings:
             "rsrp": "dBm",
             "rsrq": "dB",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "cell": "{}",
+            "earfcn": "{}",
+            "status": "{}",
+            "tech": "{}",
+            "rsrp": "{}",
+            "rsrq": "{}",
         }
 
         @property
         def rsrp(self):
             return self._rsrp * -1
+
+    class globalstar_pkt(_reading_type):
+        """9 byte payload transmitted over the Globalstar Simplex network"""
+
+        name = "GLOBALSTAR_PKT"
+        _fields_ = [
+            ("payload", 9 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "payload": "",
+        }
+        _display_fmt_ = {
+            "payload": "{}",
+        }
+
+    class acc_magnitude_std_dev(_reading_type):
+        """Accelerometer magnitude standard deviation over a window"""
+
+        name = "ACC_MAGNITUDE_STD_DEV"
+        _fields_ = [
+            ("count", ctypes.c_uint32),
+            ("std_dev", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "count": "",
+            "std_dev": "",
+        }
+        _display_fmt_ = {
+            "count": "{}",
+            "std_dev": "{}",
+        }
+
+    class activity_metric(_reading_type):
+        """Generic activity metric"""
+
+        name = "ACTIVITY_METRIC"
+        _fields_ = [
+            ("value", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "value": "",
+        }
+        _display_fmt_ = {
+            "value": "{}",
+        }
+
+    class algorithm_output(_reading_type):
+        """Generic activity metric"""
+
+        name = "ALGORITHM_OUTPUT"
+        _fields_ = [
+            ("algorithm_id", ctypes.c_uint32),
+            ("algorithm_version", ctypes.c_uint16),
+            ("output", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "algorithm_id": "",
+            "algorithm_version": "",
+            "output": "",
+        }
+        _display_fmt_ = {
+            "algorithm_id": "{}",
+            "algorithm_version": "{}",
+            "output": "{}",
+        }
+
+    class runtime_error(_reading_type):
+        """Runtime error logging"""
+
+        name = "RUNTIME_ERROR"
+        _fields_ = [
+            ("error_id", ctypes.c_uint32),
+            ("error_ctx", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "error_id": "",
+            "error_ctx": "",
+        }
+        _display_fmt_ = {
+            "error_id": "{}",
+            "error_ctx": "{}",
+        }
+
+    class charger_en_control(_reading_type):
+        """Battery charging enable state"""
+
+        name = "CHARGER_EN_CONTROL"
+        _fields_ = [
+            ("enabled", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "enabled": "",
+        }
+        _display_fmt_ = {
+            "enabled": "{}",
+        }
+
+    class gnss_fix_info(_reading_type):
+        """Metadata about a GNSS location fix"""
+
+        name = "GNSS_FIX_INFO"
+        _fields_ = [
+            ("time_fix", ctypes.c_uint16),
+            ("location_fix", ctypes.c_uint16),
+            ("num_sv", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "time_fix": "",
+            "location_fix": "",
+            "num_sv": "",
+        }
+        _display_fmt_ = {
+            "time_fix": "{}",
+            "location_fix": "{}",
+            "num_sv": "{}",
+        }
 
     class array_type(_reading_type):
         """Example array type"""
@@ -620,7 +823,8 @@ class readings:
         _postfix_ = {
             "array": "",
         }
-        _display_fn_ = {
+        _display_fmt_ = {
+            "array": "{}",
         }
 
 id_type_mapping = {
@@ -642,5 +846,12 @@ id_type_mapping = {
     19: readings.gcs_wgs84_llha,
     20: readings.ubx_nav_pvt,
     21: readings.lte_conn_status,
+    22: readings.globalstar_pkt,
+    23: readings.acc_magnitude_std_dev,
+    24: readings.activity_metric,
+    25: readings.algorithm_output,
+    26: readings.runtime_error,
+    27: readings.charger_en_control,
+    28: readings.gnss_fix_info,
     100: readings.array_type,
 }
