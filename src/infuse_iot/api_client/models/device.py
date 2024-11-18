@@ -1,11 +1,15 @@
 import datetime
-from typing import Any, Dict, List, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.new_device_metadata import NewDeviceMetadata
+
 
 T = TypeVar("T", bound="Device")
 
@@ -22,6 +26,7 @@ class Device:
         organisation_id (str): ID of organisation for board to exist in
         device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
+        metadata (Union[Unset, NewDeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
     """
 
     id: str
@@ -31,6 +36,7 @@ class Device:
     board_id: str
     organisation_id: str
     device_id: Union[Unset, str] = UNSET
+    metadata: Union[Unset, "NewDeviceMetadata"] = UNSET
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -48,6 +54,10 @@ class Device:
 
         device_id = self.device_id
 
+        metadata: Union[Unset, Dict[str, Any]] = UNSET
+        if not isinstance(self.metadata, Unset):
+            metadata = self.metadata.to_dict()
+
         field_dict: Dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -62,11 +72,15 @@ class Device:
         )
         if device_id is not UNSET:
             field_dict["deviceId"] = device_id
+        if metadata is not UNSET:
+            field_dict["metadata"] = metadata
 
         return field_dict
 
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+        from ..models.new_device_metadata import NewDeviceMetadata
+
         d = src_dict.copy()
         id = d.pop("id")
 
@@ -82,6 +96,13 @@ class Device:
 
         device_id = d.pop("deviceId", UNSET)
 
+        _metadata = d.pop("metadata", UNSET)
+        metadata: Union[Unset, NewDeviceMetadata]
+        if isinstance(_metadata, Unset):
+            metadata = UNSET
+        else:
+            metadata = NewDeviceMetadata.from_dict(_metadata)
+
         device = cls(
             id=id,
             created_at=created_at,
@@ -90,6 +111,7 @@ class Device:
             board_id=board_id,
             organisation_id=organisation_id,
             device_id=device_id,
+            metadata=metadata,
         )
 
         device.additional_properties = d

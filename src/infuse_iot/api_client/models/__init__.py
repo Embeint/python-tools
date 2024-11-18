@@ -9,8 +9,10 @@ from .device_id_field import DeviceIdField
 from .error import Error
 from .health_check import HealthCheck
 from .key import Key
+from .metadata_field import MetadataField
 from .new_board import NewBoard
 from .new_device import NewDevice
+from .new_device_metadata import NewDeviceMetadata
 from .new_organisation import NewOrganisation
 from .organisation import Organisation
 
@@ -24,8 +26,10 @@ __all__ = (
     "Error",
     "HealthCheck",
     "Key",
+    "MetadataField",
     "NewBoard",
     "NewDevice",
+    "NewDeviceMetadata",
     "NewOrganisation",
     "Organisation",
 )

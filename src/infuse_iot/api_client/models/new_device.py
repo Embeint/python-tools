@@ -1,9 +1,13 @@
-from typing import Any, Dict, List, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.new_device_metadata import NewDeviceMetadata
+
 
 T = TypeVar("T", bound="NewDevice")
 
@@ -17,12 +21,14 @@ class NewDevice:
         organisation_id (str): ID of organisation for board to exist in
         device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
+        metadata (Union[Unset, NewDeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
     """
 
     mcu_id: str
     board_id: str
     organisation_id: str
     device_id: Union[Unset, str] = UNSET
+    metadata: Union[Unset, "NewDeviceMetadata"] = UNSET
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -33,6 +39,10 @@ class NewDevice:
         organisation_id = self.organisation_id
 
         device_id = self.device_id
+
+        metadata: Union[Unset, Dict[str, Any]] = UNSET
+        if not isinstance(self.metadata, Unset):
+            metadata = self.metadata.to_dict()
 
         field_dict: Dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -45,11 +55,15 @@ class NewDevice:
         )
         if device_id is not UNSET:
             field_dict["deviceId"] = device_id
+        if metadata is not UNSET:
+            field_dict["metadata"] = metadata
 
         return field_dict
 
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+        from ..models.new_device_metadata import NewDeviceMetadata
+
         d = src_dict.copy()
         mcu_id = d.pop("mcuId")
 
@@ -59,11 +73,19 @@ class NewDevice:
 
         device_id = d.pop("deviceId", UNSET)
 
+        _metadata = d.pop("metadata", UNSET)
+        metadata: Union[Unset, NewDeviceMetadata]
+        if isinstance(_metadata, Unset):
+            metadata = UNSET
+        else:
+            metadata = NewDeviceMetadata.from_dict(_metadata)
+
         new_device = cls(
             mcu_id=mcu_id,
             board_id=board_id,
             organisation_id=organisation_id,
             device_id=device_id,
+            metadata=metadata,
         )
 
         new_device.additional_properties = d
