@@ -150,6 +150,7 @@ class rpc_enum_file_action(enum.IntEnum):
     DISCARD = 0
     APP_IMG = 1
     BT_CTLR_IMG = 2
+    APP_CPATCH = 11
     NRF91_MODEM_DIFF = 20
 
 
@@ -158,4 +159,5 @@ class rpc_enum_infuse_bt_characteristic(enum.IntEnum):
 
     COMMAND = 1
     DATA = 2
+    LOGGING = 4
 
