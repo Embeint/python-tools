@@ -24,7 +24,7 @@ from infuse_iot.api_client.api.default import (
     get_boards,
     get_board_by_id,
 )
-from infuse_iot.api_client.models import NewDevice
+from infuse_iot.api_client.models import NewDevice, NewDeviceMetadata
 from infuse_iot.credentials import get_api_key
 from infuse_iot.commands import InfuseCommand
 
@@ -52,7 +52,18 @@ class SubCommand(InfuseCommand):
         parser.add_argument("--board", "-b", type=str, help="Board ID")
         parser.add_argument("--organisation", "-o", type=str, help="Organisation ID")
         parser.add_argument(
-            "--id", "-i", type=int, help="Infuse device ID to provision as"
+            "--id",
+            "-i",
+            type=lambda x: int(x, 0),
+            help="Infuse device ID to provision as",
+        )
+        parser.add_argument(
+            "--metadata",
+            "-m",
+            metavar="KEY=VALUE",
+            nargs="+",
+            type=str,
+            help="Define a number of key-value pairs for metadata",
         )
 
     def __init__(self, args):
@@ -60,6 +71,11 @@ class SubCommand(InfuseCommand):
         self._board = args.board
         self._org = args.organisation
         self._id = args.id
+        self._metadata = {}
+        if args.metadata:
+            for meta in args.metadata:
+                key, val = meta.strip().split("=", 1)
+                self._metadata[key.strip()] = val
 
     def nrf_device_info(self, api: LowLevel.API) -> tuple[int, int]:
         """Retrive device ID and customer UICR address"""
@@ -138,7 +154,10 @@ class SubCommand(InfuseCommand):
             )
 
         new_board = NewDevice(
-            mcu_id=hardware_id_str, organisation_id=self._org, board_id=self._board
+            mcu_id=hardware_id_str,
+            organisation_id=self._org,
+            board_id=self._board,
+            metadata=NewDeviceMetadata.from_dict(self._metadata),
         )
         if self._id:
             new_board.device_id = f"{self._id:016x}"
