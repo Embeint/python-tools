@@ -46,7 +46,6 @@ class DeviceDatabase:
         """Update device state based on observed packet"""
         if self.gateway is None:
             self.gateway = address
-            print("GATEWAY", hex(self.gateway))
         if address not in self.devices:
             self.devices[address] = self.DeviceState(address)
         if network_id is not None:
@@ -83,6 +82,9 @@ class DeviceDatabase:
     def _serial_key(self, base, time_idx):
         return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"serial")
 
+    def _bt_adv_key(self, base, time_idx):
+        return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"bt_adv")
+
     def has_public_key(self, address: int):
         """Does the database have the public key for this device?"""
         if address not in self.devices:
@@ -112,3 +114,26 @@ class DeviceDatabase:
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._serial_key(base, time_idx)
+
+    def bt_adv_network_key(self, address: int, gps_time: int):
+        """Network key for Bluetooth advertising interface"""
+        if address not in self.devices:
+            raise NoKeyError
+        base = self._network_keys[self.devices[address].network_id]
+        time_idx = gps_time // (60 * 60 * 24)
+
+        return self._bt_adv_key(base, time_idx)
+
+    def bt_adv_device_key(self, address: int, gps_time: int):
+        """Device key for Bluetooth advertising interface"""
+        if address not in self.devices:
+            raise NoKeyError
+        d = self.devices[address]
+        if d.device_id is None:
+            raise NoKeyError
+        base = self.devices[address].shared_key
+        if base is None:
+            raise NoKeyError
+        time_idx = gps_time // (60 * 60 * 24)
+
+        return self._bt_adv_key(base, time_idx)
