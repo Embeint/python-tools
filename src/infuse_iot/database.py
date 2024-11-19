@@ -25,6 +25,7 @@ class DeviceDatabase:
     _network_keys = {
         0x000000: b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f",
     }
+    _derived_keys = {}
 
     class DeviceState:
         """Device State"""
@@ -89,7 +90,13 @@ class DeviceDatabase:
         base = self._network_keys[network_id]
         time_idx = gps_time // (60 * 60 * 24)
 
-        return hkdf_derive(base, time_idx.to_bytes(4, "little"), interface)
+        key_id = (network_id, interface, time_idx)
+        if key_id not in self._derived_keys:
+            self._derived_keys[key_id] = hkdf_derive(
+                base, time_idx.to_bytes(4, "little"), interface
+            )
+
+        return self._derived_keys[key_id]
 
     def _serial_key(self, base, time_idx):
         return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"serial")
