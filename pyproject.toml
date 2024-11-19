@@ -18,6 +18,7 @@ dependencies = [
     "argcomplete",
     "aiohttp",
     "attrs",
+    "bleak",
     "cryptography",
     "colorama",
     "httpx",
