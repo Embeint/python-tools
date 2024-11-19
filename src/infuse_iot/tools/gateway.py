@@ -22,7 +22,6 @@ from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
 from infuse_iot.database import DeviceDatabase
-from infuse_iot.credentials import set_api_key
 
 from infuse_iot.epacket import (
     InfuseType,
@@ -280,11 +279,8 @@ class SubCommand(InfuseCommand):
             type=argparse.FileType("w"),
             help="Save serial output to file",
         )
-        parser.add_argument("--api-key", type=str, help="Update saved API key")
 
     def __init__(self, args):
-        if args.api_key is not None:
-            set_api_key(args.api_key)
         if args.serial is not None:
             self.port = SerialPort(args.serial)
         elif args.rtt is not None:
