@@ -6,7 +6,7 @@ import ctypes
 import binascii
 
 from collections import defaultdict
-from typing import List, Dict, Tuple
+from typing import List, Dict
 
 
 class ValidationError(Exception):
@@ -267,7 +267,6 @@ class CopyInstr(Instr):
 class WriteInstr(Instr):
     class WriteU4(ctypes.LittleEndianStructure):
         op = OpCode.WRITE_LEN_U4
-        length = 1
         _fields_ = [
             ("opcode", ctypes.c_uint8),
         ]
