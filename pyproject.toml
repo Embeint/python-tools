@@ -30,6 +30,7 @@ dependencies = [
     "tabulate",
     "typing-extensions",
     "keyring",
+    "pyyaml",
 ]
 
 [project.license]
