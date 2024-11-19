@@ -20,7 +20,6 @@ class wifi_scan(InfuseRpcCommand):
         @classmethod
         def from_buffer_copy(cls, source, offset=0):
             values = []
-            num = source[0]
             source = source[1:]
             while len(source) > 0:
 

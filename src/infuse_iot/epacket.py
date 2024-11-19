@@ -6,7 +6,7 @@ import base64
 import time
 import random
 
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple
 from typing_extensions import Self
 
 from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt

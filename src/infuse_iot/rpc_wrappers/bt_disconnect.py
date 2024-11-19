@@ -6,7 +6,6 @@ from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import (
     rpc_struct_bt_addr_le,
     rpc_enum_bt_le_addr_type,
-    rpc_enum_infuse_bt_characteristic,
 )
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8

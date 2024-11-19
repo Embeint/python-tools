@@ -3,7 +3,7 @@
 import ctypes
 import enum
 
-from typing import List, Dict
+from typing import List
 
 from infuse_iot.time import InfuseTime
 from infuse_iot.generated import tdf_definitions

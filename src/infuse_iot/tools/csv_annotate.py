@@ -42,7 +42,6 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         from dash import Dash, dcc, html, Input, Output, State, callback
-        import numpy as np
         import pandas as pd
 
         # Read data, add label column
@@ -52,8 +51,6 @@ class SubCommand(InfuseCommand):
             "labels",
             [self.labels[0] for _ in range(self.df.shape[0])],
         )
-
-        # print(self.df.index.iloc[0])
 
         app = Dash()
         app.layout = html.Div(
