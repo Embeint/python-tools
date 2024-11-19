@@ -4,7 +4,7 @@ import keyring
 import yaml
 
 
-def set_api_key(api_key):
+def set_api_key(api_key: str):
     """
     Save the Infuse-IoT API key to the keyring module
     """
@@ -21,7 +21,7 @@ def get_api_key():
     return key
 
 
-def save_network(network_id, network_info):
+def save_network(network_id: int, network_info: str):
     """
     Save an Infuse-IoT network key to the keyring module
     """
@@ -29,7 +29,7 @@ def save_network(network_id, network_info):
     keyring.set_password("infuse-iot", username, network_info)
 
 
-def load_network(network_id):
+def load_network(network_id: int):
     """
     Retrieve an Infuse-IoT network key from the keyring module
     """
