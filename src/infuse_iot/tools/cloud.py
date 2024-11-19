@@ -158,7 +158,9 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        subparser = parser.add_subparsers(title="commands", metavar="<command>")
+        subparser = parser.add_subparsers(
+            title="commands", metavar="<command>", required=True
+        )
 
         Organisations.add_parser(subparser)
         Boards.add_parser(subparser)
