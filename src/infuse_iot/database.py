@@ -121,9 +121,14 @@ class DeviceDatabase:
     def has_public_key(self, address: int):
         """Does the database have the public key for this device?"""
         if address not in self.devices:
-            print(address, "not in list")
             return False
         return self.devices[address].public_key is not None
+
+    def has_network_id(self, address: int):
+        """Does the database know the network ID for this device?"""
+        if address not in self.devices:
+            return False
+        return self.devices[address].network_id is not None
 
     def serial_network_key(self, address: int, gps_time: int):
         """Network key for serial interface"""

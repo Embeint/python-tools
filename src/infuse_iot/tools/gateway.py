@@ -21,7 +21,10 @@ from infuse_iot.util.console import Console
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
-from infuse_iot.database import DeviceDatabase
+from infuse_iot.database import (
+    DeviceDatabase,
+    NoKeyError,
+)
 
 from infuse_iot.epacket import (
     InfuseType,
@@ -176,16 +179,23 @@ class SerialRxThread(SignaledThread):
                 f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}"
             )
 
-    def _handle_serial_frame(self, frame):
+    def _handle_serial_frame(self, frame: bytearray):
         try:
             # Decode the serial packet
             try:
                 decoded = PacketReceived.from_serial(self._common.ddb, frame)
-            except KeyError:
-                self._common.query_device_key(None)
-                Console.log_info(
-                    f"Dropping {len(frame)} byte packet to query device key..."
-                )
+            except NoKeyError:
+                if not self._common.ddb.has_network_id(self._common.ddb.gateway):
+                    # Need to know network ID before we can query the device key
+                    self._common.port.ping()
+                    Console.log_info(
+                        f"Dropping {len(frame)} byte packet to query network ID..."
+                    )
+                else:
+                    self._common.query_device_key(None)
+                    Console.log_info(
+                        f"Dropping {len(frame)} byte packet to query device key..."
+                    )
                 return
             except cryptography.exceptions.InvalidTag as e:
                 Console.log_error(f"Failed to decode {len(frame)} byte packet {e}")
