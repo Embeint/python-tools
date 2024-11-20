@@ -12,11 +12,23 @@ from infuse_iot.credentials import get_api_key, load_network
 
 
 class NoKeyError(KeyError):
-    pass
+    """Generic key not found error"""
 
 
-class KeyChangedError(KeyError):
-    pass
+class UnknownNetworkError(NoKeyError):
+    """Requested network is not known"""
+
+
+class DeviceUnknownDeviceKey(NoKeyError):
+    """Device key is not known for requested device"""
+
+
+class DeviceUnknownNetworkKey(NoKeyError):
+    """Network key is not known for requested device"""
+
+
+class DeviceKeyChangedError(KeyError):
+    """Device key for the requested device has changed"""
 
 
 class DeviceDatabase:
@@ -56,7 +68,9 @@ class DeviceDatabase:
                 self.devices[address].device_id is not None
                 and self.devices[address].device_id != device_id
             ):
-                raise KeyChangedError(f"Device key for {address:016x} has changed")
+                raise DeviceKeyChangedError(
+                    f"Device key for {address:016x} has changed"
+                )
             self.devices[address].device_id = device_id
 
     def observe_security_state(
@@ -80,12 +94,12 @@ class DeviceDatabase:
             key = base64.b64decode(response.key)
             self.devices[address].shared_key = key
 
-    def _network_key(self, network_id, interface, gps_time):
+    def _network_key(self, network_id: int, interface: str, gps_time: int):
         if network_id not in self._network_keys:
             try:
                 info = load_network(network_id)
             except FileNotFoundError:
-                raise NoKeyError
+                raise UnknownNetworkError
             self._network_keys[network_id] = info["key"]
         base = self._network_keys[network_id]
         time_idx = gps_time // (60 * 60 * 24)
@@ -114,7 +128,7 @@ class DeviceDatabase:
     def serial_network_key(self, address: int, gps_time: int):
         """Network key for serial interface"""
         if address not in self.devices:
-            raise NoKeyError
+            raise DeviceUnknownNetworkKey
         network_id = self.devices[address].network_id
 
         return self._network_key(network_id, b"serial", gps_time)
@@ -122,13 +136,13 @@ class DeviceDatabase:
     def serial_device_key(self, address: int, gps_time: int):
         """Device key for serial interface"""
         if address not in self.devices:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         d = self.devices[address]
         if d.device_id is None:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         base = self.devices[address].shared_key
         if base is None:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._serial_key(base, time_idx)
@@ -136,7 +150,7 @@ class DeviceDatabase:
     def bt_adv_network_key(self, address: int, gps_time: int):
         """Network key for Bluetooth advertising interface"""
         if address not in self.devices:
-            raise NoKeyError
+            raise DeviceUnknownNetworkKey
         network_id = self.devices[address].network_id
 
         return self._network_key(network_id, b"bt_adv", gps_time)
@@ -144,13 +158,13 @@ class DeviceDatabase:
     def bt_adv_device_key(self, address: int, gps_time: int):
         """Device key for Bluetooth advertising interface"""
         if address not in self.devices:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         d = self.devices[address]
         if d.device_id is None:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         base = self.devices[address].shared_key
         if base is None:
-            raise NoKeyError
+            raise DeviceUnknownDeviceKey
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._bt_adv_key(base, time_idx)
