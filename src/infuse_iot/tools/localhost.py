@@ -216,5 +216,7 @@ class SubCommand(InfuseCommand):
         try:
             web.run_app(app, host="localhost", port=8080)
         except GracefulExit:
+            pass
+        finally:
             self._thread_end.set()
         rx_thread.join(1.0)
