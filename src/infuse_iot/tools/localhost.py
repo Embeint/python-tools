@@ -7,13 +7,14 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import asyncio
 import ctypes
-import json
 import pathlib
 import threading
 import time
 from aiohttp import web
+from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
+from infuse_iot.util.console import Console
 from infuse_iot.epacket import InfuseType, Interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
@@ -41,9 +42,11 @@ class SubCommand(InfuseCommand):
 
         return web.FileResponse(this_folder / "localhost" / "index.html")
 
-    async def websocket_handler(self, request):
+    async def websocket_handler(self, request: BaseRequest):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
+
+        Console.log_info(f"Websocket client connected ({request.remote})")
 
         try:
             while True:
@@ -102,13 +105,14 @@ class SubCommand(InfuseCommand):
                 }
                 self._data_lock.release()
 
-                await ws.send_str(json.dumps(message))
+                await ws.send_json(message)
                 await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            print("WebSocket connection closed")
+        except (asyncio.CancelledError, ConnectionResetError):
+            pass
         finally:
             await ws.close()
 
+        Console.log_info(f"Websocket client disconnected ({request.remote})")
         return ws
 
     def tdf_columns(self, tdf):
@@ -198,6 +202,7 @@ class SubCommand(InfuseCommand):
             self._data_lock.release()
 
     def run(self):
+        Console.init()
         app = web.Application()
         # Route for serving the HTML file
         app.router.add_get("/", self.handle_index)
