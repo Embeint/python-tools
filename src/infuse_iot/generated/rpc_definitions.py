@@ -161,3 +161,533 @@ class rpc_enum_infuse_bt_characteristic(enum.IntEnum):
     DATA = 2
     LOGGING = 4
 
+
+class rpc_enum_data_logger(enum.IntEnum):
+    """Data Logger identifier"""
+
+    FLASH_ONBOARD = 1
+    FLASH_REMOVABLE = 2
+
+
+class reboot:
+    """Reboot the device after a delay"""
+
+    HELP = "Reboot the device after a delay"
+    DESCRIPTION = "Reboot the device after a delay"
+    COMMAND_ID = 1
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("delay_ms", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("delay_ms", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class fault:
+    """Immediately trigger an exception on the device"""
+
+    HELP = "Immediately trigger an exception on the device"
+    DESCRIPTION = "Immediately trigger an exception on the device"
+    COMMAND_ID = 2
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("fault", ctypes.c_uint8),
+            ("zero", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+
+class time_get:
+    """Get the current time knowledge of the device"""
+
+    HELP = "Get the current time knowledge of the device"
+    DESCRIPTION = "Get the current time knowledge of the device"
+    COMMAND_ID = 3
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("time_source", ctypes.c_uint8),
+            ("epoch_time", ctypes.c_uint64),
+            ("sync_age", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class time_set:
+    """Set the current time of the device"""
+
+    HELP = "Set the current time of the device"
+    DESCRIPTION = "Set the current time of the device"
+    COMMAND_ID = 4
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("epoch_time", ctypes.c_uint64),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+
+class kv_write:
+    """Write values to the KV store"""
+
+    HELP = "Write values to the KV store"
+    DESCRIPTION = "Write values to the KV store"
+    COMMAND_ID = 5
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("num", ctypes.c_uint8),
+            ("values", 0 * rpc_struct_kv_store_value),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("rc", 0 * ctypes.c_int16),
+        ]
+        _pack_ = 1
+
+
+class kv_read:
+    """Read values from the KV store"""
+
+    HELP = "Read values from the KV store"
+    DESCRIPTION = "Read values from the KV store"
+    COMMAND_ID = 6
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("num", ctypes.c_uint8),
+            ("keys", 0 * ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("values", 0 * rpc_struct_kv_store_value),
+        ]
+        _pack_ = 1
+
+
+class kv_reflect_crcs:
+    """Read KV store CRC's"""
+
+    HELP = "Read KV store CRC's"
+    DESCRIPTION = "Read KV store CRC's"
+    COMMAND_ID = 7
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("offset", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("num", ctypes.c_uint16),
+            ("remaining", ctypes.c_uint16),
+            ("crcs", 0 * rpc_struct_kv_store_crc),
+        ]
+        _pack_ = 1
+
+
+class zbus_channel_state:
+    """Query current state of zbus channel"""
+
+    HELP = "Query current state of zbus channel"
+    DESCRIPTION = "Query current state of zbus channel"
+    COMMAND_ID = 8
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("channel_id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("publish_timestamp", ctypes.c_uint64),
+            ("publish_count", ctypes.c_uint32),
+            ("publish_period_avg_ms", ctypes.c_uint32),
+            ("data", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+
+class application_info:
+    """Query basic application versions and state"""
+
+    HELP = "Query basic application versions and state"
+    DESCRIPTION = "Query basic application versions and state"
+    COMMAND_ID = 9
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("application_id", ctypes.c_uint32),
+            ("version", rpc_struct_mcuboot_img_sem_ver),
+            ("network_id", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+            ("reboots", ctypes.c_uint32),
+            ("kv_crc", ctypes.c_uint32),
+            ("data_blocks_internal", ctypes.c_uint32),
+            ("data_blocks_external", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class wifi_scan:
+    """Scan for WiFi networks"""
+
+    HELP = "Scan for WiFi networks"
+    DESCRIPTION = "Scan for WiFi networks"
+    COMMAND_ID = 10
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("network_count", ctypes.c_uint8),
+            ("networks", 0 * rpc_struct_wifi_scan_result),
+        ]
+        _pack_ = 1
+
+
+class wifi_state:
+    """Get current WiFi interface state"""
+
+    HELP = "Get current WiFi interface state"
+    DESCRIPTION = "Get current WiFi interface state"
+    COMMAND_ID = 11
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("common", rpc_struct_network_state),
+            ("wifi", rpc_struct_wifi_state),
+        ]
+        _pack_ = 1
+
+
+class last_reboot:
+    """Retrieve information pertaining to the previous reboot"""
+
+    HELP = "Retrieve information pertaining to the previous reboot"
+    DESCRIPTION = "Retrieve information pertaining to the previous reboot"
+    COMMAND_ID = 12
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("reason", ctypes.c_uint8),
+            ("epoch_time_source", ctypes.c_uint8),
+            ("epoch_time", ctypes.c_uint64),
+            ("hardware_flags", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+            ("param_1", ctypes.c_uint32),
+            ("param_2", ctypes.c_uint32),
+            ("thread", 8 * ctypes.c_char),
+        ]
+        _pack_ = 1
+
+
+class data_logger_state:
+    """Get state of a data logger"""
+
+    HELP = "Get state of a data logger"
+    DESCRIPTION = "Get state of a data logger"
+    COMMAND_ID = 13
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("logical_blocks", ctypes.c_uint32),
+            ("physical_blocks", ctypes.c_uint32),
+            ("current_block", ctypes.c_uint32),
+            ("earliest_block", ctypes.c_uint32),
+            ("block_size", ctypes.c_uint16),
+            ("block_overhead", ctypes.c_uint16),
+            ("erase_unit", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+
+class data_logger_read:
+    """Read data from data logger"""
+
+    HELP = "Read data from data logger"
+    DESCRIPTION = "Read data from data logger"
+    COMMAND_ID = 14
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+            ("start_block", ctypes.c_uint32),
+            ("last_block", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("sent_len", ctypes.c_uint32),
+            ("sent_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class lte_at_cmd:
+    """Run AT command against LTE modem"""
+
+    HELP = "Run AT command against LTE modem"
+    DESCRIPTION = "Run AT command against LTE modem"
+    COMMAND_ID = 20
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("cmd", 0 * ctypes.c_char),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("rsp", 0 * ctypes.c_char),
+        ]
+        _pack_ = 1
+
+
+class lte_state:
+    """Get current LTE interface state"""
+
+    HELP = "Get current LTE interface state"
+    DESCRIPTION = "Get current LTE interface state"
+    COMMAND_ID = 21
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("common", rpc_struct_network_state),
+            ("lte", rpc_struct_lte_state),
+        ]
+        _pack_ = 1
+
+
+class coap_download:
+    """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
+
+    HELP = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    COMMAND_ID = 30
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("server_address", 48 * ctypes.c_char),
+            ("server_port", ctypes.c_uint16),
+            ("block_timeout_ms", ctypes.c_uint16),
+            ("action", ctypes.c_uint8),
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+            ("resource", 0 * ctypes.c_char),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class file_write_basic:
+    """Write a file to the device"""
+
+    HELP = "Write a file to the device"
+    DESCRIPTION = "Write a file to the device"
+    COMMAND_ID = 40
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("action", ctypes.c_uint8),
+            ("file_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("recv_len", ctypes.c_uint32),
+            ("recv_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class bt_connect_infuse:
+    """Connect to an Infuse-IoT Bluetooth device"""
+
+    HELP = "Connect to an Infuse-IoT Bluetooth device"
+    DESCRIPTION = "Connect to an Infuse-IoT Bluetooth device"
+    COMMAND_ID = 50
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
+            ("conn_timeout_ms", ctypes.c_uint16),
+            ("subscribe", ctypes.c_uint8),
+            ("inactivity_timeout_ms", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("cloud_public_key", 32 * ctypes.c_uint8),
+            ("device_public_key", 32 * ctypes.c_uint8),
+            ("network_id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class bt_disconnect:
+    """Disconnect from a Bluetooth device"""
+
+    HELP = "Disconnect from a Bluetooth device"
+    DESCRIPTION = "Disconnect from a Bluetooth device"
+    COMMAND_ID = 51
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+
+class security_state:
+    """Query current security state and validate identity"""
+
+    HELP = "Query current security state and validate identity"
+    DESCRIPTION = "Query current security state and validate identity"
+    COMMAND_ID = 30000
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("challenge", 16 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("cloud_public_key", 32 * ctypes.c_uint8),
+            ("device_public_key", 32 * ctypes.c_uint8),
+            ("network_id", ctypes.c_uint32),
+            ("challenge_response_type", ctypes.c_uint8),
+            ("challenge_response", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+
+class data_sender:
+    """Send multiple INFUSE_RPC_DATA packets"""
+
+    HELP = "Send multiple INFUSE_RPC_DATA packets"
+    DESCRIPTION = "Send multiple INFUSE_RPC_DATA packets"
+    COMMAND_ID = 32765
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+
+class data_receiver:
+    """Receive multiple INFUSE_RPC_DATA packets"""
+
+    HELP = "Receive multiple INFUSE_RPC_DATA packets"
+    DESCRIPTION = "Receive multiple INFUSE_RPC_DATA packets"
+    COMMAND_ID = 32766
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("recv_len", ctypes.c_uint32),
+            ("recv_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class echo:
+    """Echo any input data in the response"""
+
+    HELP = "Echo any input data in the response"
+    DESCRIPTION = "Echo any input data in the response"
+    COMMAND_ID = 32767
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("array", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("array", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
