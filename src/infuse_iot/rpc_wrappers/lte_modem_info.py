@@ -3,14 +3,14 @@
 import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 from . import kv_read, lte_pdp_ctx
 
 
-class lte_modem_info(InfuseRpcCommand):
+class lte_modem_info(InfuseRpcCommand, defs.kv_read):
     HELP = "Get LTE modem information"
     DESCRIPTION = "Get LTE modem information"
-    COMMAND_ID = 6
 
     class request(kv_read.kv_read.request):
         pass

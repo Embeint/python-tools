@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import (
@@ -9,23 +8,10 @@ from infuse_iot.generated.rpc_definitions import (
 )
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class bt_disconnect(InfuseRpcCommand):
-    HELP = "Disconnect from a Bluetooth device"
-    DESCRIPTION = "Disconnect from a Bluetooth device"
-    COMMAND_ID = 51
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("peer", rpc_struct_bt_addr_le),
-        ]
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
+class bt_disconnect(InfuseRpcCommand, defs.bt_disconnect):
     @classmethod
     def add_parser(cls, parser):
         addr_group = parser.add_mutually_exclusive_group(required=True)

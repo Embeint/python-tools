@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import binascii
-import ctypes
 
 from rich.progress import (
     Progress,
@@ -11,28 +10,11 @@ from rich.progress import (
 
 from infuse_iot.commands import InfuseRpcCommand, Auth
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class file_write_basic(InfuseRpcCommand):
-    HELP = "Write a file to a device"
-    DESCRIPTION = "Write a file to a device"
-    COMMAND_ID = 40
+class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
     RPC_DATA = True
-
-    class request(ctypes.LittleEndianStructure):
-
-        _fields_ = [
-            ("action", ctypes.c_uint8),
-            ("crc", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("recv_len", ctypes.c_uint32),
-            ("recv_crc", ctypes.c_uint32),
-        ]
-        _pack_ = 1
 
     @classmethod
     def add_parser(cls, parser):
@@ -97,7 +79,6 @@ class file_write_basic(InfuseRpcCommand):
         return Auth.NETWORK
 
     def request_struct(self):
-        print(f"FILE CRC {binascii.crc32(self.payload):08x}")
         return self.request(self.action, binascii.crc32(self.payload))
 
     def data_payload(self):

@@ -3,12 +3,12 @@
 import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class wifi_configure(InfuseRpcCommand):
+class wifi_configure(InfuseRpcCommand, defs.kv_write):
     HELP = "Set the WiFi network SSID and PSK"
     DESCRIPTION = "Set the WiFi network SSID and PSK"
-    COMMAND_ID = 5
 
     class request(ctypes.LittleEndianStructure):
         _fields_ = [

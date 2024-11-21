@@ -1,33 +1,10 @@
 #!/usr/bin/env python3
 
-import ctypes
-
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.generated.rpc_definitions import rpc_struct_mcuboot_img_sem_ver
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class application_info(InfuseRpcCommand):
-    HELP = "Get the current application info"
-    DESCRIPTION = "Get the current application info"
-    COMMAND_ID = 9
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("application_id", ctypes.c_uint32),
-            ("version", rpc_struct_mcuboot_img_sem_ver),
-            ("network_id", ctypes.c_uint32),
-            ("uptime", ctypes.c_uint32),
-            ("reboots", ctypes.c_uint32),
-            ("kv_crc", ctypes.c_uint32),
-            ("data_blocks_internal", ctypes.c_uint32),
-            ("data_blocks_external", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class application_info(InfuseRpcCommand, defs.application_info):
     @classmethod
     def add_parser(cls, _parser):
         pass

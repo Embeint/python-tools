@@ -1,26 +1,10 @@
 #!/usr/bin/env python3
 
-import ctypes
-
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class fault(InfuseRpcCommand):
-    HELP = "Trigger a fault on the device"
-    DESCRIPTION = "Trigger a fault on the device"
-    COMMAND_ID = 2
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("fault", ctypes.c_uint8),
-            ("zero", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
+class fault(InfuseRpcCommand, defs.fault):
     @classmethod
     def add_parser(cls, parser):
         group = parser.add_mutually_exclusive_group(required=True)

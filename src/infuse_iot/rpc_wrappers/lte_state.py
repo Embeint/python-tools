@@ -6,6 +6,7 @@ import ipaddress
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import lte as z_lte
+import infuse_iot.generated.rpc_definitions as defs
 
 
 class interface_state(ctypes.LittleEndianStructure):
@@ -60,15 +61,7 @@ class lte_state_struct(ctypes.LittleEndianStructure):
         return z_lte.AccessTechnology(self._act)
 
 
-class lte_state(InfuseRpcCommand):
-    HELP = "Get LTE state"
-    DESCRIPTION = "Get LTE state"
-    COMMAND_ID = 21
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
+class lte_state(InfuseRpcCommand, defs.lte_state):
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
             ("common", interface_state),
