@@ -35,8 +35,7 @@ from infuse_iot.epacket import (
     HopOutput,
 )
 
-# from infuse_iot.rpc_wrappers.security_state import security_state
-from infuse_iot.tools.rpc import SubCommand as RpcSubCommand
+from infuse_iot import rpc
 
 
 class LocalRpcServer:
@@ -49,7 +48,7 @@ class LocalRpcServer:
 
     def generate(self, command: int, args: bytes, cb):
         """Generate RPC packet from arguments"""
-        cmd_bytes = bytes(RpcSubCommand.rpc_request_header(self._cnt, command)) + args
+        cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
         cmd_pkt = PacketOutput(
             [HopOutput.serial(Auth.NETWORK)],
             InfuseType.RPC_CMD,
@@ -67,7 +66,7 @@ class LocalRpcServer:
             return
 
         # Determine if the response is to a command we initiated
-        header = RpcSubCommand.rpc_response_header.from_buffer_copy(pkt.payload)
+        header = rpc.ResponseHeader.from_buffer_copy(pkt.payload)
         if header.request_id not in self._queued:
             return
 
@@ -83,12 +82,12 @@ class CommonThreadState:
         server: LocalServer,
         port: SerialPort,
         ddb: DeviceDatabase,
-        rpc: LocalRpcServer,
+        rpc_server: LocalRpcServer,
     ):
         self.server = server
         self.port = port
         self.ddb = ddb
-        self.rpc = rpc
+        self.rpc = rpc_server
 
     def query_device_key(self, cb_event: threading.Event = None):
         def security_state_done(pkt: PacketReceived, _: int, response: bytes):
