@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 
-import ctypes
-
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class time_get(InfuseRpcCommand):
-    HELP = "Get the current device time"
-    DESCRIPTION = "Get the current device time"
-    COMMAND_ID = 3
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("time_source", ctypes.c_uint8),
-            ("epoch_time", ctypes.c_uint64),
-            ("sync_age", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class time_get(InfuseRpcCommand, defs.time_get):
     @classmethod
     def add_parser(cls, parser):
         pass

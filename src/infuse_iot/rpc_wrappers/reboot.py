@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 
-import ctypes
-
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class reboot(InfuseRpcCommand):
-    HELP = "Reboot the device"
-    DESCRIPTION = "Reboot the device"
-    COMMAND_ID = 1
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("delay_ms", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("delay_ms", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class reboot(InfuseRpcCommand, defs.reboot):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(

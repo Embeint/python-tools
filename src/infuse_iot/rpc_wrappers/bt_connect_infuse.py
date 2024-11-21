@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import (
@@ -10,30 +9,10 @@ from infuse_iot.generated.rpc_definitions import (
 )
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class bt_connect_infuse(InfuseRpcCommand):
-    HELP = "Connect to an Infuse-IoT Bluetooth device"
-    DESCRIPTION = "Connect to an Infuse-IoT Bluetooth device"
-    COMMAND_ID = 50
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("peer", rpc_struct_bt_addr_le),
-            ("conn_timeout_ms", ctypes.c_uint16),
-            ("subscribe", ctypes.c_uint8),
-            ("inactivity_timeout_ms", ctypes.c_uint16),
-        ]
-        _pack_ = 1
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("cloud_public_key", 32 * ctypes.c_uint8),
-            ("device_public_key", 32 * ctypes.c_uint8),
-            ("network_id", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(

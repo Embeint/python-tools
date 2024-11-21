@@ -5,19 +5,10 @@ import tabulate
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.tdf import tdf_definitions as defs
+import infuse_iot.generated.rpc_definitions as rpc_defs
 
 
-class zbus_channel_state(InfuseRpcCommand):
-    HELP = "Current state of zbus channel"
-    DESCRIPTION = "Current state of zbus channel"
-    COMMAND_ID = 8
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("channel_id", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
     class response(InfuseRpcCommand.VariableSizeResponse):
         base_fields = [
             ("pub_timestamp", ctypes.c_uint64),

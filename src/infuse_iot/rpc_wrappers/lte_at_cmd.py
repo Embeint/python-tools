@@ -4,13 +4,10 @@ import ctypes
 import errno
 
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class lte_at_cmd(InfuseRpcCommand):
-    HELP = "Run AT command on LTE modem"
-    DESCRIPTION = "Run AT command on LTE modem"
-    COMMAND_ID = 20
-
+class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
     class request(ctypes.LittleEndianStructure):
         _fields_ = []
         _pack_ = 1

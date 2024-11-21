@@ -5,17 +5,10 @@ import tabulate
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import wifi as z_wifi
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class wifi_scan(InfuseRpcCommand):
-    HELP = "Scan for WiFi networks"
-    DESCRIPTION = "Scan for WiFi networks"
-    COMMAND_ID = 10
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
+class wifi_scan(InfuseRpcCommand, defs.wifi_scan):
     class response(ctypes.LittleEndianStructure):
         @classmethod
         def from_buffer_copy(cls, source, offset=0):

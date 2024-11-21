@@ -6,6 +6,7 @@ import ipaddress
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import wifi as z_wifi
+import infuse_iot.generated.rpc_definitions as defs
 
 
 class interface_state(ctypes.LittleEndianStructure):
@@ -69,15 +70,7 @@ class wifi_state_struct(ctypes.LittleEndianStructure):
         return z_wifi.SecurityType(self._security)
 
 
-class wifi_state(InfuseRpcCommand):
-    HELP = "Get WiFi state"
-    DESCRIPTION = "Get WiFi state"
-    COMMAND_ID = 11
-
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = []
-        _pack_ = 1
-
+class wifi_state(InfuseRpcCommand, defs.wifi_state):
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
             ("common", interface_state),

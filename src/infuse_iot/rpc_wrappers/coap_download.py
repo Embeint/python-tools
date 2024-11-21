@@ -4,20 +4,10 @@ import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class coap_download(InfuseRpcCommand):
-    HELP = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
-    DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
-    COMMAND_ID = 30
-
-    class response(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("resource_len", ctypes.c_uint32),
-            ("resource_crc", ctypes.c_uint32),
-        ]
-        _pack_ = 1
-
+class coap_download(InfuseRpcCommand, defs.coap_download):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(
@@ -69,7 +59,6 @@ class coap_download(InfuseRpcCommand):
         self.action = args.action
 
     def request_struct(self):
-
         class request(ctypes.LittleEndianStructure):
             _fields_ = [
                 ("server_address", 48 * ctypes.c_char),

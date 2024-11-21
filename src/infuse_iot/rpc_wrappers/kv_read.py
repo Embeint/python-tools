@@ -4,13 +4,10 @@ import ctypes
 import errno
 
 from infuse_iot.commands import InfuseRpcCommand
+import infuse_iot.generated.rpc_definitions as defs
 
 
-class kv_read(InfuseRpcCommand):
-    HELP = "Read KV store values"
-    DESCRIPTION = "Read KV store values"
-    COMMAND_ID = 6
-
+class kv_read(InfuseRpcCommand, defs.kv_read):
     class request(ctypes.LittleEndianStructure):
         _fields_ = [
             ("num", ctypes.c_uint8),
@@ -50,7 +47,9 @@ class kv_read(InfuseRpcCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--keys", "-k", type=int, nargs="+", help="Keys to read")
+        parser.add_argument(
+            "--keys", "-k", required=True, type=int, nargs="+", help="Keys to read"
+        )
 
     def __init__(self, args):
         self.keys = args.keys
