@@ -452,10 +452,10 @@ class CtypeSerialFrame(CtypeV0VersionedFrame):
     def decrypt(cls, database: DeviceDatabase, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            database.observe_serial(header.device_id, device_id=header.key_metadata)
+            database.observe_device(header.device_id, device_id=header.key_metadata)
             key = database.serial_device_key(header.device_id, header.gps_time)
         else:
-            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.serial_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
@@ -471,7 +471,7 @@ class CtypeBtAdvFrame(CtypeV0VersionedFrame):
         if header.flags & Flags.ENCR_DEVICE:
             raise NotImplementedError
         else:
-            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.bt_adv_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
@@ -486,10 +486,10 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             print(hex(header.device_id))
-            database.observe_serial(header.device_id, device_id=header.key_metadata)
+            database.observe_device(header.device_id, device_id=header.key_metadata)
             key = database.bt_gatt_device_key(header.device_id, header.gps_time)
         else:
-            database.observe_serial(header.device_id, network_id=header.key_metadata)
+            database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.bt_gatt_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
