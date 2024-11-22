@@ -584,6 +584,7 @@ class bt_connect_infuse:
 
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
             ("cloud_public_key", 32 * ctypes.c_uint8),
             ("device_public_key", 32 * ctypes.c_uint8),
             ("network_id", ctypes.c_uint32),
