@@ -53,7 +53,7 @@ class DeviceDatabase:
         self.gateway = None
         self.devices: Dict[int, DeviceDatabase.DeviceState] = {}
 
-    def observe_serial(
+    def observe_device(
         self, address: int, network_id: int | None = None, device_id: int | None = None
     ):
         """Update device state based on observed packet"""
