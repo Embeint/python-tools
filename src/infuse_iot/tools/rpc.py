@@ -11,7 +11,8 @@ import ctypes
 import importlib
 import pkgutil
 
-from infuse_iot.epacket import InfuseType, PacketOutput, HopOutput
+from infuse_iot.common import InfuseType
+from infuse_iot.epacket import PacketOutput, HopOutput
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot import rpc

@@ -18,6 +18,7 @@ import base64
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
+from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import LocalServer, default_multicast_address
@@ -27,7 +28,6 @@ from infuse_iot.database import (
 )
 
 from infuse_iot.epacket import (
-    InfuseType,
     Auth,
     PacketReceived,
     PacketOutput,
