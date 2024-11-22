@@ -76,7 +76,7 @@ class Organisations(CloudSubCommand):
             body=NewOrganisation(self.args.name),
         )
 
-        if rsp.status_code == HTTPStatus.OK:
+        if rsp.status_code == HTTPStatus.CREATED:
             print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
         else:
             c = loads(rsp.content.decode("utf-8"))
@@ -144,7 +144,7 @@ class Boards(CloudSubCommand):
                 organisation_id=self.args.org,
             ),
         )
-        if rsp.status_code == HTTPStatus.OK:
+        if rsp.status_code == HTTPStatus.CREATED:
             print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
         else:
             c = loads(rsp.content.decode("utf-8"))
