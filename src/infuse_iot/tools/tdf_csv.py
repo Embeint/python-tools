@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import os
 import time
 
-from infuse_iot.epacket import InfuseType
+from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot.tdf import TDF
@@ -44,7 +44,6 @@ class SubCommand(InfuseCommand):
             source = msg.route[0]
 
             for tdf in decoded:
-
                 # Construct reading strings
                 lines = []
                 reading_time = tdf.time

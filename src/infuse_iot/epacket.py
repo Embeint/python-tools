@@ -9,6 +9,7 @@ import random
 from typing import List, Dict, Tuple
 from typing_extensions import Self
 
+from infuse_iot.common import InfuseType
 from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
 from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.time import InfuseTime
@@ -23,24 +24,6 @@ class Serializable:
     def from_json(cls, values: Dict) -> Self:
         """Reconstruct class from json dictionary"""
         raise NotImplementedError
-
-
-class InfuseType(enum.Enum):
-    """Infuse Data Types"""
-
-    ECHO_REQ = 0
-    ECHO_RSP = 1
-    TDF = 2
-    RPC_CMD = 3
-    RPC_DATA = 4
-    RPC_DATA_ACK = 5
-    RPC_RSP = 6
-    RECEIVED_EPACKET = 7
-    ACK = 8
-    SERIAL_LOG = 10
-    MEMFAULT_CHUNK = 30
-
-    KEY_IDS = 127
 
 
 class Interface(enum.Enum):

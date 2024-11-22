@@ -15,7 +15,8 @@ from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
 from infuse_iot.util.console import Console
-from infuse_iot.epacket import InfuseType, Interface
+from infuse_iot.common import InfuseType
+from infuse_iot.epacket import Interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot.tdf import TDF
