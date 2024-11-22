@@ -36,6 +36,7 @@ from infuse_iot.epacket.packet import (
 import infuse_iot.epacket.interface as interface
 
 from infuse_iot import rpc
+import infuse_iot.generated.rpc_definitions as defs
 
 
 class LocalRpcServer:
@@ -65,8 +66,27 @@ class LocalRpcServer:
         if pkt.ptype != InfuseType.RPC_RSP:
             return
 
-        # Determine if the response is to a command we initiated
+        # Inspect the response header
         header = rpc.ResponseHeader.from_buffer_copy(pkt.payload)
+
+        # Was this a BT connect response with key information?
+        if header.command_id == defs.bt_connect_infuse.COMMAND_ID:
+            resp = defs.bt_connect_infuse.response.from_buffer_copy(
+                pkt.payload[ctypes.sizeof(header) :]
+            )
+            if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
+            infuse_id = self._ddb.infuse_id_from_bluetooth(if_addr)
+            if infuse_id is None:
+                Console.log_error(f"Infuse ID of {if_addr} not known")
+            else:
+                self._ddb.observe_security_state(
+                    infuse_id,
+                    bytes(resp.cloud_public_key),
+                    bytes(resp.device_public_key),
+                    resp.network_id,
+                )
+
+        # Determine if the response is to a command we initiated
         if header.request_id not in self._queued:
             return
 
