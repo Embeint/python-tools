@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.ctypes import bytes_to_uint8
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.epacket import Auth
+from infuse_iot.epacket.packet import Auth
 import infuse_iot.generated.rpc_definitions as defs
 
 

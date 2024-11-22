@@ -4,7 +4,7 @@ import socket
 import struct
 import json
 
-from infuse_iot.epacket import PacketReceived, PacketOutput
+from infuse_iot.epacket.packet import PacketReceived, PacketOutput
 
 
 def default_multicast_address():
