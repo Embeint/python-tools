@@ -27,13 +27,13 @@ from infuse_iot.database import (
     NoKeyError,
 )
 
-from infuse_iot.epacket import (
+from infuse_iot.epacket.packet import (
     Auth,
     PacketReceived,
     PacketOutput,
-    Interface,
     HopOutput,
 )
+import infuse_iot.epacket.interface as interface
 
 from infuse_iot import rpc
 
@@ -244,7 +244,7 @@ class SerialTxThread(SignaledThread):
                 continue
 
             # Set gateway address
-            assert pkt.route[0].interface == Interface.SERIAL
+            assert pkt.route[0].interface == interface.ID.SERIAL
             pkt.route[0].infuse_id = self._common.ddb.gateway
 
             # Do we have the device public keys we need?

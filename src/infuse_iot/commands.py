@@ -8,7 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import argparse
 import ctypes
 
-from infuse_iot.epacket import Auth
+from infuse_iot.epacket.packet import Auth
 
 
 class InfuseCommand:

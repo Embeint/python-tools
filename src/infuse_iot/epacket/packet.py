@@ -10,30 +10,12 @@ from typing import List, Dict, Tuple
 from typing_extensions import Self
 
 from infuse_iot.common import InfuseType
+from infuse_iot.epacket.common import Serializable
+from infuse_iot.epacket.interface import ID as Interface
+from infuse_iot.epacket.interface import Address
 from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
 from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.time import InfuseTime
-
-
-class Serializable:
-    def to_json(self) -> Dict:
-        """Convert class to json dictionary"""
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, values: Dict) -> Self:
-        """Reconstruct class from json dictionary"""
-        raise NotImplementedError
-
-
-class Interface(enum.Enum):
-    """Interface options"""
-
-    SERIAL = 0
-    UDP = 1
-    BT_ADV = 2
-    BT_PERIPHERAL = 3
-    BT_CENTRAL = 4
 
 
 class Auth(enum.Enum):

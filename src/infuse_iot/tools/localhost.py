@@ -16,11 +16,11 @@ from aiohttp.web_runner import GracefulExit
 
 from infuse_iot.util.console import Console
 from infuse_iot.common import InfuseType
-from infuse_iot.epacket import Interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import LocalClient, default_multicast_address
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
+import infuse_iot.epacket.interface as interface
 
 
 class SubCommand(InfuseCommand):
@@ -177,7 +177,7 @@ class SubCommand(InfuseCommand):
             self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(
                 time.time()
             )
-            if source.interface == Interface.BT_ADV:
+            if source.interface == interface.ID.BT_ADV:
                 addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
                 addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
                 self._data[source.infuse_id]["bt_addr"] = addr_str
