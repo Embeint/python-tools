@@ -57,7 +57,16 @@ class InterfaceAddress(Serializable):
             self.addr_type = addr_type
             self.addr_val = addr_val
 
-        def __str__(self):
+        def __hash__(self) -> int:
+            return (self.addr_type << 48) + self.addr_val
+
+        def __eq__(self, another) -> bool:
+            return (
+                self.addr_type == another.addr_type
+                and self.addr_val == another.addr_val
+            )
+
+        def __str__(self) -> str:
             t = "random" if self.addr_type == 1 else "public"
             v = ":".join([f"{x:02x}" for x in self.addr_val.to_bytes(6, "big")])
             return f"{v} ({t})"
@@ -239,7 +248,9 @@ class PacketReceived(Serializable):
             # Decrypting packet
             if common_header.encrypted:
                 try:
-                    f_header, f_decrypted = frame_type.decrypt(database, packet_bytes)
+                    f_header, f_decrypted = frame_type.decrypt(
+                        database, addr, packet_bytes
+                    )
                 except NoKeyError:
                     continue
 
@@ -268,6 +279,9 @@ class PacketReceived(Serializable):
                     packet_bytes
                 )
                 del packet_bytes[: ctypes.sizeof(decr_header)]
+
+                # Notify database of BT Addr -> Infuse ID mapping
+                database.observe_device(decr_header.device_id, bt_addr=addr)
 
                 bt_hop = HopReceived(
                     decr_header.device_id,
@@ -431,12 +445,16 @@ class CtypeBtAdvFrame(CtypeV0VersionedFrame):
     """Bluetooth Advertising packet header"""
 
     @classmethod
-    def decrypt(cls, database: DeviceDatabase, frame: bytes):
+    def decrypt(
+        cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes
+    ):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             raise NotImplementedError
         else:
-            database.observe_device(header.device_id, network_id=header.key_metadata)
+            database.observe_device(
+                header.device_id, network_id=header.key_metadata, bt_addr=bt_addr
+            )
             key = database.bt_adv_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
@@ -447,14 +465,19 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
     """Bluetooth GATT packet header"""
 
     @classmethod
-    def decrypt(cls, database: DeviceDatabase, frame: bytes):
+    def decrypt(
+        cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes
+    ):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            print(hex(header.device_id))
-            database.observe_device(header.device_id, device_id=header.key_metadata)
+            database.observe_device(
+                header.device_id, device_id=header.key_metadata, bt_addr=bt_addr
+            )
             key = database.bt_gatt_device_key(header.device_id, header.gps_time)
         else:
-            database.observe_device(header.device_id, network_id=header.key_metadata)
+            database.observe_device(
+                header.device_id, network_id=header.key_metadata, bt_addr=bt_addr
+            )
             key = database.bt_gatt_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])

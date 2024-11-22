@@ -8,6 +8,7 @@ from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.default import get_shared_secret
 from infuse_iot.api_client.models import Key
 from infuse_iot.util.crypto import hkdf_derive
+from infuse_iot.epacket.interface import Address as InterfaceAddress
 from infuse_iot.credentials import get_api_key, load_network
 
 
@@ -52,13 +53,20 @@ class DeviceDatabase:
     def __init__(self):
         self.gateway = None
         self.devices: Dict[int, DeviceDatabase.DeviceState] = {}
+        self.bt_addr: Dict[InterfaceAddress.BluetoothLeAddr, int] = {}
 
     def observe_device(
-        self, address: int, network_id: int | None = None, device_id: int | None = None
+        self,
+        address: int,
+        network_id: int | None = None,
+        device_id: int | None = None,
+        bt_addr: InterfaceAddress.BluetoothLeAddr | None = None,
     ):
         """Update device state based on observed packet"""
         if self.gateway is None:
             self.gateway = address
+        if bt_addr is not None:
+            self.bt_addr[bt_addr] = address
         if address not in self.devices:
             self.devices[address] = self.DeviceState(address)
         if network_id is not None:
@@ -132,6 +140,12 @@ class DeviceDatabase:
         if address not in self.devices:
             return False
         return self.devices[address].network_id is not None
+
+    def infuse_id_from_bluetooth(
+        self, bt_addr: InterfaceAddress.BluetoothLeAddr
+    ) -> int | None:
+        """Get Bluetooth address associated with device"""
+        return self.bt_addr.get(bt_addr, None)
 
     def serial_network_key(self, address: int, gps_time: int):
         """Network key for serial interface"""
