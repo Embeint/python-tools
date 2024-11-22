@@ -118,6 +118,9 @@ class DeviceDatabase:
     def _bt_adv_key(self, base, time_idx):
         return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"bt_adv")
 
+    def _bt_gatt_key(self, base, time_idx):
+        return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"bt_gatt")
+
     def has_public_key(self, address: int):
         """Does the database have the public key for this device?"""
         if address not in self.devices:
@@ -173,3 +176,25 @@ class DeviceDatabase:
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._bt_adv_key(base, time_idx)
+
+    def bt_gatt_network_key(self, address: int, gps_time: int):
+        """Network key for Bluetooth advertising interface"""
+        if address not in self.devices:
+            raise DeviceUnknownNetworkKey
+        network_id = self.devices[address].network_id
+
+        return self._network_key(network_id, b"bt_gatt", gps_time)
+
+    def bt_gatt_device_key(self, address: int, gps_time: int):
+        """Device key for Bluetooth advertising interface"""
+        if address not in self.devices:
+            raise DeviceUnknownDeviceKey
+        d = self.devices[address]
+        if d.device_id is None:
+            raise DeviceUnknownDeviceKey
+        base = self.devices[address].shared_key
+        if base is None:
+            raise DeviceUnknownDeviceKey
+        time_idx = gps_time // (60 * 60 * 24)
+
+        return self._bt_gatt_key(base, time_idx)
