@@ -22,6 +22,9 @@
     <p>
     <h2>Table Control</h2>
     <div id="tdf-disable"></div>
+    <br>
+    <input type="checkbox" id="update_pause" name="update_pause" value="pause">
+    <label for="update_pause"> Pause table updating</label>
     </p>
 
     <script>
@@ -79,11 +82,12 @@
             );
 
             // Dynamically set the table content
-            dataTable.setColumns(columns);
-            dataTable.setData(rows);
+            if (!document.getElementById('update_pause').checked) {
+                dataTable.setColumns(columns);
+                dataTable.setData(rows);
+            }
 
             // Hide columns as requested
-            console.log(dataTable.getColumnDefinitions());
             const tableColumns = dataTable.getColumns();
             for (col of columns) {
                 if (!(col.title in shownTDFs)) {
