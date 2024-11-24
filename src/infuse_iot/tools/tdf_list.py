@@ -30,12 +30,11 @@ class SubCommand(InfuseCommand):
                 continue
             if msg.ptype != InfuseType.TDF:
                 continue
-            decoded = self._decoder.decode(msg.payload)
             source = msg.route[0]
 
             table = []
 
-            for tdf in decoded:
+            for tdf in self._decoder.decode(msg.payload):
                 t = tdf.data[-1]
                 num = len(tdf.data)
                 if num > 1:

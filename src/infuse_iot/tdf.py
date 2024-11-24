@@ -3,7 +3,7 @@
 import ctypes
 import enum
 
-from typing import List
+from typing import List, Generator
 
 from infuse_iot.time import InfuseTime
 from infuse_iot.generated import tdf_definitions
@@ -76,8 +76,7 @@ class TDF:
         b = buffer[ctypes.sizeof(ctype) :]
         return v, b
 
-    def decode(self, buffer: bytes) -> List[Reading]:
-        output = []
+    def decode(self, buffer: bytes) -> Generator[Reading, None, None]:
         buffer_time = None
 
         while len(buffer) > 3:
@@ -101,6 +100,8 @@ class TDF:
                 t, buffer = self._buffer_pull(buffer, self.ExtendedRelativeTime)
                 buffer_time += t.offset
                 time = InfuseTime.unix_time_from_epoch(buffer_time)
+            else:
+                raise RuntimeError("Unreachable time option")
 
             array_header = None
             if header.id_flags & self.flags.TIME_ARRAY:
@@ -124,6 +125,4 @@ class TDF:
             if array_header is not None:
                 period = array_header.period / 65536
 
-            output.append(self.Reading(time, period, data))
-
-        return output
+            yield self.Reading(time, period, data)
