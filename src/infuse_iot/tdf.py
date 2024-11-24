@@ -6,7 +6,7 @@ import enum
 from typing import List, Generator
 
 from infuse_iot.time import InfuseTime
-from infuse_iot.generated import tdf_definitions
+from infuse_iot.generated import tdf_definitions, tdf_base
 
 
 class TDF:
@@ -61,7 +61,7 @@ class TDF:
             self,
             time: float,
             period: None | float,
-            data: List[tdf_definitions.readings._reading_type],
+            data: List[tdf_base.TdfReadingBase],
         ):
             self.time = time
             self.period = period

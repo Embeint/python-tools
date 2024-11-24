@@ -4,22 +4,11 @@
 
 import ctypes
 
-from collections.abc import Generator
-from typing import Callable
+from infuse_iot.generated.tdf_base import TdfStructBase, TdfReadingBase
 
 
 class structs:
-    class _struct_type(ctypes.LittleEndianStructure):
-        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, Callable]:
-            for field in self._fields_:
-                if field[0][0] == '_':
-                    f_name = field[0][1:]
-                else:
-                    f_name = field[0]
-                val = getattr(self, f_name)
-                yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
-
-    class tdf_struct_mcuboot_img_sem_ver(_struct_type):
+    class tdf_struct_mcuboot_img_sem_ver(TdfStructBase):
         """MCUboot semantic versioning struct"""
 
         _fields_ = [
@@ -42,7 +31,7 @@ class structs:
             "build_num": "0x{:08x}",
         }
 
-    class tdf_struct_xyz_16bit(_struct_type):
+    class tdf_struct_xyz_16bit(TdfStructBase):
         """Generic 3-axis sensor reading"""
 
         _fields_ = [
@@ -62,7 +51,7 @@ class structs:
             "z": "{}",
         }
 
-    class tdf_struct_gcs_location(_struct_type):
+    class tdf_struct_gcs_location(TdfStructBase):
         """Geographic Coordinate System location"""
 
         _fields_ = [
@@ -94,7 +83,7 @@ class structs:
         def height(self):
             return self._height * 0.001
 
-    class tdf_struct_lte_cell_id_local(_struct_type):
+    class tdf_struct_lte_cell_id_local(TdfStructBase):
         """LTE cell ID (Local)"""
 
         _fields_ = [
@@ -111,7 +100,7 @@ class structs:
             "tac": "{}",
         }
 
-    class tdf_struct_lte_cell_id_global(_struct_type):
+    class tdf_struct_lte_cell_id_global(TdfStructBase):
         """LTE cell ID (Global)"""
 
         _fields_ = [
@@ -135,23 +124,7 @@ class structs:
         }
 
 class readings:
-    class _reading_type(ctypes.LittleEndianStructure):
-        def iter_fields(self) -> Generator[str, ctypes._SimpleCData, str, Callable]:
-            for field in self._fields_:
-                if field[0][0] == '_':
-                    f_name = field[0][1:]
-                else:
-                    f_name = field[0]
-                val = getattr(self, f_name)
-                if isinstance(val, ctypes.LittleEndianStructure):
-                    for subfield_name, subfield_val, subfield_postfix, display_fmt in val.iter_fields():
-                        yield f'{f_name}.{subfield_name}', subfield_val, subfield_postfix, display_fmt
-                elif isinstance(val, ctypes.Array):
-                    yield f_name, list(val), self._postfix_[f_name], self._display_fmt_[f_name]
-                else:
-                    yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
-
-    class announce(_reading_type):
+    class announce(TdfReadingBase):
         """Common announcement packet"""
 
         name = "ANNOUNCE"
@@ -184,7 +157,7 @@ class readings:
             "flags": "0x{:02x}",
         }
 
-    class battery_state(_reading_type):
+    class battery_state(TdfReadingBase):
         """General battery state"""
 
         name = "BATTERY_STATE"
@@ -205,7 +178,7 @@ class readings:
             "soc": "{}",
         }
 
-    class ambient_temp_pres_hum(_reading_type):
+    class ambient_temp_pres_hum(TdfReadingBase):
         """Ambient temperature, pressure & humidity"""
 
         name = "AMBIENT_TEMP_PRES_HUM"
@@ -238,7 +211,7 @@ class readings:
         def humidity(self):
             return self._humidity * 0.01
 
-    class ambient_temperature(_reading_type):
+    class ambient_temperature(TdfReadingBase):
         """Ambient temperature"""
 
         name = "AMBIENT_TEMPERATURE"
@@ -257,7 +230,7 @@ class readings:
         def temperature(self):
             return self._temperature * 0.001
 
-    class time_sync(_reading_type):
+    class time_sync(TdfReadingBase):
         """Time synchronised to new source"""
 
         name = "TIME_SYNC"
@@ -279,7 +252,7 @@ class readings:
         def shift(self):
             return self._shift * 1e-06
 
-    class reboot_info(_reading_type):
+    class reboot_info(TdfReadingBase):
         """Information pertaining to the previous reboot"""
 
         name = "REBOOT_INFO"
@@ -312,7 +285,7 @@ class readings:
             "thread": "{}",
         }
 
-    class acc_2g(_reading_type):
+    class acc_2g(TdfReadingBase):
         """Accelerometer +-2G"""
 
         name = "ACC_2G"
@@ -327,7 +300,7 @@ class readings:
             "sample": "{}",
         }
 
-    class acc_4g(_reading_type):
+    class acc_4g(TdfReadingBase):
         """Accelerometer +-4G"""
 
         name = "ACC_4G"
@@ -342,7 +315,7 @@ class readings:
             "sample": "{}",
         }
 
-    class acc_8g(_reading_type):
+    class acc_8g(TdfReadingBase):
         """Accelerometer +-8G"""
 
         name = "ACC_8G"
@@ -357,7 +330,7 @@ class readings:
             "sample": "{}",
         }
 
-    class acc_16g(_reading_type):
+    class acc_16g(TdfReadingBase):
         """Accelerometer +-16G"""
 
         name = "ACC_16G"
@@ -372,7 +345,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gyr_125dps(_reading_type):
+    class gyr_125dps(TdfReadingBase):
         """Gyroscope +-125 DPS"""
 
         name = "GYR_125DPS"
@@ -387,7 +360,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gyr_250dps(_reading_type):
+    class gyr_250dps(TdfReadingBase):
         """Gyroscope +-250 DPS"""
 
         name = "GYR_250DPS"
@@ -402,7 +375,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gyr_500dps(_reading_type):
+    class gyr_500dps(TdfReadingBase):
         """Gyroscope +-500 DPS"""
 
         name = "GYR_500DPS"
@@ -417,7 +390,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gyr_1000dps(_reading_type):
+    class gyr_1000dps(TdfReadingBase):
         """Gyroscope +-1000 DPS"""
 
         name = "GYR_1000DPS"
@@ -432,7 +405,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gyr_2000dps(_reading_type):
+    class gyr_2000dps(TdfReadingBase):
         """Gyroscope +-2000 DPS"""
 
         name = "GYR_2000DPS"
@@ -447,7 +420,7 @@ class readings:
             "sample": "{}",
         }
 
-    class gcs_wgs84_llha(_reading_type):
+    class gcs_wgs84_llha(TdfReadingBase):
         """Geo-location (WGS-84) + accuracy"""
 
         name = "GCS_WGS84_LLHA"
@@ -476,7 +449,7 @@ class readings:
         def v_acc(self):
             return self._v_acc * 0.001
 
-    class ubx_nav_pvt(_reading_type):
+    class ubx_nav_pvt(TdfReadingBase):
         """u-blox GNSS NAV-PVT message"""
 
         name = "UBX_NAV_PVT"
@@ -655,7 +628,7 @@ class readings:
         def mag_acc(self):
             return self._mag_acc * 0.01
 
-    class lte_conn_status(_reading_type):
+    class lte_conn_status(TdfReadingBase):
         """Information on service cell and registration status"""
 
         name = "LTE_CONN_STATUS"
@@ -689,7 +662,7 @@ class readings:
         def rsrp(self):
             return self._rsrp * -1
 
-    class globalstar_pkt(_reading_type):
+    class globalstar_pkt(TdfReadingBase):
         """9 byte payload transmitted over the Globalstar Simplex network"""
 
         name = "GLOBALSTAR_PKT"
@@ -704,7 +677,7 @@ class readings:
             "payload": "{}",
         }
 
-    class acc_magnitude_std_dev(_reading_type):
+    class acc_magnitude_std_dev(TdfReadingBase):
         """Accelerometer magnitude standard deviation over a window"""
 
         name = "ACC_MAGNITUDE_STD_DEV"
@@ -722,7 +695,7 @@ class readings:
             "std_dev": "{}",
         }
 
-    class activity_metric(_reading_type):
+    class activity_metric(TdfReadingBase):
         """Generic activity metric"""
 
         name = "ACTIVITY_METRIC"
@@ -737,7 +710,7 @@ class readings:
             "value": "{}",
         }
 
-    class algorithm_output(_reading_type):
+    class algorithm_output(TdfReadingBase):
         """Generic activity metric"""
 
         name = "ALGORITHM_OUTPUT"
@@ -758,7 +731,7 @@ class readings:
             "output": "{}",
         }
 
-    class runtime_error(_reading_type):
+    class runtime_error(TdfReadingBase):
         """Runtime error logging"""
 
         name = "RUNTIME_ERROR"
@@ -776,7 +749,7 @@ class readings:
             "error_ctx": "{}",
         }
 
-    class charger_en_control(_reading_type):
+    class charger_en_control(TdfReadingBase):
         """Battery charging enable state"""
 
         name = "CHARGER_EN_CONTROL"
@@ -791,7 +764,7 @@ class readings:
             "enabled": "{}",
         }
 
-    class gnss_fix_info(_reading_type):
+    class gnss_fix_info(TdfReadingBase):
         """Metadata about a GNSS location fix"""
 
         name = "GNSS_FIX_INFO"
@@ -812,7 +785,7 @@ class readings:
             "num_sv": "{}",
         }
 
-    class array_type(_reading_type):
+    class array_type(TdfReadingBase):
         """Example array type"""
 
         name = "ARRAY_TYPE"
