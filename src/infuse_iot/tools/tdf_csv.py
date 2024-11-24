@@ -40,10 +40,9 @@ class SubCommand(InfuseCommand):
                 continue
             if msg.ptype != InfuseType.TDF:
                 continue
-            decoded = self._decoder.decode(msg.payload)
             source = msg.route[0]
 
-            for tdf in decoded:
+            for tdf in self._decoder.decode(msg.payload):
                 # Construct reading strings
                 lines = []
                 reading_time = tdf.time

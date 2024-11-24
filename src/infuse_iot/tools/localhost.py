@@ -165,7 +165,6 @@ class SubCommand(InfuseCommand):
             if msg.ptype != InfuseType.TDF:
                 continue
 
-            decoded = self._decoder.decode(msg.payload)
             source = msg.route[0]
 
             self._data_lock.acquire(blocking=True)
@@ -183,7 +182,7 @@ class SubCommand(InfuseCommand):
                 self._data[source.infuse_id]["bt_addr"] = addr_str
                 self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
-            for tdf in decoded:
+            for tdf in self._decoder.decode(msg.payload):
                 t = tdf.data[-1]
                 if t.name not in self._columns:
                     self._columns[t.name] = self.tdf_columns(t)

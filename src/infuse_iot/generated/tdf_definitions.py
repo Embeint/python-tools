@@ -753,7 +753,7 @@ class readings:
             "output": "",
         }
         _display_fmt_ = {
-            "algorithm_id": "{}",
+            "algorithm_id": "0x{:08x}",
             "algorithm_version": "{}",
             "output": "{}",
         }
