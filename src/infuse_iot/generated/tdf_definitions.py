@@ -4,6 +4,8 @@
 
 import ctypes
 
+from typing import Dict
+
 from infuse_iot.generated.tdf_base import TdfStructBase, TdfReadingBase
 
 
@@ -800,7 +802,7 @@ class readings:
             "array": "{}",
         }
 
-id_type_mapping = {
+id_type_mapping: Dict[int, TdfReadingBase] = {
     1: readings.announce,
     2: readings.battery_state,
     3: readings.ambient_temp_pres_hum,
