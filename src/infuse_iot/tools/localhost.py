@@ -6,7 +6,6 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import asyncio
-import ctypes
 import pathlib
 import threading
 import time
@@ -118,37 +117,30 @@ class SubCommand(InfuseCommand):
 
     def tdf_columns(self, tdf):
         out = []
-        for field in tdf._fields_:
-            if field[0][0] == "_":
-                f_name = field[0][1:]
-            else:
-                f_name = field[0]
-            val = getattr(tdf, f_name)
-            if isinstance(val, ctypes.LittleEndianStructure):
-                c = []
-                for subfield_name, _, postfix, _ in val.iter_fields():
-                    if postfix != "":
-                        title = f"{subfield_name} ({postfix})"
-                    else:
-                        title = subfield_name
-                    c.append(
+
+        def column_title(struct, name):
+            postfix = struct._postfix_[name]
+            if postfix != "":
+                return "{} ({})".format(name, postfix)
+            return name
+
+        for field in tdf.field_information():
+            if "subfields" in field:
+                s = []
+                for subfield in field["subfields"]:
+                    s.append(
                         {
-                            "title": title,
-                            "field": f"{tdf.name}.{f_name}.{subfield_name}",
+                            "title": column_title(field["type"], subfield["name"]),
+                            "field": f"{tdf.name}.{field['name']}.{subfield['name']}",
                             "headerVertical": "flip",
                             "hozAlign": "right",
                         }
                     )
-                s = {"title": f_name, "headerHozAlign": "center", "columns": c}
+                s = {"title": field["name"], "headerHozAlign": "center", "columns": s}
             else:
-                if tdf._postfix_[f_name] != "":
-                    title = f"{f_name} ({tdf._postfix_[f_name]})"
-                else:
-                    title = f_name
-
                 s = {
-                    "title": title,
-                    "field": f"{tdf.name}.{f_name}",
+                    "title": column_title(tdf, field["name"]),
+                    "field": f"{tdf.name}.{field['name']}",
                     "headerVertical": "flip",
                     "hozAlign": "right",
                 }
@@ -186,19 +178,20 @@ class SubCommand(InfuseCommand):
                 t = tdf.data[-1]
                 if t.name not in self._columns:
                     self._columns[t.name] = self.tdf_columns(t)
+                if t.name not in self._data[source.infuse_id]:
+                    self._data[source.infuse_id][t.name] = {}
 
-                for n, f, _, d in t.iter_fields():
-                    f = d.format(f)
-                    if t.name not in self._data[source.infuse_id]:
-                        self._data[source.infuse_id][t.name] = {}
-                    if "." in n:
-                        struct, sub = n.split(".")
-                        if struct not in self._data[source.infuse_id][t.name]:
-                            self._data[source.infuse_id][t.name][struct] = {}
-                        self._data[source.infuse_id][t.name][struct][sub] = f
-
-                    self._data[source.infuse_id][t.name][n] = f
-
+                for field in t.iter_fields():
+                    if field.subfield:
+                        if field.field not in self._data[source.infuse_id][t.name]:
+                            self._data[source.infuse_id][t.name][field.field] = {}
+                        self._data[source.infuse_id][t.name][field.field][
+                            field.subfield
+                        ] = field.val_fmt()
+                    else:
+                        self._data[source.infuse_id][t.name][field.field] = (
+                            field.val_fmt()
+                        )
             self._data_lock.release()
 
     def run(self):
