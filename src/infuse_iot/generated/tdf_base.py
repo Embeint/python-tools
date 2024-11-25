@@ -3,6 +3,7 @@
 import ctypes
 
 from typing import Generator, Callable, Tuple
+from typing_extensions import Self
 
 
 class TdfStructBase(ctypes.LittleEndianStructure):
@@ -50,3 +51,32 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
                 )
             else:
                 yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
+
+    @classmethod
+    def from_buffer_consume(cls, source: bytes, offset: int = 0) -> Self:
+        last_field = cls._fields_[-1]
+
+        # Last value not a VLA
+        if getattr(last_field[1], "_length_", 1) != 0:
+            return cls.from_buffer_copy(source, offset)
+
+        base_size = ctypes.sizeof(cls)
+        var_name = last_field[0]
+        var_type = last_field[1]._type_
+        var_type_size = ctypes.sizeof(var_type)
+
+        source_var_len = len(source) - base_size
+        if source_var_len % var_type_size != 0:
+            raise RuntimeError
+        source_var_num = source_var_len // var_type_size
+
+        # Dynamically create subclass with correct length
+        class TdfVLA(ctypes.LittleEndianStructure):
+            name = cls.name
+            _fields_ = cls._fields_[:-1] + [(var_name, source_var_num * var_type)]
+            _pack_ = 1
+            _postfix_ = cls._postfix_
+            _display_fmt_ = cls._display_fmt_
+            iter_fields = cls.iter_fields
+
+        return TdfVLA.from_buffer_copy(source, offset)

@@ -112,14 +112,14 @@ class TDF:
 
                 time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
-                    id_type.from_buffer_copy(total_data[x : x + header.len])
+                    id_type.from_buffer_consume(total_data[x : x + header.len])
                     for x in range(0, total_len, header.len)
                 ]
             else:
                 data_bytes = buffer[: header.len]
                 buffer = buffer[header.len :]
 
-                data = [id_type.from_buffer_copy(data_bytes)]
+                data = [id_type.from_buffer_consume(data_bytes)]
 
             period = None
             if array_header is not None:
