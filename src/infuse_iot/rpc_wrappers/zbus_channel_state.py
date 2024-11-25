@@ -66,8 +66,8 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
         try:
             data = self._channel.data.from_buffer_copy(data_bytes)
             table = []
-            for n, f, p, d in data.iter_fields():
-                table.append([n, f, p])
+            for field in data.iter_fields():
+                table.append([field.name, field.val_fmt(), field.postfix])
             print(tabulate.tabulate(table, tablefmt="simple"))
         except Exception as _:
             print(f"\t          Data: {data_bytes.hex()}")

@@ -2,55 +2,89 @@
 
 import ctypes
 
-from typing import Generator, Callable, Tuple
+from typing import Generator, Any
 from typing_extensions import Self
+
+
+def _public_name(internal_field):
+    if internal_field[0][0] == "_":
+        return internal_field[0][1:]
+    return internal_field[0]
+
+
+class TdfField:
+    def __init__(
+        self, field: str, subfield: str | None, postfix: str, display_fmt: str, val: Any
+    ):
+        self.field = field
+        self.subfield = subfield
+        self.postfix = postfix
+        self._display_fmt = display_fmt
+        self.val = val
+
+    @property
+    def name(self) -> str:
+        if self.subfield:
+            return f"{self.field}.{self.subfield}"
+        return self.field
+
+    def val_fmt(self) -> str:
+        return self._display_fmt.format(self.val)
 
 
 class TdfStructBase(ctypes.LittleEndianStructure):
     def iter_fields(
         self,
-    ) -> Generator[Tuple[str, ctypes._SimpleCData, str, Callable], None, None]:
-        for field in self._fields_:
-            if field[0][0] == "_":
-                f_name = field[0][1:]
-            else:
-                f_name = field[0]
-            val = getattr(self, f_name)
-            yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
+        field,
+    ) -> Generator[TdfField, None, None]:
+        for subfield in self._fields_:
+            sf_name = _public_name(subfield)
+            val = getattr(self, sf_name)
+            yield TdfField(
+                field,
+                sf_name,
+                self._postfix_[sf_name],
+                self._display_fmt_[sf_name],
+                val,
+            )
 
 
 class TdfReadingBase(ctypes.LittleEndianStructure):
     def iter_fields(
         self,
-    ) -> Generator[Tuple[str, ctypes._SimpleCData, str, Callable], None, None]:
+    ) -> Generator[TdfField, None, None]:
         for field in self._fields_:
-            if field[0][0] == "_":
-                f_name = field[0][1:]
-            else:
-                f_name = field[0]
+            f_name = _public_name(field)
             val = getattr(self, f_name)
             if isinstance(val, ctypes.LittleEndianStructure):
-                for (
-                    subfield_name,
-                    subfield_val,
-                    subfield_postfix,
-                    display_fmt,
-                ) in val.iter_fields():
-                    yield (
-                        f"{f_name}.{subfield_name}",
-                        subfield_val,
-                        subfield_postfix,
-                        display_fmt,
-                    )
-            elif isinstance(val, ctypes.Array):
-                yield (
+                for subfield in val.iter_fields(f_name):
+                    yield subfield
+            else:
+                if isinstance(val, ctypes.Array):
+                    val = list(val)
+                yield TdfField(
                     f_name,
-                    list(val),
+                    None,
                     self._postfix_[f_name],
                     self._display_fmt_[f_name],
+                    val,
                 )
+
+    @classmethod
+    def field_information(cls):
+        info = []
+        for field in cls._fields_:
+            f_name = _public_name(field)
+
+            if issubclass(field[1], ctypes.LittleEndianStructure):
+                subfields = []
+                for subfield in field[1]._fields_:
+                    sf_name = _public_name(subfield)
+                    subfields.append({"name": sf_name, "type": subfield[1]})
+                info.append({"name": f_name, "type": field[1], "subfields": subfields})
             else:
-                yield f_name, val, self._postfix_[f_name], self._display_fmt_[f_name]
+                info.append({"name": f_name, "type": field[1]})
+        return info
 
     @classmethod
     def from_buffer_consume(cls, source: bytes, offset: int = 0) -> Self:
@@ -78,5 +112,6 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             _postfix_ = cls._postfix_
             _display_fmt_ = cls._display_fmt_
             iter_fields = cls.iter_fields
+            field_information = cls.field_information
 
         return TdfVLA.from_buffer_copy(source, offset)

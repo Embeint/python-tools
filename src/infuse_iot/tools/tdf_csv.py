@@ -60,7 +60,7 @@ class SubCommand(InfuseCommand):
                     line = (
                         time_str
                         + ","
-                        + ",".join([str(r[1]) for r in reading.iter_fields()])
+                        + ",".join([f.val_fmt() for f in reading.iter_fields()])
                     )
                     lines.append(line)
                     if tdf.period is not None:
@@ -77,7 +77,7 @@ class SubCommand(InfuseCommand):
                         print(f"Opening new {filename}")
                         files[filename] = open(filename, "w", encoding="utf-8")
                         headings = "time," + ",".join(
-                            [r[0] for r in first.iter_fields()]
+                            [f.name for f in first.iter_fields()]
                         )
                         files[filename].write(headings + os.linesep)
 

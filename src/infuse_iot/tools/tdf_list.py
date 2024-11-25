@@ -38,12 +38,11 @@ class SubCommand(InfuseCommand):
                 t = tdf.data[-1]
                 num = len(tdf.data)
                 if num > 1:
-                    name = f"{t.name}[{num-1}]"
+                    tdf_name = f"{t.name}[{num-1}]"
                 else:
-                    name = t.name
+                    tdf_name = t.name
 
-                for idx, (n, f, p, d) in enumerate(t.iter_fields()):
-                    f = d.format(f)
+                for idx, field in enumerate(t.iter_fields()):
                     if idx == 0:
                         if tdf.time is not None:
                             if tdf.period is None:
@@ -53,9 +52,13 @@ class SubCommand(InfuseCommand):
                                 t = InfuseTime.utc_time_string(tdf.time + offset)
                         else:
                             t = "N/A"
-                        table.append([t, name, n, f, p])
+                        table.append(
+                            [t, tdf_name, field.name, field.val_fmt(), field.postfix]
+                        )
                     else:
-                        table.append([None, None, n, f, p])
+                        table.append(
+                            [None, None, field.name, field.val_fmt(), field.postfix]
+                        )
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")
