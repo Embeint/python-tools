@@ -261,6 +261,36 @@ class SerialTxThread(SignaledThread):
         """Queue packet for transmission"""
         self._queue.put(pkt)
 
+    def _handle_epacket_send(self, req: GatewayRequest):
+        if self._common.ddb.gateway is None:
+            Console.log_error("Gateway address unknown")
+            return
+
+        pkt = req.epacket
+        assert pkt.infuse_id == InfuseID.GATEWAY
+
+        # Construct routed output
+        routed = PacketOutputRouted(
+            [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
+            pkt.ptype,
+            pkt.payload,
+        )
+
+        # Do we have the device public keys we need?
+        for hop in routed.route:
+            if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(
+                hop.infuse_id
+            ):
+                cb_event = threading.Event()
+                self._common.query_device_key(cb_event)
+
+        # Encode and encrypt payload
+        encrypted = routed.to_serial(self._common.ddb)
+
+        # Write to serial port
+        Console.log_tx(routed.ptype, len(encrypted))
+        self._common.port.write(encrypted)
+
     def _iter(self):
         if self._common.server is None:
             time.sleep(1.0)
@@ -268,37 +298,10 @@ class SerialTxThread(SignaledThread):
 
         # Loop while there are packets to send
         while req := self._common.server.receive():
-            if req.type != GatewayRequest.Type.EPACKET_SEND:
+            if req.type == GatewayRequest.Type.EPACKET_SEND:
+                self._handle_epacket_send(req)
+            else:
                 Console.log_error(f"Unhandled request {req.type}")
-                continue
-            if self._common.ddb.gateway is None:
-                Console.log_error("Gateway address unknown")
-                continue
-
-            pkt = req.epacket
-            assert pkt.infuse_id == InfuseID.GATEWAY
-
-            # Construct routed output
-            routed = PacketOutputRouted(
-                [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
-                pkt.ptype,
-                pkt.payload,
-            )
-
-            # Do we have the device public keys we need?
-            for hop in routed.route:
-                if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(
-                    hop.infuse_id
-                ):
-                    cb_event = threading.Event()
-                    self._common.query_device_key(cb_event)
-
-            # Encode and encrypt payload
-            encrypted = routed.to_serial(self._common.ddb)
-
-            # Write to serial port
-            Console.log_tx(routed.ptype, len(encrypted))
-            self._common.port.write(encrypted)
 
 
 class SubCommand(InfuseCommand):
