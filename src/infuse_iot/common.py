@@ -19,3 +19,9 @@ class InfuseType(enum.Enum):
     MEMFAULT_CHUNK = 30
 
     KEY_IDS = 127
+
+
+class InfuseID(enum.IntEnum):
+    """Hardcoded Infuse IDs"""
+
+    GATEWAY = -1

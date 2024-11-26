@@ -8,8 +8,8 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import random
 import time
 
-from infuse_iot.common import InfuseType
-from infuse_iot.epacket.packet import PacketOutput, HopOutput
+from infuse_iot.common import InfuseType, InfuseID
+from infuse_iot.epacket.packet import PacketOutput, Auth
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import (
     LocalClient,
@@ -50,7 +50,8 @@ class SubCommand(InfuseCommand):
             while (sent != num) and (pending < queue_size):
                 payload = sent.to_bytes(4, "little") + random.randbytes(size - 4)
                 pkt = PacketOutput(
-                    HopOutput.serial(),
+                    InfuseID.GATEWAY,
+                    Auth.DEVICE,
                     InfuseType.ECHO_REQ,
                     payload,
                 )

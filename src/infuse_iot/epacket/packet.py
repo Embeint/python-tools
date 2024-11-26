@@ -18,7 +18,7 @@ from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.time import InfuseTime
 
 
-class Auth(enum.Enum):
+class Auth(enum.IntEnum):
     """Authorisation options"""
 
     DEVICE = 0
@@ -370,13 +370,25 @@ class PacketOutputRouted(Serializable):
 class PacketOutput(PacketOutputRouted):
     """ePacket to be transmitted by gateway"""
 
-    def __init__(self, destination: HopOutput, ptype: InfuseType, payload: bytes):
-        super().__init__([destination], ptype, payload)
+    def __init__(self, infuse_id: int, auth: Auth, ptype: InfuseType, payload: bytes):
+        self.infuse_id = infuse_id
+        self.auth = auth
+        self.ptype = ptype
+        self.payload = payload
+
+    def to_json(self) -> Dict:
+        return {
+            "infuse_id": self.infuse_id,
+            "auth": self.auth,
+            "type": self.ptype.value,
+            "payload": base64.b64encode(self.payload).decode("utf-8"),
+        }
 
     @classmethod
     def from_json(cls, values: Dict) -> Self:
         return cls(
-            destination=HopOutput.from_json(values["route"][0]),
+            infuse_id=values["infuse_id"],
+            auth=Auth(values["auth"]),
             ptype=InfuseType(values["type"]),
             payload=base64.b64decode(values["payload"].encode("utf-8")),
         )
