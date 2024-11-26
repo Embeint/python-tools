@@ -16,7 +16,11 @@ from aiohttp.web_runner import GracefulExit
 from infuse_iot.util.console import Console
 from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.socket_comms import LocalClient, default_multicast_address
+from infuse_iot.socket_comms import (
+    LocalClient,
+    ClientNotification,
+    default_multicast_address,
+)
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
 import infuse_iot.epacket.interface as interface
@@ -154,10 +158,12 @@ class SubCommand(InfuseCommand):
                 break
             if msg is None:
                 continue
-            if msg.ptype != InfuseType.TDF:
+            if msg.type != ClientNotification.Type.EPACKET_RECV:
+                continue
+            if msg.epacket.ptype != InfuseType.TDF:
                 continue
 
-            source = msg.route[0]
+            source = msg.epacket.route[0]
 
             self._data_lock.acquire(blocking=True)
 
@@ -174,7 +180,7 @@ class SubCommand(InfuseCommand):
                 self._data[source.infuse_id]["bt_addr"] = addr_str
                 self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
-            for tdf in self._decoder.decode(msg.payload):
+            for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
                 if t.name not in self._columns:
                     self._columns[t.name] = self.tdf_columns(t)

@@ -3,12 +3,45 @@
 import socket
 import struct
 import json
+import enum
+
+from typing import Dict
+from typing_extensions import Self
 
 from infuse_iot.epacket.packet import PacketReceived, PacketOutput
 
 
 def default_multicast_address():
     return ("224.1.1.1", 8751)
+
+
+class ClientNotification:
+    class Type(enum.IntEnum):
+        EPACKET_RECV = 0
+
+    def __init__(self, notification_type: Type, epacket: PacketReceived | None = None):
+        self.type = notification_type
+        self.epacket = epacket
+
+    def to_json(self) -> Dict:
+        """Convert class to json dictionary"""
+        out = {"type": int(self.type)}
+        if self.epacket:
+            out["epacket"] = self.epacket.to_json()
+        return out
+
+    @classmethod
+    def from_json(cls, values: Dict) -> Self:
+        """Reconstruct class from json dictionary"""
+        if j := values.get("epacket", None):
+            epacket = PacketReceived.from_json(j)
+        else:
+            epacket = None
+
+        return cls(
+            notification_type=cls.Type(values["type"]),
+            epacket=epacket,
+        )
 
 
 class LocalServer:
@@ -27,9 +60,9 @@ class LocalServer:
         self._input_sock.bind(unicast_address)
         self._input_sock.settimeout(0.2)
 
-    def broadcast(self, packet: PacketReceived):
+    def broadcast(self, notification: ClientNotification):
         self._output_sock.sendto(
-            json.dumps(packet.to_json()).encode("utf-8"), self._output_addr
+            json.dumps(notification.to_json()).encode("utf-8"), self._output_addr
         )
 
     def receive(self) -> PacketOutput | None:
@@ -71,12 +104,12 @@ class LocalClient:
             json.dumps(packet.to_json()).encode("utf-8"), self._output_addr
         )
 
-    def receive(self) -> PacketReceived | None:
+    def receive(self) -> ClientNotification | None:
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return PacketReceived.from_json(json.loads(data.decode("utf-8")))
+        return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
     def close(self):
         self._input_sock.close()
