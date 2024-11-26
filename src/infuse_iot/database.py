@@ -47,6 +47,7 @@ class DeviceDatabase:
             self.address = address
             self.network_id = network_id
             self.device_id = device_id
+            self.bt_addr: InterfaceAddress.BluetoothLeAddr | None = None
             self.public_key = None
             self.shared_key = None
 
@@ -65,8 +66,6 @@ class DeviceDatabase:
         """Update device state based on observed packet"""
         if self.gateway is None:
             self.gateway = address
-        if bt_addr is not None:
-            self.bt_addr[bt_addr] = address
         if address not in self.devices:
             self.devices[address] = self.DeviceState(address)
         if network_id is not None:
@@ -80,6 +79,9 @@ class DeviceDatabase:
                     f"Device key for {address:016x} has changed"
                 )
             self.devices[address].device_id = device_id
+        if bt_addr is not None:
+            self.bt_addr[bt_addr] = address
+            self.devices[address].bt_addr = bt_addr
 
     def observe_security_state(
         self, address: int, cloud_key: bytes, device_key: bytes, network_id: int
