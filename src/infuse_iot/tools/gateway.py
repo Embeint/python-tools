@@ -24,6 +24,7 @@ from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import (
     LocalServer,
     ClientNotification,
+    GatewayRequest,
     default_multicast_address,
 )
 from infuse_iot.database import (
@@ -266,10 +267,15 @@ class SerialTxThread(SignaledThread):
             return
 
         # Loop while there are packets to send
-        while pkt := self._common.server.receive():
+        while req := self._common.server.receive():
+            if req.type != GatewayRequest.Type.EPACKET_SEND:
+                Console.log_error(f"Unhandled request {req.type}")
+                continue
             if self._common.ddb.gateway is None:
                 Console.log_error("Gateway address unknown")
                 continue
+
+            pkt = req.epacket
 
             # Set gateway address
             assert pkt.route[0].interface == interface.ID.SERIAL
