@@ -18,16 +18,27 @@ def default_multicast_address():
 class ClientNotification:
     class Type(enum.IntEnum):
         EPACKET_RECV = 0
+        CONNECTION_FAILED = 1
+        CONNECTION_CREATED = 2
+        CONNECTION_DROPPED = 3
 
-    def __init__(self, notification_type: Type, epacket: PacketReceived | None = None):
+    def __init__(
+        self,
+        notification_type: Type,
+        epacket: PacketReceived | None = None,
+        connection_id: int | None = None,
+    ):
         self.type = notification_type
         self.epacket = epacket
+        self.connection_id = connection_id
 
     def to_json(self) -> Dict:
         """Convert class to json dictionary"""
         out = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
+        if self.connection_id:
+            out["connection_id"] = self.connection_id
         return out
 
     @classmethod
@@ -37,30 +48,38 @@ class ClientNotification:
             epacket = PacketReceived.from_json(j)
         else:
             epacket = None
+        connection_id = values.get("connection_id", None)
 
         return cls(
             notification_type=cls.Type(values["type"]),
             epacket=epacket,
+            connection_id=connection_id,
         )
 
 
 class GatewayRequest:
     class Type(enum.IntEnum):
         EPACKET_SEND = 0
+        CONNECTION_REQUEST = 1
+        CONNECTION_RELEASE = 2
 
     def __init__(
         self,
         notification_type: Type,
         epacket: PacketOutput | None = None,
+        connection_id: int | None = None,
     ):
         self.type = notification_type
         self.epacket = epacket
+        self.connection_id = connection_id
 
     def to_json(self) -> Dict:
         """Convert class to json dictionary"""
         out = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
+        if self.connection_id:
+            out["connection_id"] = self.connection_id
         return out
 
     @classmethod
@@ -70,10 +89,12 @@ class GatewayRequest:
             epacket = PacketOutput.from_json(j)
         else:
             epacket = None
+        connection_id = values.get("connection_id", None)
 
         return cls(
             notification_type=cls.Type(values["type"]),
             epacket=epacket,
+            connection_id=connection_id,
         )
 
 
@@ -128,6 +149,8 @@ class LocalClient:
         self._output_sock = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
         )
+        # Connection context
+        self._connection_id = None
 
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
@@ -144,5 +167,38 @@ class LocalClient:
             return None
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
+    def connection_create(self, infuse_id: int):
+        self._connection_id = infuse_id
+
+        # Send the request for the connection
+        req = GatewayRequest(
+            GatewayRequest.Type.CONNECTION_REQUEST, connection_id=infuse_id
+        )
+        self.send(req)
+        # Wait for response from the server
+        while rsp := self.receive():
+            if rsp.connection_id == infuse_id:
+                if rsp.type == ClientNotification.Type.CONNECTION_CREATED:
+                    break
+                elif rsp.type == ClientNotification.Type.CONNECTION_FAILED:
+                    raise ConnectionRefusedError
+                raise NotImplementedError("Unexpected response")
+
+    def connection_release(self):
+        req = GatewayRequest(
+            GatewayRequest.Type.CONNECTION_RELEASE,
+            connection_id=self._connection_id,
+        )
+        self.send(req)
+        self._connection_id = None
+
     def close(self):
+        # Cleanup any lingering connection context
+        if self._connection_id:
+            req = GatewayRequest(
+                GatewayRequest.Type.CONNECTION_RELEASE,
+                connection_id=self._connection_id,
+            )
+            self.send(req)
+        # Close the socket
         self._input_sock.close()
