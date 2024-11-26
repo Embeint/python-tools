@@ -18,7 +18,7 @@ import base64
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
-from infuse_iot.common import InfuseType
+from infuse_iot.common import InfuseType, InfuseID
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
 from infuse_iot.socket_comms import (
@@ -276,13 +276,17 @@ class SerialTxThread(SignaledThread):
                 continue
 
             pkt = req.epacket
+            assert pkt.infuse_id == InfuseID.GATEWAY
 
-            # Set gateway address
-            assert pkt.route[0].interface == interface.ID.SERIAL
-            pkt.route[0].infuse_id = self._common.ddb.gateway
+            # Construct routed output
+            routed = PacketOutputRouted(
+                [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
+                pkt.ptype,
+                pkt.payload,
+            )
 
             # Do we have the device public keys we need?
-            for hop in pkt.route:
+            for hop in routed.route:
                 if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(
                     hop.infuse_id
                 ):
@@ -290,10 +294,10 @@ class SerialTxThread(SignaledThread):
                     self._common.query_device_key(cb_event)
 
             # Encode and encrypt payload
-            encrypted = pkt.to_serial(self._common.ddb)
+            encrypted = routed.to_serial(self._common.ddb)
 
             # Write to serial port
-            Console.log_tx(pkt.ptype, len(encrypted))
+            Console.log_tx(routed.ptype, len(encrypted))
             self._common.port.write(encrypted)
 
 

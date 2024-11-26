@@ -11,8 +11,8 @@ import ctypes
 import importlib
 import pkgutil
 
-from infuse_iot.common import InfuseType
-from infuse_iot.epacket.packet import PacketOutput, HopOutput
+from infuse_iot.common import InfuseType, InfuseID
+from infuse_iot.epacket.packet import PacketOutput
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.socket_comms import (
     LocalClient,
@@ -99,7 +99,8 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(data_hdr) + bytes(params)
         pkt = PacketOutput(
-            HopOutput.serial(self._command.auth_level()),
+            InfuseID.GATEWAY,
+            self._command.auth_level(),
             InfuseType.RPC_CMD,
             request_packet,
         )
@@ -120,7 +121,8 @@ class SubCommand(InfuseCommand):
             hdr = rpc.DataHeader(self._request_id, offset)
             pkt_bytes = bytes(hdr) + payload
             pkt = PacketOutput(
-                HopOutput.serial(self._command.auth_level()),
+                InfuseID.GATEWAY,
+                self._command.auth_level(),
                 InfuseType.RPC_DATA,
                 pkt_bytes,
             )
@@ -144,7 +146,8 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(params)
         pkt = PacketOutput(
-            HopOutput.serial(self._command.auth_level()),
+            InfuseID.GATEWAY,
+            self._command.auth_level(),
             InfuseType.RPC_CMD,
             request_packet,
         )
