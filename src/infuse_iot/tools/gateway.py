@@ -291,6 +291,25 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(routed.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
+    def _handle_conn_request(self, req: GatewayRequest):
+        if req.connection_id == InfuseID.GATEWAY:
+            # Local gateway always connected
+            rsp = ClientNotification(
+                ClientNotification.Type.CONNECTION_CREATED,
+                connection_id=req.connection_id,
+            )
+            self._common.server.broadcast(rsp)
+            return
+
+        raise NotImplementedError
+
+    def _handle_conn_release(self, req: GatewayRequest):
+        if req.connection_id == InfuseID.GATEWAY:
+            # Local gateway always connected
+            return
+
+        raise NotImplementedError
+
     def _iter(self):
         if self._common.server is None:
             time.sleep(1.0)
@@ -300,6 +319,10 @@ class SerialTxThread(SignaledThread):
         while req := self._common.server.receive():
             if req.type == GatewayRequest.Type.EPACKET_SEND:
                 self._handle_epacket_send(req)
+            elif req.type == GatewayRequest.Type.CONNECTION_REQUEST:
+                self._handle_conn_request(req)
+            elif req.type == GatewayRequest.Type.CONNECTION_RELEASE:
+                self._handle_conn_release(req)
             else:
                 Console.log_error(f"Unhandled request {req.type}")
 
