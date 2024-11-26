@@ -50,7 +50,7 @@ class SubCommand(InfuseCommand):
             while (sent != num) and (pending < queue_size):
                 payload = sent.to_bytes(4, "little") + random.randbytes(size - 4)
                 pkt = PacketOutput(
-                    [HopOutput.serial()],
+                    HopOutput.serial(),
                     InfuseType.ECHO_REQ,
                     payload,
                 )

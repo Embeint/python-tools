@@ -307,8 +307,8 @@ class PacketReceived(Serializable):
         return packets
 
 
-class PacketOutput(Serializable):
-    """ePacket to be transmitted by gateway"""
+class PacketOutputRouted(Serializable):
+    """ePacket to be transmitted by gateway with complete route"""
 
     def __init__(self, route: List[HopOutput], ptype: InfuseType, payload: bytes):
         # [Serial, hop, hop, final_hop]
@@ -362,6 +362,21 @@ class PacketOutput(Serializable):
     def from_json(cls, values: Dict) -> Self:
         return cls(
             route=[HopOutput.from_json(x) for x in values["route"]],
+            ptype=InfuseType(values["type"]),
+            payload=base64.b64decode(values["payload"].encode("utf-8")),
+        )
+
+
+class PacketOutput(PacketOutputRouted):
+    """ePacket to be transmitted by gateway"""
+
+    def __init__(self, destination: HopOutput, ptype: InfuseType, payload: bytes):
+        super().__init__([destination], ptype, payload)
+
+    @classmethod
+    def from_json(cls, values: Dict) -> Self:
+        return cls(
+            destination=HopOutput.from_json(values["route"][0]),
             ptype=InfuseType(values["type"]),
             payload=base64.b64decode(values["payload"].encode("utf-8")),
         )
