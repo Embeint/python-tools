@@ -35,7 +35,7 @@ from infuse_iot.database import (
 from infuse_iot.epacket.packet import (
     Auth,
     PacketReceived,
-    PacketOutput,
+    PacketOutputRouted,
     HopOutput,
 )
 import infuse_iot.epacket.interface as interface
@@ -55,7 +55,7 @@ class LocalRpcServer:
     def generate(self, command: int, args: bytes, cb):
         """Generate RPC packet from arguments"""
         cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
-        cmd_pkt = PacketOutput(
+        cmd_pkt = PacketOutputRouted(
             [HopOutput.serial(Auth.NETWORK)],
             InfuseType.RPC_CMD,
             cmd_bytes,

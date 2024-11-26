@@ -99,7 +99,7 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(data_hdr) + bytes(params)
         pkt = PacketOutput(
-            [HopOutput.serial(self._command.auth_level())],
+            HopOutput.serial(self._command.auth_level()),
             InfuseType.RPC_CMD,
             request_packet,
         )
@@ -120,7 +120,7 @@ class SubCommand(InfuseCommand):
             hdr = rpc.DataHeader(self._request_id, offset)
             pkt_bytes = bytes(hdr) + payload
             pkt = PacketOutput(
-                [HopOutput.serial(self._command.auth_level())],
+                HopOutput.serial(self._command.auth_level()),
                 InfuseType.RPC_DATA,
                 pkt_bytes,
             )
@@ -144,7 +144,7 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(params)
         pkt = PacketOutput(
-            [HopOutput.serial(self._command.auth_level())],
+            HopOutput.serial(self._command.auth_level()),
             InfuseType.RPC_CMD,
             request_packet,
         )
