@@ -44,6 +44,39 @@ class ClientNotification:
         )
 
 
+class GatewayRequest:
+    class Type(enum.IntEnum):
+        EPACKET_SEND = 0
+
+    def __init__(
+        self,
+        notification_type: Type,
+        epacket: PacketOutput | None = None,
+    ):
+        self.type = notification_type
+        self.epacket = epacket
+
+    def to_json(self) -> Dict:
+        """Convert class to json dictionary"""
+        out = {"type": int(self.type)}
+        if self.epacket:
+            out["epacket"] = self.epacket.to_json()
+        return out
+
+    @classmethod
+    def from_json(cls, values: Dict) -> Self:
+        """Reconstruct class from json dictionary"""
+        if j := values.get("epacket", None):
+            epacket = PacketOutput.from_json(j)
+        else:
+            epacket = None
+
+        return cls(
+            notification_type=cls.Type(values["type"]),
+            epacket=epacket,
+        )
+
+
 class LocalServer:
     def __init__(self, multicast_address):
         # Multicast output socket
@@ -65,12 +98,12 @@ class LocalServer:
             json.dumps(notification.to_json()).encode("utf-8"), self._output_addr
         )
 
-    def receive(self) -> PacketOutput | None:
+    def receive(self) -> GatewayRequest | None:
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return PacketOutput.from_json(json.loads(data.decode("utf-8")))
+        return GatewayRequest.from_json(json.loads(data.decode("utf-8")))
 
     def close(self):
         self._input_sock.close()
@@ -99,9 +132,9 @@ class LocalClient:
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
 
-    def send(self, packet: PacketOutput):
+    def send(self, request: GatewayRequest):
         self._output_sock.sendto(
-            json.dumps(packet.to_json()).encode("utf-8"), self._output_addr
+            json.dumps(request.to_json()).encode("utf-8"), self._output_addr
         )
 
     def receive(self) -> ClientNotification | None:
