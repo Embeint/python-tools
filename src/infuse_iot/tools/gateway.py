@@ -21,7 +21,11 @@ from infuse_iot.util.console import Console
 from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
-from infuse_iot.socket_comms import LocalServer, default_multicast_address
+from infuse_iot.socket_comms import (
+    LocalServer,
+    ClientNotification,
+    default_multicast_address,
+)
 from infuse_iot.database import (
     DeviceDatabase,
     NoKeyError,
@@ -231,8 +235,12 @@ class SerialRxThread(SignaledThread):
                 # Proactively requery keys
                 elif pkt.ptype == InfuseType.KEY_IDS:
                     self._common.query_device_key(None)
+
+                notification = ClientNotification(
+                    ClientNotification.Type.EPACKET_RECV, epacket=pkt
+                )
                 # Forward to clients
-                self._common.server.broadcast(pkt)
+                self._common.server.broadcast(notification)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 

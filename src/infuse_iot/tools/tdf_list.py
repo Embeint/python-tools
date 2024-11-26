@@ -9,7 +9,11 @@ import tabulate
 
 from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.socket_comms import LocalClient, default_multicast_address
+from infuse_iot.socket_comms import (
+    LocalClient,
+    ClientNotification,
+    default_multicast_address,
+)
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
 
@@ -28,13 +32,15 @@ class SubCommand(InfuseCommand):
             msg = self._client.receive()
             if msg is None:
                 continue
-            if msg.ptype != InfuseType.TDF:
+            if msg.type != ClientNotification.Type.EPACKET_RECV:
                 continue
-            source = msg.route[0]
+            if msg.epacket.ptype != InfuseType.TDF:
+                continue
+            source = msg.epacket.route[0]
 
             table = []
 
-            for tdf in self._decoder.decode(msg.payload):
+            for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
                 num = len(tdf.data)
                 if num > 1:

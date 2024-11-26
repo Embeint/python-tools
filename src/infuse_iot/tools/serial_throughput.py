@@ -11,7 +11,11 @@ import time
 from infuse_iot.common import InfuseType
 from infuse_iot.epacket.packet import PacketOutput, HopOutput
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.socket_comms import LocalClient, default_multicast_address
+from infuse_iot.socket_comms import (
+    LocalClient,
+    ClientNotification,
+    default_multicast_address,
+)
 
 
 class SubCommand(InfuseCommand):
@@ -54,7 +58,9 @@ class SubCommand(InfuseCommand):
                 pending += 1
             # Wait for responses
             if rsp := self._client.receive():
-                if rsp.ptype != InfuseType.ECHO_RSP:
+                if rsp.type != ClientNotification.Type.EPACKET_RECV:
+                    continue
+                if rsp.epacket.ptype != InfuseType.ECHO_RSP:
                     continue
                 responses += 1
                 pending -= 1

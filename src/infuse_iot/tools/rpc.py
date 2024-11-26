@@ -14,7 +14,11 @@ import pkgutil
 from infuse_iot.common import InfuseType
 from infuse_iot.epacket.packet import PacketOutput, HopOutput
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
-from infuse_iot.socket_comms import LocalClient, default_multicast_address
+from infuse_iot.socket_comms import (
+    LocalClient,
+    ClientNotification,
+    default_multicast_address,
+)
 from infuse_iot import rpc
 
 import infuse_iot.rpc_wrappers as wrappers
@@ -54,9 +58,11 @@ class SubCommand(InfuseCommand):
 
     def _wait_data_ack(self):
         while rsp := self._client.receive():
-            if rsp.ptype != InfuseType.RPC_DATA_ACK:
+            if rsp.type != ClientNotification.Type.EPACKET_RECV:
                 continue
-            data_ack = rpc.DataAck.from_buffer_copy(rsp.payload)
+            if rsp.epacket.ptype != InfuseType.RPC_DATA_ACK:
+                continue
+            data_ack = rpc.DataAck.from_buffer_copy(rsp.epacket.payload)
             # Response to the request we sent
             if data_ack.request_id != self._request_id:
                 continue
@@ -65,19 +71,21 @@ class SubCommand(InfuseCommand):
     def _wait_rpc_rsp(self):
         # Wait for responses
         while rsp := self._client.receive():
-            # RPC response packet
-            if rsp.ptype != InfuseType.RPC_RSP:
+            if rsp.type != ClientNotification.Type.EPACKET_RECV:
                 continue
-            rsp_header = rpc.ResponseHeader.from_buffer_copy(rsp.payload)
+            # RPC response packet
+            if rsp.epacket.ptype != InfuseType.RPC_RSP:
+                continue
+            rsp_header = rpc.ResponseHeader.from_buffer_copy(rsp.epacket.payload)
             # Response to the request we sent
             if rsp_header.request_id != self._request_id:
                 continue
             # Convert response bytes back to struct form
             rsp_data = self._command.response.from_buffer_copy(
-                rsp.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+                rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
             )
             # Handle the response
-            print(f"INFUSE ID: {rsp.route[0].infuse_id:016x}")
+            print(f"INFUSE ID: {rsp.epacket.route[0].infuse_id:016x}")
             self._command.handle_response(rsp_header.return_code, rsp_data)
             break
 
