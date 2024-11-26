@@ -30,89 +30,6 @@ class Flags(enum.IntEnum):
     ENCR_NETWORK = 0x0000
 
 
-class InterfaceAddress(Serializable):
-    class SerialAddr(Serializable):
-        def __str__(self):
-            return ""
-
-        def len(self):
-            return 0
-
-        def to_json(self) -> Dict:
-            return {"i": "SERIAL"}
-
-        @classmethod
-        def from_json(cls, values: Dict) -> Self:
-            return cls()
-
-    class BluetoothLeAddr(Serializable):
-        class CtypesFormat(ctypes.Structure):
-            _fields_ = [
-                ("type", ctypes.c_uint8),
-                ("addr", 6 * ctypes.c_uint8),
-            ]
-            _pack_ = 1
-
-        def __init__(self, addr_type, addr_val):
-            self.addr_type = addr_type
-            self.addr_val = addr_val
-
-        def __hash__(self) -> int:
-            return (self.addr_type << 48) + self.addr_val
-
-        def __eq__(self, another) -> bool:
-            return (
-                self.addr_type == another.addr_type
-                and self.addr_val == another.addr_val
-            )
-
-        def __str__(self) -> str:
-            t = "random" if self.addr_type == 1 else "public"
-            v = ":".join([f"{x:02x}" for x in self.addr_val.to_bytes(6, "big")])
-            return f"{v} ({t})"
-
-        def len(self):
-            return ctypes.sizeof(self.CtypesFormat)
-
-        def to_json(self) -> Dict:
-            return {"i": "BT", "t": self.addr_type, "v": self.addr_val}
-
-        @classmethod
-        def from_json(cls, values: Dict) -> Self:
-            return cls(values["t"], values["v"])
-
-    def __init__(self, val):
-        self.val = val
-
-    def __str__(self):
-        return str(self.val)
-
-    def len(self):
-        return self.val.len()
-
-    def to_json(self) -> Dict:
-        return self.val.to_json()
-
-    @classmethod
-    def from_json(cls, values: Dict) -> Self:
-        if values["i"] == "BT":
-            return cls(cls.BluetoothLeAddr.from_json(values))
-        elif values["i"] == "SERIAL":
-            return cls(cls.SerialAddr())
-        raise NotImplementedError("Unknown address type")
-
-    @classmethod
-    def from_bytes(cls, interface: Interface, stream: bytes) -> Self:
-        assert interface in [
-            Interface.BT_ADV,
-            Interface.BT_PERIPHERAL,
-            Interface.BT_CENTRAL,
-        ]
-
-        c = cls.BluetoothLeAddr.CtypesFormat.from_buffer_copy(stream)
-        return cls.BluetoothLeAddr(c.type, int.from_bytes(bytes(c.addr), "little"))
-
-
 class HopOutput(Serializable):
     def __init__(self, infuse_id: int, interface: Interface, auth: Auth):
         self.infuse_id = infuse_id
@@ -145,7 +62,7 @@ class HopReceived(Serializable):
         self,
         infuse_id: int,
         interface: Interface,
-        interface_address: InterfaceAddress,
+        interface_address: Address,
         auth: Auth,
         key_identifier: int,
         gps_time: int,
@@ -179,7 +96,7 @@ class HopReceived(Serializable):
         return cls(
             infuse_id=values["id"],
             interface=interface,
-            interface_address=InterfaceAddress.from_json(values["interface_addr"]),
+            interface_address=Address.from_json(values["interface_addr"]),
             auth=Auth(values["auth"]),
             key_identifier=values["key_id"],
             gps_time=values["time"],
@@ -242,7 +159,7 @@ class PacketReceived(Serializable):
             frame_type = decode_mapping[common_header.interface]
 
             # Extract interface address (Only Bluetooth supported)
-            addr = InterfaceAddress.from_bytes(common_header.interface, packet_bytes)
+            addr = Address.from_bytes(common_header.interface, packet_bytes)
             del packet_bytes[: addr.len()]
 
             # Decrypting packet
@@ -446,7 +363,7 @@ class CtypeSerialFrame(CtypeV0VersionedFrame):
         return HopReceived(
             self.device_id,
             Interface.SERIAL,
-            InterfaceAddress(InterfaceAddress.SerialAddr()),
+            Address(Address.SerialAddr()),
             auth,
             self.key_metadata,
             self.gps_time,
