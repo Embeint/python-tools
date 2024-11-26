@@ -156,7 +156,11 @@ class SubCommand(InfuseCommand):
         self._wait_rpc_rsp()
 
     def run(self):
-        if self._command.RPC_DATA:
-            self._run_data_cmd()
-        else:
-            self._run_standard_cmd()
+        try:
+            self._client.connection_create(InfuseID.GATEWAY)
+            if self._command.RPC_DATA:
+                self._run_data_cmd()
+            else:
+                self._run_standard_cmd()
+        finally:
+            self._client.connection_release()
