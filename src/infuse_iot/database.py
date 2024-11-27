@@ -36,7 +36,8 @@ class DeviceDatabase:
     """Database of current device state"""
 
     _network_keys = {
-        0x000000: b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f",
+        0x000000: b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f",
     }
     _derived_keys: Dict[Tuple[int, bytes, int], bytes] = {}
 
@@ -114,7 +115,7 @@ class DeviceDatabase:
             try:
                 info = load_network(network_id)
             except FileNotFoundError:
-                raise UnknownNetworkError
+                raise UnknownNetworkError from None
             self._network_keys[network_id] = info["key"]
         base = self._network_keys[network_id]
         time_idx = gps_time // (60 * 60 * 24)

@@ -193,15 +193,15 @@ class SubCommand(InfuseCommand):
                         client=client, soc=soc, mcu_id=hardware_id_str
                     )
                     if response.status_code != HTTPStatus.OK:
-                        sys.exit(
-                            f"Failed to query device after creation:\n\t<{response.status_code}> {response.content.decode('utf-8')}"
-                        )
+                        err = "Failed to query device after creation:\n"
+                        err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
+                        sys.exit(err)
                     print("To provision more devices like this:")
                     print(f"\t infuse provision --organisation {self._org} --board {self._board}")
                 else:
-                    sys.exit(
-                        f"Failed to query device information:\n\t<{response.status_code}> {response.content.decode('utf-8')}"
-                    )
+                    err = "Failed to query device information:\n"
+                    err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
+                    sys.exit(err)
 
             # Compare current flash contents to desired flash contents
             cloud_id = int(response.parsed.device_id, 16)

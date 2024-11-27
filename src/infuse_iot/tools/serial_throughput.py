@@ -76,9 +76,9 @@ class SubCommand(InfuseCommand):
         throughput = total / duration
         if responses != num:
             print(f"\tOnly received {responses}/{num} responses")
-        print(
-            f"\t{num} packets with {size:3d} bytes payload complete in {duration:.2f} seconds ({int(8*throughput):6d} bps)"
-        )
+        msg = f"\t{num} packets with {size:3d} bytes payload complete in {duration:.2f} seconds"
+        msg += f" ({int(8*throughput):6d} bps)"
+        print(msg)
 
     def run(self):
         # No queuing

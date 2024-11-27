@@ -601,16 +601,16 @@ class diff:
                     len(instructions) >= 3
                     and isinstance(instructions[1], WriteInstr)
                     and isinstance(instructions[2], SetAddrInstr)
-                ):
                     # ADDR, COPY, WRITE, ADRR
-                    if instr.shift == -instructions[2].shift:
-                        write = instructions[1]
-                        # Replace with a merged write instead
-                        merged.append(WriteInstr(old[instr.new : instr.new + copy.length] + write.data))
-                        replaced = True
-                        instructions.pop(0)
-                        instructions.pop(0)
-                        instructions.pop(0)
+                    and instr.shift == -instructions[2].shift
+                ):
+                    write = instructions[1]
+                    # Replace with a merged write instead
+                    merged.append(WriteInstr(old[instr.new : instr.new + copy.length] + write.data))
+                    replaced = True
+                    instructions.pop(0)
+                    instructions.pop(0)
+                    instructions.pop(0)
 
             if not replaced:
                 merged.append(instr)
@@ -642,17 +642,11 @@ class diff:
             to_merge = []
 
         for instr in instructions:
-            pended = False
-
-            if isinstance(instr, CopyInstr):
-                if instr.length < 128:
-                    to_merge.append(instr)
-                    pended = True
-            elif isinstance(instr, WriteInstr):
-                if len(to_merge) > 0 and len(instr.data) < 256:
-                    to_merge.append(instr)
-                    pended = True
-            if not pended:
+            if (isinstance(instr, CopyInstr) and instr.length < 128) or (
+                isinstance(instr, WriteInstr) and len(to_merge) > 0 and len(instr.data) < 256
+            ):
+                to_merge.append(instr)
+            else:
                 finalise()
                 merged.append(instr)
 
@@ -828,9 +822,11 @@ class diff:
             raise ValidationError(
                 f"Patch data length does not match header information ({len(data)} != {hdr.patch_file.length})"
             )
-        if binascii.crc32(data) != hdr.patch_file.crc:
+        crc_patch = binascii.crc32(data)
+        crc_expected = hdr.patch_file.crc
+        if crc_patch != hdr.patch_file.crc:
             raise ValidationError(
-                f"Patch data CRC does not match patch information ({binascii.crc32(data):08x} != {hdr.patch_file.crc:08x})"
+                f"Patch data CRC does not match patch information ({crc_patch:08x} != {crc_expected:08x})"
             )
 
         instructions = []
@@ -933,13 +929,17 @@ class diff:
         patched = b""
         orig_offset = 0
 
-        if len(bin_original) != meta["original"]["len"]:
+        len_orig = len(bin_original)
+        len_expected = meta["original"]["len"]
+        if len_orig != len_expected:
             raise ValidationError(
-                f"Original file length does not match patch information ({len(bin_original)} != {meta['original']['len']})"
+                f"Original file length does not match patch information ({len_orig} != {len_expected})"
             )
-        if binascii.crc32(bin_original) != meta["original"]["crc"]:
+        crc_orig = binascii.crc32(bin_original)
+        crc_expected = meta["original"]["crc"]
+        if crc_orig != crc_expected:
             raise ValidationError(
-                f"Original file CRC does not match patch information ({binascii.crc32(bin_original):08x} != {meta['original']['crc']:08x})"
+                f"Original file CRC does not match patch information ({crc_orig:08x} != {crc_expected:08x})"
             )
 
         for instr in instructions:
@@ -965,13 +965,17 @@ class diff:
                 assert 0
 
         # Validate generated file matches what was expected
-        if len(patched) != meta["new"]["len"]:
+        len_patched = len(patched)
+        len_expected = meta["new"]["len"]
+        if len_patched != len_expected:
             raise ValidationError(
-                f"Original file length does not match patch information ({len(patched)} != {meta['new']['len']})"
+                f"Original file length does not match patch information ({len_patched} != {len_expected})"
             )
-        if binascii.crc32(patched) != meta["new"]["crc"]:
+        crc_patched = binascii.crc32(patched)
+        crc_expected = meta["new"]["crc"]
+        if crc_patched != crc_expected:
             raise ValidationError(
-                f"Original file CRC does not match patch information ({binascii.crc32(patched):08x} != {meta['new']['crc']:08x})"
+                f"Original file CRC does not match patch information ({crc_patched:08x} != {crc_expected:08x})"
             )
 
         return patched
@@ -1046,13 +1050,12 @@ if __name__ == "__main__":
 
     # Run requested command
     if args.command == "generate":
-        with open(args.original, "rb") as f_orig:
-            with open(args.new, "rb") as f_new:
-                patch = diff.generate(
-                    f_orig.read(-1),
-                    f_new.read(-1),
-                    args.verbose,
-                )
+        with open(args.original, "rb") as f_orig, open(args.new, "rb") as f_new:
+            patch = diff.generate(
+                f_orig.read(-1),
+                f_new.read(-1),
+                args.verbose,
+            )
         with open(args.patch, "wb") as f_output:
             f_output.write(patch)
     elif args.command == "validation":
@@ -1061,9 +1064,8 @@ if __name__ == "__main__":
         with open(args.patch, "wb") as f_output:
             f_output.write(patch)
     elif args.command == "patch":
-        with open(args.original, "rb") as f_orig:
-            with open(args.patch, "rb") as f_patch:
-                output = diff.patch(f_orig.read(-1), f_patch.read(-1))
+        with open(args.original, "rb") as f_orig, open(args.patch, "rb") as f_patch:
+            output = diff.patch(f_orig.read(-1), f_patch.read(-1))
         with open(args.output, "wb") as f_output:
             f_output.write(output)
     elif args.command == "dump":

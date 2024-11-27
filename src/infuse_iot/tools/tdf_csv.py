@@ -72,10 +72,10 @@ class SubCommand(InfuseCommand):
                 if filename not in files:
                     if os.path.exists(filename):
                         print(f"Appending to existing {filename}")
-                        files[filename] = open(filename, "a", encoding="utf-8")
+                        files[filename] = open(filename, "a", encoding="utf-8")  # noqa: SIM115
                     else:
                         print(f"Opening new {filename}")
-                        files[filename] = open(filename, "w", encoding="utf-8")
+                        files[filename] = open(filename, "w", encoding="utf-8")  # noqa: SIM115
                         headings = "time," + ",".join([f.name for f in first.iter_fields()])
                         files[filename].write(headings + os.linesep)
 
