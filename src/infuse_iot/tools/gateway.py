@@ -36,6 +36,9 @@ from infuse_iot.epacket.packet import (
 from infuse_iot.serial_comms import RttPort, SerialFrame, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
+    ClientNotificationConnectionCreated,
+    ClientNotificationConnectionFailed,
+    ClientNotificationEpacketReceived,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
@@ -214,7 +217,7 @@ class SerialRxThread(SignaledThread):
                 elif pkt.ptype == InfuseType.KEY_IDS:
                     self._common.query_device_key(None)
 
-                notification = ClientNotification(ClientNotification.Type.EPACKET_RECV, epacket=pkt)
+                notification = ClientNotificationEpacketReceived(pkt)
                 # Forward to clients
                 self._common.server.broadcast(notification)
         except (ValueError, KeyError) as e:
@@ -278,30 +281,24 @@ class SerialTxThread(SignaledThread):
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
 
-        evt = ClientNotification.Type.CONNECTION_FAILED if rc < 0 else ClientNotification.Type.CONNECTION_CREATED
-        rsp = ClientNotification(
-            evt,
-            connection_id=infuse_id,
-        )
+        assert infuse_id is not None, "ID was required to initiate connection?"
+
+        rsp: ClientNotification
+        if rc < 0:
+            rsp = ClientNotificationConnectionFailed(infuse_id)
+        else:
+            rsp = ClientNotificationConnectionCreated(infuse_id)
         self._common.server.broadcast(rsp)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
         if req.infuse_id == InfuseID.GATEWAY:
             # Local gateway always connected
-            rsp = ClientNotification(
-                ClientNotification.Type.CONNECTION_CREATED,
-                connection_id=req.infuse_id,
-            )
-            self._common.server.broadcast(rsp)
+            self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id))
             return
 
         state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
-            rsp = ClientNotification(
-                ClientNotification.Type.CONNECTION_FAILED,
-                connection_id=req.infuse_id,
-            )
-            self._common.server.broadcast(rsp)
+            self._common.server.broadcast(ClientNotificationConnectionFailed(req.infuse_id))
             return
 
         connect_args = defs.bt_connect_infuse.request(

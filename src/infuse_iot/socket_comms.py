@@ -4,7 +4,7 @@ import enum
 import json
 import socket
 import struct
-from typing import Any, cast
+from typing import cast
 
 from typing_extensions import Self
 
@@ -22,39 +22,70 @@ class ClientNotification:
         CONNECTION_CREATED = 2
         CONNECTION_DROPPED = 3
 
-    def __init__(
-        self,
-        notification_type: Type,
-        epacket: PacketReceived | None = None,
-        connection_id: int | None = None,
-    ):
-        self.type = notification_type
-        self.epacket = epacket
-        self.connection_id = connection_id
-
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
-        out: dict[str, Any] = {"type": int(self.type)}
-        if self.epacket:
-            out["epacket"] = self.epacket.to_json()
-        if self.connection_id:
-            out["connection_id"] = self.connection_id
-        return out
+        raise NotImplementedError
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
-        if j := values.get("epacket"):
-            epacket = PacketReceived.from_json(j)
-        else:
-            epacket = None
-        connection_id = values.get("connection_id")
 
-        return cls(
-            notification_type=cls.Type(values["type"]),
-            epacket=epacket,
-            connection_id=connection_id,
-        )
+        if values["type"] == cls.Type.EPACKET_RECV:
+            return cast(Self, ClientNotificationEpacketReceived.from_json(values))
+        elif values["type"] == cls.Type.CONNECTION_FAILED:
+            return cast(Self, ClientNotificationConnectionFailed.from_json(values))
+        elif values["type"] == cls.Type.CONNECTION_CREATED:
+            return cast(Self, ClientNotificationConnectionCreated.from_json(values))
+        elif values["type"] == cls.Type.CONNECTION_DROPPED:
+            return cast(Self, ClientNotificationConnectionDropped.from_json(values))
+        raise NotImplementedError
+
+
+class ClientNotificationEpacketReceived(ClientNotification):
+    TYPE = ClientNotification.Type.EPACKET_RECV
+
+    def __init__(self, epacket: PacketReceived):
+        self.epacket = epacket
+
+    def to_json(self) -> dict:
+        """Convert class to json dictionary"""
+        return {"type": int(self.TYPE), "epacket": self.epacket.to_json()}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(PacketReceived.from_json(values["epacket"]))
+
+
+class ClientNotificationConnection(ClientNotification):
+    TYPE = 0
+
+    def __init__(self, infuse_id: int):
+        self.infuse_id = infuse_id
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"])
+
+
+class ClientNotificationConnectionFailed(ClientNotificationConnection):
+    """Connection to device failed"""
+
+    TYPE = ClientNotificationConnection.Type.CONNECTION_FAILED
+
+
+class ClientNotificationConnectionCreated(ClientNotificationConnection):
+    """Connection to device has been created"""
+
+    TYPE = ClientNotificationConnection.Type.CONNECTION_CREATED
+
+
+class ClientNotificationConnectionDropped(ClientNotificationConnection):
+    """Connection to device has been lost"""
+
+    TYPE = ClientNotificationConnection.Type.CONNECTION_DROPPED
 
 
 class GatewayRequest:
@@ -184,12 +215,10 @@ class LocalClient:
         self.send(req)
         # Wait for response from the server
         while rsp := self.receive():
-            if rsp.connection_id == infuse_id:
-                if rsp.type == ClientNotification.Type.CONNECTION_CREATED:
-                    break
-                elif rsp.type == ClientNotification.Type.CONNECTION_FAILED:
-                    raise ConnectionRefusedError
-                raise NotImplementedError("Unexpected response")
+            if isinstance(rsp, ClientNotificationConnectionCreated):
+                break
+            elif isinstance(rsp, ClientNotificationConnectionFailed):
+                raise ConnectionRefusedError
 
     def connection_release(self):
         req = GatewayRequestConnectionRelease(

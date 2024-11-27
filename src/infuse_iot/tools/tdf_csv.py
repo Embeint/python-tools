@@ -11,7 +11,7 @@ import time
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
-    ClientNotification,
+    ClientNotificationEpacketReceived,
     LocalClient,
     default_multicast_address,
 )
@@ -40,7 +40,7 @@ class SubCommand(InfuseCommand):
             msg = self._client.receive()
             if msg is None:
                 continue
-            if msg.type != ClientNotification.Type.EPACKET_RECV:
+            if not isinstance(msg, ClientNotificationEpacketReceived):
                 continue
             if msg.epacket.ptype != InfuseType.TDF:
                 continue

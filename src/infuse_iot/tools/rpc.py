@@ -17,7 +17,7 @@ from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import PacketOutput
 from infuse_iot.socket_comms import (
-    ClientNotification,
+    ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
@@ -63,7 +63,7 @@ class SubCommand(InfuseCommand):
 
     def _wait_data_ack(self):
         while rsp := self._client.receive():
-            if rsp.type != ClientNotification.Type.EPACKET_RECV:
+            if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
             if rsp.epacket.ptype != InfuseType.RPC_DATA_ACK:
                 continue
@@ -76,7 +76,7 @@ class SubCommand(InfuseCommand):
     def _wait_rpc_rsp(self):
         # Wait for responses
         while rsp := self._client.receive():
-            if rsp.type != ClientNotification.Type.EPACKET_RECV:
+            if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
             # RPC response packet
             if rsp.epacket.ptype != InfuseType.RPC_RSP:
