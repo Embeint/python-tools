@@ -3,8 +3,8 @@
 import ctypes
 import enum
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
@@ -38,15 +38,11 @@ class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
             ]
             _pack_ = 1
 
-        return kv_store_value(
-            id, len(value_bytes), (ctypes.c_ubyte * len(value_bytes))(*value_bytes)
-        )
+        return kv_store_value(id, len(value_bytes), (ctypes.c_ubyte * len(value_bytes))(*value_bytes))
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument(
-            "--apn", "-a", type=str, required=True, help="Access Point Name"
-        )
+        parser.add_argument("--apn", "-a", type=str, required=True, help="Access Point Name")
 
     def __init__(self, args):
         self.args = args

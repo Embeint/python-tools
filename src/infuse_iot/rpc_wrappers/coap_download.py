@@ -2,9 +2,9 @@
 
 import ctypes
 
+import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
-import infuse_iot.generated.rpc_definitions as defs
 
 
 class coap_download(InfuseRpcCommand, defs.coap_download):

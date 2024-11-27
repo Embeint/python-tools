@@ -3,10 +3,10 @@
 import ctypes
 import ipaddress
 
+import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import wifi as z_wifi
-import infuse_iot.generated.rpc_definitions as defs
 
 
 class interface_state(ctypes.LittleEndianStructure):

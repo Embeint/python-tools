@@ -6,23 +6,22 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
-import random
 import ctypes
 import importlib
 import pkgutil
-
-from infuse_iot.common import InfuseType, InfuseID
-from infuse_iot.epacket.packet import PacketOutput
-from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
-from infuse_iot.socket_comms import (
-    LocalClient,
-    ClientNotification,
-    GatewayRequest,
-    default_multicast_address,
-)
-from infuse_iot import rpc
+import random
 
 import infuse_iot.rpc_wrappers as wrappers
+from infuse_iot import rpc
+from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
+from infuse_iot.common import InfuseID, InfuseType
+from infuse_iot.epacket.packet import PacketOutput
+from infuse_iot.socket_comms import (
+    ClientNotification,
+    GatewayRequest,
+    LocalClient,
+    default_multicast_address,
+)
 
 
 class SubCommand(InfuseCommand):
@@ -33,15 +32,9 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         addr_group = parser.add_mutually_exclusive_group(required=True)
-        addr_group.add_argument(
-            "--gateway", action="store_true", help="Run command on local gateway"
-        )
-        addr_group.add_argument(
-            "--id", type=lambda x: int(x, 0), help="Infuse ID to run command on"
-        )
-        command_list_parser = parser.add_subparsers(
-            title="commands", metavar="<command>", required=True
-        )
+        addr_group.add_argument("--gateway", action="store_true", help="Run command on local gateway")
+        addr_group.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to run command on")
+        command_list_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
             full_name = f"{wrappers.__name__}.{name}"
@@ -93,9 +86,7 @@ class SubCommand(InfuseCommand):
             if rsp_header.request_id != self._request_id:
                 continue
             # Convert response bytes back to struct form
-            rsp_data = self._command.response.from_buffer_copy(
-                rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
-            )
+            rsp_data = self._command.response.from_buffer_copy(rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :])
             # Handle the response
             print(f"INFUSE ID: {rsp.epacket.route[0].infuse_id:016x}")
             self._command.handle_response(rsp_header.return_code, rsp_data)

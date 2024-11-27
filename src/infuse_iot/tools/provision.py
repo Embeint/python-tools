@@ -6,8 +6,8 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import ctypes
-from http import HTTPStatus
 import sys
+from http import HTTPStatus
 
 try:
     from simple_term_menu import TerminalMenu
@@ -18,15 +18,15 @@ from pynrfjprog import LowLevel, Parameters
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.default import (
-    get_device_by_soc_and_mcu_id,
     create_device,
     get_all_organisations,
-    get_boards,
     get_board_by_id,
+    get_boards,
+    get_device_by_soc_and_mcu_id,
 )
 from infuse_iot.api_client.models import NewDevice, NewDeviceMetadata
-from infuse_iot.credentials import get_api_key
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.credentials import get_api_key
 
 
 class ProvisioningStruct(ctypes.LittleEndianStructure):
@@ -131,9 +131,7 @@ class SubCommand(InfuseCommand):
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             if TerminalMenu is None:
-                sys.exit(
-                    "Specify organisation with --organisation:\n" + "\n".join(options)
-                )
+                sys.exit("Specify organisation with --organisation:\n" + "\n".join(options))
 
             terminal_menu = TerminalMenu(options)
             idx = terminal_menu.show()
@@ -152,9 +150,7 @@ class SubCommand(InfuseCommand):
         board = get_board_by_id.sync(client=client, id=self._board)
 
         if board.soc != soc:
-            sys.exit(
-                f"Found SoC '{soc}' but board '{board.name}' has SoC '{board.soc}'"
-            )
+            sys.exit(f"Found SoC '{soc}' but board '{board.name}' has SoC '{board.soc}'")
 
         new_board = NewDevice(
             mcu_id=hardware_id_str,
@@ -167,9 +163,7 @@ class SubCommand(InfuseCommand):
 
         response = create_device.sync_detailed(client=client, body=new_board)
         if response.status_code != HTTPStatus.CREATED:
-            sys.exit(
-                f"Failed to create device:\n\t<{response.status_code}> {response.content.decode('utf-8')}"
-            )
+            sys.exit(f"Failed to create device:\n\t<{response.status_code}> {response.content.decode('utf-8')}")
 
     def run(self):
         with LowLevel.API() as api:
@@ -187,9 +181,7 @@ class SubCommand(InfuseCommand):
 
             # Get existing device or create new device
             with client as client:
-                response = get_device_by_soc_and_mcu_id.sync_detailed(
-                    client=client, soc=soc, mcu_id=hardware_id_str
-                )
+                response = get_device_by_soc_and_mcu_id.sync_detailed(client=client, soc=soc, mcu_id=hardware_id_str)
                 if response.status_code == HTTPStatus.OK:
                     # Device found, fall through
                     pass
@@ -205,9 +197,7 @@ class SubCommand(InfuseCommand):
                             f"Failed to query device after creation:\n\t<{response.status_code}> {response.content.decode('utf-8')}"
                         )
                     print("To provision more devices like this:")
-                    print(
-                        f"\t infuse provision --organisation {self._org} --board {self._board}"
-                    )
+                    print(f"\t infuse provision --organisation {self._org} --board {self._board}")
                 else:
                     sys.exit(
                         f"Failed to query device information:\n\t<{response.status_code}> {response.content.decode('utf-8')}"
@@ -215,27 +205,19 @@ class SubCommand(InfuseCommand):
 
             # Compare current flash contents to desired flash contents
             cloud_id = int(response.parsed.device_id, 16)
-            current_bytes = bytes(
-                api.read(uicr_addr, ctypes.sizeof(ProvisioningStruct))
-            )
+            current_bytes = bytes(api.read(uicr_addr, ctypes.sizeof(ProvisioningStruct)))
             desired = ProvisioningStruct(cloud_id)
             desired_bytes = bytes(desired)
 
             if current_bytes == desired_bytes:
-                print(
-                    f"HW ID 0x{hardware_id:016x} already provisioned as 0x{desired.device_id:016x}"
-                )
+                print(f"HW ID 0x{hardware_id:016x} already provisioned as 0x{desired.device_id:016x}")
             else:
                 if current_bytes != len(current_bytes) * b"\xff":
-                    print(
-                        f"HW ID 0x{hardware_id:016x} already has incorrect provisioning info, recover device"
-                    )
+                    print(f"HW ID 0x{hardware_id:016x} already has incorrect provisioning info, recover device")
                     return
 
                 api.write(uicr_addr, bytes(desired), True)
-                print(
-                    f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}"
-                )
+                print(f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}")
 
             # Reset the MCU
             api.pin_reset()

@@ -3,14 +3,14 @@
 import binascii
 
 from rich.progress import (
+    DownloadColumn,
     Progress,
     TransferSpeedColumn,
-    DownloadColumn,
 )
 
-from infuse_iot.commands import InfuseRpcCommand, Auth
-from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import Auth, InfuseRpcCommand
+from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 
 
 class file_write_basic(InfuseRpcCommand, defs.file_write_basic):

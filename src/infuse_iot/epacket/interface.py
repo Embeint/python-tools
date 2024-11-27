@@ -2,13 +2,13 @@
 
 import ctypes
 import enum
-
 from typing import Dict
+
 from typing_extensions import Self
 
-from infuse_iot.util.ctypes import bytes_to_uint8
-from infuse_iot.epacket.common import Serializable
 import infuse_iot.generated.rpc_definitions as rpc_defs
+from infuse_iot.epacket.common import Serializable
+from infuse_iot.util.ctypes import bytes_to_uint8
 
 
 class ID(enum.Enum):
@@ -52,10 +52,7 @@ class Address(Serializable):
             return (self.addr_type << 48) + self.addr_val
 
         def __eq__(self, another) -> bool:
-            return (
-                self.addr_type == another.addr_type
-                and self.addr_val == another.addr_val
-            )
+            return self.addr_type == another.addr_type and self.addr_val == another.addr_val
 
         def __str__(self) -> str:
             t = "random" if self.addr_type == 1 else "public"
@@ -67,9 +64,7 @@ class Address(Serializable):
 
         def to_ctype(self) -> CtypesFormat:
             """Convert the address to the ctype format"""
-            return self.CtypesFormat(
-                self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little"))
-            )
+            return self.CtypesFormat(self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little")))
 
         def to_json(self) -> Dict:
             return {"i": "BT", "t": self.addr_type, "v": self.addr_val}
@@ -81,9 +76,7 @@ class Address(Serializable):
         def to_rpc_struct(self) -> rpc_defs.rpc_struct_bt_addr_le:
             """Convert the address to the common RPC address structure"""
 
-            return rpc_defs.rpc_struct_bt_addr_le(
-                self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little"))
-            )
+            return rpc_defs.rpc_struct_bt_addr_le(self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little")))
 
         @classmethod
         def from_rpc_struct(cls, struct: rpc_defs.rpc_struct_bt_addr_le):

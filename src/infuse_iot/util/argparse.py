@@ -3,7 +3,6 @@
 import argparse
 import pathlib
 import re
-
 from typing import cast
 
 

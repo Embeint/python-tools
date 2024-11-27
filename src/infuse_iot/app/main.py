@@ -7,9 +7,10 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
-import sys
-import pkgutil
 import importlib.util
+import pkgutil
+import sys
+
 import argcomplete
 
 import infuse_iot.tools
@@ -23,9 +24,7 @@ class InfuseApp:
     def __init__(self):
         self.args = None
         self.parser = argparse.ArgumentParser("infuse")
-        self.parser.add_argument(
-            "--version", action="version", version=f"{__version__}"
-        )
+        self.parser.add_argument("--version", action="version", version=f"{__version__}")
         self._tools = {}
         # Load tools
         self._load_tools(self.parser)
@@ -40,9 +39,7 @@ class InfuseApp:
         tool.run()
 
     def _load_tools(self, parser: argparse.ArgumentParser):
-        tools_parser = parser.add_subparsers(
-            title="commands", metavar="<command>", required=True
-        )
+        tools_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         # Iterate over tools
         for _, name, _ in pkgutil.walk_packages(infuse_iot.tools.__path__):
@@ -50,7 +47,7 @@ class InfuseApp:
             module = importlib.import_module(full_name)
 
             # Add tool to parser
-            tool_cls: InfuseCommand = getattr(module, "SubCommand")
+            tool_cls: InfuseCommand = module.SubCommand
             parser = tools_parser.add_parser(
                 tool_cls.NAME,
                 help=tool_cls.HELP,

@@ -8,11 +8,11 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import os
 import time
 
-from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
-    LocalClient,
     ClientNotification,
+    LocalClient,
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
@@ -26,9 +26,7 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument(
-            "--unix", action="store_true", help="Save timestamps as unix"
-        )
+        parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
@@ -63,11 +61,7 @@ class SubCommand(InfuseCommand):
                         time_str = time_func(time.time())
                     else:
                         time_str = time_func(reading_time)
-                    line = (
-                        time_str
-                        + ","
-                        + ",".join([f.val_fmt() for f in reading.iter_fields()])
-                    )
+                    line = time_str + "," + ",".join([f.val_fmt() for f in reading.iter_fields()])
                     lines.append(line)
                     if tdf.period is not None:
                         reading_time += tdf.period
@@ -82,9 +76,7 @@ class SubCommand(InfuseCommand):
                     else:
                         print(f"Opening new {filename}")
                         files[filename] = open(filename, "w", encoding="utf-8")
-                        headings = "time," + ",".join(
-                            [f.name for f in first.iter_fields()]
-                        )
+                        headings = "time," + ",".join([f.name for f in first.iter_fields()])
                         files[filename].write(headings + os.linesep)
 
                 # Write line to file then flush

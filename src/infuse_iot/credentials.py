@@ -36,7 +36,5 @@ def load_network(network_id: int):
     username = f"network-{network_id:06x}"
     key = keyring.get_password("infuse-iot", username)
     if key is None:
-        raise FileNotFoundError(
-            f"Network key {network_id:06x} does not exist in keyring"
-        )
+        raise FileNotFoundError(f"Network key {network_id:06x} does not exist in keyring")
     return yaml.safe_load(key)

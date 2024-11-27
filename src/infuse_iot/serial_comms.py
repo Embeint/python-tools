@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-import serial
-import pylink
 import time
+
+import pylink
+import serial
 
 
 class SerialFrame:
     """Serial frame reconstructor"""
 
-    SYNC = b"\xD5\xCA"
+    SYNC = b"\xd5\xca"
 
     @classmethod
     def reconstructor(cls):
@@ -56,7 +57,7 @@ class SerialPort:
 
     def ping(self):
         """Magic 1 byte frame to request a response"""
-        self._ser.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4D")
+        self._ser.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
         self._ser.flush()
 
     def write(self, packet: bytes):
@@ -117,7 +118,7 @@ class RttPort:
 
     def ping(self):
         """Magic 1 byte frame to request a response"""
-        self._jlink.rtt_write(0, SerialFrame.SYNC + b"\x01\x00" + b"\x4D")
+        self._jlink.rtt_write(0, SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
 
     def write(self, packet: bytes):
         """Write a serial frame to the port"""

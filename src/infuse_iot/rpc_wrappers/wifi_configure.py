@@ -2,8 +2,8 @@
 
 import ctypes
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class wifi_configure(InfuseRpcCommand, defs.kv_write):
@@ -45,12 +45,8 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
         ssid_bytes = self.args.ssid.encode("utf-8") + b"\x00"
         psk_bytes = self.args.psk.encode("utf-8") + b"\x00"
 
-        ssid_struct = self.kv_store_value_factory(
-            20, (len(ssid_bytes) + 1).to_bytes(1, "little") + ssid_bytes
-        )
-        psk_struct = self.kv_store_value_factory(
-            21, (len(psk_bytes) + 1).to_bytes(1, "little") + psk_bytes
-        )
+        ssid_struct = self.kv_store_value_factory(20, (len(ssid_bytes) + 1).to_bytes(1, "little") + ssid_bytes)
+        psk_struct = self.kv_store_value_factory(21, (len(psk_bytes) + 1).to_bytes(1, "little") + psk_bytes)
 
         request_bytes = bytes(ssid_struct) + bytes(psk_struct)
         return bytes(self.request(2)) + request_bytes

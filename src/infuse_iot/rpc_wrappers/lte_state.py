@@ -3,10 +3,10 @@
 import ctypes
 import ipaddress
 
-from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr import net_if as z_nif
-from infuse_iot.zephyr import lte as z_lte
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.zephyr import lte as z_lte
+from infuse_iot.zephyr import net_if as z_nif
 
 
 class interface_state(ctypes.LittleEndianStructure):
@@ -114,15 +114,9 @@ class lte_state(InfuseRpcCommand, defs.lte_state):
             else:
                 freq_string = ""
             country = z_lte.MobileCountryCodes.name_from_mcc(lte.mcc)
-            active_str = (
-                f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
-            )
-            edrx_interval_str = (
-                f"{lte.edrx_interval} s" if lte.edrx_interval != -1.0 else "N/A"
-            )
-            edrx_window_str = (
-                f"{lte.edrx_window} s" if lte.edrx_window != -1.0 else "N/A"
-            )
+            active_str = f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
+            edrx_interval_str = f"{lte.edrx_interval} s" if lte.edrx_interval != -1.0 else "N/A"
+            edrx_window_str = f"{lte.edrx_window} s" if lte.edrx_window != -1.0 else "N/A"
             print(f"\t    Access Tech: {lte.access_technology}")
             print(f"\t   Country Code: {lte.mcc} ({country})")
             print(f"\t   Network Code: {lte.mnc}")

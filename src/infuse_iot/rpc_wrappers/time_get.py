@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class time_get(InfuseRpcCommand, defs.time_get):
@@ -20,16 +20,13 @@ class time_get(InfuseRpcCommand, defs.time_get):
             print(f"Failed to query current time ({return_code})")
             return
 
-        from infuse_iot.time import InfuseTime, InfuseTimeSource
         import time
+
+        from infuse_iot.time import InfuseTime, InfuseTimeSource
 
         t_remote = InfuseTime.unix_time_from_epoch(response.epoch_time)
         t_local = time.time()
-        sync_age = (
-            f"{response.sync_age} seconds ago"
-            if response.sync_age != 2**32 - 1
-            else "Never"
-        )
+        sync_age = f"{response.sync_age} seconds ago" if response.sync_age != 2**32 - 1 else "Never"
 
         print(f"\t     Source: {InfuseTimeSource(response.time_source)}")
         print(f"\tRemote Time: {InfuseTime.utc_time_string(t_remote)}")

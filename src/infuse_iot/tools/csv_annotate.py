@@ -5,8 +5,8 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
-from infuse_iot.util.argparse import ValidFile
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.util.argparse import ValidFile
 
 
 class SubCommand(InfuseCommand):
@@ -17,9 +17,7 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--file", "-f", required=True, type=ValidFile)
-        parser.add_argument(
-            "--default", "-d", type=str, default="N/A", help="Default label"
-        )
+        parser.add_argument("--default", "-d", type=str, default="N/A", help="Default label")
 
     def __init__(self, args):
         self.file = args.file
@@ -27,8 +25,8 @@ class SubCommand(InfuseCommand):
         self.selection = []
 
     def make_plots(self):
-        from plotly.subplots import make_subplots
         import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
 
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.2)
         for col in self.df.columns.values[1:]:
@@ -41,8 +39,8 @@ class SubCommand(InfuseCommand):
         return fig
 
     def run(self):
-        from dash import Dash, dcc, html, Input, Output, State, callback
         import pandas as pd
+        from dash import Dash, Input, Output, State, callback, dcc, html
 
         # Read data, add label column
         self.df = pd.read_csv(self.file, parse_dates=["time"])
@@ -93,9 +91,7 @@ class SubCommand(InfuseCommand):
 
         @callback(Input("graph", "relayoutData"))
         def store_relayout_data(relayoutData):
-            if relayoutData.get("autosize", False) or relayoutData.get(
-                "xaxis.autorange", False
-            ):
+            if relayoutData.get("autosize", False) or relayoutData.get("xaxis.autorange", False):
                 self.selection = [
                     self.df["time"][0],
                     self.df["time"][self.df.shape[0] - 1],
@@ -114,8 +110,7 @@ class SubCommand(InfuseCommand):
         )
         def label_current_selection(n_clicks, value):
             self.df.loc[
-                (self.df["time"] >= self.selection[0])
-                & (self.df["time"] <= self.selection[1]),
+                (self.df["time"] >= self.selection[0]) & (self.df["time"] <= self.selection[1]),
                 "labels",
             ] = value
             return self.make_plots()

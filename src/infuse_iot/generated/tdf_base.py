@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import ctypes
+from typing import Any, Generator, cast
 
-from typing import Generator, Any
-from typing_extensions import Self, cast
+from typing_extensions import Self
 
 
 def _public_name(internal_field):
@@ -13,9 +13,7 @@ def _public_name(internal_field):
 
 
 class TdfField:
-    def __init__(
-        self, field: str, subfield: str | None, postfix: str, display_fmt: str, val: Any
-    ):
+    def __init__(self, field: str, subfield: str | None, postfix: str, display_fmt: str, val: Any):
         self.field = field
         self.subfield = subfield
         self.postfix = postfix
