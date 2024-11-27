@@ -65,6 +65,12 @@ class Address(Serializable):
         def len(self):
             return ctypes.sizeof(self.CtypesFormat)
 
+        def to_ctype(self) -> CtypesFormat:
+            """Convert the address to the ctype format"""
+            return self.CtypesFormat(
+                self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little"))
+            )
+
         def to_json(self) -> Dict:
             return {"i": "BT", "t": self.addr_type, "v": self.addr_val}
 
