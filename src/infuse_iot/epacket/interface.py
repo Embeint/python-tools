@@ -2,7 +2,6 @@
 
 import ctypes
 import enum
-from typing import Dict
 
 from typing_extensions import Self
 
@@ -29,11 +28,11 @@ class Address(Serializable):
         def len(self):
             return 0
 
-        def to_json(self) -> Dict:
+        def to_json(self) -> dict:
             return {"i": "SERIAL"}
 
         @classmethod
-        def from_json(cls, values: Dict) -> Self:
+        def from_json(cls, values: dict) -> Self:
             return cls()
 
     class BluetoothLeAddr(Serializable):
@@ -66,11 +65,11 @@ class Address(Serializable):
             """Convert the address to the ctype format"""
             return self.CtypesFormat(self.addr_type, bytes_to_uint8(self.addr_val.to_bytes(6, "little")))
 
-        def to_json(self) -> Dict:
+        def to_json(self) -> dict:
             return {"i": "BT", "t": self.addr_type, "v": self.addr_val}
 
         @classmethod
-        def from_json(cls, values: Dict) -> Self:
+        def from_json(cls, values: dict) -> Self:
             return cls(values["t"], values["v"])
 
         def to_rpc_struct(self) -> rpc_defs.rpc_struct_bt_addr_le:
@@ -93,11 +92,11 @@ class Address(Serializable):
     def len(self):
         return self.val.len()
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         return self.val.to_json()
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         if values["i"] == "BT":
             return cls(cls.BluetoothLeAddr.from_json(values))
         elif values["i"] == "SERIAL":
