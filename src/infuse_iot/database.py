@@ -50,6 +50,12 @@ class DeviceDatabase:
             self.bt_addr: InterfaceAddress.BluetoothLeAddr | None = None
             self.public_key = None
             self.shared_key = None
+            self._tx_gatt_seq = 0
+
+        def gatt_sequence_num(self):
+            """Persistent auto-incrementing sequence number for GATT"""
+            self._tx_gatt_seq += 1
+            return self._tx_gatt_seq
 
     def __init__(self):
         self.gateway = None
