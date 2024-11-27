@@ -27,7 +27,7 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
 
-    def run(self):
+    def run(self) -> None:
         while True:
             msg = self._client.receive()
             if msg is None:
@@ -38,7 +38,7 @@ class SubCommand(InfuseCommand):
                 continue
             source = msg.epacket.route[0]
 
-            table = []
+            table: list[tuple[str | None, str | None, str, str, str]] = []
 
             for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
@@ -52,15 +52,15 @@ class SubCommand(InfuseCommand):
                     if idx == 0:
                         if tdf.time is not None:
                             if tdf.period is None:
-                                t = ""
+                                time = ""
                             else:
                                 offset = (len(tdf.data) - 1) * tdf.period
-                                t = InfuseTime.utc_time_string(tdf.time + offset)
+                                time = InfuseTime.utc_time_string(tdf.time + offset)
                         else:
-                            t = "N/A"
-                        table.append([t, tdf_name, field.name, field.val_fmt(), field.postfix])
+                            time = "N/A"
+                        table.append((time, tdf_name, field.name, field.val_fmt(), field.postfix))
                     else:
-                        table.append([None, None, field.name, field.val_fmt(), field.postfix])
+                        table.append((None, None, field.name, field.val_fmt(), field.postfix))
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")

@@ -9,6 +9,7 @@ import asyncio
 import pathlib
 import threading
 import time
+from typing import Any
 
 from aiohttp import web
 from aiohttp.web_request import BaseRequest
@@ -131,9 +132,9 @@ class SubCommand(InfuseCommand):
 
         for field in tdf.field_information():
             if "subfields" in field:
-                s = []
+                sub: list[dict[str, Any]] = []
                 for subfield in field["subfields"]:
-                    s.append(
+                    sub.append(
                         {
                             "title": column_title(field["type"], subfield["name"]),
                             "field": f"{tdf.name}.{field['name']}.{subfield['name']}",
@@ -141,7 +142,7 @@ class SubCommand(InfuseCommand):
                             "hozAlign": "right",
                         }
                     )
-                s = {"title": field["name"], "headerHozAlign": "center", "columns": s}
+                s = {"title": field["name"], "headerHozAlign": "center", "columns": sub}
             else:
                 s = {
                     "title": column_title(tdf, field["name"]),

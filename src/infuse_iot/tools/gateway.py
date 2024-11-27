@@ -33,7 +33,7 @@ from infuse_iot.epacket.packet import (
     PacketOutputRouted,
     PacketReceived,
 )
-from infuse_iot.serial_comms import RttPort, SerialFrame, SerialPort
+from infuse_iot.serial_comms import RttPort, SerialFrame, SerialLike, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationConnectionCreated,
@@ -109,8 +109,8 @@ class LocalRpcServer:
 class CommonThreadState:
     def __init__(
         self,
-        server: LocalServer,
-        port: SerialPort,
+        server: LocalServer | None,
+        port: SerialLike,
         ddb: DeviceDatabase,
         rpc_server: LocalRpcServer,
     ):
@@ -218,8 +218,9 @@ class SerialRxThread(SignaledThread):
                     self._common.query_device_key(None)
 
                 notification = ClientNotificationEpacketReceived(pkt)
-                # Forward to clients
-                self._common.server.broadcast(notification)
+                if self._common.server:
+                    # Forward to clients
+                    self._common.server.broadcast(notification)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 
@@ -282,6 +283,7 @@ class SerialTxThread(SignaledThread):
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
 
         assert infuse_id is not None, "ID was required to initiate connection?"
+        assert self._common.server is not None
 
         rsp: ClientNotification
         if rc < 0:
@@ -291,6 +293,8 @@ class SerialTxThread(SignaledThread):
         self._common.server.broadcast(rsp)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
+        assert self._common.server is not None
+
         if req.infuse_id == InfuseID.GATEWAY:
             # Local gateway always connected
             self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id))
@@ -376,7 +380,8 @@ class SubCommand(InfuseCommand):
             help="Save serial output to file",
         )
 
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace):
+        self.port: SerialLike
         if args.serial is not None:
             self.port = SerialPort(args.serial)
         elif args.rtt is not None:
@@ -384,10 +389,9 @@ class SubCommand(InfuseCommand):
         self.ddb = DeviceDatabase()
         if args.display_only:
             self.server = None
-            self.rpc_server = None
         else:
             self.server = LocalServer(default_multicast_address())
-            self.rpc_server = LocalRpcServer(self.ddb)
+        self.rpc_server = LocalRpcServer(self.ddb)
         self._common = CommonThreadState(self.server, self.port, self.ddb, self.rpc_server)
         self.log = args.log
         Console.init()

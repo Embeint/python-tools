@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from abc import ABCMeta, abstractmethod
 
 import pylink
 import serial
@@ -38,7 +39,29 @@ class SerialFrame:
                 buffered = bytearray()
 
 
-class SerialPort:
+class SerialLike(metaclass=ABCMeta):
+    @abstractmethod
+    def open(self) -> None:
+        """Open serial port"""
+
+    @abstractmethod
+    def read_bytes(self, num: int):
+        """Read arbitrary number of bytes from serial port"""
+
+    @abstractmethod
+    def ping(self):
+        """Magic 1 byte frame to request a response"""
+
+    @abstractmethod
+    def write(self, packet: bytes):
+        """Write a serial frame to the port"""
+
+    @abstractmethod
+    def close(self):
+        """Close the serial port"""
+
+
+class SerialPort(SerialLike):
     """Serial Port handling"""
 
     def __init__(self, serial_port):
@@ -48,20 +71,16 @@ class SerialPort:
         self._ser.timeout = 0.05
 
     def open(self):
-        """Open serial port"""
         self._ser.open()
 
     def read_bytes(self, num):
-        """Read arbitrary number of bytes from serial port"""
         return self._ser.read(num)
 
     def ping(self):
-        """Magic 1 byte frame to request a response"""
         self._ser.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
         self._ser.flush()
 
     def write(self, packet: bytes):
-        """Write a serial frame to the port"""
         # Add header
         pkt = SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
         # Write packet to serial port
@@ -69,11 +88,10 @@ class SerialPort:
         self._ser.flush()
 
     def close(self):
-        """Close the serial port"""
         self._ser.close()
 
 
-class RttPort:
+class RttPort(SerialLike):
     """Segger RTT handling"""
 
     def __init__(self, rtt_device):
@@ -83,7 +101,6 @@ class RttPort:
         self._modem_trace_buf = 0
 
     def open(self):
-        """Open RTT port"""
         self._jlink.open()
         self._jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
         self._jlink.connect(self._name, 4000)
@@ -108,7 +125,6 @@ class RttPort:
                 self._modem_trace_buf = desc.BufferIndex
 
     def read_bytes(self, num):
-        """Read arbitrary number of bytes from RTT"""
         if self._modem_trace is not None:
             trace_data = bytes(self._jlink.rtt_read(self._modem_trace_buf, 1024))
             if len(trace_data) > 0:
@@ -117,11 +133,9 @@ class RttPort:
         return bytes(self._jlink.rtt_read(0, num))
 
     def ping(self):
-        """Magic 1 byte frame to request a response"""
         self._jlink.rtt_write(0, SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
 
     def write(self, packet: bytes):
-        """Write a serial frame to the port"""
         # Add header
         pkt = SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
         while True:
@@ -132,7 +146,6 @@ class RttPort:
             time.sleep(0.1)
 
     def close(self):
-        """Close the RTT port"""
         self._jlink.rtt_stop()
         self._jlink.close()
         if self._modem_trace is not None:

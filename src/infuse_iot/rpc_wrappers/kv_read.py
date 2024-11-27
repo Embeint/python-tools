@@ -16,7 +16,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     class response:
         @classmethod
-        def from_buffer_copy(cls, source, offset=0):
+        def from_buffer_copy(cls, source: bytes, _offset: int = 0):
             values = []
             while len(source) > 0:
 
@@ -28,6 +28,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
                     _pack_ = 1
 
                 header = kv_store_header.from_buffer_copy(source)
+                struct: ctypes.LittleEndianStructure
                 if header.len > 0:
 
                     class kv_store_value(ctypes.LittleEndianStructure):

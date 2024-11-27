@@ -7,27 +7,40 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
 import ctypes
+from abc import ABCMeta, abstractmethod
 
 from infuse_iot.epacket.packet import Auth
 
 
-class InfuseCommand:
+class InfuseCommand(metaclass=ABCMeta):
     """Infuse-IoT SDK meta-tool command parent class"""
-
-    NAME = "N/A"
-    HELP = "N/A"
-    DESCRIPTION = "N/A"
 
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
         """Add arguments for sub-command"""
+        return
 
     def __init__(self, args: argparse.Namespace):
+        return
+
+    @abstractmethod
+    def run(self) -> None:
+        """Run the subcommand"""
+
+    @property
+    @abstractmethod
+    def NAME(self) -> str:
         pass
 
-    def run(self):
-        """Run the subcommand"""
-        raise NotImplementedError
+    @property
+    @abstractmethod
+    def HELP(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def DESCRIPTION(self) -> str:
+        pass
 
 
 class InfuseRpcCommand:
