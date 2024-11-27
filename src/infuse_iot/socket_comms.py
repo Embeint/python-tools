@@ -4,7 +4,7 @@ import enum
 import json
 import socket
 import struct
-from typing import Any
+from typing import Any, cast
 
 from typing_extensions import Self
 
@@ -63,39 +63,62 @@ class GatewayRequest:
         CONNECTION_REQUEST = 1
         CONNECTION_RELEASE = 2
 
-    def __init__(
-        self,
-        notification_type: Type,
-        epacket: PacketOutput | None = None,
-        connection_id: int | None = None,
-    ):
-        self.type = notification_type
-        self.epacket = epacket
-        self.connection_id = connection_id
-
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
-        out: dict[str, Any] = {"type": int(self.type)}
-        if self.epacket:
-            out["epacket"] = self.epacket.to_json()
-        if self.connection_id:
-            out["connection_id"] = self.connection_id
-        return out
+        raise NotImplementedError
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
-        if j := values.get("epacket"):
-            epacket = PacketOutput.from_json(j)
-        else:
-            epacket = None
-        connection_id = values.get("connection_id")
+        if values["type"] == cls.Type.EPACKET_SEND:
+            return cast(Self, GatewayRequestEpacketSend.from_json(values))
+        elif values["type"] == cls.Type.CONNECTION_REQUEST:
+            return cast(Self, GatewayRequestConnectionRequest.from_json(values))
+        elif values["type"] == cls.Type.CONNECTION_RELEASE:
+            return cast(Self, GatewayRequestConnectionRelease.from_json(values))
+        raise NotImplementedError
 
-        return cls(
-            notification_type=cls.Type(values["type"]),
-            epacket=epacket,
-            connection_id=connection_id,
-        )
+
+class GatewayRequestEpacketSend(GatewayRequest):
+    """Request packet to be forwarded to device"""
+
+    TYPE = GatewayRequest.Type.EPACKET_SEND
+
+    def __init__(self, epacket: PacketOutput):
+        self.epacket = epacket
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "epacket": self.epacket.to_json()}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(PacketOutput.from_json(values["epacket"]))
+
+
+class GatewayRequestConnection(GatewayRequest):
+    TYPE = 0
+
+    def __init__(self, infuse_id: int):
+        self.infuse_id = infuse_id
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"])
+
+
+class GatewayRequestConnectionRequest(GatewayRequestConnection):
+    """Request connection context to device"""
+
+    TYPE = GatewayRequestConnection.Type.CONNECTION_REQUEST
+
+
+class GatewayRequestConnectionRelease(GatewayRequestConnection):
+    """Release connection context to device"""
+
+    TYPE = GatewayRequestConnection.Type.CONNECTION_RELEASE
 
 
 class LocalServer:
@@ -157,7 +180,7 @@ class LocalClient:
         self._connection_id = infuse_id
 
         # Send the request for the connection
-        req = GatewayRequest(GatewayRequest.Type.CONNECTION_REQUEST, connection_id=infuse_id)
+        req = GatewayRequestConnectionRequest(infuse_id)
         self.send(req)
         # Wait for response from the server
         while rsp := self.receive():
@@ -169,9 +192,8 @@ class LocalClient:
                 raise NotImplementedError("Unexpected response")
 
     def connection_release(self):
-        req = GatewayRequest(
-            GatewayRequest.Type.CONNECTION_RELEASE,
-            connection_id=self._connection_id,
+        req = GatewayRequestConnectionRelease(
+            self._connection_id,
         )
         self.send(req)
         self._connection_id = None
@@ -179,9 +201,8 @@ class LocalClient:
     def close(self):
         # Cleanup any lingering connection context
         if self._connection_id:
-            req = GatewayRequest(
-                GatewayRequest.Type.CONNECTION_RELEASE,
-                connection_id=self._connection_id,
+            req = GatewayRequestConnectionRelease(
+                self._connection_id,
             )
             self.send(req)
         # Close the socket

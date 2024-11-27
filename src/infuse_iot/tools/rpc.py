@@ -18,7 +18,7 @@ from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import PacketOutput
 from infuse_iot.socket_comms import (
     ClientNotification,
-    GatewayRequest,
+    GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
 )
@@ -106,7 +106,7 @@ class SubCommand(InfuseCommand):
             InfuseType.RPC_CMD,
             request_packet,
         )
-        req = GatewayRequest(GatewayRequest.Type.EPACKET_SEND, epacket=pkt)
+        req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
 
         # Wait for initial ACK
@@ -153,7 +153,7 @@ class SubCommand(InfuseCommand):
             InfuseType.RPC_CMD,
             request_packet,
         )
-        req = GatewayRequest(GatewayRequest.Type.EPACKET_SEND, epacket=pkt)
+        req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
         self._wait_rpc_rsp()
 

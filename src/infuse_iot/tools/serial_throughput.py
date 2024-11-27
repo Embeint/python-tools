@@ -13,7 +13,7 @@ from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import Auth, PacketOutput
 from infuse_iot.socket_comms import (
     ClientNotification,
-    GatewayRequest,
+    GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
 )
@@ -55,7 +55,7 @@ class SubCommand(InfuseCommand):
                     InfuseType.ECHO_REQ,
                     payload,
                 )
-                req = GatewayRequest(GatewayRequest.Type.EPACKET_SEND, epacket=pkt)
+                req = GatewayRequestEpacketSend(pkt)
                 self._client.send(req)
                 sent += 1
                 pending += 1

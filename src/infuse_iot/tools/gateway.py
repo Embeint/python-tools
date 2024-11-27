@@ -36,7 +36,9 @@ from infuse_iot.epacket.packet import (
 from infuse_iot.serial_comms import RttPort, SerialFrame, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
-    GatewayRequest,
+    GatewayRequestConnectionRelease,
+    GatewayRequestConnectionRequest,
+    GatewayRequestEpacketSend,
     LocalServer,
     default_multicast_address,
 )
@@ -234,13 +236,12 @@ class SerialTxThread(SignaledThread):
         """Queue packet for transmission"""
         self._queue.put(pkt)
 
-    def _handle_epacket_send(self, req: GatewayRequest):
+    def _handle_epacket_send(self, req: GatewayRequestEpacketSend):
         if self._common.ddb.gateway is None:
             Console.log_error("Gateway address unknown")
             return
 
         pkt = req.epacket
-        assert pkt is not None
 
         # Construct routed output
         if pkt.infuse_id == InfuseID.GATEWAY:
@@ -284,23 +285,21 @@ class SerialTxThread(SignaledThread):
         )
         self._common.server.broadcast(rsp)
 
-    def _handle_conn_request(self, req: GatewayRequest):
-        assert req.connection_id is not None
-
-        if req.connection_id == InfuseID.GATEWAY:
+    def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
+        if req.infuse_id == InfuseID.GATEWAY:
             # Local gateway always connected
             rsp = ClientNotification(
                 ClientNotification.Type.CONNECTION_CREATED,
-                connection_id=req.connection_id,
+                connection_id=req.infuse_id,
             )
             self._common.server.broadcast(rsp)
             return
 
-        state = self._common.ddb.devices.get(req.connection_id, None)
+        state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
             rsp = ClientNotification(
                 ClientNotification.Type.CONNECTION_FAILED,
-                connection_id=req.connection_id,
+                connection_id=req.infuse_id,
             )
             self._common.server.broadcast(rsp)
             return
@@ -321,14 +320,12 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
-    def _handle_conn_release(self, req: GatewayRequest):
-        assert req.connection_id is not None
-
-        if req.connection_id == InfuseID.GATEWAY:
+    def _handle_conn_release(self, req: GatewayRequestConnectionRelease):
+        if req.infuse_id == InfuseID.GATEWAY:
             # Local gateway always connected
             return
 
-        state = self._common.ddb.devices.get(req.connection_id, None)
+        state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
             # Unknown device, nothing to do
             return
@@ -346,14 +343,14 @@ class SerialTxThread(SignaledThread):
 
         # Loop while there are packets to send
         while req := self._common.server.receive():
-            if req.type == GatewayRequest.Type.EPACKET_SEND:
+            if isinstance(req, GatewayRequestEpacketSend):
                 self._handle_epacket_send(req)
-            elif req.type == GatewayRequest.Type.CONNECTION_REQUEST:
+            elif isinstance(req, GatewayRequestConnectionRequest):
                 self._handle_conn_request(req)
-            elif req.type == GatewayRequest.Type.CONNECTION_RELEASE:
+            elif isinstance(req, GatewayRequestConnectionRelease):
                 self._handle_conn_release(req)
             else:
-                Console.log_error(f"Unhandled request {req.type}")
+                Console.log_error(f"Unhandled request {type(req)}")
 
 
 class SubCommand(InfuseCommand):
