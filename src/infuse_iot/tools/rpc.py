@@ -58,7 +58,7 @@ class SubCommand(InfuseCommand):
             cmd_parser.set_defaults(rpc_class=cmd_cls)
             cmd_cls.add_parser(cmd_parser)
 
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace):
         self._args = args
         self._client = LocalClient(default_multicast_address(), 10.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)

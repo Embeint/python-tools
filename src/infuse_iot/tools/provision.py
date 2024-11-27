@@ -77,7 +77,7 @@ class SubCommand(InfuseCommand):
                 key, val = meta.strip().split("=", 1)
                 self._metadata[key.strip()] = val
 
-    def nrf_device_info(self, api: LowLevel.API) -> tuple[int, int]:
+    def nrf_device_info(self, api: LowLevel.API) -> tuple[str, int, int]:
         """Retrive device ID and customer UICR address"""
         device_id_offsets = {
             # nRF52840 only
@@ -119,6 +119,9 @@ class SubCommand(InfuseCommand):
                 dev_id_addr = desc.start + device_id_offsets[family]
                 dev_id_bytes = bytes(api.read(dev_id_addr, 8))
                 dev_id = int.from_bytes(dev_id_bytes, "big")
+
+        assert uicr_addr is not None
+        assert dev_id is not None
 
         return soc, uicr_addr, dev_id
 
@@ -223,7 +226,7 @@ class SubCommand(InfuseCommand):
                     f"HW ID 0x{hardware_id:016x} already provisioned as 0x{desired.device_id:016x}"
                 )
             else:
-                if current_bytes != len(current_bytes) * b"\xFF":
+                if current_bytes != len(current_bytes) * b"\xff":
                     print(
                         f"HW ID 0x{hardware_id:016x} already has incorrect provisioning info, recover device"
                     )

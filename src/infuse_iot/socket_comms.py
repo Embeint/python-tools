@@ -5,7 +5,7 @@ import struct
 import json
 import enum
 
-from typing import Dict
+from typing import Dict, Any
 from typing_extensions import Self
 
 from infuse_iot.epacket.packet import PacketReceived, PacketOutput
@@ -34,7 +34,7 @@ class ClientNotification:
 
     def to_json(self) -> Dict:
         """Convert class to json dictionary"""
-        out = {"type": int(self.type)}
+        out: Dict[str, Any] = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
         if self.connection_id:
@@ -75,7 +75,7 @@ class GatewayRequest:
 
     def to_json(self) -> Dict:
         """Convert class to json dictionary"""
-        out = {"type": int(self.type)}
+        out: Dict[str, Any] = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
         if self.connection_id:

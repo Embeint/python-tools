@@ -6,9 +6,9 @@ import enum
 
 class InfuseTimeSource(enum.IntFlag):
     NONE = 0
-    GNSS = 1
-    NTP = 2
-    RPC = 3
+    GNSS = 0x01
+    NTP = 0x02
+    RPC = 0x04
     RECOVERED = 0x80
 
     def __str__(self) -> str:
@@ -17,7 +17,11 @@ class InfuseTimeSource(enum.IntFlag):
         if v & self.RECOVERED:
             postfix = " (recovered after reboot)"
             v ^= self.RECOVERED
-        return InfuseTimeSource(v).name + postfix
+        flags = InfuseTimeSource(v)
+        if flags.name:
+            return flags.name + postfix
+        else:
+            return "Unknown" + postfix
 
 
 class InfuseTime:
