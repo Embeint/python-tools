@@ -3,7 +3,7 @@
 import enum
 
 
-class InfuseType(enum.Enum):
+class InfuseType(enum.IntEnum):
     """Infuse Data Types"""
 
     ECHO_REQ = 0
@@ -15,6 +15,7 @@ class InfuseType(enum.Enum):
     RPC_RSP = 6
     RECEIVED_EPACKET = 7
     ACK = 8
+    EPACKET_FORWARD = 9
     SERIAL_LOG = 10
     MEMFAULT_CHUNK = 30
 
