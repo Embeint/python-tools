@@ -32,6 +32,13 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
+        addr_group = parser.add_mutually_exclusive_group(required=True)
+        addr_group.add_argument(
+            "--gateway", action="store_true", help="Run command on local gateway"
+        )
+        addr_group.add_argument(
+            "--id", type=lambda x: int(x, 0), help="Infuse ID to run command on"
+        )
         command_list_parser = parser.add_subparsers(
             title="commands", metavar="<command>", required=True
         )
@@ -56,6 +63,10 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 10.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
+        if args.gateway:
+            self._id = InfuseID.GATEWAY
+        else:
+            self._id = args.id
 
     def _wait_data_ack(self):
         while rsp := self._client.receive():
@@ -99,7 +110,7 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(data_hdr) + bytes(params)
         pkt = PacketOutput(
-            InfuseID.GATEWAY,
+            self._id,
             self._command.auth_level(),
             InfuseType.RPC_CMD,
             request_packet,
@@ -121,7 +132,7 @@ class SubCommand(InfuseCommand):
             hdr = rpc.DataHeader(self._request_id, offset)
             pkt_bytes = bytes(hdr) + payload
             pkt = PacketOutput(
-                InfuseID.GATEWAY,
+                self._id,
                 self._command.auth_level(),
                 InfuseType.RPC_DATA,
                 pkt_bytes,
@@ -146,7 +157,7 @@ class SubCommand(InfuseCommand):
 
         request_packet = bytes(header) + bytes(params)
         pkt = PacketOutput(
-            InfuseID.GATEWAY,
+            self._id,
             self._command.auth_level(),
             InfuseType.RPC_CMD,
             request_packet,
@@ -157,7 +168,7 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         try:
-            self._client.connection_create(InfuseID.GATEWAY)
+            self._client.connection_create(self._id)
             if self._command.RPC_DATA:
                 self._run_data_cmd()
             else:
