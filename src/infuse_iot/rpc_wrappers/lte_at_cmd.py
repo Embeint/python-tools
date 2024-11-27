@@ -9,11 +9,9 @@ import infuse_iot.generated.rpc_definitions as defs
 
 class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
         _pack_ = 1
 
     class response(InfuseRpcCommand.VariableSizeResponse):
-        base_fields = []
         var_name = "rsp"
         var_type = ctypes.c_char
 

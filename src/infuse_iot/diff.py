@@ -6,7 +6,8 @@ import ctypes
 import binascii
 
 from collections import defaultdict
-from typing import List, Dict
+from typing import List, Dict, Tuple, Type
+from typing_extensions import Self
 
 
 class ValidationError(Exception):
@@ -131,20 +132,25 @@ class SetAddrInstr(Instr):
             return self.SetAddrU32
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
+    def from_bytes(
+        cls, b: bytes, offset: int, original_offset: int
+    ) -> Tuple[Self, int, int]:
         opcode = b[offset]
         if opcode == OpCode.ADDR_SHIFT_S8:
-            s = cls.ShiftAddrS8.from_buffer_copy(b, offset)
-            c = cls(original_offset, original_offset + s.val)
+            s8 = cls.ShiftAddrS8.from_buffer_copy(b, offset)
+            c = cls(original_offset, original_offset + s8.val)
+            struct_len = ctypes.sizeof(s8)
         elif opcode == OpCode.ADDR_SHIFT_S16:
-            s = cls.ShiftAddrS16.from_buffer_copy(b, offset)
-            c = cls(original_offset, original_offset + s.val)
+            s16 = cls.ShiftAddrS16.from_buffer_copy(b, offset)
+            c = cls(original_offset, original_offset + s16.val)
+            struct_len = ctypes.sizeof(s16)
         elif opcode == OpCode.ADDR_SET_U32:
-            s = cls.SetAddrU32.from_buffer_copy(b, offset)
-            c = cls(original_offset, s.val)
+            s32 = cls.SetAddrU32.from_buffer_copy(b, offset)
+            c = cls(original_offset, s32.val)
+            struct_len = ctypes.sizeof(s32)
         else:
             raise RuntimeError
-        return c, ctypes.sizeof(s), c.new
+        return c, struct_len, c.new
 
     def __bytes__(self):
         instr = self.ctypes_class()
@@ -167,7 +173,10 @@ class SetAddrInstr(Instr):
 
 
 class CopyInstr(Instr):
-    class CopyU4(ctypes.LittleEndianStructure):
+    class CopyGeneric(ctypes.LittleEndianStructure):
+        pass
+
+    class CopyU4(CopyGeneric):
         op = OpCode.COPY_LEN_U4
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -178,7 +187,7 @@ class CopyInstr(Instr):
         def length(self):
             return OpCode.data(self.opcode)
 
-    class CopyU12(ctypes.LittleEndianStructure):
+    class CopyU12(CopyGeneric):
         op = OpCode.COPY_LEN_U12
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -190,7 +199,7 @@ class CopyInstr(Instr):
         def length(self):
             return (OpCode.data(self.opcode) << 8) | self._length
 
-    class CopyU20(ctypes.LittleEndianStructure):
+    class CopyU20(CopyGeneric):
         op = OpCode.COPY_LEN_U20
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -202,7 +211,7 @@ class CopyInstr(Instr):
         def length(self):
             return (OpCode.data(self.opcode) << 16) | self._length
 
-    class CopyU32(ctypes.LittleEndianStructure):
+    class CopyU32(CopyGeneric):
         op = OpCode.COPY_LEN_U32
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -230,19 +239,25 @@ class CopyInstr(Instr):
             return self.CopyU32
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
-        opcode = OpCode.from_byte(b[offset])
-        if opcode == OpCode.COPY_LEN_U4:
-            s = cls.CopyU4.from_buffer_copy(b, offset)
-        elif opcode == OpCode.COPY_LEN_U12:
-            s = cls.CopyU12.from_buffer_copy(b, offset)
-        elif opcode == OpCode.COPY_LEN_U20:
-            s = cls.CopyU20.from_buffer_copy(b, offset)
-        elif opcode == OpCode.COPY_LEN_U32:
-            s = cls.CopyU32.from_buffer_copy(b, offset)
+    def _from_opcode(cls, op: OpCode) -> Type[CopyGeneric]:
+        if op == OpCode.COPY_LEN_U4:
+            return cls.CopyU4
+        elif op == OpCode.COPY_LEN_U12:
+            return cls.CopyU12
+        elif op == OpCode.COPY_LEN_U20:
+            return cls.CopyU20
+        elif op == OpCode.COPY_LEN_U32:
+            return cls.CopyU32
         else:
             raise RuntimeError
 
+    @classmethod
+    def from_bytes(
+        cls, b: bytes, offset: int, original_offset: int
+    ) -> Tuple[Self, int, int]:
+        opcode = OpCode.from_byte(b[offset])
+        op_class = cls._from_opcode(opcode)
+        s = op_class.from_buffer_copy(b, offset)
         return cls(s.length), ctypes.sizeof(s), original_offset + s.length
 
     def __bytes__(self):
@@ -265,7 +280,10 @@ class CopyInstr(Instr):
 
 
 class WriteInstr(Instr):
-    class WriteU4(ctypes.LittleEndianStructure):
+    class WriteGeneric(ctypes.LittleEndianStructure):
+        pass
+
+    class WriteU4(WriteGeneric):
         op = OpCode.WRITE_LEN_U4
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -276,7 +294,7 @@ class WriteInstr(Instr):
         def length(self):
             return OpCode.data(self.opcode)
 
-    class WriteU12(ctypes.LittleEndianStructure):
+    class WriteU12(WriteGeneric):
         op = OpCode.WRITE_LEN_U12
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -288,7 +306,7 @@ class WriteInstr(Instr):
         def length(self):
             return (OpCode.data(self.opcode) << 8) | self._length
 
-    class WriteU20(ctypes.LittleEndianStructure):
+    class WriteU20(WriteGeneric):
         op = OpCode.WRITE_LEN_U20
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -300,7 +318,7 @@ class WriteInstr(Instr):
         def length(self):
             return (OpCode.data(self.opcode) << 16) | self._length
 
-    class WriteU32(ctypes.LittleEndianStructure):
+    class WriteU32(WriteGeneric):
         op = OpCode.WRITE_LEN_U32
         _fields_ = [
             ("opcode", ctypes.c_uint8),
@@ -326,18 +344,25 @@ class WriteInstr(Instr):
             return self.WriteU32
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
-        opcode = OpCode.from_byte(b[offset])
-        if opcode == OpCode.WRITE_LEN_U4:
-            s = cls.WriteU4.from_buffer_copy(b, offset)
-        elif opcode == OpCode.WRITE_LEN_U12:
-            s = cls.WriteU12.from_buffer_copy(b, offset)
-        elif opcode == OpCode.WRITE_LEN_U20:
-            s = cls.WriteU20.from_buffer_copy(b, offset)
-        elif opcode == OpCode.WRITE_LEN_U32:
-            s = cls.WriteU32.from_buffer_copy(b, offset)
+    def _from_opcode(cls, op: OpCode) -> Type[WriteGeneric]:
+        if op == OpCode.WRITE_LEN_U4:
+            return cls.WriteU4
+        elif op == OpCode.WRITE_LEN_U12:
+            return cls.WriteU12
+        elif op == OpCode.WRITE_LEN_U20:
+            return cls.WriteU20
+        elif op == OpCode.WRITE_LEN_U32:
+            return cls.WriteU32
         else:
             raise RuntimeError
+
+    @classmethod
+    def from_bytes(
+        cls, b: bytes, offset: int, original_offset: int
+    ) -> Tuple[Self, int, int]:
+        opcode = OpCode.from_byte(b[offset])
+        op_class = cls._from_opcode(opcode)
+        s = op_class.from_buffer_copy(b, offset)
         hdr_len = ctypes.sizeof(s)
 
         return (
@@ -386,7 +411,7 @@ class PatchInstr(Instr):
     @classmethod
     def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         assert b[offset] == OpCode.PATCH
-        operations = []
+        operations: List[Instr] = []
         length = 1
 
         while True:
@@ -489,7 +514,7 @@ class diff:
     @classmethod
     def _naive_diff(cls, old: bytes, new: bytes, hash_len: int = 8):
         """Construct basic runs of WRITE, COPY, and SET_ADDR instructions"""
-        instr = []
+        instr: List[Instr] = []
         old_offset = 0
         new_offset = 0
         write_start = 0
@@ -628,7 +653,7 @@ class diff:
     def _merge_operations(cls, instructions: List[Instr]) -> List[Instr]:
         """Merge runs of COPY and WRITE into PATCH"""
         merged: List[Instr] = []
-        to_merge = []
+        to_merge: List[Instr] = []
 
         def finalise():
             nonlocal merged
@@ -664,7 +689,7 @@ class diff:
     def _write_crack(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
         """Crack a WRITE operation into a [WRITE,COPY,WRITE] if COPY is at least 2 bytes"""
 
-        cracked = []
+        cracked: List[Instr] = []
         old_offset = 0
 
         while len(instructions):
@@ -741,8 +766,10 @@ class diff:
         return cracked
 
     @classmethod
-    def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> List[Instr]:
-        best_patch = None
+    def _gen_patch_instr(
+        cls, bin_orig: bytes, bin_new: bytes
+    ) -> Tuple[Dict, List[Instr]]:
+        best_patch = []
         best_patch_len = 2**32
 
         # Find best diff across range
@@ -867,7 +894,7 @@ class diff:
         )
 
         if verbose:
-            class_count = defaultdict(int)
+            class_count: Dict[OpCode, int] = defaultdict(int)
             for instr in instructions:
                 class_count[instr.ctypes_class().op] += 1
 
@@ -890,7 +917,7 @@ class diff:
         assert len(bin_original) > 1024
 
         # Manually construct an instruction set that runs all instructions
-        instructions = []
+        instructions: List[Instr] = []
         instructions.append(
             WriteInstr(bin_original[:8], cls_override=WriteInstr.WriteU4)
         )
@@ -1010,7 +1037,7 @@ class diff:
             f"   Patch File: {len(bin_patch)} bytes ({len(instructions):5d} instructions)"
         )
 
-        class_count = defaultdict(int)
+        class_count: Dict[OpCode, int] = defaultdict(int)
         for instr in instructions:
             class_count[instr.ctypes_class().op] += 1
             if isinstance(instr, WriteInstr):
@@ -1028,8 +1055,8 @@ class diff:
 
         print("")
         print("Instruction Count:")
-        for cls, count in sorted(class_count.items()):
-            print(f"{cls.name:>16s}: {count}")
+        for op_cls, count in sorted(class_count.items()):
+            print(f"{op_cls.name:>16s}: {count}")
 
         print("")
         print("Instruction List:")

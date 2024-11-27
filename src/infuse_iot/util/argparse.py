@@ -4,11 +4,13 @@ import argparse
 import pathlib
 import re
 
+from typing import cast
+
 
 class ValidFile:
     """Filesystem path that exists"""
 
-    def __new__(cls, string) -> pathlib.Path:
+    def __new__(cls, string) -> pathlib.Path:  # type: ignore
         p = pathlib.Path(string)
         if p.exists():
             return p
@@ -19,8 +21,7 @@ class ValidFile:
 class BtLeAddress:
     """Bluetooth Low-Energy address"""
 
-    def __new__(cls, string) -> int:
-
+    def __new__(cls, string) -> int:  # type: ignore
         pattern = r"((([0-9a-fA-F]{2}):){5})([0-9a-fA-F]{2})"
 
         if re.match(pattern, string):
@@ -32,3 +33,7 @@ class BtLeAddress:
             except ValueError:
                 raise argparse.ArgumentTypeError(f"{string} is not a Bluetooth address")
         return addr
+
+    @classmethod
+    def integer_value(cls, string) -> int:
+        return cast(int, cls(string))

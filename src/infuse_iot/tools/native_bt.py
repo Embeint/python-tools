@@ -47,11 +47,15 @@ class SubCommand(InfuseCommand):
         Console.init()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
-        addr = interface.Address.BluetoothLeAddr(0, BtLeAddress(device.address))
+        addr = interface.Address(
+            interface.Address.BluetoothLeAddr(
+                0, BtLeAddress.integer_value(device.address)
+            )
+        )
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
 
-        hdr, decr = CtypeBtAdvFrame.decrypt(self.database, payload)
+        hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
 
         hop = HopReceived(
             hdr.device_id,

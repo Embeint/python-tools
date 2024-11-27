@@ -6,7 +6,7 @@ import base64
 import time
 import random
 
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 from typing_extensions import Self
 
 from infuse_iot.common import InfuseType
@@ -149,7 +149,7 @@ class PacketReceived(Serializable):
             del packet_bytes[: ctypes.sizeof(common_header)]
 
             # Only Bluetooth advertising supported for now
-            decode_mapping = {
+            decode_mapping: Dict[Interface, Any] = {
                 Interface.BT_ADV: CtypeBtAdvFrame,
                 Interface.BT_PERIPHERAL: CtypeBtGattFrame,
                 Interface.BT_CENTRAL: CtypeBtGattFrame,
@@ -166,7 +166,7 @@ class PacketReceived(Serializable):
             if common_header.encrypted:
                 try:
                     f_header, f_decrypted = frame_type.decrypt(
-                        database, addr, packet_bytes
+                        database, addr.val, packet_bytes
                     )
                 except NoKeyError:
                     continue
@@ -198,7 +198,7 @@ class PacketReceived(Serializable):
                 del packet_bytes[: ctypes.sizeof(decr_header)]
 
                 # Notify database of BT Addr -> Infuse ID mapping
-                database.observe_device(decr_header.device_id, bt_addr=addr)
+                database.observe_device(decr_header.device_id, bt_addr=addr.val)
 
                 bt_hop = HopReceived(
                     decr_header.device_id,
@@ -240,7 +240,9 @@ class PacketOutputRouted(Serializable):
         if len(self.route) == 2:
             # Two hops only supports Bluetooth central for now
             final = self.route[1]
+            bt_addr = database.devices[final.infuse_id].bt_addr
             assert final.interface == Interface.BT_CENTRAL
+            assert bt_addr is not None
 
             # Forwarded payload
             forward_payload = CtypeBtGattFrame.encrypt(
@@ -251,7 +253,7 @@ class PacketOutputRouted(Serializable):
             forward_hdr = CtypeForwardHeaderBtGatt(
                 ctypes.sizeof(CtypeForwardHeaderBtGatt) + len(forward_payload),
                 Interface.BT_CENTRAL.value,
-                database.devices[final.infuse_id].bt_addr.to_ctype(),
+                bt_addr.to_ctype(),
             )
 
             ptype = InfuseType.EPACKET_FORWARD
@@ -272,6 +274,10 @@ class PacketOutputRouted(Serializable):
             flags = Flags.ENCR_DEVICE
             key_metadata = database.devices[serial.infuse_id].device_id
             key = database.serial_device_key(serial.infuse_id, gps_time)
+
+        # Validation
+        assert key_metadata is not None
+        assert database.gateway is not None
 
         # Create header
         header = CtypeSerialFrame(
@@ -381,9 +387,9 @@ class CtypeV0VersionedFrame(ctypes.LittleEndianStructure):
 
     @classmethod
     def parse(cls, frame: bytes) -> Tuple[Self, int]:
-        """Parse serial frame into header and payload length"""
+        """Parse frame into header and payload length"""
         return (
-            CtypeV0VersionedFrame.from_buffer_copy(frame),
+            cls.from_buffer_copy(frame),
             len(frame) - ctypes.sizeof(CtypeV0VersionedFrame) - 16,
         )
 
@@ -462,15 +468,19 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
             key_meta = dev_state.network_id
             key = database.bt_gatt_network_key(infuse_id, gps_time)
 
+        # Validate
+        assert key_meta is not None
+
         # Construct GATT header
-        header = cls()
-        header._type = ptype
-        header.flags = flags
+        header = cls(
+            _type=ptype,
+            flags=flags,
+            gps_time=gps_time,
+            sequence=dev_state.gatt_sequence_num(),
+            entropy=random.randint(0, 65535),
+        )
         header.device_id = infuse_id
         header.key_metadata = key_meta
-        header.gps_time = gps_time
-        header.sequence = dev_state.gatt_sequence_num()
-        header.entropy = random.randint(0, 65535)
 
         # Encrypt and return payload
         header_bytes = bytes(header)

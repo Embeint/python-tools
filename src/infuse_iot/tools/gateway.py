@@ -16,6 +16,8 @@ import cryptography.exceptions
 import io
 import base64
 
+from typing import Dict, Callable
+
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
 from infuse_iot.common import InfuseType, InfuseID
@@ -50,9 +52,9 @@ class LocalRpcServer:
     def __init__(self, database: DeviceDatabase):
         self._cnt = random.randint(0, 2**31)
         self._ddb = database
-        self._queued = {}
+        self._queued: Dict[int, Callable | None] = {}
 
-    def generate(self, command: int, args: bytes, auth: Auth, cb):
+    def generate(self, command: int, args: bytes, auth: Auth, cb: Callable | None):
         """Generate RPC packet from arguments"""
         cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
         cmd_pkt = PacketOutputRouted(
@@ -60,6 +62,7 @@ class LocalRpcServer:
             InfuseType.RPC_CMD,
             cmd_bytes,
         )
+        assert self._ddb.gateway is not None
         cmd_pkt.route[0].infuse_id = self._ddb.gateway
         self._queued[self._cnt] = cb
         self._cnt += 1
@@ -114,7 +117,7 @@ class CommonThreadState:
         self.ddb = ddb
         self.rpc = rpc_server
 
-    def query_device_key(self, cb_event: threading.Event = None):
+    def query_device_key(self, cb_event: threading.Event | None = None):
         def security_state_done(pkt: PacketReceived, _: int, response: bytes):
             cloud_key = response[:32]
             device_key = response[32:64]
@@ -211,6 +214,7 @@ class SerialRxThread(SignaledThread):
             try:
                 decoded = PacketReceived.from_serial(self._common.ddb, frame)
             except NoKeyError:
+                assert self._common.ddb.gateway is not None
                 if not self._common.ddb.has_network_id(self._common.ddb.gateway):
                     # Need to know network ID before we can query the device key
                     self._common.port.ping()
@@ -256,7 +260,7 @@ class SerialTxThread(SignaledThread):
         common: CommonThreadState,
     ):
         self._common = common
-        self._queue = queue.Queue()
+        self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
 
     def send(self, pkt):
@@ -269,6 +273,7 @@ class SerialTxThread(SignaledThread):
             return
 
         pkt = req.epacket
+        assert pkt is not None
 
         # Construct routed output
         if pkt.infuse_id == InfuseID.GATEWAY:
@@ -321,6 +326,8 @@ class SerialTxThread(SignaledThread):
         self._common.server.broadcast(rsp)
 
     def _handle_conn_request(self, req: GatewayRequest):
+        assert req.connection_id is not None
+
         if req.connection_id == InfuseID.GATEWAY:
             # Local gateway always connected
             rsp = ClientNotification(
@@ -339,10 +346,8 @@ class SerialTxThread(SignaledThread):
             self._common.server.broadcast(rsp)
             return
 
-        device_info = self._common.ddb.devices[req.connection_id]
-
         connect_args = defs.bt_connect_infuse.request(
-            device_info.bt_addr.to_rpc_struct(),
+            state.bt_addr.to_rpc_struct(),
             10000,
             defs.rpc_enum_infuse_bt_characteristic.COMMAND,
             0,
@@ -358,6 +363,8 @@ class SerialTxThread(SignaledThread):
         self._common.port.write(encrypted)
 
     def _handle_conn_release(self, req: GatewayRequest):
+        assert req.connection_id is not None
+
         if req.connection_id == InfuseID.GATEWAY:
             # Local gateway always connected
             return
@@ -369,7 +376,7 @@ class SerialTxThread(SignaledThread):
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
         cmd = self._common.rpc.generate(
-            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args)
+            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None
         )
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))

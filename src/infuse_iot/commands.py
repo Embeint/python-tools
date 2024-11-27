@@ -8,17 +8,24 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import argparse
 import ctypes
 
+from typing import List, Type, Tuple
+
+
 from infuse_iot.epacket.packet import Auth
 
 
 class InfuseCommand:
     """Infuse-IoT SDK meta-tool command parent class"""
 
+    NAME = "N/A"
+    HELP = "N/A"
+    DESCRIPTION = "N/A"
+
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
         """Add arguments for sub-command"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, args: argparse.Namespace):
         pass
 
     def run(self):
@@ -56,9 +63,9 @@ class InfuseRpcCommand:
         raise NotImplementedError
 
     class VariableSizeResponse:
-        base_fields = []
+        base_fields: List[Tuple[str, Type[ctypes._SimpleCData]]] = []
         var_name = "x"
-        var_type = ctypes.c_ubyte
+        var_type: Type[ctypes._SimpleCData] = ctypes.c_ubyte
 
         @classmethod
         def from_buffer_copy(cls, source, offset=0):

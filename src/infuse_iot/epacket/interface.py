@@ -120,4 +120,4 @@ class Address(Serializable):
         ]
 
         c = cls.BluetoothLeAddr.CtypesFormat.from_buffer_copy(stream)
-        return cls.BluetoothLeAddr(c.type, int.from_bytes(bytes(c.addr), "little"))
+        return cls(cls.BluetoothLeAddr(c.type, int.from_bytes(bytes(c.addr), "little")))
