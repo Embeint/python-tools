@@ -19,6 +19,10 @@ from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
 
 
+def _to_str(unix_time: float) -> str:
+    return str(unix_time)
+
+
 class SubCommand(InfuseCommand):
     NAME = "tdf_csv"
     HELP = "Save received TDFs in CSV files"
@@ -52,7 +56,7 @@ class SubCommand(InfuseCommand):
                 reading_time = tdf.time
                 for reading in tdf.data:
                     if self.args.unix:
-                        time_func = str
+                        time_func = _to_str
                     else:
                         time_func = InfuseTime.utc_time_string_log
 
@@ -64,6 +68,7 @@ class SubCommand(InfuseCommand):
                     line = time_str + "," + ",".join([f.val_fmt() for f in reading.iter_fields()])
                     lines.append(line)
                     if tdf.period is not None:
+                        assert reading_time is not None
                         reading_time += tdf.period
 
                 # Handle file creation/opening

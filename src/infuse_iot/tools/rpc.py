@@ -86,7 +86,8 @@ class SubCommand(InfuseCommand):
             if rsp_header.request_id != self._request_id:
                 continue
             # Convert response bytes back to struct form
-            rsp_data = self._command.response.from_buffer_copy(rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :])
+            rsp_payload = rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+            rsp_data = self._command.response.from_buffer_copy(rsp_payload)  # type: ignore
             # Handle the response
             print(f"INFUSE ID: {rsp.epacket.route[0].infuse_id:016x}")
             self._command.handle_response(rsp_header.return_code, rsp_data)
@@ -94,7 +95,7 @@ class SubCommand(InfuseCommand):
 
     def _run_data_cmd(self):
         ack_period = 1
-        header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)
+        header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
         params = self._command.request_struct()
         data = self._command.data_payload()
         data_hdr = rpc.RequestDataHeader(len(data), ack_period)
@@ -128,7 +129,7 @@ class SubCommand(InfuseCommand):
                 InfuseType.RPC_DATA,
                 pkt_bytes,
             )
-            self._client.send(pkt)
+            self._client.send(GatewayRequestEpacketSend(pkt))
             ack_cnt += 1
 
             # Wait for ACKs at the period
@@ -143,9 +144,10 @@ class SubCommand(InfuseCommand):
         self._wait_rpc_rsp()
 
     def _run_standard_cmd(self):
-        header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)
+        header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
         params = self._command.request_struct()
 
+        print(self._command)
         request_packet = bytes(header) + bytes(params)
         pkt = PacketOutput(
             self._id,

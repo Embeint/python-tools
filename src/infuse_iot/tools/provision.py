@@ -24,7 +24,7 @@ from infuse_iot.api_client.api.default import (
     get_boards,
     get_device_by_soc_and_mcu_id,
 )
-from infuse_iot.api_client.models import NewDevice, NewDeviceMetadata
+from infuse_iot.api_client.models import Board, Error, NewDevice, NewDeviceMetadata
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 
@@ -128,6 +128,8 @@ class SubCommand(InfuseCommand):
     def create_device(self, client, soc, hardware_id_str):
         if self._org is None:
             orgs = get_all_organisations.sync(client=client)
+            if isinstance(orgs, Error) or orgs is None:
+                sys.exit(f"Organisation query failed {orgs}")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             if TerminalMenu is None:
@@ -139,6 +141,8 @@ class SubCommand(InfuseCommand):
 
         if self._board is None:
             boards = get_boards.sync(client=client, organisation_id=self._org)
+            if isinstance(boards, Error) or boards is None:
+                sys.exit(f"Board query failed {boards}")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
             if TerminalMenu is None:
@@ -148,7 +152,8 @@ class SubCommand(InfuseCommand):
             idx = terminal_menu.show()
             self._board = boards[idx].id
         board = get_board_by_id.sync(client=client, id=self._board)
-
+        if not isinstance(board, Board):
+            sys.exit(f"Board query failed {board}")
         if board.soc != soc:
             sys.exit(f"Found SoC '{soc}' but board '{board.name}' has SoC '{board.soc}'")
 
@@ -203,6 +208,8 @@ class SubCommand(InfuseCommand):
                     err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
                     sys.exit(err)
 
+            assert response.parsed is not None
+            assert isinstance(response.parsed.device_id, str)
             # Compare current flash contents to desired flash contents
             cloud_id = int(response.parsed.device_id, 16)
             current_bytes = bytes(api.read(uicr_addr, ctypes.sizeof(ProvisioningStruct)))

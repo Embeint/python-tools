@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import (
@@ -30,7 +29,7 @@ class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
     def __init__(self, args):
         self.args = args
 
-    def request_struct(self):
+    def request_struct(self) -> defs.bt_connect_infuse.request:
         if self.args.public:
             peer = rpc_struct_bt_addr_le(
                 rpc_enum_bt_le_addr_type.PUBLIC,
@@ -43,7 +42,7 @@ class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
             )
 
         # Requested characteristic subscriptions
-        sub = rpc_enum_infuse_bt_characteristic.COMMAND
+        sub: int = rpc_enum_infuse_bt_characteristic.COMMAND
         if self.args.data:
             sub |= rpc_enum_infuse_bt_characteristic.DATA
         if self.args.logging:

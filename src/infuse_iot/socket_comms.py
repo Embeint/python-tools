@@ -221,6 +221,8 @@ class LocalClient:
                 raise ConnectionRefusedError
 
     def connection_release(self):
+        assert self._connection_id is not None
+
         req = GatewayRequestConnectionRelease(
             self._connection_id,
         )

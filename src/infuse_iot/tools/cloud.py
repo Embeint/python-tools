@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
+import sys
 from http import HTTPStatus
 from json import loads
 
@@ -17,7 +18,7 @@ from infuse_iot.api_client.api.default import (
     get_all_organisations,
     get_boards,
 )
-from infuse_iot.api_client.models import NewBoard, NewOrganisation
+from infuse_iot.api_client.models import Error, NewBoard, NewOrganisation
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 
@@ -57,6 +58,8 @@ class Organisations(CloudSubCommand):
         org_list = []
 
         orgs = get_all_organisations.sync(client=client)
+        if isinstance(orgs, Error) or orgs is None:
+            sys.exit(f"Organisation query failed {orgs}")
         for o in orgs:
             org_list.append([o.name, o.id])
 
@@ -74,6 +77,7 @@ class Organisations(CloudSubCommand):
         )
 
         if rsp.status_code == HTTPStatus.CREATED:
+            assert rsp.parsed is not None
             print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
         else:
             c = loads(rsp.content.decode("utf-8"))
@@ -106,8 +110,12 @@ class Boards(CloudSubCommand):
         board_list = []
 
         orgs = get_all_organisations.sync(client=client)
+        if isinstance(orgs, Error) or orgs is None:
+            sys.exit(f"Organisation query failed {orgs}")
         for org in orgs:
             boards = get_boards.sync(client=client, organisation_id=org.id)
+            if isinstance(boards, Error) or boards is None:
+                sys.exit(f"Boards query failed {boards}")
 
             for b in boards:
                 board_list.append([b.name, b.id, b.soc, org.name, b.description])
@@ -130,6 +138,7 @@ class Boards(CloudSubCommand):
             ),
         )
         if rsp.status_code == HTTPStatus.CREATED:
+            assert rsp.parsed is not None
             print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
         else:
             c = loads(rsp.content.decode("utf-8"))

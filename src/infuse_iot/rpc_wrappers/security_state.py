@@ -66,6 +66,7 @@ class security_state(InfuseRpcCommand, defs.security_state):
         rb = bytes(response.response)
         with self.pem.open("r") as f:
             cloud_private_key = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
+            assert isinstance(cloud_private_key, x25519.X25519PrivateKey)
         device_public_key = x25519.X25519PublicKey.from_public_bytes(bytes(response.device_public_key))
         shared_secret = cloud_private_key.exchange(device_public_key)
         hkdf = HKDF(
