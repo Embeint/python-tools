@@ -25,8 +25,13 @@ class time_get(InfuseRpcCommand, defs.time_get):
 
         t_remote = InfuseTime.unix_time_from_epoch(response.epoch_time)
         t_local = time.time()
+        sync_age = (
+            f"{response.sync_age} seconds ago"
+            if response.sync_age != 2**32 - 1
+            else "Never"
+        )
 
         print(f"\t     Source: {InfuseTimeSource(response.time_source)}")
         print(f"\tRemote Time: {InfuseTime.utc_time_string(t_remote)}")
         print(f"\t Local Time: {InfuseTime.utc_time_string(t_local)}")
-        print(f"\t     Synced: {response.sync_age} seconds ago")
+        print(f"\t     Synced: {sync_age}")
