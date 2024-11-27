@@ -30,7 +30,7 @@ class BtLeAddress:
             try:
                 addr = int(string, 16)
             except ValueError:
-                raise argparse.ArgumentTypeError(f"{string} is not a Bluetooth address")
+                raise argparse.ArgumentTypeError(f"{string} is not a Bluetooth address") from None
         return addr
 
     @classmethod

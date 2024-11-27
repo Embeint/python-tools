@@ -55,8 +55,7 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             f_name = _public_name(field)
             val = getattr(self, f_name)
             if isinstance(val, ctypes.LittleEndianStructure):
-                for subfield in val.iter_fields(f_name):
-                    yield subfield
+                yield from val.iter_fields(f_name)
             else:
                 if isinstance(val, ctypes.Array):
                     val = list(val)

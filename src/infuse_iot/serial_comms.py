@@ -104,7 +104,7 @@ class RttPort:
             if desc.name == "modem_trace":
                 f = f"{int(time.time())}_nrf_modem_trace.bin"
                 print(f"Found nRF LTE modem trace channel (opening {f:s})")
-                self._modem_trace = open(f, mode="wb")
+                self._modem_trace = open(f, mode="wb")  # noqa: SIM115
                 self._modem_trace_buf = desc.BufferIndex
 
     def read_bytes(self, num):
