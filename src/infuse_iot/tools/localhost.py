@@ -14,6 +14,7 @@ from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
 from infuse_iot.util.console import Console
+from infuse_iot.util.threading import SignaledThread
 from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.socket_comms import (
@@ -36,7 +37,6 @@ class SubCommand(InfuseCommand):
         self._columns = {}
         self._data = {}
 
-        self._thread_end = threading.Event()
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
 
@@ -152,53 +152,46 @@ class SubCommand(InfuseCommand):
         return out
 
     def recv_thread(self):
-        while True:
-            msg = self._client.receive()
-            if self._thread_end.is_set():
-                break
-            if msg is None:
-                continue
-            if msg.type != ClientNotification.Type.EPACKET_RECV:
-                continue
-            if msg.epacket.ptype != InfuseType.TDF:
-                continue
+        msg = self._client.receive()
+        if msg is None:
+            return
+        if msg.type != ClientNotification.Type.EPACKET_RECV:
+            return
+        if msg.epacket.ptype != InfuseType.TDF:
+            return
 
-            source = msg.epacket.route[0]
+        source = msg.epacket.route[0]
 
-            self._data_lock.acquire(blocking=True)
+        self._data_lock.acquire(blocking=True)
 
-            if source.infuse_id not in self._data:
-                self._data[source.infuse_id] = {
-                    "infuse_id": f"0x{source.infuse_id:016x}",
-                }
-            self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(
-                time.time()
-            )
-            if source.interface == interface.ID.BT_ADV:
-                addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
-                addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
-                self._data[source.infuse_id]["bt_addr"] = addr_str
-                self._data[source.infuse_id]["bt_rssi"] = source.rssi
+        if source.infuse_id not in self._data:
+            self._data[source.infuse_id] = {
+                "infuse_id": f"0x{source.infuse_id:016x}",
+            }
+        self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
+        if source.interface == interface.ID.BT_ADV:
+            addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
+            addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
+            self._data[source.infuse_id]["bt_addr"] = addr_str
+            self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
-            for tdf in self._decoder.decode(msg.epacket.payload):
-                t = tdf.data[-1]
-                if t.name not in self._columns:
-                    self._columns[t.name] = self.tdf_columns(t)
-                if t.name not in self._data[source.infuse_id]:
-                    self._data[source.infuse_id][t.name] = {}
+        for tdf in self._decoder.decode(msg.epacket.payload):
+            t = tdf.data[-1]
+            if t.name not in self._columns:
+                self._columns[t.name] = self.tdf_columns(t)
+            if t.name not in self._data[source.infuse_id]:
+                self._data[source.infuse_id][t.name] = {}
 
-                for field in t.iter_fields():
-                    if field.subfield:
-                        if field.field not in self._data[source.infuse_id][t.name]:
-                            self._data[source.infuse_id][t.name][field.field] = {}
-                        self._data[source.infuse_id][t.name][field.field][
-                            field.subfield
-                        ] = field.val_fmt()
-                    else:
-                        self._data[source.infuse_id][t.name][field.field] = (
-                            field.val_fmt()
-                        )
-            self._data_lock.release()
+            for field in t.iter_fields():
+                if field.subfield:
+                    if field.field not in self._data[source.infuse_id][t.name]:
+                        self._data[source.infuse_id][t.name][field.field] = {}
+                    self._data[source.infuse_id][t.name][field.field][
+                        field.subfield
+                    ] = field.val_fmt()
+                else:
+                    self._data[source.infuse_id][t.name][field.field] = field.val_fmt()
+        self._data_lock.release()
 
     def run(self):
         Console.init()
@@ -208,7 +201,7 @@ class SubCommand(InfuseCommand):
         # Route for WebSocket
         app.router.add_get("/ws", self.websocket_handler)
 
-        rx_thread = threading.Thread(target=self.recv_thread)
+        rx_thread = SignaledThread(self.recv_thread)
         rx_thread.start()
 
         # Run server
@@ -217,5 +210,5 @@ class SubCommand(InfuseCommand):
         except GracefulExit:
             pass
         finally:
-            self._thread_end.set()
+            rx_thread.stop()
         rx_thread.join(1.0)
