@@ -20,6 +20,7 @@ from typing import Dict, Callable
 
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
+from infuse_iot.util.threading import SignaledThread
 from infuse_iot.common import InfuseType, InfuseID
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
@@ -140,24 +141,6 @@ class CommonThreadState:
         if cb_event is not None:
             # Wait for the response
             cb_event.wait(1.0)
-
-
-class SignaledThread(threading.Thread):
-    """Thread that can be signaled to terminate"""
-
-    def __init__(self, fn):
-        self._fn = fn
-        self._sig = threading.Event()
-        super().__init__(target=self.run_loop)
-
-    def stop(self):
-        """Signal thread to terminate"""
-        self._sig.set()
-
-    def run_loop(self):
-        """Run the thread function in a loop"""
-        while not self._sig.is_set():
-            self._fn()
 
 
 class SerialRxThread(SignaledThread):
