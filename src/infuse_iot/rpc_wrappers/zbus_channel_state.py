@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import ctypes
+
 import tabulate
 
+import infuse_iot.generated.rpc_definitions as rpc_defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.tdf import tdf_definitions as defs
-import infuse_iot.generated.rpc_definitions as rpc_defs
 
 
 class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):

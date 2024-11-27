@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class application_info(InfuseRpcCommand, defs.application_info):

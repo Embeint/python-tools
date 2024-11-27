@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-import binascii
 import base64
+import binascii
 from typing import Dict, Tuple
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.default import get_shared_secret
 from infuse_iot.api_client.models import Key
-from infuse_iot.util.crypto import hkdf_derive
-from infuse_iot.epacket.interface import Address as InterfaceAddress
 from infuse_iot.credentials import get_api_key, load_network
+from infuse_iot.epacket.interface import Address as InterfaceAddress
+from infuse_iot.util.crypto import hkdf_derive
 
 
 class NoKeyError(KeyError):
@@ -82,21 +82,14 @@ class DeviceDatabase:
         if network_id is not None:
             self.devices[address].network_id = network_id
         if device_id is not None:
-            if (
-                self.devices[address].device_id is not None
-                and self.devices[address].device_id != device_id
-            ):
-                raise DeviceKeyChangedError(
-                    f"Device key for {address:016x} has changed"
-                )
+            if self.devices[address].device_id is not None and self.devices[address].device_id != device_id:
+                raise DeviceKeyChangedError(f"Device key for {address:016x} has changed")
             self.devices[address].device_id = device_id
         if bt_addr is not None:
             self.bt_addr[bt_addr] = address
             self.devices[address].bt_addr = bt_addr
 
-    def observe_security_state(
-        self, address: int, cloud_key: bytes, device_key: bytes, network_id: int
-    ) -> None:
+    def observe_security_state(self, address: int, cloud_key: bytes, device_key: bytes, network_id: int) -> None:
         """Update device state based on security_state response"""
         if address not in self.devices:
             self.devices[address] = self.DeviceState(address)
@@ -128,9 +121,7 @@ class DeviceDatabase:
 
         key_id = (network_id, interface, time_idx)
         if key_id not in self._derived_keys:
-            self._derived_keys[key_id] = hkdf_derive(
-                base, time_idx.to_bytes(4, "little"), interface
-            )
+            self._derived_keys[key_id] = hkdf_derive(base, time_idx.to_bytes(4, "little"), interface)
 
         return self._derived_keys[key_id]
 
@@ -155,9 +146,7 @@ class DeviceDatabase:
             return False
         return self.devices[address].network_id is not None
 
-    def infuse_id_from_bluetooth(
-        self, bt_addr: InterfaceAddress.BluetoothLeAddr
-    ) -> int | None:
+    def infuse_id_from_bluetooth(self, bt_addr: InterfaceAddress.BluetoothLeAddr) -> int | None:
         """Get Bluetooth address associated with device"""
         return self.bt_addr.get(bt_addr, None)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class last_reboot(InfuseRpcCommand, defs.last_reboot):
@@ -26,9 +26,7 @@ class last_reboot(InfuseRpcCommand, defs.last_reboot):
 
         print(f"\t     Reason: {response.reason}")
         print(f"\t   Hardware: 0x{response.hardware_flags:08x}")
-        print(
-            f"\tReboot Time: {InfuseTime.utc_time_string(t_remote)} ({InfuseTimeSource(response.epoch_time_source)})"
-        )
+        print(f"\tReboot Time: {InfuseTime.utc_time_string(t_remote)} ({InfuseTimeSource(response.epoch_time_source)})")
         print(f"\t     Uptime: {response.uptime}")
         print(f"\t    Param 1: 0x{response.param_1:08x}")
         print(f"\t    Param 2: 0x{response.param_2:08x}")

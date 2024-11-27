@@ -2,11 +2,10 @@
 
 import ctypes
 import enum
+from typing import Generator, List, Type
 
-from typing import List, Generator, Type
-
+from infuse_iot.generated import tdf_base, tdf_definitions
 from infuse_iot.time import InfuseTime
-from infuse_iot.generated import tdf_definitions, tdf_base
 
 
 class TDF:
@@ -113,8 +112,7 @@ class TDF:
                 assert buffer_time is not None
                 time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
-                    id_type.from_buffer_consume(total_data[x : x + header.len])
-                    for x in range(0, total_len, header.len)
+                    id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
             else:
                 data_bytes = buffer[: header.len]

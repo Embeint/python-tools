@@ -6,45 +6,43 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
-import time
-import threading
-import queue
+import base64
 import ctypes
+import io
+import queue
 import random
+import threading
+import time
+from typing import Callable, Dict
+
 import cryptography
 import cryptography.exceptions
-import io
-import base64
 
-from typing import Dict, Callable
-
-from infuse_iot.util.argparse import ValidFile
-from infuse_iot.util.console import Console
-from infuse_iot.util.threading import SignaledThread
-from infuse_iot.common import InfuseType, InfuseID
+import infuse_iot.epacket.interface as interface
+import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot import rpc
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.serial_comms import RttPort, SerialPort, SerialFrame
-from infuse_iot.socket_comms import (
-    LocalServer,
-    ClientNotification,
-    GatewayRequest,
-    default_multicast_address,
-)
+from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.database import (
     DeviceDatabase,
     NoKeyError,
 )
-
 from infuse_iot.epacket.packet import (
     Auth,
-    PacketReceived,
-    PacketOutputRouted,
     HopOutput,
+    PacketOutputRouted,
+    PacketReceived,
 )
-import infuse_iot.epacket.interface as interface
-
-from infuse_iot import rpc
-import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.serial_comms import RttPort, SerialFrame, SerialPort
+from infuse_iot.socket_comms import (
+    ClientNotification,
+    GatewayRequest,
+    LocalServer,
+    default_multicast_address,
+)
+from infuse_iot.util.argparse import ValidFile
+from infuse_iot.util.console import Console
+from infuse_iot.util.threading import SignaledThread
 
 
 class LocalRpcServer:
@@ -80,9 +78,7 @@ class LocalRpcServer:
 
         # Was this a BT connect response with key information?
         if header.command_id == defs.bt_connect_infuse.COMMAND_ID:
-            resp = defs.bt_connect_infuse.response.from_buffer_copy(
-                pkt.payload[ctypes.sizeof(header) :]
-            )
+            resp = defs.bt_connect_infuse.response.from_buffer_copy(pkt.payload[ctypes.sizeof(header) :])
             if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
             infuse_id = self._ddb.infuse_id_from_bluetooth(if_addr)
             if infuse_id is None:
@@ -124,16 +120,12 @@ class CommonThreadState:
             device_key = response[32:64]
             network_id = int.from_bytes(response[64:68], "little")
 
-            self.ddb.observe_security_state(
-                pkt.route[0].infuse_id, cloud_key, device_key, network_id
-            )
+            self.ddb.observe_security_state(pkt.route[0].infuse_id, cloud_key, device_key, network_id)
             if cb_event is not None:
                 cb_event.set()
 
         # Generate security_state RPC
-        cmd_pkt = self.rpc.generate(
-            30000, random.randbytes(16), Auth.NETWORK, security_state_done
-        )
+        cmd_pkt = self.rpc.generate(30000, random.randbytes(16), Auth.NETWORK, security_state_done)
         encrypted = cmd_pkt.to_serial(self.ddb)
         # Write to serial port
         Console.log_tx(cmd_pkt.ptype, len(encrypted))
@@ -187,9 +179,7 @@ class SerialRxThread(SignaledThread):
             hdr = memfault_chunk_header.from_buffer_copy(p)
             chunk = p[3 : 3 + hdr.len]
             p = p[3 + hdr.len :]
-            print(
-                f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}"
-            )
+            print(f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}")
 
     def _handle_serial_frame(self, frame: bytearray):
         try:
@@ -201,14 +191,10 @@ class SerialRxThread(SignaledThread):
                 if not self._common.ddb.has_network_id(self._common.ddb.gateway):
                     # Need to know network ID before we can query the device key
                     self._common.port.ping()
-                    Console.log_info(
-                        f"Dropping {len(frame)} byte packet to query network ID..."
-                    )
+                    Console.log_info(f"Dropping {len(frame)} byte packet to query network ID...")
                 else:
                     self._common.query_device_key(None)
-                    Console.log_info(
-                        f"Dropping {len(frame)} byte packet to query device key..."
-                    )
+                    Console.log_info(f"Dropping {len(frame)} byte packet to query device key...")
                 return
             except cryptography.exceptions.InvalidTag as e:
                 Console.log_error(f"Failed to decode {len(frame)} byte packet {e}")
@@ -226,9 +212,7 @@ class SerialRxThread(SignaledThread):
                 elif pkt.ptype == InfuseType.KEY_IDS:
                     self._common.query_device_key(None)
 
-                notification = ClientNotification(
-                    ClientNotification.Type.EPACKET_RECV, epacket=pkt
-                )
+                notification = ClientNotification(ClientNotification.Type.EPACKET_RECV, epacket=pkt)
                 # Forward to clients
                 self._common.server.broadcast(notification)
         except (ValueError, KeyError) as e:
@@ -277,9 +261,7 @@ class SerialTxThread(SignaledThread):
 
         # Do we have the device public keys we need?
         for hop in routed.route:
-            if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(
-                hop.infuse_id
-            ):
+            if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(hop.infuse_id):
                 cb_event = threading.Event()
                 self._common.query_device_key(cb_event)
 
@@ -291,17 +273,11 @@ class SerialTxThread(SignaledThread):
         self._common.port.write(encrypted)
 
     def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes):
-        resp = defs.bt_connect_infuse.response.from_buffer_copy(
-            pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :]
-        )
+        resp = defs.bt_connect_infuse.response.from_buffer_copy(pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :])
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
 
-        evt = (
-            ClientNotification.Type.CONNECTION_FAILED
-            if rc < 0
-            else ClientNotification.Type.CONNECTION_CREATED
-        )
+        evt = ClientNotification.Type.CONNECTION_FAILED if rc < 0 else ClientNotification.Type.CONNECTION_CREATED
         rsp = ClientNotification(
             evt,
             connection_id=infuse_id,
@@ -358,9 +334,7 @@ class SerialTxThread(SignaledThread):
             return
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
-        cmd = self._common.rpc.generate(
-            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None
-        )
+        cmd = self._common.rpc.generate(defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None)
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
@@ -420,9 +394,7 @@ class SubCommand(InfuseCommand):
         else:
             self.server = LocalServer(default_multicast_address())
             self.rpc_server = LocalRpcServer(self.ddb)
-        self._common = CommonThreadState(
-            self.server, self.port, self.ddb, self.rpc_server
-        )
+        self._common = CommonThreadState(self.server, self.port, self.ddb, self.rpc_server)
         self.log = args.log
         Console.init()
 

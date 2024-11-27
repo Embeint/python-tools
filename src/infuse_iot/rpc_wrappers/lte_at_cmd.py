@@ -3,8 +3,8 @@
 import ctypes
 import errno
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):

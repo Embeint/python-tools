@@ -2,8 +2,8 @@
 
 import ctypes
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 from . import kv_read, lte_pdp_ctx
 
@@ -34,7 +34,7 @@ class lte_modem_info(InfuseRpcCommand, defs.kv_read):
             print(f"Failed to query modem info ({return_code})")
             return
 
-        unknown = "_unknown".encode("utf-8")
+        unknown = b"_unknown"
         modem_model = bytes(response[0].data) if response[0].len > 0 else unknown
         modem_firmware = bytes(response[1].data) if response[1].len > 0 else unknown
         modem_esn = bytes(response[2].data) if response[2].len > 0 else unknown

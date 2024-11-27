@@ -11,24 +11,23 @@ from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from infuse_iot.util.argparse import BtLeAddress
-from infuse_iot.util.console import Console
-from infuse_iot.epacket.packet import (
-    CtypeBtAdvFrame,
-    PacketReceived,
-    HopReceived,
-    Auth,
-    Flags,
-)
+import infuse_iot.epacket.interface as interface
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.database import DeviceDatabase
+from infuse_iot.epacket.packet import (
+    Auth,
+    CtypeBtAdvFrame,
+    Flags,
+    HopReceived,
+    PacketReceived,
+)
 from infuse_iot.socket_comms import (
-    LocalServer,
     ClientNotification,
+    LocalServer,
     default_multicast_address,
 )
-from infuse_iot.database import DeviceDatabase
-
-import infuse_iot.epacket.interface as interface
+from infuse_iot.util.argparse import BtLeAddress
+from infuse_iot.util.console import Console
 
 
 class SubCommand(InfuseCommand):
@@ -47,11 +46,7 @@ class SubCommand(InfuseCommand):
         Console.init()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
-        addr = interface.Address(
-            interface.Address.BluetoothLeAddr(
-                0, BtLeAddress.integer_value(device.address)
-            )
-        )
+        addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
 
@@ -76,9 +71,7 @@ class SubCommand(InfuseCommand):
     async def async_run(self):
         self.server = LocalServer(default_multicast_address())
 
-        scanner = BleakScanner(
-            self.simple_callback, [self.infuse_service], cb=dict(use_bdaddr=True)
-        )
+        scanner = BleakScanner(self.simple_callback, [self.infuse_service], cb=dict(use_bdaddr=True))
 
         while True:
             Console.log_info("Starting scanner")

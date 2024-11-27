@@ -3,8 +3,8 @@
 import ctypes
 import errno
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class kv_read(InfuseRpcCommand, defs.kv_read):
@@ -47,9 +47,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument(
-            "--keys", "-k", required=True, type=int, nargs="+", help="Keys to read"
-        )
+        parser.add_argument("--keys", "-k", required=True, type=int, nargs="+", help="Keys to read")
 
     def __init__(self, args):
         self.keys = args.keys

@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 
+import base64
 import ctypes
 import enum
-import base64
-import time
 import random
+import time
+from typing import Any, Dict, List, Tuple
 
-from typing import List, Dict, Tuple, Any
 from typing_extensions import Self
 
 from infuse_iot.common import InfuseType
+from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.epacket.common import Serializable
 from infuse_iot.epacket.interface import ID as Interface
 from infuse_iot.epacket.interface import Address
-from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
-from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.time import InfuseTime
+from infuse_iot.util.crypto import chachapoly_decrypt, chachapoly_encrypt
 
 
 class Auth(enum.IntEnum):
@@ -165,9 +165,7 @@ class PacketReceived(Serializable):
             # Decrypting packet
             if common_header.encrypted:
                 try:
-                    f_header, f_decrypted = frame_type.decrypt(
-                        database, addr.val, packet_bytes
-                    )
+                    f_header, f_decrypted = frame_type.decrypt(database, addr.val, packet_bytes)
                 except NoKeyError:
                     continue
 
@@ -175,11 +173,7 @@ class PacketReceived(Serializable):
                     f_header.device_id,
                     common_header.interface,
                     addr,
-                    (
-                        Auth.DEVICE
-                        if f_header.flags & Flags.ENCR_DEVICE
-                        else Auth.NETWORK
-                    ),
+                    (Auth.DEVICE if f_header.flags & Flags.ENCR_DEVICE else Auth.NETWORK),
                     f_header.key_metadata,
                     f_header.gps_time,
                     f_header.sequence,
@@ -192,9 +186,7 @@ class PacketReceived(Serializable):
                 )
             else:
                 # Extract payload metadata
-                decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(
-                    packet_bytes
-                )
+                decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(packet_bytes)
                 del packet_bytes[: ctypes.sizeof(decr_header)]
 
                 # Notify database of BT Addr -> Infuse ID mapping
@@ -204,11 +196,7 @@ class PacketReceived(Serializable):
                     decr_header.device_id,
                     common_header.interface,
                     addr,
-                    (
-                        Auth.DEVICE
-                        if decr_header.flags & Flags.ENCR_DEVICE
-                        else Auth.NETWORK
-                    ),
+                    (Auth.DEVICE if decr_header.flags & Flags.ENCR_DEVICE else Auth.NETWORK),
                     decr_header.key_id,
                     decr_header.gps_time,
                     decr_header.sequence,
@@ -245,9 +233,7 @@ class PacketOutputRouted(Serializable):
             assert bt_addr is not None
 
             # Forwarded payload
-            forward_payload = CtypeBtGattFrame.encrypt(
-                database, final.infuse_id, self.ptype, Auth.DEVICE, self.payload
-            )
+            forward_payload = CtypeBtGattFrame.encrypt(database, final.infuse_id, self.ptype, Auth.DEVICE, self.payload)
 
             # Forwarding header
             forward_hdr = CtypeForwardHeaderBtGatt(
@@ -293,9 +279,7 @@ class PacketOutputRouted(Serializable):
 
         # Encrypt and return payload
         header_bytes = bytes(header)
-        ciphertext = chachapoly_encrypt(
-            key, header_bytes[:11], header_bytes[11:], payload
-        )
+        ciphertext = chachapoly_encrypt(key, header_bytes[:11], header_bytes[11:], payload)
         return header_bytes + ciphertext
 
     def to_json(self) -> Dict:
@@ -428,16 +412,12 @@ class CtypeBtAdvFrame(CtypeV0VersionedFrame):
     """Bluetooth Advertising packet header"""
 
     @classmethod
-    def decrypt(
-        cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes
-    ):
+    def decrypt(cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             raise NotImplementedError
         else:
-            database.observe_device(
-                header.device_id, network_id=header.key_metadata, bt_addr=bt_addr
-            )
+            database.observe_device(header.device_id, network_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_adv_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])
@@ -484,25 +464,17 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
 
         # Encrypt and return payload
         header_bytes = bytes(header)
-        ciphertext = chachapoly_encrypt(
-            key, header_bytes[:11], header_bytes[11:], payload
-        )
+        ciphertext = chachapoly_encrypt(key, header_bytes[:11], header_bytes[11:], payload)
         return header_bytes + ciphertext
 
     @classmethod
-    def decrypt(
-        cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes
-    ):
+    def decrypt(cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            database.observe_device(
-                header.device_id, device_id=header.key_metadata, bt_addr=bt_addr
-            )
+            database.observe_device(header.device_id, device_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_gatt_device_key(header.device_id, header.gps_time)
         else:
-            database.observe_device(
-                header.device_id, network_id=header.key_metadata, bt_addr=bt_addr
-            )
+            database.observe_device(header.device_id, network_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_gatt_network_key(header.device_id, header.gps_time)
 
         decrypted = chachapoly_decrypt(key, frame[:11], frame[11:23], frame[23:])

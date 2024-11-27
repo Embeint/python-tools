@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import enum
-import ctypes
 import binascii
-
+import ctypes
+import enum
 from collections import defaultdict
-from typing import List, Dict, Tuple, Type
+from typing import Dict, List, Tuple, Type
+
 from typing_extensions import Self
 
 
@@ -77,11 +77,7 @@ class Instr:
             or opcode == OpCode.WRITE_LEN_U32
         ):
             return WriteInstr.from_bytes(b, offset, original_offset)
-        if (
-            opcode == OpCode.ADDR_SHIFT_S8
-            or opcode == OpCode.ADDR_SHIFT_S16
-            or opcode == OpCode.ADDR_SET_U32
-        ):
+        if opcode == OpCode.ADDR_SHIFT_S8 or opcode == OpCode.ADDR_SHIFT_S16 or opcode == OpCode.ADDR_SET_U32:
             return SetAddrInstr.from_bytes(b, offset, original_offset)
         if opcode == OpCode.PATCH:
             return PatchInstr.from_bytes(b, offset, original_offset)
@@ -132,9 +128,7 @@ class SetAddrInstr(Instr):
             return self.SetAddrU32
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int
-    ) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
         opcode = b[offset]
         if opcode == OpCode.ADDR_SHIFT_S8:
             s8 = cls.ShiftAddrS8.from_buffer_copy(b, offset)
@@ -154,9 +148,7 @@ class SetAddrInstr(Instr):
 
     def __bytes__(self):
         instr = self.ctypes_class()
-        if instr == self.ShiftAddrS8:
-            val = self.shift
-        elif instr == self.ShiftAddrS16:
+        if instr == self.ShiftAddrS8 or instr == self.ShiftAddrS16:
             val = self.shift
         else:
             val = self.new
@@ -165,9 +157,7 @@ class SetAddrInstr(Instr):
 
     def __str__(self):
         if -32768 <= self.shift <= 32767:
-            return (
-                f" ADDR: shifting {self.shift} (from {self.old:08x} to {self.new:08x})"
-            )
+            return f" ADDR: shifting {self.shift} (from {self.old:08x} to {self.new:08x})"
         else:
             return f" ADDR: now {self.new:08x} (shift of {self.new - self.old})"
 
@@ -252,9 +242,7 @@ class CopyInstr(Instr):
             raise RuntimeError
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int
-    ) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
         opcode = OpCode.from_byte(b[offset])
         op_class = cls._from_opcode(opcode)
         s = op_class.from_buffer_copy(b, offset)
@@ -357,9 +345,7 @@ class WriteInstr(Instr):
             raise RuntimeError
 
     @classmethod
-    def from_bytes(
-        cls, b: bytes, offset: int, original_offset: int
-    ) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
         opcode = OpCode.from_byte(b[offset])
         op_class = cls._from_opcode(opcode)
         s = op_class.from_buffer_copy(b, offset)
@@ -433,9 +419,7 @@ class PatchInstr(Instr):
                 break
             assert write_len != 0
             original_offset += write_len
-            operations.append(
-                WriteInstr(b[offset + length : offset + length + write_len])
-            )
+            operations.append(WriteInstr(b[offset + length : offset + length + write_len]))
             length += write_len
 
         return cls(operations), length, original_offset
@@ -540,9 +524,7 @@ class diff:
             # If word exists in original image
             if val in pre_hash:
                 if write_pending:
-                    instr.append(
-                        WriteInstr(new[write_start : write_start + write_pending])
-                    )
+                    instr.append(WriteInstr(new[write_start : write_start + write_pending]))
                     write_pending = 0
 
                 old_match = -100
@@ -566,8 +548,7 @@ class diff:
                     while (
                         (new_offset + this_match) < len(new)
                         and (orig_offset + this_match) < len(old)
-                        and new[new_offset + this_match]
-                        == old[orig_offset + this_match]
+                        and new[new_offset + this_match] == old[orig_offset + this_match]
                     ):
                         this_match += 1
 
@@ -612,9 +593,7 @@ class diff:
                     # ADDR, COPY, ADRR
                     if instr.shift == -instructions[1].shift:
                         # Replace with a write instead
-                        merged.append(
-                            WriteInstr(old[instr.new : instr.new + copy.length])
-                        )
+                        merged.append(WriteInstr(old[instr.new : instr.new + copy.length]))
                         replaced = True
                         instructions.pop(0)
                         instructions.pop(0)
@@ -627,11 +606,7 @@ class diff:
                     if instr.shift == -instructions[2].shift:
                         write = instructions[1]
                         # Replace with a merged write instead
-                        merged.append(
-                            WriteInstr(
-                                old[instr.new : instr.new + copy.length] + write.data
-                            )
-                        )
+                        merged.append(WriteInstr(old[instr.new : instr.new + copy.length] + write.data))
                         replaced = True
                         instructions.pop(0)
                         instructions.pop(0)
@@ -766,9 +741,7 @@ class diff:
         return cracked
 
     @classmethod
-    def _gen_patch_instr(
-        cls, bin_orig: bytes, bin_new: bytes
-    ) -> Tuple[Dict, List[Instr]]:
+    def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> Tuple[Dict, List[Instr]]:
         best_patch = []
         best_patch_len = 2**32
 
@@ -848,9 +821,7 @@ class diff:
             },
         }
 
-        header_crc = binascii.crc32(
-            patch_binary[: ctypes.sizeof(hdr) - ctypes.sizeof(ctypes.c_uint32)]
-        )
+        header_crc = binascii.crc32(patch_binary[: ctypes.sizeof(hdr) - ctypes.sizeof(ctypes.c_uint32)])
         if header_crc != hdr.header_crc:
             raise ValidationError("Patch header validation failed")
         if len(data) != hdr.patch_file.length:
@@ -866,9 +837,7 @@ class diff:
         patch_offset = 0
         original_offset = 0
         while patch_offset < len(data):
-            instr, length, original_offset = Instr.from_bytes(
-                data, patch_offset, original_offset
-            )
+            instr, length, original_offset = Instr.from_bytes(data, patch_offset, original_offset)
             patch_offset += length
             instructions.append(instr)
 
@@ -889,9 +858,7 @@ class diff:
 
         print(f"Original File: {meta['original']['len']:6d} bytes")
         print(f"     New File: {meta['new']['len']:6d} bytes")
-        print(
-            f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)"
-        )
+        print(f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)")
 
         if verbose:
             class_count: Dict[OpCode, int] = defaultdict(int)
@@ -911,32 +878,18 @@ class diff:
         return bin_patch
 
     @classmethod
-    def validation(
-        cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool
-    ) -> bytes:
+    def validation(cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool) -> bytes:
         assert len(bin_original) > 1024
 
         # Manually construct an instruction set that runs all instructions
         instructions: List[Instr] = []
-        instructions.append(
-            WriteInstr(bin_original[:8], cls_override=WriteInstr.WriteU4)
-        )
-        instructions.append(
-            WriteInstr(bin_original[8:16], cls_override=WriteInstr.WriteU12)
-        )
+        instructions.append(WriteInstr(bin_original[:8], cls_override=WriteInstr.WriteU4))
+        instructions.append(WriteInstr(bin_original[8:16], cls_override=WriteInstr.WriteU12))
         instructions.append(SetAddrInstr(16, 8, cls_override=SetAddrInstr.ShiftAddrS8))
-        instructions.append(
-            WriteInstr(bin_original[16:128], cls_override=WriteInstr.WriteU20)
-        )
-        instructions.append(
-            SetAddrInstr(120, 200, cls_override=SetAddrInstr.ShiftAddrS16)
-        )
-        instructions.append(
-            WriteInstr(bin_original[128:256], cls_override=WriteInstr.WriteU32)
-        )
-        instructions.append(
-            SetAddrInstr(328, 256, cls_override=SetAddrInstr.SetAddrU32)
-        )
+        instructions.append(WriteInstr(bin_original[16:128], cls_override=WriteInstr.WriteU20))
+        instructions.append(SetAddrInstr(120, 200, cls_override=SetAddrInstr.ShiftAddrS16))
+        instructions.append(WriteInstr(bin_original[128:256], cls_override=WriteInstr.WriteU32))
+        instructions.append(SetAddrInstr(328, 256, cls_override=SetAddrInstr.SetAddrU32))
         instructions.append(CopyInstr(8, cls_override=CopyInstr.CopyU4))
         instructions.append(CopyInstr(8, cls_override=CopyInstr.CopyU12))
         instructions.append(CopyInstr(128 - 16, cls_override=CopyInstr.CopyU20))
@@ -1033,9 +986,7 @@ class diff:
 
         print(f"Original File: {meta['original']['len']:6d} bytes")
         print(f"     New File: {meta['new']['len']:6d} bytes")
-        print(
-            f"   Patch File: {len(bin_patch)} bytes ({len(instructions):5d} instructions)"
-        )
+        print(f"   Patch File: {len(bin_patch)} bytes ({len(instructions):5d} instructions)")
 
         class_count: Dict[OpCode, int] = defaultdict(int)
         for instr in instructions:
@@ -1049,9 +1000,7 @@ class diff:
 
         print("")
         print("Total WRITE data:")
-        print(
-            f"\t{total_write_bytes} bytes ({100*total_write_bytes/len(bin_patch):.2f}%)"
-        )
+        print(f"\t{total_write_bytes} bytes ({100*total_write_bytes/len(bin_patch):.2f}%)")
 
         print("")
         print("Instruction Count:")
@@ -1066,32 +1015,20 @@ class diff:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Verbose command output"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose command output")
     subparser = parser.add_subparsers(dest="command", title="Commands", required=True)
 
     # Generate patch file
     generate_args = subparser.add_parser("generate", help="Generate a patch file")
     generate_args.add_argument("original", help="Original file to use as base image")
-    generate_args.add_argument(
-        "new", help="New file that will be the result of applying the patch"
-    )
+    generate_args.add_argument("new", help="New file that will be the result of applying the patch")
     generate_args.add_argument("patch", help="Output patch file name")
 
     # Generate validation patch file
-    validation_args = subparser.add_parser(
-        "validation", help="Generate a patch file for validating appliers"
-    )
-    validation_args.add_argument(
-        "--invalid-length", action="store_true", help="Incorrect output file length"
-    )
-    validation_args.add_argument(
-        "--invalid-crc", action="store_true", help="Incorrect output file CRC"
-    )
-    validation_args.add_argument(
-        "input_file", help="File to use as base image and desired output"
-    )
+    validation_args = subparser.add_parser("validation", help="Generate a patch file for validating appliers")
+    validation_args.add_argument("--invalid-length", action="store_true", help="Incorrect output file length")
+    validation_args.add_argument("--invalid-crc", action="store_true", help="Incorrect output file CRC")
+    validation_args.add_argument("input_file", help="File to use as base image and desired output")
     validation_args.add_argument("patch", help="Output patch file name")
 
     # Apply patch file
@@ -1101,9 +1038,7 @@ if __name__ == "__main__":
     patch_args.add_argument("output", help="File to write output to")
 
     # Dump patch instructions
-    dump_args = subparser.add_parser(
-        "dump", help="Dump patch file instructions to terminal"
-    )
+    dump_args = subparser.add_parser("dump", help="Dump patch file instructions to terminal")
     dump_args.add_argument("patch", help="Patch file to dump")
 
     # Parse args
@@ -1122,9 +1057,7 @@ if __name__ == "__main__":
             f_output.write(patch)
     elif args.command == "validation":
         with open(args.input_file, "rb") as f_input:
-            patch = diff.validation(
-                f_input.read(-1), args.invalid_length, args.invalid_crc
-            )
+            patch = diff.validation(f_input.read(-1), args.invalid_length, args.invalid_crc)
         with open(args.patch, "wb") as f_output:
             f_output.write(patch)
     elif args.command == "patch":

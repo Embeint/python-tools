@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from infuse_iot.commands import InfuseRpcCommand
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.commands import InfuseRpcCommand
 
 
 class time_set(InfuseRpcCommand, defs.time_set):
@@ -13,8 +13,9 @@ class time_set(InfuseRpcCommand, defs.time_set):
         pass
 
     def request_struct(self):
-        from infuse_iot.time import InfuseTime
         import time
+
+        from infuse_iot.time import InfuseTime
 
         return self.request(InfuseTime.epoch_time_from_unix(time.time()))
 

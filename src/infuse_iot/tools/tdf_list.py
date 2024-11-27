@@ -7,11 +7,11 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import tabulate
 
-from infuse_iot.common import InfuseType
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
-    LocalClient,
     ClientNotification,
+    LocalClient,
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
@@ -58,13 +58,9 @@ class SubCommand(InfuseCommand):
                                 t = InfuseTime.utc_time_string(tdf.time + offset)
                         else:
                             t = "N/A"
-                        table.append(
-                            [t, tdf_name, field.name, field.val_fmt(), field.postfix]
-                        )
+                        table.append([t, tdf_name, field.name, field.val_fmt(), field.postfix])
                     else:
-                        table.append(
-                            [None, None, field.name, field.val_fmt(), field.postfix]
-                        )
+                        table.append([None, None, field.name, field.val_fmt(), field.postfix])
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")

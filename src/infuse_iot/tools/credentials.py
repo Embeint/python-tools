@@ -7,10 +7,9 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import yaml
 
-from infuse_iot.util.argparse import ValidFile
-from infuse_iot.commands import InfuseCommand
-
 from infuse_iot import credentials
+from infuse_iot.commands import InfuseCommand
+from infuse_iot.util.argparse import ValidFile
 
 
 class SubCommand(InfuseCommand):
@@ -21,9 +20,7 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--api-key", type=str, help="Set Infuse-IoT API key")
-        parser.add_argument(
-            "--network", type=ValidFile, help="Load network credentials from file"
-        )
+        parser.add_argument("--network", type=ValidFile, help="Load network credentials from file")
 
     def __init__(self, args):
         self.args = args

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
 import ctypes
+
 import tabulate
 
+import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import wifi as z_wifi
-import infuse_iot.generated.rpc_definitions as defs
 
 
 class wifi_scan(InfuseRpcCommand, defs.wifi_scan):

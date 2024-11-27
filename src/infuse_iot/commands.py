@@ -7,9 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
 import ctypes
-
-from typing import List, Type, Tuple
-
+from typing import List, Tuple, Type
 
 from infuse_iot.epacket.packet import Auth
 

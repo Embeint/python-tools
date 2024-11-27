@@ -9,22 +9,23 @@ import asyncio
 import pathlib
 import threading
 import time
+
 from aiohttp import web
 from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
-from infuse_iot.util.console import Console
-from infuse_iot.util.threading import SignaledThread
-from infuse_iot.common import InfuseType
+import infuse_iot.epacket.interface as interface
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
-    LocalClient,
     ClientNotification,
+    LocalClient,
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
-import infuse_iot.epacket.interface as interface
+from infuse_iot.util.console import Console
+from infuse_iot.util.threading import SignaledThread
 
 
 class SubCommand(InfuseCommand):
@@ -125,7 +126,7 @@ class SubCommand(InfuseCommand):
         def column_title(struct, name):
             postfix = struct._postfix_[name]
             if postfix != "":
-                return "{} ({})".format(name, postfix)
+                return f"{name} ({postfix})"
             return name
 
         for field in tdf.field_information():
@@ -186,9 +187,7 @@ class SubCommand(InfuseCommand):
                 if field.subfield:
                     if field.field not in self._data[source.infuse_id][t.name]:
                         self._data[source.infuse_id][t.name][field.field] = {}
-                    self._data[source.infuse_id][t.name][field.field][
-                        field.subfield
-                    ] = field.val_fmt()
+                    self._data[source.infuse_id][t.name][field.field][field.subfield] = field.val_fmt()
                 else:
                     self._data[source.infuse_id][t.name][field.field] = field.val_fmt()
         self._data_lock.release()

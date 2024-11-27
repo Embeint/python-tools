@@ -14,9 +14,7 @@ def test_main():
     # sane (i.e. the actual version number is printed instead of
     # simply an error message to stderr).
 
-    output_as_module = subprocess.check_output(
-        [sys.executable, "-m", "infuse_iot", "--version"]
-    ).decode()
+    output_as_module = subprocess.check_output([sys.executable, "-m", "infuse_iot", "--version"]).decode()
     output_directly = subprocess.check_output(["infuse", "--version"]).decode()
     assert infuse_iot.version.__version__ in output_as_module
     assert output_as_module == output_directly

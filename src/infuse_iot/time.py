@@ -51,9 +51,7 @@ class InfuseTime:
     @classmethod
     def utc_time_string(cls, unix_time: float) -> str:
         # Trim timezone prefix and microseconds
-        return str(datetime.datetime.fromtimestamp(unix_time, datetime.timezone.utc))[
-            :-9
-        ]
+        return str(datetime.datetime.fromtimestamp(unix_time, datetime.timezone.utc))[:-9]
 
     @classmethod
     def utc_time_string_log(cls, unix_time: float) -> str:

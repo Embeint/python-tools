@@ -3,16 +3,16 @@
 import ctypes
 import random
 
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from infuse_iot.util.argparse import ValidFile
-from infuse_iot.util.ctypes import bytes_to_uint8
+import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.epacket.packet import Auth
-import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.util.argparse import ValidFile
+from infuse_iot.util.ctypes import bytes_to_uint8
 
 
 class challenge_response_header(ctypes.LittleEndianStructure):
@@ -48,9 +48,7 @@ class challenge_response_basic(ctypes.LittleEndianStructure):
 class security_state(InfuseRpcCommand, defs.security_state):
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument(
-            "--pem", type=ValidFile, help="Cloud .pem file for identity validation"
-        )
+        parser.add_argument("--pem", type=ValidFile, help="Cloud .pem file for identity validation")
 
     def __init__(self, args):
         self.challenge = bytes_to_uint8(random.randbytes(16))
@@ -67,12 +65,8 @@ class security_state(InfuseRpcCommand, defs.security_state):
 
         rb = bytes(response.response)
         with self.pem.open("r") as f:
-            cloud_private_key = serialization.load_pem_private_key(
-                f.read().encode("utf-8"), password=None
-            )
-        device_public_key = x25519.X25519PublicKey.from_public_bytes(
-            bytes(response.device_public_key)
-        )
+            cloud_private_key = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
+        device_public_key = x25519.X25519PublicKey.from_public_bytes(bytes(response.device_public_key))
         shared_secret = cloud_private_key.exchange(device_public_key)
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
