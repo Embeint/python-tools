@@ -12,7 +12,7 @@ from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import Auth, PacketOutput
 from infuse_iot.socket_comms import (
-    ClientNotification,
+    ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
@@ -61,7 +61,7 @@ class SubCommand(InfuseCommand):
                 pending += 1
             # Wait for responses
             if rsp := self._client.receive():
-                if rsp.type != ClientNotification.Type.EPACKET_RECV:
+                if not isinstance(rsp, ClientNotificationEpacketReceived):
                     continue
                 if rsp.epacket.ptype != InfuseType.ECHO_RSP:
                     continue

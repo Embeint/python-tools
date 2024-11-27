@@ -18,7 +18,7 @@ import infuse_iot.epacket.interface as interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
-    ClientNotification,
+    ClientNotificationEpacketReceived,
     LocalClient,
     default_multicast_address,
 )
@@ -156,7 +156,7 @@ class SubCommand(InfuseCommand):
         msg = self._client.receive()
         if msg is None:
             return
-        if msg.type != ClientNotification.Type.EPACKET_RECV:
+        if not isinstance(msg, ClientNotificationEpacketReceived):
             return
         if msg.epacket.ptype != InfuseType.TDF:
             return

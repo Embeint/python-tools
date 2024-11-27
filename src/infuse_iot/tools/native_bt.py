@@ -22,7 +22,7 @@ from infuse_iot.epacket.packet import (
     PacketReceived,
 )
 from infuse_iot.socket_comms import (
-    ClientNotification,
+    ClientNotificationEpacketReceived,
     LocalServer,
     default_multicast_address,
 )
@@ -65,7 +65,7 @@ class SubCommand(InfuseCommand):
 
         Console.log_rx(hdr.type, len(payload))
         pkt = PacketReceived([hop], hdr.type, decr)
-        notification = ClientNotification(ClientNotification.Type.EPACKET_RECV, pkt)
+        notification = ClientNotificationEpacketReceived(pkt)
         self.server.broadcast(notification)
 
     async def async_run(self):
