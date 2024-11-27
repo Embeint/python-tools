@@ -236,23 +236,47 @@ class PacketOutputRouted(Serializable):
     def to_serial(self, database: DeviceDatabase) -> bytes:
         """Encode and encrypt packet for serial transmission"""
         gps_time = InfuseTime.gps_seconds_from_unix(int(time.time()))
-        # Multi hop not currently supported
-        assert len(self.route) == 1
-        route = self.route[0]
 
-        if route.auth == Auth.NETWORK:
+        if len(self.route) == 2:
+            # Two hops only supports Bluetooth central for now
+            final = self.route[1]
+            assert final.interface == Interface.BT_CENTRAL
+
+            # Forwarded payload
+            forward_payload = CtypeBtGattFrame.encrypt(
+                database, final.infuse_id, self.ptype, Auth.DEVICE, self.payload
+            )
+
+            # Forwarding header
+            forward_hdr = CtypeForwardHeaderBtGatt(
+                ctypes.sizeof(CtypeForwardHeaderBtGatt) + len(forward_payload),
+                Interface.BT_CENTRAL.value,
+                database.devices[final.infuse_id].bt_addr.to_ctype(),
+            )
+
+            ptype = InfuseType.EPACKET_FORWARD
+            payload = bytes(forward_hdr) + forward_payload
+        elif len(self.route) == 1:
+            ptype = self.ptype
+            payload = self.payload
+        else:
+            raise NotImplementedError(">2 hops currently not supported")
+
+        serial = self.route[0]
+
+        if serial.auth == Auth.NETWORK:
             flags = Flags.ENCR_NETWORK
-            key_metadata = database.devices[route.infuse_id].network_id
-            key = database.serial_network_key(route.infuse_id, gps_time)
+            key_metadata = database.devices[serial.infuse_id].network_id
+            key = database.serial_network_key(serial.infuse_id, gps_time)
         else:
             flags = Flags.ENCR_DEVICE
-            key_metadata = database.devices[route.infuse_id].device_id
-            key = database.serial_device_key(route.infuse_id, gps_time)
+            key_metadata = database.devices[serial.infuse_id].device_id
+            key = database.serial_device_key(serial.infuse_id, gps_time)
 
         # Create header
         header = CtypeSerialFrame(
             version=0,
-            _type=self.ptype.value,
+            _type=ptype,
             flags=flags,
             gps_time=gps_time,
             sequence=0,
@@ -264,7 +288,7 @@ class PacketOutputRouted(Serializable):
         # Encrypt and return payload
         header_bytes = bytes(header)
         ciphertext = chachapoly_encrypt(
-            key, header_bytes[:11], header_bytes[11:], self.payload
+            key, header_bytes[:11], header_bytes[11:], payload
         )
         return header_bytes + ciphertext
 
@@ -309,6 +333,15 @@ class PacketOutput(PacketOutputRouted):
             ptype=InfuseType(values["type"]),
             payload=base64.b64decode(values["payload"].encode("utf-8")),
         )
+
+
+class CtypeForwardHeaderBtGatt(ctypes.LittleEndianStructure):
+    _fields_ = [
+        ("total_length", ctypes.c_uint16),
+        ("interface", ctypes.c_uint8),
+        ("address", Address.BluetoothLeAddr.CtypesFormat),
+    ]
+    _pack_ = 1
 
 
 class CtypeV0VersionedFrame(ctypes.LittleEndianStructure):
@@ -407,6 +440,44 @@ class CtypeBtAdvFrame(CtypeV0VersionedFrame):
 
 class CtypeBtGattFrame(CtypeV0VersionedFrame):
     """Bluetooth GATT packet header"""
+
+    @classmethod
+    def encrypt(
+        cls,
+        database: DeviceDatabase,
+        infuse_id: int,
+        ptype: InfuseType,
+        auth: Auth,
+        payload: bytes,
+    ) -> bytes:
+        dev_state = database.devices[infuse_id]
+        gps_time = InfuseTime.gps_seconds_from_unix(int(time.time()))
+        flags = 0
+
+        if auth == Auth.DEVICE:
+            key_meta = dev_state.device_id
+            key = database.bt_gatt_device_key(infuse_id, gps_time)
+            flags |= Flags.ENCR_DEVICE
+        else:
+            key_meta = dev_state.network_id
+            key = database.bt_gatt_network_key(infuse_id, gps_time)
+
+        # Construct GATT header
+        header = cls()
+        header._type = ptype
+        header.flags = flags
+        header.device_id = infuse_id
+        header.key_metadata = key_meta
+        header.gps_time = gps_time
+        header.sequence = dev_state.gatt_sequence_num()
+        header.entropy = random.randint(0, 65535)
+
+        # Encrypt and return payload
+        header_bytes = bytes(header)
+        ciphertext = chachapoly_encrypt(
+            key, header_bytes[:11], header_bytes[11:], payload
+        )
+        return header_bytes + ciphertext
 
     @classmethod
     def decrypt(
