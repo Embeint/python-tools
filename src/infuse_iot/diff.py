@@ -5,7 +5,6 @@ import binascii
 import ctypes
 import enum
 from collections import defaultdict
-from typing import Dict, List, Tuple, Type
 
 from typing_extensions import Self
 
@@ -128,7 +127,7 @@ class SetAddrInstr(Instr):
             return self.SetAddrU32
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> tuple[Self, int, int]:
         opcode = b[offset]
         if opcode == OpCode.ADDR_SHIFT_S8:
             s8 = cls.ShiftAddrS8.from_buffer_copy(b, offset)
@@ -229,7 +228,7 @@ class CopyInstr(Instr):
             return self.CopyU32
 
     @classmethod
-    def _from_opcode(cls, op: OpCode) -> Type[CopyGeneric]:
+    def _from_opcode(cls, op: OpCode) -> type[CopyGeneric]:
         if op == OpCode.COPY_LEN_U4:
             return cls.CopyU4
         elif op == OpCode.COPY_LEN_U12:
@@ -242,7 +241,7 @@ class CopyInstr(Instr):
             raise RuntimeError
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> tuple[Self, int, int]:
         opcode = OpCode.from_byte(b[offset])
         op_class = cls._from_opcode(opcode)
         s = op_class.from_buffer_copy(b, offset)
@@ -332,7 +331,7 @@ class WriteInstr(Instr):
             return self.WriteU32
 
     @classmethod
-    def _from_opcode(cls, op: OpCode) -> Type[WriteGeneric]:
+    def _from_opcode(cls, op: OpCode) -> type[WriteGeneric]:
         if op == OpCode.WRITE_LEN_U4:
             return cls.WriteU4
         elif op == OpCode.WRITE_LEN_U12:
@@ -345,7 +344,7 @@ class WriteInstr(Instr):
             raise RuntimeError
 
     @classmethod
-    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> Tuple[Self, int, int]:
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int) -> tuple[Self, int, int]:
         opcode = OpCode.from_byte(b[offset])
         op_class = cls._from_opcode(opcode)
         s = op_class.from_buffer_copy(b, offset)
@@ -397,7 +396,7 @@ class PatchInstr(Instr):
     @classmethod
     def from_bytes(cls, b: bytes, offset: int, original_offset: int):
         assert b[offset] == OpCode.PATCH
-        operations: List[Instr] = []
+        operations: list[Instr] = []
         length = 1
 
         while True:
@@ -498,7 +497,7 @@ class diff:
     @classmethod
     def _naive_diff(cls, old: bytes, new: bytes, hash_len: int = 8):
         """Construct basic runs of WRITE, COPY, and SET_ADDR instructions"""
-        instr: List[Instr] = []
+        instr: list[Instr] = []
         old_offset = 0
         new_offset = 0
         write_start = 0
@@ -577,10 +576,10 @@ class diff:
         return instr
 
     @classmethod
-    def _cleanup_jumps(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
+    def _cleanup_jumps(cls, old: bytes, instructions: list[Instr]) -> list[Instr]:
         """Find locations that jumped backwards just to jump forward to original location"""
 
-        merged: List[Instr] = []
+        merged: list[Instr] = []
         while len(instructions) > 0:
             instr = instructions.pop(0)
             replaced = False
@@ -625,10 +624,10 @@ class diff:
         return cleaned
 
     @classmethod
-    def _merge_operations(cls, instructions: List[Instr]) -> List[Instr]:
+    def _merge_operations(cls, instructions: list[Instr]) -> list[Instr]:
         """Merge runs of COPY and WRITE into PATCH"""
-        merged: List[Instr] = []
-        to_merge: List[Instr] = []
+        merged: list[Instr] = []
+        to_merge: list[Instr] = []
 
         def finalise():
             nonlocal merged
@@ -655,10 +654,10 @@ class diff:
         return merged
 
     @classmethod
-    def _write_crack(cls, old: bytes, instructions: List[Instr]) -> List[Instr]:
+    def _write_crack(cls, old: bytes, instructions: list[Instr]) -> list[Instr]:
         """Crack a WRITE operation into a [WRITE,COPY,WRITE] if COPY is at least 2 bytes"""
 
-        cracked: List[Instr] = []
+        cracked: list[Instr] = []
         old_offset = 0
 
         while len(instructions):
@@ -735,7 +734,7 @@ class diff:
         return cracked
 
     @classmethod
-    def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> Tuple[Dict, List[Instr]]:
+    def _gen_patch_instr(cls, bin_orig: bytes, bin_new: bytes) -> tuple[dict, list[Instr]]:
         best_patch = []
         best_patch_len = 2**32
 
@@ -765,7 +764,7 @@ class diff:
         return metadata, best_patch
 
     @classmethod
-    def _gen_patch_header(cls, patch_metadata: Dict, patch_data: bytes):
+    def _gen_patch_header(cls, patch_metadata: dict, patch_data: bytes):
         hdr = cls.PatchHeader(
             cls.PatchHeader.magic_value,
             cls.PatchHeader.VERSION_MAJOR,
@@ -789,7 +788,7 @@ class diff:
         return bytes(hdr)
 
     @classmethod
-    def _gen_patch_data(cls, instructions: List[Instr]):
+    def _gen_patch_data(cls, instructions: list[Instr]):
         output_bytes = b""
         for instr in instructions:
             output_bytes += bytes(instr)
@@ -857,7 +856,7 @@ class diff:
         print(f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)")
 
         if verbose:
-            class_count: Dict[OpCode, int] = defaultdict(int)
+            class_count: dict[OpCode, int] = defaultdict(int)
             for instr in instructions:
                 class_count[instr.ctypes_class().op] += 1
 
@@ -878,7 +877,7 @@ class diff:
         assert len(bin_original) > 1024
 
         # Manually construct an instruction set that runs all instructions
-        instructions: List[Instr] = []
+        instructions: list[Instr] = []
         instructions.append(WriteInstr(bin_original[:8], cls_override=WriteInstr.WriteU4))
         instructions.append(WriteInstr(bin_original[8:16], cls_override=WriteInstr.WriteU12))
         instructions.append(SetAddrInstr(16, 8, cls_override=SetAddrInstr.ShiftAddrS8))
@@ -992,7 +991,7 @@ class diff:
         print(f"     New File: {meta['new']['len']:6d} bytes")
         print(f"   Patch File: {len(bin_patch)} bytes ({len(instructions):5d} instructions)")
 
-        class_count: Dict[OpCode, int] = defaultdict(int)
+        class_count: dict[OpCode, int] = defaultdict(int)
         for instr in instructions:
             class_count[instr.ctypes_class().op] += 1
             if isinstance(instr, WriteInstr):

@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-from typing import Dict, Tuple
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.default import get_shared_secret
@@ -39,7 +38,7 @@ class DeviceDatabase:
         0x000000: b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f",
     }
-    _derived_keys: Dict[Tuple[int, bytes, int], bytes] = {}
+    _derived_keys: dict[tuple[int, bytes, int], bytes] = {}
 
     class DeviceState:
         """Device State"""
@@ -65,8 +64,8 @@ class DeviceDatabase:
 
     def __init__(self) -> None:
         self.gateway: int | None = None
-        self.devices: Dict[int, DeviceDatabase.DeviceState] = {}
-        self.bt_addr: Dict[InterfaceAddress.BluetoothLeAddr, int] = {}
+        self.devices: dict[int, DeviceDatabase.DeviceState] = {}
+        self.bt_addr: dict[InterfaceAddress.BluetoothLeAddr, int] = {}
 
     def observe_device(
         self,

@@ -5,7 +5,7 @@ import ctypes
 import enum
 import random
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from typing_extensions import Self
 
@@ -36,7 +36,7 @@ class HopOutput(Serializable):
         self.interface = interface
         self.auth = auth
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         return {
             "id": self.infuse_id,
             "interface": self.interface.value,
@@ -44,7 +44,7 @@ class HopOutput(Serializable):
         }
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         return cls(
             infuse_id=values["id"],
             interface=Interface(values["interface"]),
@@ -78,7 +78,7 @@ class HopReceived(Serializable):
         self.sequence = sequence
         self.rssi = rssi
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         return {
             "id": self.infuse_id,
             "interface": self.interface.value,
@@ -91,7 +91,7 @@ class HopReceived(Serializable):
         }
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         interface = Interface(values["interface"])
         return cls(
             infuse_id=values["id"],
@@ -108,13 +108,13 @@ class HopReceived(Serializable):
 class PacketReceived(Serializable):
     """ePacket received by a gateway"""
 
-    def __init__(self, route: List[HopReceived], ptype: InfuseType, payload: bytes):
+    def __init__(self, route: list[HopReceived], ptype: InfuseType, payload: bytes):
         # [Original Transmission, hop, hop, serial]
         self.route = route
         self.ptype = ptype
         self.payload = payload
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         """Convert class to json dictionary"""
         return {
             "route": [x.to_json() for x in self.route],
@@ -123,7 +123,7 @@ class PacketReceived(Serializable):
         }
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
         return cls(
             route=[HopReceived.from_json(x) for x in values["route"]],
@@ -132,7 +132,7 @@ class PacketReceived(Serializable):
         )
 
     @classmethod
-    def from_serial(cls, database: DeviceDatabase, serial_frame: bytes) -> List[Self]:
+    def from_serial(cls, database: DeviceDatabase, serial_frame: bytes) -> list[Self]:
         header, decrypted = CtypeSerialFrame.decrypt(database, serial_frame)
 
         # Packet from local gateway
@@ -149,7 +149,7 @@ class PacketReceived(Serializable):
             del packet_bytes[: ctypes.sizeof(common_header)]
 
             # Only Bluetooth advertising supported for now
-            decode_mapping: Dict[Interface, Any] = {
+            decode_mapping: dict[Interface, Any] = {
                 Interface.BT_ADV: CtypeBtAdvFrame,
                 Interface.BT_PERIPHERAL: CtypeBtGattFrame,
                 Interface.BT_CENTRAL: CtypeBtGattFrame,
@@ -215,7 +215,7 @@ class PacketReceived(Serializable):
 class PacketOutputRouted(Serializable):
     """ePacket to be transmitted by gateway with complete route"""
 
-    def __init__(self, route: List[HopOutput], ptype: InfuseType, payload: bytes):
+    def __init__(self, route: list[HopOutput], ptype: InfuseType, payload: bytes):
         # [Serial, hop, hop, final_hop]
         self.route = route
         self.ptype = ptype
@@ -282,7 +282,7 @@ class PacketOutputRouted(Serializable):
         ciphertext = chachapoly_encrypt(key, header_bytes[:11], header_bytes[11:], payload)
         return header_bytes + ciphertext
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         return {
             "route": [x.to_json() for x in self.route],
             "type": self.ptype.value,
@@ -290,7 +290,7 @@ class PacketOutputRouted(Serializable):
         }
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         return cls(
             route=[HopOutput.from_json(x) for x in values["route"]],
             ptype=InfuseType(values["type"]),
@@ -307,7 +307,7 @@ class PacketOutput(PacketOutputRouted):
         self.ptype = ptype
         self.payload = payload
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         return {
             "infuse_id": self.infuse_id,
             "auth": self.auth,
@@ -316,7 +316,7 @@ class PacketOutput(PacketOutputRouted):
         }
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         return cls(
             infuse_id=values["infuse_id"],
             auth=Auth(values["auth"]),
@@ -370,7 +370,7 @@ class CtypeV0VersionedFrame(ctypes.LittleEndianStructure):
         self._device_id_lower = value & 0xFFFFFFFF
 
     @classmethod
-    def parse(cls, frame: bytes) -> Tuple[Self, int]:
+    def parse(cls, frame: bytes) -> tuple[Self, int]:
         """Parse frame into header and payload length"""
         return (
             cls.from_buffer_copy(frame),

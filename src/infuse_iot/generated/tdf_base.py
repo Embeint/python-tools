@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import ctypes
-from typing import Any, Generator, cast
+from collections.abc import Generator
+from typing import Any, cast
 
 from typing_extensions import Self
 

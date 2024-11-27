@@ -4,7 +4,7 @@ import enum
 import json
 import socket
 import struct
-from typing import Any, Dict
+from typing import Any
 
 from typing_extensions import Self
 
@@ -32,9 +32,9 @@ class ClientNotification:
         self.epacket = epacket
         self.connection_id = connection_id
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         """Convert class to json dictionary"""
-        out: Dict[str, Any] = {"type": int(self.type)}
+        out: dict[str, Any] = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
         if self.connection_id:
@@ -42,7 +42,7 @@ class ClientNotification:
         return out
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
         if j := values.get("epacket"):
             epacket = PacketReceived.from_json(j)
@@ -73,9 +73,9 @@ class GatewayRequest:
         self.epacket = epacket
         self.connection_id = connection_id
 
-    def to_json(self) -> Dict:
+    def to_json(self) -> dict:
         """Convert class to json dictionary"""
-        out: Dict[str, Any] = {"type": int(self.type)}
+        out: dict[str, Any] = {"type": int(self.type)}
         if self.epacket:
             out["epacket"] = self.epacket.to_json()
         if self.connection_id:
@@ -83,7 +83,7 @@ class GatewayRequest:
         return out
 
     @classmethod
-    def from_json(cls, values: Dict) -> Self:
+    def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
         if j := values.get("epacket"):
             epacket = PacketOutput.from_json(j)

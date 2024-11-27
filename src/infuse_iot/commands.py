@@ -7,7 +7,6 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
 import ctypes
-from typing import List, Tuple, Type
 
 from infuse_iot.epacket.packet import Auth
 
@@ -61,9 +60,9 @@ class InfuseRpcCommand:
         raise NotImplementedError
 
     class VariableSizeResponse:
-        base_fields: List[Tuple[str, Type[ctypes._SimpleCData]]] = []
+        base_fields: list[tuple[str, type[ctypes._SimpleCData]]] = []
         var_name = "x"
-        var_type: Type[ctypes._SimpleCData] = ctypes.c_ubyte
+        var_type: type[ctypes._SimpleCData] = ctypes.c_ubyte
 
         @classmethod
         def from_buffer_copy(cls, source, offset=0):

@@ -2,7 +2,7 @@
 
 import ctypes
 import enum
-from typing import Generator, List, Type
+from collections.abc import Generator
 
 from infuse_iot.generated import tdf_base, tdf_definitions
 from infuse_iot.time import InfuseTime
@@ -60,7 +60,7 @@ class TDF:
             self,
             time: None | float,
             period: None | float,
-            data: List[tdf_base.TdfReadingBase],
+            data: list[tdf_base.TdfReadingBase],
         ):
             self.time = time
             self.period = period
@@ -70,7 +70,7 @@ class TDF:
         pass
 
     @staticmethod
-    def _buffer_pull(buffer: bytes, ctype: Type[ctypes.LittleEndianStructure]):
+    def _buffer_pull(buffer: bytes, ctype: type[ctypes.LittleEndianStructure]):
         v = ctype.from_buffer_copy(buffer)
         b = buffer[ctypes.sizeof(ctype) :]
         return v, b

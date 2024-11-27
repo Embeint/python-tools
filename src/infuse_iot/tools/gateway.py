@@ -13,7 +13,7 @@ import queue
 import random
 import threading
 import time
-from typing import Callable, Dict
+from typing import Callable
 
 import cryptography
 import cryptography.exceptions
@@ -51,7 +51,7 @@ class LocalRpcServer:
     def __init__(self, database: DeviceDatabase):
         self._cnt = random.randint(0, 2**31)
         self._ddb = database
-        self._queued: Dict[int, Callable | None] = {}
+        self._queued: dict[int, Callable | None] = {}
 
     def generate(self, command: int, args: bytes, auth: Auth, cb: Callable | None):
         """Generate RPC packet from arguments"""
