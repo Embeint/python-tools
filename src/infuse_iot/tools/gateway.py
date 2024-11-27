@@ -52,11 +52,11 @@ class LocalRpcServer:
         self._ddb = database
         self._queued = {}
 
-    def generate(self, command: int, args: bytes, cb):
+    def generate(self, command: int, args: bytes, auth: Auth, cb):
         """Generate RPC packet from arguments"""
         cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
         cmd_pkt = PacketOutputRouted(
-            [HopOutput.serial(Auth.NETWORK)],
+            [HopOutput.serial(auth)],
             InfuseType.RPC_CMD,
             cmd_bytes,
         )
@@ -127,7 +127,9 @@ class CommonThreadState:
                 cb_event.set()
 
         # Generate security_state RPC
-        cmd_pkt = self.rpc.generate(30000, random.randbytes(16), security_state_done)
+        cmd_pkt = self.rpc.generate(
+            30000, random.randbytes(16), Auth.NETWORK, security_state_done
+        )
         encrypted = cmd_pkt.to_serial(self.ddb)
         # Write to serial port
         Console.log_tx(cmd_pkt.ptype, len(encrypted))
@@ -267,14 +269,23 @@ class SerialTxThread(SignaledThread):
             return
 
         pkt = req.epacket
-        assert pkt.infuse_id == InfuseID.GATEWAY
 
         # Construct routed output
-        routed = PacketOutputRouted(
-            [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
-            pkt.ptype,
-            pkt.payload,
-        )
+        if pkt.infuse_id == InfuseID.GATEWAY:
+            routed = PacketOutputRouted(
+                [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
+                pkt.ptype,
+                pkt.payload,
+            )
+        else:
+            gateway = self._common.ddb.gateway
+            serial = HopOutput(gateway, interface.ID.SERIAL, Auth.DEVICE)
+            bt = HopOutput(pkt.infuse_id, interface.ID.BT_CENTRAL, pkt.auth)
+            routed = PacketOutputRouted(
+                [serial, bt],
+                pkt.ptype,
+                pkt.payload,
+            )
 
         # Do we have the device public keys we need?
         for hop in routed.route:
@@ -291,6 +302,24 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(routed.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
+    def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes):
+        resp = defs.bt_connect_infuse.response.from_buffer_copy(
+            pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+        )
+        if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
+        infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
+
+        evt = (
+            ClientNotification.Type.CONNECTION_FAILED
+            if rc < 0
+            else ClientNotification.Type.CONNECTION_CREATED
+        )
+        rsp = ClientNotification(
+            evt,
+            connection_id=infuse_id,
+        )
+        self._common.server.broadcast(rsp)
+
     def _handle_conn_request(self, req: GatewayRequest):
         if req.connection_id == InfuseID.GATEWAY:
             # Local gateway always connected
@@ -301,14 +330,50 @@ class SerialTxThread(SignaledThread):
             self._common.server.broadcast(rsp)
             return
 
-        raise NotImplementedError
+        state = self._common.ddb.devices.get(req.connection_id, None)
+        if state is None or state.bt_addr is None:
+            rsp = ClientNotification(
+                ClientNotification.Type.CONNECTION_FAILED,
+                connection_id=req.connection_id,
+            )
+            self._common.server.broadcast(rsp)
+            return
+
+        device_info = self._common.ddb.devices[req.connection_id]
+
+        connect_args = defs.bt_connect_infuse.request(
+            device_info.bt_addr.to_rpc_struct(),
+            10000,
+            defs.rpc_enum_infuse_bt_characteristic.COMMAND,
+            0,
+        )
+        cmd = self._common.rpc.generate(
+            defs.bt_connect_infuse.COMMAND_ID,
+            bytes(connect_args),
+            Auth.DEVICE,
+            self._bt_connect_cb,
+        )
+        encrypted = cmd.to_serial(self._common.ddb)
+        Console.log_tx(cmd.ptype, len(encrypted))
+        self._common.port.write(encrypted)
 
     def _handle_conn_release(self, req: GatewayRequest):
         if req.connection_id == InfuseID.GATEWAY:
             # Local gateway always connected
             return
 
-        raise NotImplementedError
+        state = self._common.ddb.devices.get(req.connection_id, None)
+        if state is None or state.bt_addr is None:
+            # Unknown device, nothing to do
+            return
+
+        disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
+        cmd = self._common.rpc.generate(
+            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args)
+        )
+        encrypted = cmd.to_serial(self._common.ddb)
+        Console.log_tx(cmd.ptype, len(encrypted))
+        self._common.port.write(encrypted)
 
     def _iter(self):
         if self._common.server is None:
