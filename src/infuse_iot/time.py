@@ -4,11 +4,11 @@ import datetime
 import enum
 
 
-class InfuseTimeSource(enum.IntFlag):
+class InfuseTimeSource(enum.IntEnum):
     NONE = 0
-    GNSS = 0x01
-    NTP = 0x02
-    RPC = 0x04
+    GNSS = 1
+    NTP = 2
+    RPC = 3
     RECOVERED = 0x80
 
     def __str__(self) -> str:
