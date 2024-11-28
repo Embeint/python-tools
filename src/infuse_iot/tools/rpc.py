@@ -147,7 +147,6 @@ class SubCommand(InfuseCommand):
         header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
         params = self._command.request_struct()
 
-        print(self._command)
         request_packet = bytes(header) + bytes(params)
         pkt = PacketOutput(
             self._id,
