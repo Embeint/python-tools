@@ -165,5 +165,7 @@ class SubCommand(InfuseCommand):
                 self._run_data_cmd()
             else:
                 self._run_standard_cmd()
+        except ConnectionRefusedError:
+            print(f"Unable to connect to {self._id:016x}")
         finally:
             self._client.connection_release()
