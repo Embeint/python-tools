@@ -468,7 +468,7 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         return header_bytes + ciphertext
 
     @classmethod
-    def decrypt(cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr, frame: bytes):
+    def decrypt(cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr | None, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_id=header.key_metadata, bt_addr=bt_addr)
