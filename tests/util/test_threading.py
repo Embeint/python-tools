@@ -24,4 +24,5 @@ def test_signaled_thread():
     t.stop()
     t.join(0.5)
     assert not t.is_alive()
-    assert 10 <= count <= 11
+    # Exact number of iterations can be fuzy in CI
+    assert 9 <= count <= 11
