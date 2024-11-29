@@ -437,13 +437,16 @@ class data_logger_state:
 
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
+            ("bytes_logged", ctypes.c_uint64),
             ("logical_blocks", ctypes.c_uint32),
             ("physical_blocks", ctypes.c_uint32),
+            ("boot_block", ctypes.c_uint32),
             ("current_block", ctypes.c_uint32),
             ("earliest_block", ctypes.c_uint32),
             ("block_size", ctypes.c_uint16),
             ("block_overhead", ctypes.c_uint16),
             ("erase_unit", ctypes.c_uint16),
+            ("uptime", ctypes.c_uint32),
         ]
         _pack_ = 1
 
