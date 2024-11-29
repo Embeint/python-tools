@@ -27,6 +27,10 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
         id = 0x43210001
         data = defs.readings.ambient_temp_pres_hum
 
+    class LocationChannel(ctypes.LittleEndianStructure):
+        id = 0x43210004
+        data = defs.readings.gcs_wgs84_llha
+
     @classmethod
     def add_parser(cls, parser):
         group = parser.add_mutually_exclusive_group(required=True)
@@ -43,6 +47,13 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
             action="store_const",
             const=cls.AmbeintEnvChannel,
             help="Ambient environmental channel",
+        )
+        group.add_argument(
+            "--location",
+            dest="channel",
+            action="store_const",
+            const=cls.LocationChannel,
+            help="Location channel",
         )
 
     def __init__(self, args):
