@@ -8,8 +8,8 @@ from infuse_iot.commands import InfuseRpcCommand
 
 
 class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
-    HELP = "Set the WiFi network SSID and PSK"
-    DESCRIPTION = "Set the WiFi network SSID and PSK"
+    HELP = "Set the LTE PDP context (IP family & APN)"
+    DESCRIPTION = "Set the LTE PDP context (IP family & APN)"
 
     class request(ctypes.LittleEndianStructure):
         _fields_ = [
