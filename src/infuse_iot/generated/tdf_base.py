@@ -34,7 +34,7 @@ class TdfField:
 class TdfStructBase(ctypes.LittleEndianStructure):
     def iter_fields(
         self,
-        field,
+        field: str,
     ) -> Generator[TdfField, None, None]:
         for subfield in self._fields_:
             sf_name = _public_name(subfield)
@@ -49,13 +49,11 @@ class TdfStructBase(ctypes.LittleEndianStructure):
 
 
 class TdfReadingBase(ctypes.LittleEndianStructure):
-    def iter_fields(
-        self,
-    ) -> Generator[TdfField, None, None]:
+    def iter_fields(self, nested_iter: bool = True) -> Generator[TdfField, None, None]:
         for field in self._fields_:
             f_name = _public_name(field)
             val = getattr(self, f_name)
-            if isinstance(val, ctypes.LittleEndianStructure):
+            if nested_iter and isinstance(val, ctypes.LittleEndianStructure):
                 yield from val.iter_fields(f_name)
             else:
                 if isinstance(val, ctypes.Array):
