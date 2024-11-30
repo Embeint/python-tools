@@ -18,6 +18,8 @@ from aiohttp.web_runner import GracefulExit
 import infuse_iot.epacket.interface as interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
+from infuse_iot.generated.tdf_base import TdfStructBase
+from infuse_iot.generated.tdf_definitions import structs
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
@@ -94,7 +96,13 @@ class SubCommand(InfuseCommand):
                         ],
                     }
                 ]
-                for tdf_name in sorted(self._columns):
+                # Put ANNOUNCE TDF first, if it exists
+                if "ANNOUNCE" in self._columns:
+                    sorted_tdfs = ["ANNOUNCE"] + [v for v in sorted(self._columns) if v != "ANNOUNCE"]
+                else:
+                    sorted_tdfs = sorted(self._columns)
+
+                for tdf_name in sorted_tdfs:
                     columns.append(
                         {
                             "title": tdf_name,
@@ -131,7 +139,15 @@ class SubCommand(InfuseCommand):
             return name
 
         for field in tdf.field_information():
-            if "subfields" in field:
+            if field["type"] == structs.tdf_struct_mcuboot_img_sem_ver:
+                # Special case version struct to make reading versions easier
+                s = {
+                    "title": column_title(tdf, field["name"]),
+                    "field": f"{tdf.name}.{field['name']}",
+                    "headerVertical": "flip",
+                    "hozAlign": "right",
+                }
+            elif "subfields" in field:
                 sub: list[dict[str, Any]] = []
                 for subfield in field["subfields"]:
                     sub.append(
@@ -184,11 +200,16 @@ class SubCommand(InfuseCommand):
             if t.name not in self._data[source.infuse_id]:
                 self._data[source.infuse_id][t.name] = {}
 
-            for field in t.iter_fields():
-                if field.subfield:
-                    if field.field not in self._data[source.infuse_id][t.name]:
-                        self._data[source.infuse_id][t.name][field.field] = {}
-                    self._data[source.infuse_id][t.name][field.field][field.subfield] = field.val_fmt()
+            for field in t.iter_fields(nested_iter=False):
+                if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
+                    # Special case version struct to make reading versions easier
+                    val = f"{field.val.major}.{field.val.minor}.{field.val.revision}+{field.val.build_num:08x}"
+                    self._data[source.infuse_id][t.name][field.field] = val
+                elif isinstance(field.val, TdfStructBase):
+                    for s in field.val.iter_fields(field.field):
+                        if s.field not in self._data[source.infuse_id][t.name]:
+                            self._data[source.infuse_id][t.name][s.field] = {}
+                        self._data[source.infuse_id][t.name][s.field][s.subfield] = s.val_fmt()
                 else:
                     self._data[source.infuse_id][t.name][field.field] = field.val_fmt()
         self._data_lock.release()
