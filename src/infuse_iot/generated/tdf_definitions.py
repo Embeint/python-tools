@@ -123,6 +123,27 @@ class structs:
             "tac": "{}",
         }
 
+    class tdf_struct_bt_addr_le(TdfStructBase):
+        """Bluetooth address type (bt_addr_le_t)"""
+
+        _fields_ = [
+            ("type", ctypes.c_uint8),
+            ("_val", 6 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "type": "",
+            "val": "",
+        }
+        _display_fmt_ = {
+            "type": "{}",
+            "val": "0x{:012x}",
+        }
+
+        @property
+        def val(self):
+            return int.from_bytes(self._val, byteorder='little')
+
 
 class readings:
     class announce(TdfReadingBase):
@@ -533,12 +554,12 @@ class readings:
             "hour": "{}",
             "min": "{}",
             "sec": "{}",
-            "valid": "{}",
+            "valid": "0x{:02x}",
             "t_acc": "{}",
             "nano": "{}",
             "fix_type": "{}",
-            "flags": "{}",
-            "flags2": "{}",
+            "flags": "0x{:02x}",
+            "flags2": "0x{:02x}",
             "num_sv": "{}",
             "lon": "{}",
             "lat": "{}",
@@ -554,7 +575,7 @@ class readings:
             "s_acc": "{}",
             "head_acc": "{}",
             "p_dop": "{}",
-            "flags3": "{}",
+            "flags3": "0x{:04x}",
             "reserved0": "{}",
             "head_veh": "{}",
             "mag_dec": "{}",
@@ -786,6 +807,60 @@ class readings:
             "num_sv": "{}",
         }
 
+    class bluetooth_connection(TdfReadingBase):
+        """Bluetooth connection state change"""
+
+        name = "BLUETOOTH_CONNECTION"
+        _fields_ = [
+            ("address", structs.tdf_struct_bt_addr_le),
+            ("connected", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "address": "",
+            "connected": "",
+        }
+        _display_fmt_ = {
+            "address": "{}",
+            "connected": "{}",
+        }
+
+    class bluetooth_rssi(TdfReadingBase):
+        """Received signal strength of Bluetooth device"""
+
+        name = "BLUETOOTH_RSSI"
+        _fields_ = [
+            ("address", structs.tdf_struct_bt_addr_le),
+            ("rssi", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "address": "",
+            "rssi": "dBm",
+        }
+        _display_fmt_ = {
+            "address": "{}",
+            "rssi": "{}",
+        }
+
+    class bluetooth_data_throughput(TdfReadingBase):
+        """Data throughput of Bluetooth link"""
+
+        name = "BLUETOOTH_DATA_THROUGHPUT"
+        _fields_ = [
+            ("address", structs.tdf_struct_bt_addr_le),
+            ("throughput", ctypes.c_int32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "address": "",
+            "throughput": "B/sec",
+        }
+        _display_fmt_ = {
+            "address": "{}",
+            "throughput": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -828,5 +903,8 @@ id_type_mapping: dict[int, TdfReadingBase] = {
     26: readings.runtime_error,
     27: readings.charger_en_control,
     28: readings.gnss_fix_info,
+    29: readings.bluetooth_connection,
+    30: readings.bluetooth_rssi,
+    31: readings.bluetooth_data_throughput,
     100: readings.array_type,
 }
