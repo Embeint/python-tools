@@ -44,7 +44,7 @@ class InfuseCommand(metaclass=ABCMeta):
 
 
 class InfuseRpcCommand:
-    RPC_DATA = False
+    RPC_DATA_SEND = False
 
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):

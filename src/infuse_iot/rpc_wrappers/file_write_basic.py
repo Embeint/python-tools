@@ -15,7 +15,7 @@ from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 
 
 class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
-    RPC_DATA = True
+    RPC_DATA_SEND = True
 
     @classmethod
     def add_parser(cls, parser):

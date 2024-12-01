@@ -93,7 +93,7 @@ class SubCommand(InfuseCommand):
             self._command.handle_response(rsp_header.return_code, rsp_data)
             break
 
-    def _run_data_cmd(self):
+    def _run_data_send_cmd(self):
         ack_period = 1
         header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
         params = self._command.request_struct()
@@ -116,7 +116,7 @@ class SubCommand(InfuseCommand):
         # Send data payloads (384 byte chunks for now)
         ack_cnt = -ack_period
         offset = 0
-        size = 384
+        size = 192
         while len(data) > 0:
             size = min(size, len(data))
             payload = data[:size]
@@ -161,8 +161,8 @@ class SubCommand(InfuseCommand):
     def run(self):
         try:
             self._client.connection_create(self._id)
-            if self._command.RPC_DATA:
-                self._run_data_cmd()
+            if self._command.RPC_DATA_SEND:
+                self._run_data_send_cmd()
             else:
                 self._run_standard_cmd()
         except ConnectionRefusedError:
