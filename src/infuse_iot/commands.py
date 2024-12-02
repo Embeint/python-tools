@@ -45,6 +45,7 @@ class InfuseCommand(metaclass=ABCMeta):
 
 class InfuseRpcCommand:
     RPC_DATA_SEND = False
+    RPC_DATA_RECEIVE = False
 
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
@@ -64,6 +65,9 @@ class InfuseRpcCommand:
     def data_payload(self) -> bytes:
         """Payload to send with RPC_DATA"""
         raise NotImplementedError
+
+    def data_recv_cb(self, offset: int, data: bytes) -> None:
+        """Data received callback"""
 
     def data_progress_cb(self, offset: int) -> None:
         """Progress callback"""
