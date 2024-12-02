@@ -17,6 +17,7 @@ from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import PacketOutput
 from infuse_iot.socket_comms import (
+    ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
@@ -143,6 +144,47 @@ class SubCommand(InfuseCommand):
 
         self._wait_rpc_rsp()
 
+    def _run_data_recv_cmd(self):
+        header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
+        params = self._command.request_struct()
+        data_hdr = rpc.RequestDataHeader(0xFFFFFFFF, 0)
+
+        request_packet = bytes(header) + bytes(data_hdr) + bytes(params)
+        pkt = PacketOutput(
+            self._id,
+            self._command.auth_level(),
+            InfuseType.RPC_CMD,
+            request_packet,
+        )
+        req = GatewayRequestEpacketSend(pkt)
+        self._client.send(req)
+
+        while rsp := self._client.receive():
+            if isinstance(rsp, ClientNotificationConnectionDropped):
+                break
+            if not isinstance(rsp, ClientNotificationEpacketReceived):
+                continue
+            if rsp.epacket.ptype == InfuseType.RPC_RSP:
+                rsp_header = rpc.ResponseHeader.from_buffer_copy(rsp.epacket.payload)
+                # Response to the request we sent
+                if rsp_header.request_id != self._request_id:
+                    continue
+                # Convert response bytes back to struct form
+                rsp_payload = rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+                rsp_data = self._command.response.from_buffer_copy(rsp_payload)  # type: ignore
+                # Handle the response
+                self._command.handle_response(rsp_header.return_code, rsp_data)
+                break
+
+            if rsp.epacket.ptype != InfuseType.RPC_DATA:
+                continue
+            data = rpc.DataHeader.from_buffer_copy(rsp.epacket.payload)
+            # Response to the request we sent
+            if data.request_id != self._request_id:
+                continue
+
+            self._command.data_recv_cb(data.offset, rsp.epacket.payload[ctypes.sizeof(rpc.DataHeader) :])
+
     def _run_standard_cmd(self):
         header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
         params = self._command.request_struct()
@@ -163,6 +205,8 @@ class SubCommand(InfuseCommand):
             self._client.connection_create(self._id)
             if self._command.RPC_DATA_SEND:
                 self._run_data_send_cmd()
+            elif self._command.RPC_DATA_RECEIVE:
+                self._run_data_recv_cmd()
             else:
                 self._run_standard_cmd()
         except ConnectionRefusedError:
