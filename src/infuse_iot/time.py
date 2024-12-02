@@ -4,24 +4,21 @@ import datetime
 import enum
 
 
-class InfuseTimeSource(enum.IntEnum):
-    NONE = 0
-    GNSS = 1
-    NTP = 2
-    RPC = 3
-    RECOVERED = 0x80
+class InfuseTimeSource:
+    class base(enum.IntEnum):
+        NONE = 0
+        GNSS = 1
+        NTP = 2
+        RPC = 3
+
+    def __init__(self, value: int):
+        self.recovered: bool = value & 0x80 != 0
+        self.source = self.base(value & 0x7F)
 
     def __str__(self) -> str:
-        postfix = ""
-        v = self.value
-        if v & self.RECOVERED:
-            postfix = " (recovered after reboot)"
-            v ^= self.RECOVERED
-        flags = InfuseTimeSource(v)
-        if flags.name:
-            return flags.name + postfix
-        else:
-            return "Unknown" + postfix
+        postfix = " (recovered after reboot)" if self.recovered else ""
+        base = self.source.name if self.source.name is not None else "Unknown"
+        return base + postfix
 
 
 class InfuseTime:
