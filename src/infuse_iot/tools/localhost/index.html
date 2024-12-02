@@ -52,6 +52,7 @@
         const ws = new WebSocket('ws://localhost:8080/ws');
         let shownTDFs = {};
         let currentTDFs = [];
+        let current_num_columns = 0;
 
         const arraysEqual = (a, b) =>
             a.length === b.length &&
@@ -81,9 +82,14 @@
                 disableData.map(row => [row.name, row.checked])
             );
 
+            // Update column definitions if new TDFs have appeared
+            if (columns.length != current_num_columns) {
+                dataTable.setColumns(columns);
+                current_num_columns = columns.length;
+            }
+
             // Dynamically set the table content
             if (!document.getElementById('update_pause').checked) {
-                dataTable.setColumns(columns);
                 dataTable.setData(rows);
             }
 

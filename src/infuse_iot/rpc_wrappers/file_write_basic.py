@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import binascii
+import os
 
 from rich.progress import (
     DownloadColumn,
@@ -95,7 +96,7 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
         self.progress.stop()
 
         if return_code != 0:
-            print(f"Failed to write file ({return_code})")
+            print(f"Failed to write file ({os.strerror(-return_code)})")
             return
         print("File written")
         print(f"\tLength: {response.recv_len}")
