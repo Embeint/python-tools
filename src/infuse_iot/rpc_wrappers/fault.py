@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 
@@ -65,4 +67,4 @@ class fault(InfuseRpcCommand, defs.fault):
         return self.request(self._fault_type, 0)
 
     def handle_response(self, return_code, _):
-        print(f"Failed to trigger exception ({return_code})")
+        print(f"Failed to trigger exception ({os.strerror(-return_code)})")

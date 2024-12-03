@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 
@@ -21,7 +23,7 @@ class time_set(InfuseRpcCommand, defs.time_set):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to set current time ({return_code})")
+            print(f"Failed to set current time ({os.strerror(-return_code)})")
             return
         else:
             print("Set current time on device")

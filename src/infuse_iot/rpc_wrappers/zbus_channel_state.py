@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import ctypes
+import os
 
 import tabulate
 
@@ -64,7 +65,7 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query channel ({return_code})")
+            print(f"Failed to query channel ({os.strerror(-return_code)})")
             return
 
         from infuse_iot.time import InfuseTime

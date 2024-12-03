@@ -61,7 +61,7 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({return_code})")
+            print(f"Invalid data buffer ({os.strerror(-return_code)})")
             return
 
         def print_status(name, rc):

@@ -2,6 +2,7 @@
 
 import ctypes
 import errno
+import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -59,7 +60,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({errno.errorcode[-return_code]})")
+            print(f"Invalid data buffer ({os.strerror(-return_code)})")
             return
 
         for r in response:
