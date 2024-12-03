@@ -156,6 +156,22 @@ class GatewayRequestConnectionRequest(GatewayRequestConnection):
 
     TYPE = GatewayRequestConnection.Type.CONNECTION_REQUEST
 
+    class DataType(enum.IntFlag):
+        COMMAND = 1
+        DATA = 2
+        LOGGING = 4
+
+    def __init__(self, infuse_id: int, data_types: DataType):
+        super().__init__(infuse_id)
+        self.data_types = data_types
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "data_types": self.data_types}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"], values["data_types"])
+
 
 class GatewayRequestConnectionRelease(GatewayRequestConnection):
     """Release connection context to device"""
@@ -218,11 +234,11 @@ class LocalClient:
             return None
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
-    def connection_create(self, infuse_id: int) -> int:
+    def connection_create(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType) -> int:
         self._connection_id = infuse_id
 
         # Send the request for the connection
-        req = GatewayRequestConnectionRequest(infuse_id)
+        req = GatewayRequestConnectionRequest(infuse_id, data_types)
         self.send(req)
         # Wait for response from the server
         while rsp := self.receive():
