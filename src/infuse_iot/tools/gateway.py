@@ -306,10 +306,18 @@ class SerialTxThread(SignaledThread):
             self._common.server.broadcast(ClientNotificationConnectionFailed(req.infuse_id))
             return
 
+        subs = 0
+        if req.data_types & req.DataType.COMMAND:
+            subs |= defs.rpc_enum_infuse_bt_characteristic.COMMAND
+        if req.data_types & req.DataType.DATA:
+            subs |= defs.rpc_enum_infuse_bt_characteristic.DATA
+        if req.data_types & req.DataType.LOGGING:
+            subs |= defs.rpc_enum_infuse_bt_characteristic.LOGGING
+
         connect_args = defs.bt_connect_infuse.request(
             state.bt_addr.to_rpc_struct(),
             10000,
-            defs.rpc_enum_infuse_bt_characteristic.COMMAND,
+            subs,
             0,
         )
         cmd = self._common.rpc.generate(

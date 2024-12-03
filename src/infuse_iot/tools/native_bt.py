@@ -87,7 +87,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         Console.log_rx(pkt.ptype, len(data))
         self._server.broadcast(ClientNotificationEpacketReceived(pkt))
 
-    async def create_connection(self, infuse_id: int, dev: BLEDevice, queue: asyncio.Queue):
+    async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
         Console.log_info(f"{dev}: Initiating connection")
         async with BleakClient(dev) as client:
             # Modified from bleak example code
@@ -97,18 +97,24 @@ class MulticastHandler(asyncio.DatagramProtocol):
             security_info = await client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR)
             resp = InfuseGattReadResponse.from_buffer_copy(security_info)
             self._db.observe_security_state(
-                infuse_id,
+                request.infuse_id,
                 bytes(resp.cloud_public_key),
                 bytes(resp.device_public_key),
                 resp.network_id,
             )
 
-            await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
+            if request.data_types & request.DataType.COMMAND:
+                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
+            if request.data_types & request.DataType.DATA:
+                await client.start_notify(InfuseBluetoothUUID.DATA_CHAR, self.notification_handler)
+            if request.data_types & request.DataType.LOGGING:
+                await client.start_notify(InfuseBluetoothUUID.LOGGING_CHAR, self.notification_handler)
+
             Console.log_info(f"{dev}: Connected (MTU {client.mtu_size})")
 
             self._server.broadcast(
                 ClientNotificationConnectionCreated(
-                    infuse_id,
+                    request.infuse_id,
                     # ATT header uses 3 bytes of the MTU
                     client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16,
                 )
@@ -122,7 +128,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 pkt: PacketOutput = req.epacket
 
                 # Encrypt payload
-                encr = CtypeBtGattFrame.encrypt(self._db, infuse_id, pkt.ptype, pkt.auth, pkt.payload)
+                encr = CtypeBtGattFrame.encrypt(self._db, request.infuse_id, pkt.ptype, pkt.auth, pkt.payload)
 
                 if pkt.ptype in [InfuseType.RPC_CMD, InfuseType.RPC_DATA]:
                     uuid = InfuseBluetoothUUID.COMMAND_CHAR
@@ -133,7 +139,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 await client.write_gatt_char(uuid, encr, response=False)
 
         # Queue no longer being handled
-        self._queues.pop(infuse_id)
+        self._queues.pop(request.infuse_id)
         Console.log_info(f"{dev}: Terminating connection")
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
@@ -162,7 +168,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         q = asyncio.Queue()
         self._queues[request.infuse_id] = q
         # Create task to handle the connection
-        loop.create_task(self.create_connection(request.infuse_id, ble_dev, q))
+        loop.create_task(self.create_connection(request, ble_dev, q))
 
     def error_received(self, exc):
         Console.log_error(f"Error received: {exc}")

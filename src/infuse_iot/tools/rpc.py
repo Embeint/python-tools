@@ -19,6 +19,7 @@ from infuse_iot.epacket.packet import PacketOutput
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
+    GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
@@ -205,7 +206,9 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         try:
-            self._max_payload = self._client.connection_create(self._id)
+            self._max_payload = self._client.connection_create(
+                self._id, GatewayRequestConnectionRequest.DataType.COMMAND
+            )
             if self._command.RPC_DATA_SEND:
                 self._run_data_send_cmd()
             elif self._command.RPC_DATA_RECEIVE:
