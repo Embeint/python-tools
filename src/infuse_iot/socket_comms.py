@@ -218,7 +218,7 @@ class LocalClient:
             return None
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
-    def connection_create(self, infuse_id: int):
+    def connection_create(self, infuse_id: int) -> int:
         self._connection_id = infuse_id
 
         # Send the request for the connection
@@ -227,9 +227,10 @@ class LocalClient:
         # Wait for response from the server
         while rsp := self.receive():
             if isinstance(rsp, ClientNotificationConnectionCreated):
-                break
+                return rsp.max_payload
             elif isinstance(rsp, ClientNotificationConnectionFailed):
                 raise ConnectionRefusedError
+        raise ConnectionRefusedError
 
     def connection_release(self):
         assert self._connection_id is not None
