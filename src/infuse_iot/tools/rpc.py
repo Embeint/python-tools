@@ -57,6 +57,7 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 10.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
+        self._max_payload = 0
         if args.gateway:
             self._id = InfuseID.GATEWAY
         else:
@@ -114,10 +115,12 @@ class SubCommand(InfuseCommand):
         # Wait for initial ACK
         self._wait_data_ack()
 
-        # Send data payloads (384 byte chunks for now)
+        # Send data payloads with maximum interface size
         ack_cnt = -ack_period
         offset = 0
-        size = 192
+        size = self._max_payload - ctypes.sizeof(rpc.DataHeader)
+        # Round payload down to multiple of 4 bytes
+        size -= size % 4
         while len(data) > 0:
             size = min(size, len(data))
             payload = data[:size]
@@ -202,7 +205,7 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         try:
-            self._client.connection_create(self._id)
+            self._max_payload = self._client.connection_create(self._id)
             if self._command.RPC_DATA_SEND:
                 self._run_data_send_cmd()
             elif self._command.RPC_DATA_RECEIVE:
