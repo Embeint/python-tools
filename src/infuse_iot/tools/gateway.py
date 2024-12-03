@@ -29,6 +29,7 @@ from infuse_iot.database import (
 )
 from infuse_iot.epacket.packet import (
     Auth,
+    CtypeBtGattFrame,
     HopOutput,
     PacketOutputRouted,
     PacketReceived,
@@ -289,7 +290,7 @@ class SerialTxThread(SignaledThread):
         if rc < 0:
             rsp = ClientNotificationConnectionFailed(infuse_id)
         else:
-            rsp = ClientNotificationConnectionCreated(infuse_id)
+            rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.server.broadcast(rsp)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
@@ -297,7 +298,7 @@ class SerialTxThread(SignaledThread):
 
         if req.infuse_id == InfuseID.GATEWAY:
             # Local gateway always connected
-            self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id))
+            self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512))
             return
 
         state = self._common.ddb.devices.get(req.infuse_id, None)

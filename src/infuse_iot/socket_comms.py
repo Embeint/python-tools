@@ -81,6 +81,17 @@ class ClientNotificationConnectionCreated(ClientNotificationConnection):
 
     TYPE = ClientNotificationConnection.Type.CONNECTION_CREATED
 
+    def __init__(self, infuse_id: int, max_payload: int):
+        super().__init__(infuse_id)
+        self.max_payload = max_payload
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "max_payload": self.max_payload}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"], values["max_payload"])
+
 
 class ClientNotificationConnectionDropped(ClientNotificationConnection):
     """Connection to device has been lost"""

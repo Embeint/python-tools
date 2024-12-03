@@ -92,7 +92,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         async with BleakClient(dev) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
-                await client._backend._acquire_mtu() # type: ignore
+                await client._backend._acquire_mtu()  # type: ignore
 
             security_info = await client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR)
             resp = InfuseGattReadResponse.from_buffer_copy(security_info)
@@ -109,6 +109,8 @@ class MulticastHandler(asyncio.DatagramProtocol):
             self._server.broadcast(
                 ClientNotificationConnectionCreated(
                     infuse_id,
+                    # ATT header uses 3 bytes of the MTU
+                    client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16,
                 )
             )
 
