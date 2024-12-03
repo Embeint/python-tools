@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import ctypes
-import errno
+import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -27,7 +27,7 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to run command ({errno.errorcode[-return_code]})")
+            print(f"Failed to run command ({os.strerror(-return_code)})")
             return
         decoded = response.rsp.decode("utf-8").strip()
 

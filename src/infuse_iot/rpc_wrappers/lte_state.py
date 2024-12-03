@@ -2,6 +2,7 @@
 
 import ctypes
 import ipaddress
+import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -81,7 +82,7 @@ class lte_state(InfuseRpcCommand, defs.lte_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({return_code})")
+            print(f"Failed to query current time ({os.strerror(-return_code)})")
             return
 
         common = response.common

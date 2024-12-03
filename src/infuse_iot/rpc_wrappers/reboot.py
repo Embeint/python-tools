@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 
@@ -19,4 +21,4 @@ class reboot(InfuseRpcCommand, defs.reboot):
         if return_code == 0:
             print(f"Rebooting in {response.delay_ms} ms")
         else:
-            print(f"Failed to trigger reboot ({return_code})")
+            print(f"Failed to trigger reboot ({os.strerror(-return_code)})")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import ctypes
+import os
 import random
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -83,7 +84,7 @@ class security_state(InfuseRpcCommand, defs.security_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({return_code})")
+            print(f"Failed to query current time ({os.strerror(-return_code)})")
             return
 
         # Decrypt identity information

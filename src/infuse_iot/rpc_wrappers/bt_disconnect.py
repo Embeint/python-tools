@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -39,7 +40,7 @@ class bt_disconnect(InfuseRpcCommand, defs.bt_disconnect):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to disconnect ({return_code})")
+            print(f"Failed to disconnect ({os.strerror(-return_code)})")
             return
         else:
             print("Disconnected")
