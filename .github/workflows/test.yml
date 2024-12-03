@@ -15,9 +15,9 @@ jobs:
       max-parallel: 2
       fail-fast: true
       matrix:
-        # Python version first means we'll test all the versions on Ubuntu first
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        # Test the extreme Python versions for now to reduce CI runtime
         os: [ubuntu-latest, windows-latest]
+        python-version: ['3.10', '3.13']
     steps:
       - uses: actions/checkout@v4
         # This is enough to find many quoting issues
