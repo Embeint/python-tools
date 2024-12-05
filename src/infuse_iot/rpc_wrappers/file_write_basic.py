@@ -46,7 +46,7 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
             dest="action",
             action="store_const",
             const=rpc_enum_file_action.APP_CPATCH,
-            help="Write complete image file and perform DFU",
+            help="Write diff image file and perform DFU",
         )
         group.add_argument(
             "--bt-ctlr-dfu",
@@ -54,6 +54,13 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
             action="store_const",
             const=rpc_enum_file_action.BT_CTLR_IMG,
             help="Write Bluetooth controller image file and perform DFU",
+        )
+        group.add_argument(
+            "--bt-ctlr-cpatch",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.BT_CTLR_CPATCH,
+            help="Write Bluetooth controller diff file and perform DFU",
         )
         group.add_argument(
             "--nrf91-modem",
