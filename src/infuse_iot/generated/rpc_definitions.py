@@ -152,6 +152,7 @@ class rpc_enum_file_action(enum.IntEnum):
     APP_IMG = 1
     BT_CTLR_IMG = 2
     APP_CPATCH = 11
+    BT_CTLR_CPATCH = 12
     NRF91_MODEM_DIFF = 20
 
 
@@ -205,7 +206,8 @@ class fault:
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
 
@@ -217,7 +219,8 @@ class time_get:
     COMMAND_ID = 3
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -243,7 +246,8 @@ class time_set:
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
 
@@ -342,7 +346,8 @@ class application_info:
     COMMAND_ID = 9
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -367,7 +372,8 @@ class wifi_scan:
     COMMAND_ID = 10
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -386,7 +392,8 @@ class wifi_state:
     COMMAND_ID = 11
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -405,7 +412,8 @@ class last_reboot:
     COMMAND_ID = 12
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -502,7 +510,8 @@ class lte_state:
     COMMAND_ID = 21
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -602,7 +611,8 @@ class bt_disconnect:
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
 
@@ -638,11 +648,13 @@ class data_sender:
     COMMAND_ID = 32765
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
 
@@ -654,7 +666,8 @@ class data_receiver:
     COMMAND_ID = 32766
 
     class request(ctypes.LittleEndianStructure):
-        _fields_ = []
+        _fields_ = [
+        ]
         _pack_ = 1
 
     class response(ctypes.LittleEndianStructure):
@@ -683,3 +696,4 @@ class echo:
             ("array", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+
