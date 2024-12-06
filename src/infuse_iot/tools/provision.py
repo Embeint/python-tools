@@ -17,13 +17,12 @@ except NotImplementedError:
 from pynrfjprog import LowLevel, Parameters
 
 from infuse_iot.api_client import Client
-from infuse_iot.api_client.api.default import (
+from infuse_iot.api_client.api.board import get_board_by_id, get_boards
+from infuse_iot.api_client.api.device import (
     create_device,
-    get_all_organisations,
-    get_board_by_id,
-    get_boards,
     get_device_by_soc_and_mcu_id,
 )
+from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Board, Error, NewDevice, NewDeviceMetadata
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
@@ -180,7 +179,7 @@ class SubCommand(InfuseCommand):
             soc, uicr_addr, hardware_id = self.nrf_device_info(api)
             hardware_id_str = f"{hardware_id:016x}"
 
-            client = Client(base_url="https://api.dev.infuse-iot.com").with_headers(
+            client = Client(base_url="https://api.infuse-iot.com").with_headers(
                 {"x-api-key": f"Bearer {get_api_key()}"}
             )
 

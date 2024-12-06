@@ -12,11 +12,13 @@ from json import loads
 from tabulate import tabulate
 
 from infuse_iot.api_client import Client
-from infuse_iot.api_client.api.default import (
+from infuse_iot.api_client.api.board import (
     create_board,
+    get_boards,
+)
+from infuse_iot.api_client.api.organisation import (
     create_organisation,
     get_all_organisations,
-    get_boards,
 )
 from infuse_iot.api_client.models import Error, NewBoard, NewOrganisation
 from infuse_iot.commands import InfuseCommand
@@ -32,7 +34,7 @@ class CloudSubCommand:
 
     def client(self):
         """Get API client object ready to use"""
-        return Client(base_url="https://api.dev.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+        return Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
 
 
 class Organisations(CloudSubCommand):

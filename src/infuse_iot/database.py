@@ -4,7 +4,7 @@ import base64
 import binascii
 
 from infuse_iot.api_client import Client
-from infuse_iot.api_client.api.default import get_shared_secret
+from infuse_iot.api_client.api.key import get_shared_secret
 from infuse_iot.api_client.models import Key
 from infuse_iot.credentials import get_api_key, load_network
 from infuse_iot.epacket.interface import Address as InterfaceAddress
@@ -98,9 +98,7 @@ class DeviceDatabase:
         self.devices[address].network_id = network_id
         self.devices[address].public_key = device_key
 
-        client = Client(base_url="https://api.dev.infuse-iot.com").with_headers(
-            {"x-api-key": f"Bearer {get_api_key()}"}
-        )
+        client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
 
         with client as client:
             body = Key(base64.b64encode(device_key).decode("utf-8"))
