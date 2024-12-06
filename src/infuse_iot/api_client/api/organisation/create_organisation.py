@@ -5,31 +5,41 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.new_organisation import NewOrganisation
 from ...models.organisation import Organisation
 from ...types import Response
 
 
 def _get_kwargs(
-    id: str,
+    *,
+    body: NewOrganisation,
 ) -> Dict[str, Any]:
+    headers: Dict[str, Any] = {}
+
     _kwargs: Dict[str, Any] = {
-        "method": "get",
-        "url": f"/organisation/id/{id}",
+        "method": "post",
+        "url": "/organisation",
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
 ) -> Optional[Union[Any, Organisation]]:
-    if response.status_code == HTTPStatus.OK:
-        response_200 = Organisation.from_dict(response.json())
+    if response.status_code == 201:
+        response_201 = Organisation.from_dict(response.json())
 
-        return response_200
-    if response.status_code == HTTPStatus.NOT_FOUND:
-        response_404 = cast(Any, None)
-        return response_404
+        return response_201
+    if response.status_code == 409:
+        response_409 = cast(Any, None)
+        return response_409
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -48,14 +58,14 @@ def _build_response(
 
 
 def sync_detailed(
-    id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewOrganisation,
 ) -> Response[Union[Any, Organisation]]:
-    """Get an organisation by ID
+    """Create a new organisation
 
     Args:
-        id (str):
+        body (NewOrganisation):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -66,7 +76,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -77,14 +87,14 @@ def sync_detailed(
 
 
 def sync(
-    id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewOrganisation,
 ) -> Optional[Union[Any, Organisation]]:
-    """Get an organisation by ID
+    """Create a new organisation
 
     Args:
-        id (str):
+        body (NewOrganisation):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -95,20 +105,20 @@ def sync(
     """
 
     return sync_detailed(
-        id=id,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewOrganisation,
 ) -> Response[Union[Any, Organisation]]:
-    """Get an organisation by ID
+    """Create a new organisation
 
     Args:
-        id (str):
+        body (NewOrganisation):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -119,7 +129,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        id=id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -128,14 +138,14 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewOrganisation,
 ) -> Optional[Union[Any, Organisation]]:
-    """Get an organisation by ID
+    """Create a new organisation
 
     Args:
-        id (str):
+        body (NewOrganisation):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -147,7 +157,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            id=id,
             client=client,
+            body=body,
         )
     ).parsed

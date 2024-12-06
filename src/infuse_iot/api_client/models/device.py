@@ -1,5 +1,6 @@
 import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -18,29 +19,29 @@ T = TypeVar("T", bound="Device")
 class Device:
     """
     Attributes:
-        id (str): Generated UUID for organisation
+        id (UUID): Generated UUID for organisation
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
         mcu_id (str): Device's MCU ID as a hex string Example: 0011223344556677.
-        board_id (str): ID of board of device
-        organisation_id (str): ID of organisation for board to exist in
+        board_id (UUID): ID of board of device
+        organisation_id (UUID): ID of organisation for board to exist in
         device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
         metadata (Union[Unset, NewDeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
     """
 
-    id: str
+    id: UUID
     created_at: datetime.datetime
     updated_at: datetime.datetime
     mcu_id: str
-    board_id: str
-    organisation_id: str
+    board_id: UUID
+    organisation_id: UUID
     device_id: Union[Unset, str] = UNSET
     metadata: Union[Unset, "NewDeviceMetadata"] = UNSET
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        id = self.id
+        id = str(self.id)
 
         created_at = self.created_at.isoformat()
 
@@ -48,9 +49,9 @@ class Device:
 
         mcu_id = self.mcu_id
 
-        board_id = self.board_id
+        board_id = str(self.board_id)
 
-        organisation_id = self.organisation_id
+        organisation_id = str(self.organisation_id)
 
         device_id = self.device_id
 
@@ -82,7 +83,7 @@ class Device:
         from ..models.new_device_metadata import NewDeviceMetadata
 
         d = src_dict.copy()
-        id = d.pop("id")
+        id = UUID(d.pop("id"))
 
         created_at = isoparse(d.pop("createdAt"))
 
@@ -90,9 +91,9 @@ class Device:
 
         mcu_id = d.pop("mcuId")
 
-        board_id = d.pop("boardId")
+        board_id = UUID(d.pop("boardId"))
 
-        organisation_id = d.pop("organisationId")
+        organisation_id = UUID(d.pop("organisationId"))
 
         device_id = d.pop("deviceId", UNSET)
 

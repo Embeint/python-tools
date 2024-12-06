@@ -1,42 +1,29 @@
-import datetime
 from typing import Any, Dict, List, Type, TypeVar
-from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="CreatedBoardProperties")
+T = TypeVar("T", bound="UdpDownlinkRoute")
 
 
 @_attrs_define
-class CreatedBoardProperties:
+class UdpDownlinkRoute:
     """
     Attributes:
-        id (UUID): Generated UUID for board
-        created_at (datetime.datetime):
-        updated_at (datetime.datetime):
+        address (str): UDP address of device
     """
 
-    id: UUID
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    address: str
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        id = str(self.id)
-
-        created_at = self.created_at.isoformat()
-
-        updated_at = self.updated_at.isoformat()
+        address = self.address
 
         field_dict: Dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
-                "createdAt": created_at,
-                "updatedAt": updated_at,
+                "address": address,
             }
         )
 
@@ -45,20 +32,14 @@ class CreatedBoardProperties:
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
         d = src_dict.copy()
-        id = UUID(d.pop("id"))
+        address = d.pop("address")
 
-        created_at = isoparse(d.pop("createdAt"))
-
-        updated_at = isoparse(d.pop("updatedAt"))
-
-        created_board_properties = cls(
-            id=id,
-            created_at=created_at,
-            updated_at=updated_at,
+        udp_downlink_route = cls(
+            address=address,
         )
 
-        created_board_properties.additional_properties = d
-        return created_board_properties
+        udp_downlink_route.additional_properties = d
+        return udp_downlink_route
 
     @property
     def additional_keys(self) -> List[str]:

@@ -1,42 +1,45 @@
-import datetime
 from typing import Any, Dict, List, Type, TypeVar
-from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="CreatedBoardProperties")
+T = TypeVar("T", bound="ApplicationVersion")
 
 
 @_attrs_define
-class CreatedBoardProperties:
-    """
+class ApplicationVersion:
+    """Application version
+
     Attributes:
-        id (UUID): Generated UUID for board
-        created_at (datetime.datetime):
-        updated_at (datetime.datetime):
+        major (int): Major version number
+        minor (int): Minor version number
+        revision (int): Revision number
+        build_num (int): Build number
     """
 
-    id: UUID
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    major: int
+    minor: int
+    revision: int
+    build_num: int
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        id = str(self.id)
+        major = self.major
 
-        created_at = self.created_at.isoformat()
+        minor = self.minor
 
-        updated_at = self.updated_at.isoformat()
+        revision = self.revision
+
+        build_num = self.build_num
 
         field_dict: Dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
-                "createdAt": created_at,
-                "updatedAt": updated_at,
+                "major": major,
+                "minor": minor,
+                "revision": revision,
+                "buildNum": build_num,
             }
         )
 
@@ -45,20 +48,23 @@ class CreatedBoardProperties:
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
         d = src_dict.copy()
-        id = UUID(d.pop("id"))
+        major = d.pop("major")
 
-        created_at = isoparse(d.pop("createdAt"))
+        minor = d.pop("minor")
 
-        updated_at = isoparse(d.pop("updatedAt"))
+        revision = d.pop("revision")
 
-        created_board_properties = cls(
-            id=id,
-            created_at=created_at,
-            updated_at=updated_at,
+        build_num = d.pop("buildNum")
+
+        application_version = cls(
+            major=major,
+            minor=minor,
+            revision=revision,
+            build_num=build_num,
         )
 
-        created_board_properties.additional_properties = d
-        return created_board_properties
+        application_version.additional_properties = d
+        return application_version
 
     @property
     def additional_keys(self) -> List[str]:

@@ -1,5 +1,6 @@
 import datetime
 from typing import Any, Dict, List, Type, TypeVar
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -12,20 +13,20 @@ T = TypeVar("T", bound="Organisation")
 class Organisation:
     """
     Attributes:
-        id (str): Generated UUID for organisation
+        id (UUID): Generated UUID for organisation
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
         name (str): Name of organisation Example: Organisation Name.
     """
 
-    id: str
+    id: UUID
     created_at: datetime.datetime
     updated_at: datetime.datetime
     name: str
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        id = self.id
+        id = str(self.id)
 
         created_at = self.created_at.isoformat()
 
@@ -49,7 +50,7 @@ class Organisation:
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
         d = src_dict.copy()
-        id = d.pop("id")
+        id = UUID(d.pop("id"))
 
         created_at = isoparse(d.pop("createdAt"))
 

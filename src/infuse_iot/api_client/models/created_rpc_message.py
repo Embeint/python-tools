@@ -6,37 +6,38 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
 
-T = TypeVar("T", bound="CreatedBoardProperties")
+T = TypeVar("T", bound="CreatedRpcMessage")
 
 
 @_attrs_define
-class CreatedBoardProperties:
+class CreatedRpcMessage:
     """
     Attributes:
-        id (UUID): Generated UUID for board
-        created_at (datetime.datetime):
-        updated_at (datetime.datetime):
+        created_at (datetime.datetime): The time the RPC message was created
+        id (UUID): The ID of the RPC message Example: 5f4b1b2b-3b4d-4b5e-8c6f-7d8e9f0a1b2c.
+        downlink_message_id (UUID): The ID of the corresponding downlink message sent to the device Example:
+            7527bf1c-9868-4afd-b07d-16dc7eb7bed3.
     """
 
-    id: UUID
     created_at: datetime.datetime
-    updated_at: datetime.datetime
+    id: UUID
+    downlink_message_id: UUID
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        id = str(self.id)
-
         created_at = self.created_at.isoformat()
 
-        updated_at = self.updated_at.isoformat()
+        id = str(self.id)
+
+        downlink_message_id = str(self.downlink_message_id)
 
         field_dict: Dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "id": id,
                 "createdAt": created_at,
-                "updatedAt": updated_at,
+                "id": id,
+                "downlinkMessageId": downlink_message_id,
             }
         )
 
@@ -45,20 +46,20 @@ class CreatedBoardProperties:
     @classmethod
     def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
         d = src_dict.copy()
-        id = UUID(d.pop("id"))
-
         created_at = isoparse(d.pop("createdAt"))
 
-        updated_at = isoparse(d.pop("updatedAt"))
+        id = UUID(d.pop("id"))
 
-        created_board_properties = cls(
-            id=id,
+        downlink_message_id = UUID(d.pop("downlinkMessageId"))
+
+        created_rpc_message = cls(
             created_at=created_at,
-            updated_at=updated_at,
+            id=id,
+            downlink_message_id=downlink_message_id,
         )
 
-        created_board_properties.additional_properties = d
-        return created_board_properties
+        created_rpc_message.additional_properties = d
+        return created_rpc_message
 
     @property
     def additional_keys(self) -> List[str]:
