@@ -17,6 +17,9 @@ class last_reboot(InfuseRpcCommand, defs.last_reboot):
     def request_struct(self):
         return self.request()
 
+    def request_json(self):
+        return {}
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to query reboot info ({os.strerror(-return_code)})")

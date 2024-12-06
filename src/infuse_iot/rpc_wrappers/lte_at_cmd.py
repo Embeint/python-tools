@@ -25,6 +25,9 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
     def request_struct(self):
         return self.args.cmd.encode("utf-8") + b"\x00"
 
+    def request_json(self):
+        return {"cmd": self.args.cmd}
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to run command ({os.strerror(-return_code)})")

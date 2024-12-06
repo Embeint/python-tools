@@ -63,6 +63,9 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
     def request_struct(self):
         return self.request(self._channel.id)
 
+    def request_json(self):
+        return {"channel_id": str(self._channel.id)}
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to query channel ({os.strerror(-return_code)})")

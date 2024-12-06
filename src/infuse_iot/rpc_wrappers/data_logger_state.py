@@ -24,6 +24,9 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
     def request_struct(self):
         return self.request(self.logger)
 
+    def request_json(self):
+        return {"logger": str(self.logger.value)}
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to query current time ({os.strerror(-return_code)})")
