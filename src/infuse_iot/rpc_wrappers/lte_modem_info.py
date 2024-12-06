@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
-import ctypes
+# import ctypes
+import argparse
 import os
-
-import infuse_iot.generated.rpc_definitions as defs
-from infuse_iot.commands import InfuseRpcCommand
 
 from . import kv_read, lte_pdp_ctx
 
 
-class lte_modem_info(InfuseRpcCommand, defs.kv_read):
+class lte_modem_info(kv_read.kv_read):
     HELP = "Get LTE modem information"
     DESCRIPTION = "Get LTE modem information"
 
@@ -23,12 +21,8 @@ class lte_modem_info(InfuseRpcCommand, defs.kv_read):
     def add_parser(cls, parser):
         return
 
-    def __init__(self, args):
-        self.keys = [40, 41, 42, 43, 44, 45]
-
-    def request_struct(self):
-        keys = (ctypes.c_uint16 * len(self.keys))(*self.keys)
-        return bytes(self.request(len(self.keys))) + bytes(keys)
+    def __init__(self, _args):
+        super().__init__(argparse.Namespace(keys=[40, 41, 42, 43, 44, 45]))
 
     def handle_response(self, return_code, response):
         if return_code != 0:

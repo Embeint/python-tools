@@ -58,6 +58,9 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
         keys = (ctypes.c_uint16 * len(self.keys))(*self.keys)
         return bytes(self.request(len(self.keys))) + bytes(keys)
 
+    def request_json(self):
+        return {"num": str(len(self.keys)), "keys": [str(k) for k in self.keys]}
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Invalid data buffer ({os.strerror(-return_code)})")
