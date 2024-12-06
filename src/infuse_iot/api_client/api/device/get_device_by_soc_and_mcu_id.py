@@ -5,41 +5,32 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.new_organisation import NewOrganisation
-from ...models.organisation import Organisation
+from ...models.device import Device
 from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    body: NewOrganisation,
+    soc: str,
+    mcu_id: str,
 ) -> Dict[str, Any]:
-    headers: Dict[str, Any] = {}
-
     _kwargs: Dict[str, Any] = {
-        "method": "post",
-        "url": "/organisation",
+        "method": "get",
+        "url": f"/device/soc/{soc}/mcuId/{mcu_id}",
     }
 
-    _body = body.to_dict()
-
-    _kwargs["json"] = _body
-    headers["Content-Type"] = "application/json"
-
-    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, Organisation]]:
-    if response.status_code == HTTPStatus.CREATED:
-        response_201 = Organisation.from_dict(response.json())
+) -> Optional[Union[Any, Device]]:
+    if response.status_code == 200:
+        response_200 = Device.from_dict(response.json())
 
-        return response_201
-    if response.status_code == HTTPStatus.CONFLICT:
-        response_409 = cast(Any, None)
-        return response_409
+        return response_200
+    if response.status_code == 404:
+        response_404 = cast(Any, None)
+        return response_404
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -48,7 +39,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, Organisation]]:
+) -> Response[Union[Any, Device]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,25 +49,28 @@ def _build_response(
 
 
 def sync_detailed(
+    soc: str,
+    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewOrganisation,
-) -> Response[Union[Any, Organisation]]:
-    """Create a new organisation
+) -> Response[Union[Any, Device]]:
+    """Get a device by SoC and MCU ID
 
     Args:
-        body (NewOrganisation):
+        soc (str):
+        mcu_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, Organisation]]
+        Response[Union[Any, Device]]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        soc=soc,
+        mcu_id=mcu_id,
     )
 
     response = client.get_httpx_client().request(
@@ -87,49 +81,55 @@ def sync_detailed(
 
 
 def sync(
+    soc: str,
+    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewOrganisation,
-) -> Optional[Union[Any, Organisation]]:
-    """Create a new organisation
+) -> Optional[Union[Any, Device]]:
+    """Get a device by SoC and MCU ID
 
     Args:
-        body (NewOrganisation):
+        soc (str):
+        mcu_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, Organisation]
+        Union[Any, Device]
     """
 
     return sync_detailed(
+        soc=soc,
+        mcu_id=mcu_id,
         client=client,
-        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    soc: str,
+    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewOrganisation,
-) -> Response[Union[Any, Organisation]]:
-    """Create a new organisation
+) -> Response[Union[Any, Device]]:
+    """Get a device by SoC and MCU ID
 
     Args:
-        body (NewOrganisation):
+        soc (str):
+        mcu_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, Organisation]]
+        Response[Union[Any, Device]]
     """
 
     kwargs = _get_kwargs(
-        body=body,
+        soc=soc,
+        mcu_id=mcu_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,26 +138,29 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    soc: str,
+    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewOrganisation,
-) -> Optional[Union[Any, Organisation]]:
-    """Create a new organisation
+) -> Optional[Union[Any, Device]]:
+    """Get a device by SoC and MCU ID
 
     Args:
-        body (NewOrganisation):
+        soc (str):
+        mcu_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, Organisation]
+        Union[Any, Device]
     """
 
     return (
         await asyncio_detailed(
+            soc=soc,
+            mcu_id=mcu_id,
             client=client,
-            body=body,
         )
     ).parsed

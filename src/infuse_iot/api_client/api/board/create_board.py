@@ -5,20 +5,20 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.device import Device
-from ...models.new_device import NewDevice
+from ...models.board import Board
+from ...models.new_board import NewBoard
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: NewDevice,
+    body: NewBoard,
 ) -> Dict[str, Any]:
     headers: Dict[str, Any] = {}
 
     _kwargs: Dict[str, Any] = {
         "method": "post",
-        "url": "/device",
+        "url": "/board",
     }
 
     _body = body.to_dict()
@@ -32,15 +32,15 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, Device]]:
-    if response.status_code == HTTPStatus.CREATED:
-        response_201 = Device.from_dict(response.json())
+) -> Optional[Union[Any, Board]]:
+    if response.status_code == 201:
+        response_201 = Board.from_dict(response.json())
 
         return response_201
-    if response.status_code == HTTPStatus.CONFLICT:
+    if response.status_code == 409:
         response_409 = cast(Any, None)
         return response_409
-    if response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY:
+    if response.status_code == 422:
         response_422 = cast(Any, None)
         return response_422
     if client.raise_on_unexpected_status:
@@ -51,7 +51,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, Device]]:
+) -> Response[Union[Any, Board]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -63,19 +63,19 @@ def _build_response(
 def sync_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewDevice,
-) -> Response[Union[Any, Device]]:
-    """Create a new device
+    body: NewBoard,
+) -> Response[Union[Any, Board]]:
+    """Create a new board
 
     Args:
-        body (NewDevice):
+        body (NewBoard):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, Device]]
+        Response[Union[Any, Board]]
     """
 
     kwargs = _get_kwargs(
@@ -92,19 +92,19 @@ def sync_detailed(
 def sync(
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewDevice,
-) -> Optional[Union[Any, Device]]:
-    """Create a new device
+    body: NewBoard,
+) -> Optional[Union[Any, Board]]:
+    """Create a new board
 
     Args:
-        body (NewDevice):
+        body (NewBoard):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, Device]
+        Union[Any, Board]
     """
 
     return sync_detailed(
@@ -116,19 +116,19 @@ def sync(
 async def asyncio_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewDevice,
-) -> Response[Union[Any, Device]]:
-    """Create a new device
+    body: NewBoard,
+) -> Response[Union[Any, Board]]:
+    """Create a new board
 
     Args:
-        body (NewDevice):
+        body (NewBoard):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, Device]]
+        Response[Union[Any, Board]]
     """
 
     kwargs = _get_kwargs(
@@ -143,19 +143,19 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: Union[AuthenticatedClient, Client],
-    body: NewDevice,
-) -> Optional[Union[Any, Device]]:
-    """Create a new device
+    body: NewBoard,
+) -> Optional[Union[Any, Board]]:
+    """Create a new board
 
     Args:
-        body (NewDevice):
+        body (NewBoard):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, Device]
+        Union[Any, Board]
     """
 
     return (

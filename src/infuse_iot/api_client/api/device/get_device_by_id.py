@@ -1,28 +1,21 @@
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device import Device
-from ...types import UNSET, Response
+from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    organisation_id: str,
+    id: UUID,
 ) -> Dict[str, Any]:
-    params: Dict[str, Any] = {}
-
-    params["organisationId"] = organisation_id
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
-
     _kwargs: Dict[str, Any] = {
         "method": "get",
-        "url": "/device",
-        "params": params,
+        "url": f"/device/id/{id}",
     }
 
     return _kwargs
@@ -30,16 +23,14 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[List["Device"]]:
-    if response.status_code == HTTPStatus.OK:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Device.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+) -> Optional[Union[Any, Device]]:
+    if response.status_code == 200:
+        response_200 = Device.from_dict(response.json())
 
         return response_200
+    if response.status_code == 404:
+        response_404 = cast(Any, None)
+        return response_404
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -48,7 +39,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[List["Device"]]:
+) -> Response[Union[Any, Device]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,25 +49,25 @@ def _build_response(
 
 
 def sync_detailed(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-    organisation_id: str,
-) -> Response[List["Device"]]:
-    """Get all devices in an organisation
+) -> Response[Union[Any, Device]]:
+    """Get a device by ID
 
     Args:
-        organisation_id (str):
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[List['Device']]
+        Response[Union[Any, Device]]
     """
 
     kwargs = _get_kwargs(
-        organisation_id=organisation_id,
+        id=id,
     )
 
     response = client.get_httpx_client().request(
@@ -87,49 +78,49 @@ def sync_detailed(
 
 
 def sync(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-    organisation_id: str,
-) -> Optional[List["Device"]]:
-    """Get all devices in an organisation
+) -> Optional[Union[Any, Device]]:
+    """Get a device by ID
 
     Args:
-        organisation_id (str):
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        List['Device']
+        Union[Any, Device]
     """
 
     return sync_detailed(
+        id=id,
         client=client,
-        organisation_id=organisation_id,
     ).parsed
 
 
 async def asyncio_detailed(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-    organisation_id: str,
-) -> Response[List["Device"]]:
-    """Get all devices in an organisation
+) -> Response[Union[Any, Device]]:
+    """Get a device by ID
 
     Args:
-        organisation_id (str):
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[List['Device']]
+        Response[Union[Any, Device]]
     """
 
     kwargs = _get_kwargs(
-        organisation_id=organisation_id,
+        id=id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,26 +129,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-    organisation_id: str,
-) -> Optional[List["Device"]]:
-    """Get all devices in an organisation
+) -> Optional[Union[Any, Device]]:
+    """Get a device by ID
 
     Args:
-        organisation_id (str):
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        List['Device']
+        Union[Any, Device]
     """
 
     return (
         await asyncio_detailed(
+            id=id,
             client=client,
-            organisation_id=organisation_id,
         )
     ).parsed

@@ -5,22 +5,22 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.health_check import HealthCheck
+from ...models.key import Key
 from ...types import Response
 
 
 def _get_kwargs() -> Dict[str, Any]:
     _kwargs: Dict[str, Any] = {
         "method": "get",
-        "url": "/health",
+        "url": "/key/publicKey",
     }
 
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[HealthCheck]:
+def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[Key]:
     if response.status_code == 200:
-        response_200 = HealthCheck.from_dict(response.json())
+        response_200 = Key.from_dict(response.json())
 
         return response_200
     if client.raise_on_unexpected_status:
@@ -29,7 +29,7 @@ def _parse_response(*, client: Union[AuthenticatedClient, Client], response: htt
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[HealthCheck]:
+def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[Key]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -41,15 +41,15 @@ def _build_response(*, client: Union[AuthenticatedClient, Client], response: htt
 def sync_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[HealthCheck]:
-    """Health check endpoint
+) -> Response[Key]:
+    """Get the current public key of the cloud
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[HealthCheck]
+        Response[Key]
     """
 
     kwargs = _get_kwargs()
@@ -64,15 +64,15 @@ def sync_detailed(
 def sync(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[HealthCheck]:
-    """Health check endpoint
+) -> Optional[Key]:
+    """Get the current public key of the cloud
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthCheck
+        Key
     """
 
     return sync_detailed(
@@ -83,15 +83,15 @@ def sync(
 async def asyncio_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[HealthCheck]:
-    """Health check endpoint
+) -> Response[Key]:
+    """Get the current public key of the cloud
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[HealthCheck]
+        Response[Key]
     """
 
     kwargs = _get_kwargs()
@@ -104,15 +104,15 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[HealthCheck]:
-    """Health check endpoint
+) -> Optional[Key]:
+    """Get the current public key of the cloud
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthCheck
+        Key
     """
 
     return (

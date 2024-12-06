@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -19,7 +20,7 @@ class NewBoard:
         name (str): Name of board Example: Board Name.
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
-        organisation_id (str): ID of organisation for board to exist in
+        organisation_id (UUID): ID of organisation for board to exist in
         metadata_fields (Union[Unset, List['MetadataField']]): Metadata fields for board Example: [{'name': 'Field
             Name', 'required': True, 'unique': False}].
     """
@@ -27,7 +28,7 @@ class NewBoard:
     name: str
     description: str
     soc: str
-    organisation_id: str
+    organisation_id: UUID
     metadata_fields: Union[Unset, List["MetadataField"]] = UNSET
     additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -38,7 +39,7 @@ class NewBoard:
 
         soc = self.soc
 
-        organisation_id = self.organisation_id
+        organisation_id = str(self.organisation_id)
 
         metadata_fields: Union[Unset, List[Dict[str, Any]]] = UNSET
         if not isinstance(self.metadata_fields, Unset):
@@ -75,7 +76,7 @@ class NewBoard:
 
         soc = d.pop("soc")
 
-        organisation_id = d.pop("organisationId")
+        organisation_id = UUID(d.pop("organisationId"))
 
         metadata_fields = []
         _metadata_fields = d.pop("metadataFields", UNSET)

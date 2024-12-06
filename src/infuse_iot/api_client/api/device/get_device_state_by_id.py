@@ -1,35 +1,45 @@
 from http import HTTPStatus
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
+from uuid import UUID
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.health_check import HealthCheck
+from ...models.device_state import DeviceState
 from ...types import Response
 
 
-def _get_kwargs() -> Dict[str, Any]:
+def _get_kwargs(
+    id: UUID,
+) -> Dict[str, Any]:
     _kwargs: Dict[str, Any] = {
         "method": "get",
-        "url": "/health",
+        "url": f"/device/id/{id}/state",
     }
 
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[HealthCheck]:
+def _parse_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Optional[Union[Any, DeviceState]]:
     if response.status_code == 200:
-        response_200 = HealthCheck.from_dict(response.json())
+        response_200 = DeviceState.from_dict(response.json())
 
         return response_200
+    if response.status_code == 404:
+        response_404 = cast(Any, None)
+        return response_404
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[HealthCheck]:
+def _build_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Response[Union[Any, DeviceState]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -39,20 +49,26 @@ def _build_response(*, client: Union[AuthenticatedClient, Client], response: htt
 
 
 def sync_detailed(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[HealthCheck]:
-    """Health check endpoint
+) -> Response[Union[Any, DeviceState]]:
+    """Get device state by ID
+
+    Args:
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[HealthCheck]
+        Response[Union[Any, DeviceState]]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        id=id,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -62,39 +78,50 @@ def sync_detailed(
 
 
 def sync(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[HealthCheck]:
-    """Health check endpoint
+) -> Optional[Union[Any, DeviceState]]:
+    """Get device state by ID
+
+    Args:
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthCheck
+        Union[Any, DeviceState]
     """
 
     return sync_detailed(
+        id=id,
         client=client,
     ).parsed
 
 
 async def asyncio_detailed(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Response[HealthCheck]:
-    """Health check endpoint
+) -> Response[Union[Any, DeviceState]]:
+    """Get device state by ID
+
+    Args:
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[HealthCheck]
+        Response[Union[Any, DeviceState]]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        id=id,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -102,21 +129,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    id: UUID,
     *,
     client: Union[AuthenticatedClient, Client],
-) -> Optional[HealthCheck]:
-    """Health check endpoint
+) -> Optional[Union[Any, DeviceState]]:
+    """Get device state by ID
+
+    Args:
+        id (UUID):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        HealthCheck
+        Union[Any, DeviceState]
     """
 
     return (
         await asyncio_detailed(
+            id=id,
             client=client,
         )
     ).parsed

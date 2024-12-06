@@ -6,31 +6,43 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device import Device
+from ...models.new_device import NewDevice
 from ...types import Response
 
 
 def _get_kwargs(
-    soc: str,
-    mcu_id: str,
+    *,
+    body: NewDevice,
 ) -> Dict[str, Any]:
+    headers: Dict[str, Any] = {}
+
     _kwargs: Dict[str, Any] = {
-        "method": "get",
-        "url": f"/device/soc/{soc}/mcuId/{mcu_id}",
+        "method": "post",
+        "url": "/device",
     }
 
+    _body = body.to_dict()
+
+    _kwargs["json"] = _body
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
 ) -> Optional[Union[Any, Device]]:
-    if response.status_code == HTTPStatus.OK:
-        response_200 = Device.from_dict(response.json())
+    if response.status_code == 201:
+        response_201 = Device.from_dict(response.json())
 
-        return response_200
-    if response.status_code == HTTPStatus.NOT_FOUND:
-        response_404 = cast(Any, None)
-        return response_404
+        return response_201
+    if response.status_code == 409:
+        response_409 = cast(Any, None)
+        return response_409
+    if response.status_code == 422:
+        response_422 = cast(Any, None)
+        return response_422
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -49,16 +61,14 @@ def _build_response(
 
 
 def sync_detailed(
-    soc: str,
-    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewDevice,
 ) -> Response[Union[Any, Device]]:
-    """Get a device by SoC and MCU ID
+    """Create a new device
 
     Args:
-        soc (str):
-        mcu_id (str):
+        body (NewDevice):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -69,8 +79,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        soc=soc,
-        mcu_id=mcu_id,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -81,16 +90,14 @@ def sync_detailed(
 
 
 def sync(
-    soc: str,
-    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewDevice,
 ) -> Optional[Union[Any, Device]]:
-    """Get a device by SoC and MCU ID
+    """Create a new device
 
     Args:
-        soc (str):
-        mcu_id (str):
+        body (NewDevice):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -101,23 +108,20 @@ def sync(
     """
 
     return sync_detailed(
-        soc=soc,
-        mcu_id=mcu_id,
         client=client,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
-    soc: str,
-    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewDevice,
 ) -> Response[Union[Any, Device]]:
-    """Get a device by SoC and MCU ID
+    """Create a new device
 
     Args:
-        soc (str):
-        mcu_id (str):
+        body (NewDevice):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,8 +132,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        soc=soc,
-        mcu_id=mcu_id,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -138,16 +141,14 @@ async def asyncio_detailed(
 
 
 async def asyncio(
-    soc: str,
-    mcu_id: str,
     *,
     client: Union[AuthenticatedClient, Client],
+    body: NewDevice,
 ) -> Optional[Union[Any, Device]]:
-    """Get a device by SoC and MCU ID
+    """Create a new device
 
     Args:
-        soc (str):
-        mcu_id (str):
+        body (NewDevice):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,8 +160,7 @@ async def asyncio(
 
     return (
         await asyncio_detailed(
-            soc=soc,
-            mcu_id=mcu_id,
             client=client,
+            body=body,
         )
     ).parsed
