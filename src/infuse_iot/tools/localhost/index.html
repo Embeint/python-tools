@@ -12,6 +12,14 @@
     .tabulator {
         font-family: monospace;
     }
+
+    #tdf-show {
+        vertical-align: top;
+    }
+
+    #app-show {
+        vertical-align: top;
+    }
 </style>
 
 <body>
@@ -21,18 +29,20 @@
     </p>
     <p>
     <h2>Table Control</h2>
-    <div id="tdf-disable"></div>
+    <span id="tdf-show"></span>
+    <span id="app-show"></span>
     <br>
     <input type="checkbox" id="update_pause" name="update_pause" value="pause">
     <label for="update_pause"> Pause table updating</label>
     </p>
 
     <script>
+        let filtering_update = false;
         // Initialize the Tabulator table
         const dataTable = new Tabulator("#data-table", {
             layout: "fitDataTable",
         });
-        const disableTable = new Tabulator("#tdf-disable", {
+        const shownTdfTable = new Tabulator("#tdf-show", {
             layout: "fitDataTable",
             columns: [
                 { title: "TDF", field: "name", width: 200 },
@@ -42,6 +52,23 @@
                     hozAlign: "center",
                     formatter: "tickCross",
                     cellClick: function (ev, cell) {
+                        filtering_update = true;
+                        cell.setValue(!cell.getValue());
+                    },
+                },
+            ]
+        });
+        const shownAppTable = new Tabulator("#app-show", {
+            layout: "fitDataTable",
+            columns: [
+                { title: "Application", field: "name", width: 200 },
+                {
+                    title: "Show",
+                    field: "checked",
+                    hozAlign: "center",
+                    formatter: "tickCross",
+                    cellClick: function (ev, cell) {
+                        filtering_update = true;
                         cell.setValue(!cell.getValue());
                     },
                 },
@@ -53,6 +80,7 @@
         let shownTDFs = {};
         let currentTDFs = [];
         let current_num_columns = 0;
+        let currentApps = [];
 
         const arraysEqual = (a, b) =>
             a.length === b.length &&
@@ -63,7 +91,7 @@
 
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
-                const currentRows = disableTable.getData();
+                const currentRows = shownTdfTable.getData();
                 const updatedData = tdfs.map((str, index) => {
                     const existingRow = currentRows.find(row => row.name === str);
                     return existingRow
@@ -71,43 +99,63 @@
                         : { id: `row-${index}`, name: str, checked: true };
                 });
                 // Update table and refresh the checked state map
-                disableTable.setData(updatedData);
+                shownTdfTable.replaceData(updatedData);
                 shownTDFs = Object.fromEntries(
                     updatedData.map(row => [row.name, row.checked])
                 );
                 currentTDFs = tdfs;
             }
-            const disableData = disableTable.getData();
+            const disableData = shownTdfTable.getData();
             shownTDFs = Object.fromEntries(
                 disableData.map(row => [row.name, row.checked])
             );
+
+            const uniqueApplications = [
+                ...new Set(rows.map(obj => obj.ANNOUNCE?.application).filter(app => app !== undefined).sort())
+            ];
+            if (!arraysEqual(currentApps, uniqueApplications)) {
+                versions = uniqueApplications.map((v, idx) => { return { id: `row-${idx}`, name: v, checked: true }; })
+                shownAppTable.replaceData(versions);
+                currentApps = uniqueApplications
+                filtering_update = true;
+            }
 
             // Update column definitions if new TDFs have appeared
             if (columns.length != current_num_columns) {
                 dataTable.setColumns(columns);
                 current_num_columns = columns.length;
+                filtering_update = true;
             }
 
             // Dynamically set the table content
-            if (!document.getElementById('update_pause').checked) {
-                dataTable.setData(rows);
+            if (current_num_columns > 0) {
+                if (!document.getElementById('update_pause').checked) {
+                    dataTable.replaceData(rows);
+                }
             }
 
-            // Hide columns as requested
-            const tableColumns = dataTable.getColumns();
-            for (col of columns) {
-                if (!(col.title in shownTDFs)) {
-                    continue;
-                }
-                if (shownTDFs[col.title]) {
-                    continue;
-                }
-                tableColumns.forEach(column => {
-                    const field = column.getField();
-                    if (field && field.startsWith(col.title)) {
+            if (filtering_update) {
+                // Hide columns as requested
+                dataTable.getColumns().forEach(column => {
+                    // Split field name into [TDF_NAME, subfields]
+                    const field = column.getField().split('.');
+                    if (shownTDFs[field[0]] ?? true) {
+                        column.show();
+                    } else {
                         column.hide();
                     }
                 });
+
+                // Filter applications as requested
+                appShow = Object.fromEntries(
+                    shownAppTable.getData().map(row => [row.name, row.checked])
+                );
+                enabledApps = currentApps.filter(a => appShow[a]);
+
+                dataTable.clearFilter();
+                dataTable.setFilter("ANNOUNCE.application", "in", enabledApps);
+
+                filtering_update = false;
             }
         };
 
