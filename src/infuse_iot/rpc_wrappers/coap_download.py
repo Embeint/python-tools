@@ -84,6 +84,19 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             self.resource,
         )
 
+    def request_json(self):
+        UINT32_MAX = 2**32 - 1
+
+        return {
+            "server_address": self.server.decode("utf-8"),
+            "server_port": str(self.port),
+            "block_timeout_ms": "2000",
+            "action": self.action.name,
+            "resource_len": str(UINT32_MAX),
+            "resource_crc": str(UINT32_MAX),
+            "resource": self.resource.decode("utf-8"),
+        }
+
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to download file ({os.strerror(-return_code)})")
