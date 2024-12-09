@@ -37,6 +37,7 @@ class SubCommand(InfuseCommand):
         addr_group = parser.add_mutually_exclusive_group(required=True)
         addr_group.add_argument("--gateway", action="store_true", help="Run command on local gateway")
         addr_group.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to run command on")
+        parser.add_argument("--conn-log", action="store_true", help="Request logs from remote device")
         command_list_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
@@ -75,7 +76,15 @@ class SubCommand(InfuseCommand):
         self._command.handle_response(rsp_header.return_code, rsp_data)
 
     def _client_recv(self) -> ClientNotification | None:
-        return self._client.receive()
+        rsp = self._client.receive()
+        if (
+            rsp
+            and self._args.conn_log
+            and isinstance(rsp, ClientNotificationEpacketReceived)
+            and rsp.epacket.ptype == InfuseType.SERIAL_LOG
+        ):
+            print(rsp.epacket.payload.decode("utf-8"), end="")
+        return rsp
 
     def _wait_data_ack(self) -> PacketReceived:
         while True:
@@ -228,15 +237,21 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         try:
-            self._max_payload = self._client.connection_create(
-                self._id, GatewayRequestConnectionRequest.DataType.COMMAND
-            )
+            types = GatewayRequestConnectionRequest.DataType.COMMAND
+            if self._args.conn_log:
+                types |= GatewayRequestConnectionRequest.DataType.LOGGING
+            self._max_payload = self._client.connection_create(self._id, types)
             if self._command.RPC_DATA_SEND:
                 self._run_data_send_cmd()
             elif self._command.RPC_DATA_RECEIVE:
                 self._run_data_recv_cmd()
             else:
                 self._run_standard_cmd()
+
+            if self._args.conn_log:
+                while True:
+                    self._client_recv()
+
         except ConnectionRefusedError:
             print(f"Unable to connect to {self._id:016x}")
         finally:
