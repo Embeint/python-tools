@@ -25,7 +25,7 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
         return self.request(self.logger)
 
     def request_json(self):
-        return {"logger": str(self.logger.value)}
+        return {"logger": self.logger.name}
 
     def handle_response(self, return_code, response):
         if return_code != 0:
