@@ -15,7 +15,7 @@ import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot import rpc
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.common import InfuseID, InfuseType
-from infuse_iot.epacket.packet import PacketOutput
+from infuse_iot.epacket.packet import PacketOutput, PacketReceived
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
@@ -64,21 +64,40 @@ class SubCommand(InfuseCommand):
         else:
             self._id = args.id
 
-    def _wait_data_ack(self):
-        while rsp := self._client.receive():
+    def _finalise_command(self, rpc_rsp: PacketReceived):
+        # Convert response bytes back to struct form
+        rsp_header = rpc.ResponseHeader.from_buffer_copy(rpc_rsp.payload)
+        rsp_payload = rpc_rsp.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+        rsp_data = self._command.response.from_buffer_copy(rsp_payload)  # type: ignore
+        # Handle the response
+        print(f"INFUSE ID: {rpc_rsp.route[0].infuse_id:016x}")
+        self._command.handle_response(rsp_header.return_code, rsp_data)
+
+    def _wait_data_ack(self) -> PacketReceived:
+        while True:
+            rsp = self._client.receive()
+            if rsp is None:
+                continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
-            if rsp.epacket.ptype != InfuseType.RPC_DATA_ACK:
+            if rsp.epacket.ptype == InfuseType.RPC_RSP:
+                rsp_header = rpc.ResponseHeader.from_buffer_copy(rsp.epacket.payload)
+                if rsp_header.request_id == self._request_id:
+                    return rsp.epacket
+            elif rsp.epacket.ptype != InfuseType.RPC_DATA_ACK:
                 continue
             data_ack = rpc.DataAck.from_buffer_copy(rsp.epacket.payload)
             # Response to the request we sent
             if data_ack.request_id != self._request_id:
                 continue
-            break
+            return rsp.epacket
 
-    def _wait_rpc_rsp(self):
+    def _wait_rpc_rsp(self) -> PacketReceived:
         # Wait for responses
-        while rsp := self._client.receive():
+        while True:
+            rsp = self._client.receive()
+            if rsp is None:
+                continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
             # RPC response packet
@@ -88,13 +107,7 @@ class SubCommand(InfuseCommand):
             # Response to the request we sent
             if rsp_header.request_id != self._request_id:
                 continue
-            # Convert response bytes back to struct form
-            rsp_payload = rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
-            rsp_data = self._command.response.from_buffer_copy(rsp_payload)  # type: ignore
-            # Handle the response
-            print(f"INFUSE ID: {rsp.epacket.route[0].infuse_id:016x}")
-            self._command.handle_response(rsp_header.return_code, rsp_data)
-            break
+            return rsp.epacket
 
     def _run_data_send_cmd(self):
         ack_period = 1
@@ -114,7 +127,10 @@ class SubCommand(InfuseCommand):
         self._client.send(req)
 
         # Wait for initial ACK
-        self._wait_data_ack()
+        recv = self._wait_data_ack()
+        if recv.ptype == InfuseType.RPC_RSP:
+            self._finalise_command(recv)
+            return
 
         # Send data payloads with maximum interface size
         ack_cnt = -ack_period
@@ -146,7 +162,8 @@ class SubCommand(InfuseCommand):
             data = data[size:]
             self._command.data_progress_cb(offset)
 
-        self._wait_rpc_rsp()
+        recv = self._wait_rpc_rsp()
+        self._finalise_command(recv)
 
     def _run_data_recv_cmd(self):
         header = rpc.RequestHeader(self._request_id, self._command.COMMAND_ID)  # type: ignore
@@ -202,7 +219,8 @@ class SubCommand(InfuseCommand):
         )
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
-        self._wait_rpc_rsp()
+        recv = self._wait_rpc_rsp()
+        self._finalise_command(recv)
 
     def run(self):
         try:
