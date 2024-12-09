@@ -17,6 +17,7 @@ from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import PacketOutput, PacketReceived
 from infuse_iot.socket_comms import (
+    ClientNotification,
     ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRequest,
@@ -73,9 +74,12 @@ class SubCommand(InfuseCommand):
         print(f"INFUSE ID: {rpc_rsp.route[0].infuse_id:016x}")
         self._command.handle_response(rsp_header.return_code, rsp_data)
 
+    def _client_recv(self) -> ClientNotification | None:
+        return self._client.receive()
+
     def _wait_data_ack(self) -> PacketReceived:
         while True:
-            rsp = self._client.receive()
+            rsp = self._client_recv()
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
@@ -95,7 +99,7 @@ class SubCommand(InfuseCommand):
     def _wait_rpc_rsp(self) -> PacketReceived:
         # Wait for responses
         while True:
-            rsp = self._client.receive()
+            rsp = self._client_recv()
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
@@ -180,7 +184,7 @@ class SubCommand(InfuseCommand):
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
 
-        while rsp := self._client.receive():
+        while rsp := self._client_recv():
             if isinstance(rsp, ClientNotificationConnectionDropped):
                 break
             if not isinstance(rsp, ClientNotificationEpacketReceived):
