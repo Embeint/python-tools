@@ -31,7 +31,7 @@ class SubCommand(InfuseCommand):
         subparser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         parser_queue = subparser.add_parser("queue", help="Queue a RPC to be sent")
-        parser_queue.set_defaults(action="queue")
+        parser_queue.set_defaults(_tool_action="queue")
         parser_queue.add_argument("--id", required=True, type=lambda x: int(x, 0), help="Infuse ID to run command on")
         parser_queue.add_argument("--timeout", type=int, default=600, help="Timeout to send command in seconds")
         command_list_parser = parser_queue.add_subparsers(title="commands", metavar="<command>", required=True)
@@ -52,7 +52,7 @@ class SubCommand(InfuseCommand):
             cmd_cls.add_parser(cmd_parser)
 
         parser_query = subparser.add_parser("query", help="Query the state of a previously queued RPC")
-        parser_query.set_defaults(action="query")
+        parser_query.set_defaults(_tool_action="query")
         parser_query.add_argument("--id", required=True, type=str, help="RPC ID from `infuse rpc_cloud queue`")
 
     def __init__(self, args: argparse.Namespace):
@@ -92,7 +92,9 @@ class SubCommand(InfuseCommand):
         with Client(base_url="https://api.infuse-iot.com").with_headers(
             {"x-api-key": f"Bearer {get_api_key()}"}
         ) as client:
-            if self._args.action == "queue":
+            if self._args._tool_action == "queue":
                 self.queue(client)
-            elif self._args.action == "query":
+            elif self._args._tool_action == "query":
                 self.query(client)
+            else:
+                raise NotImplementedError(f"Unknown action {self._args._tool_action}")
