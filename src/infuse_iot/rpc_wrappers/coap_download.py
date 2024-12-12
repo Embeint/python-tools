@@ -46,6 +46,13 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             help="Download complete image file and perform DFU",
         )
         group.add_argument(
+            "--cpatch",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.APP_CPATCH,
+            help="Download CPatch binary diff and perform DFU",
+        )
+        group.add_argument(
             "--nrf91-modem",
             dest="action",
             action="store_const",
