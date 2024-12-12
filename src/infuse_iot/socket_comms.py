@@ -4,6 +4,7 @@ import enum
 import json
 import socket
 import struct
+from contextlib import contextmanager
 from typing import cast
 
 from typing_extensions import Self
@@ -256,6 +257,13 @@ class LocalClient:
         )
         self.send(req)
         self._connection_id = None
+
+    @contextmanager
+    def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType):
+        try:
+            yield self.connection_create(infuse_id, data_types)
+        finally:
+            self.connection_release()
 
     def close(self):
         # Cleanup any lingering connection context
