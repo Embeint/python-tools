@@ -733,7 +733,7 @@ class readings:
         }
 
     class algorithm_output(TdfReadingBase):
-        """Generic activity metric"""
+        """Instantaneous algorithm output"""
 
         name = "ALGORITHM_OUTPUT"
         _fields_ = [
@@ -861,6 +861,48 @@ class readings:
             "throughput": "{}",
         }
 
+    class algorithm_class_histogram(TdfReadingBase):
+        """Algorithm output class histogram over a time window"""
+
+        name = "ALGORITHM_CLASS_HISTOGRAM"
+        _fields_ = [
+            ("algorithm_id", ctypes.c_uint32),
+            ("algorithm_version", ctypes.c_uint16),
+            ("classes", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "algorithm_id": "",
+            "algorithm_version": "",
+            "classes": "",
+        }
+        _display_fmt_ = {
+            "algorithm_id": "0x{:08x}",
+            "algorithm_version": "{}",
+            "classes": "{}",
+        }
+
+    class algorithm_class_time_series(TdfReadingBase):
+        """Algorithm output class time series vector"""
+
+        name = "ALGORITHM_CLASS_TIME_SERIES"
+        _fields_ = [
+            ("algorithm_id", ctypes.c_uint32),
+            ("algorithm_version", ctypes.c_uint16),
+            ("values", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "algorithm_id": "",
+            "algorithm_version": "",
+            "values": "",
+        }
+        _display_fmt_ = {
+            "algorithm_id": "0x{:08x}",
+            "algorithm_version": "{}",
+            "values": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -906,5 +948,7 @@ id_type_mapping: dict[int, TdfReadingBase] = {
     29: readings.bluetooth_connection,
     30: readings.bluetooth_rssi,
     31: readings.bluetooth_data_throughput,
+    32: readings.algorithm_class_histogram,
+    33: readings.algorithm_class_time_series,
     100: readings.array_type,
 }
