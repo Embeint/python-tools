@@ -240,19 +240,17 @@ class SubCommand(InfuseCommand):
             types = GatewayRequestConnectionRequest.DataType.COMMAND
             if self._args.conn_log:
                 types |= GatewayRequestConnectionRequest.DataType.LOGGING
-            self._max_payload = self._client.connection_create(self._id, types)
-            if self._command.RPC_DATA_SEND:
-                self._run_data_send_cmd()
-            elif self._command.RPC_DATA_RECEIVE:
-                self._run_data_recv_cmd()
-            else:
-                self._run_standard_cmd()
+            with self._client.connection(self._id, types) as mtu:
+                self._max_payload = mtu
+                if self._command.RPC_DATA_SEND:
+                    self._run_data_send_cmd()
+                elif self._command.RPC_DATA_RECEIVE:
+                    self._run_data_recv_cmd()
+                else:
+                    self._run_standard_cmd()
 
-            if self._args.conn_log:
-                while True:
-                    self._client_recv()
-
+                if self._args.conn_log:
+                    while True:
+                        self._client_recv()
         except ConnectionRefusedError:
             print(f"Unable to connect to {self._id:016x}")
-        finally:
-            self._client.connection_release()
