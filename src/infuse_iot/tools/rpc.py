@@ -77,18 +77,39 @@ class SubCommand(InfuseCommand):
                 types |= GatewayRequestConnectionRequest.DataType.LOGGING
             with self._client.connection(self._id, types) as mtu:
                 self._max_payload = mtu
-                rpc_client = RpcClient(self._client, mtu, self._id, self._command, self.rx_handler)
+                rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler)
+                params = bytes(self._command.request_struct())
 
                 if self._command.RPC_DATA_SEND:
-                    rpc_client.run_data_send_cmd()
+                    hdr, rsp = rpc_client.run_data_send_cmd(
+                        self._command.COMMAND_ID,  # type: ignore
+                        self._command.auth_level(),
+                        params,
+                        self._command.data_payload(),
+                        self._command.data_progress_cb,
+                        self._command.response.from_buffer_copy,  # type: ignore
+                    )
                 elif self._command.RPC_DATA_RECEIVE:
-                    rpc_client.run_data_recv_cmd()
+                    hdr, rsp = rpc_client.run_data_recv_cmd(
+                        self._command.COMMAND_ID,  # type: ignore
+                        self._command.auth_level(),
+                        params,
+                        self._command.data_recv_cb,
+                        self._command.response.from_buffer_copy,  # type: ignore
+                    )
                 else:
-                    rpc_client.run_standard_cmd()
+                    hdr, rsp = rpc_client.run_standard_cmd(
+                        self._command.COMMAND_ID,  # type: ignore
+                        self._command.auth_level(),
+                        params,
+                        self._command.response.from_buffer_copy,  # type: ignore
+                    )
+                # Handle response
+                self._command.handle_response(hdr.return_code, rsp)
 
                 if self._args.conn_log:
                     while True:
-                        if rsp := self._client.receive():
-                            self.rx_handler(rsp)
+                        if notification := self._client.receive():
+                            self.rx_handler(notification)
         except ConnectionRefusedError:
             print(f"Unable to connect to {self._id:016x}")
