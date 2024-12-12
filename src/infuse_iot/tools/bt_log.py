@@ -32,18 +32,18 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         try:
-            self._client.connection_create(self._id, GatewayRequestConnectionRequest.DataType.LOGGING)
-
-            while rsp := self._client.receive():
-                if isinstance(rsp, ClientNotificationConnectionDropped):
-                    print(f"Connection to {self._id:016x} lost")
-                    break
-                if isinstance(rsp, ClientNotificationEpacketReceived) and rsp.epacket.ptype == InfuseType.SERIAL_LOG:
-                    print(rsp.epacket.payload.decode("utf-8"), end="")
+            with self._client.connection(self._id, GatewayRequestConnectionRequest.DataType.LOGGING) as _:
+                while rsp := self._client.receive():
+                    if isinstance(rsp, ClientNotificationConnectionDropped):
+                        print(f"Connection to {self._id:016x} lost")
+                        break
+                    if (
+                        isinstance(rsp, ClientNotificationEpacketReceived)
+                        and rsp.epacket.ptype == InfuseType.SERIAL_LOG
+                    ):
+                        print(rsp.epacket.payload.decode("utf-8"), end="")
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
         except ConnectionRefusedError:
             print(f"Unable to connect to {self._id:016x}")
-        finally:
-            self._client.connection_release()
