@@ -242,12 +242,12 @@ class LocalClient:
         req = GatewayRequestConnectionRequest(infuse_id, data_types)
         self.send(req)
         # Wait for response from the server
-        while rsp := self.receive():
-            if isinstance(rsp, ClientNotificationConnectionCreated):
-                return rsp.max_payload
-            elif isinstance(rsp, ClientNotificationConnectionFailed):
-                raise ConnectionRefusedError
-        raise ConnectionRefusedError
+        while True:
+            if rsp := self.receive():
+                if isinstance(rsp, ClientNotificationConnectionCreated):
+                    return rsp.max_payload
+                elif isinstance(rsp, ClientNotificationConnectionFailed):
+                    raise ConnectionRefusedError
 
     def connection_release(self):
         assert self._connection_id is not None
