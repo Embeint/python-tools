@@ -24,7 +24,7 @@ class RpcClient:
         infuse_id: int,
         rx_cb: Callable[[ClientNotification], None] | None = None,
     ):
-        self._request_id = random.randint(0, 2**32 - 1)
+        self._request_id = random.randint(0, 2**31 - 1)
         self._client = client
         self._id = infuse_id
         self._max_payload = max_payload
@@ -90,6 +90,7 @@ class RpcClient:
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+        self._request_id += 1
         ack_period = 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
         data_hdr = rpc.RequestDataHeader(len(data), ack_period)
@@ -151,6 +152,7 @@ class RpcClient:
         recv_cb: Callable[[int, bytes], None],
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+        self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)
         data_hdr = rpc.RequestDataHeader(0xFFFFFFFF, 0)
 
@@ -194,6 +196,7 @@ class RpcClient:
     def run_standard_cmd(
         self, cmd_id: int, auth: Auth, params: bytes, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+        self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
 
         request_packet = bytes(header) + params
