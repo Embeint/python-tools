@@ -3,7 +3,11 @@
 import ctypes
 import errno
 import os
+from typing import Any
 
+from tabulate import tabulate
+
+import infuse_iot.generated.kv_definitions as kv
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 
@@ -69,12 +73,25 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
         for r in response:
             if r.len > 0:
                 b = bytes(r.data)
+                kv_type = kv.slots.ID_MAPPING[r.id]
+                kv_val = kv_type.vla_from_buffer_copy(b)
 
-                print(f"Key: {r.id} ({r.len} bytes):")
+                print(f"Key: {kv_type.NAME} ({r.len} bytes):")
                 print(f"\tHex: {b.hex()}")
-                try:
-                    print(f"\tStr: {b.decode('utf-8')}")
-                except UnicodeDecodeError:
-                    pass
+
+                fields = []
+                for field_name, field_val in kv_val.iter_fields():
+                    fmt_val: Any
+                    if isinstance(field_val, ctypes.Array):
+                        if field_val._type_ == ctypes.c_char:
+                            fmt_val = bytes(field_val).decode("utf-8")
+                        elif field_val._type_ == ctypes.c_ubyte:
+                            fmt_val = bytes(field_val).hex()
+                        else:
+                            fmt_val = list(field_val)
+                    else:
+                        fmt_val = field_val
+                    fields.append((field_name, fmt_val))
+                print(tabulate(fields))
             else:
                 print(f"Key: {r.id} (Failed to read '{errno.errorcode[-r.len]}')")
