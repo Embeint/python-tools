@@ -5,6 +5,7 @@ import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 
 
 class wifi_configure(InfuseRpcCommand, defs.kv_write):
@@ -17,10 +18,8 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
         ]
         _pack_ = 1
 
-    class response(InfuseRpcCommand.VariableSizeResponse):
-        base_fields = []
-        var_name = "rc"
-        var_type = ctypes.c_int16
+    class response(VLACompatLittleEndianStruct):
+        vla_field = ("rc", 0 * ctypes.c_int16)
 
     @staticmethod
     def kv_store_value_factory(id, value_bytes):

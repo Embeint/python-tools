@@ -6,7 +6,7 @@ import os
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.argparse import BtLeAddress
-from infuse_iot.util.ctypes import bytes_to_uint8
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
 
 
 class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
@@ -19,10 +19,8 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
         ]
         _pack_ = 1
 
-    class response(InfuseRpcCommand.VariableSizeResponse):
-        base_fields = []
-        var_name = "rc"
-        var_type = ctypes.c_int16
+    class response(VLACompatLittleEndianStruct):
+        vla_field = ("rc", 0 * ctypes.c_int16)
 
     @staticmethod
     def kv_store_value_factory(id, value_bytes):
