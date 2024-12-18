@@ -8,17 +8,17 @@ import tabulate
 import infuse_iot.generated.rpc_definitions as rpc_defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.tdf import tdf_definitions as defs
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 
 
 class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
-    class response(InfuseRpcCommand.VariableSizeResponse):
-        base_fields = [
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
             ("pub_timestamp", ctypes.c_uint64),
             ("pub_count", ctypes.c_uint32),
             ("pub_period_ms", ctypes.c_uint32),
         ]
-        var_name = "data"
-        var_type = ctypes.c_byte
+        vla_field = ("data", 0 * ctypes.c_byte)
 
     class BatteryChannel:
         id = 0x43210000

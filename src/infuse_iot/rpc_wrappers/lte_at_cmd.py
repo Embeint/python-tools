@@ -5,15 +5,15 @@ import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 
 
 class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
     class request(ctypes.LittleEndianStructure):
         _pack_ = 1
 
-    class response(InfuseRpcCommand.VariableSizeResponse):
-        var_name = "rsp"
-        var_type = ctypes.c_char
+    class response(VLACompatLittleEndianStruct):
+        vla_field = ("rsp", 0 * ctypes.c_char)
 
     @classmethod
     def add_parser(cls, parser):
@@ -32,6 +32,6 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
         if return_code != 0:
             print(f"Failed to run command ({os.strerror(-return_code)})")
             return
-        decoded = response.rsp.decode("utf-8").strip()
+        decoded = bytes(response.rsp).decode("utf-8").strip()
 
         print(decoded)

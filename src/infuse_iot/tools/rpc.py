@@ -80,6 +80,11 @@ class SubCommand(InfuseCommand):
                 rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler)
                 params = bytes(self._command.request_struct())
 
+                if hasattr(self._command.response, "vla_from_buffer_copy"):  # type: ignore
+                    decode_fn = self._command.response.vla_from_buffer_copy  # type: ignore
+                else:
+                    decode_fn = self._command.response.from_buffer_copy  # type: ignore
+
                 if self._command.RPC_DATA_SEND:
                     hdr, rsp = rpc_client.run_data_send_cmd(
                         self._command.COMMAND_ID,  # type: ignore
@@ -87,7 +92,7 @@ class SubCommand(InfuseCommand):
                         params,
                         self._command.data_payload(),
                         self._command.data_progress_cb,
-                        self._command.response.from_buffer_copy,  # type: ignore
+                        decode_fn,
                     )
                 elif self._command.RPC_DATA_RECEIVE:
                     hdr, rsp = rpc_client.run_data_recv_cmd(
@@ -95,14 +100,14 @@ class SubCommand(InfuseCommand):
                         self._command.auth_level(),
                         params,
                         self._command.data_recv_cb,
-                        self._command.response.from_buffer_copy,  # type: ignore
+                        decode_fn,
                     )
                 else:
                     hdr, rsp = rpc_client.run_standard_cmd(
                         self._command.COMMAND_ID,  # type: ignore
                         self._command.auth_level(),
                         params,
-                        self._command.response.from_buffer_copy,  # type: ignore
+                        decode_fn,
                     )
                 # Handle response
                 self._command.handle_response(hdr.return_code, rsp)

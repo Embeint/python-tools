@@ -80,24 +80,3 @@ class InfuseRpcCommand:
     def handle_response(self, return_code, response):
         """Handle RPC_RSP"""
         raise NotImplementedError
-
-    class VariableSizeResponse:
-        base_fields: list[tuple[str, type[ctypes._SimpleCData]]] = []
-        var_name = "x"
-        var_type: type[ctypes._SimpleCData] = ctypes.c_ubyte
-
-        @classmethod
-        def from_buffer_copy(cls, source, offset=0):
-            class response_base(ctypes.LittleEndianStructure):
-                _fields_ = cls.base_fields
-                _pack_ = 1
-
-            var_bytes = (len(source) - offset) - ctypes.sizeof(response_base)
-            assert var_bytes % ctypes.sizeof(cls.var_type) == 0
-            var_num = var_bytes // ctypes.sizeof(cls.var_type)
-
-            class response(ctypes.LittleEndianStructure):
-                _fields_ = [*cls.base_fields, (cls.var_name, cls.var_type * var_num)]
-                _pack_ = 1
-
-            return response.from_buffer_copy(source, offset)

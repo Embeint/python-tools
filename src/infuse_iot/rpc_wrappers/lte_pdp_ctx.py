@@ -6,6 +6,7 @@ import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 
 
 class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
@@ -18,10 +19,8 @@ class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
         ]
         _pack_ = 1
 
-    class response(InfuseRpcCommand.VariableSizeResponse):
-        base_fields = []
-        var_name = "rc"
-        var_type = ctypes.c_int16
+    class response(VLACompatLittleEndianStruct):
+        vla_field = ("rc", 0 * ctypes.c_int16)
 
     class PDPFamily(enum.IntEnum):
         IPv4 = 0
