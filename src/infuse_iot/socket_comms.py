@@ -4,12 +4,16 @@ import enum
 import json
 import socket
 import struct
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import cast
 
 from typing_extensions import Self
 
-from infuse_iot.epacket.packet import PacketOutput, PacketReceived
+from infuse_iot.common import InfuseType
+from infuse_iot.epacket.packet import HopReceived, PacketOutput, PacketReceived
+from infuse_iot.generated.tdf_definitions import readings
+from infuse_iot.tdf import TDF
 
 
 def default_multicast_address():
@@ -274,3 +278,20 @@ class LocalClient:
             self.send(req)
         # Close the socket
         self._input_sock.close()
+
+    def observe_announce(self) -> Generator[tuple[HopReceived, readings.announce], None, None]:
+        decoder = TDF()
+        while True:
+            msg = self.receive()
+            if msg is None:
+                continue
+            if not isinstance(msg, ClientNotificationEpacketReceived):
+                continue
+            if msg.epacket.ptype != InfuseType.TDF:
+                continue
+            source = msg.epacket.route[0]
+
+            for tdf in decoder.decode(msg.epacket.payload):
+                if not isinstance(tdf.data[0], readings.announce):
+                    continue
+                yield (source, tdf.data[0])
