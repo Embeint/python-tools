@@ -37,6 +37,7 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 60.0)
         self._min_rssi: int | None = args.rssi
         self._release: ValidRelease = args.release
+        self._app_name = self._release.metadata["application"]["primary"]
         self._app_id = self._release.metadata["application"]["id"]
         self._new_ver = self._release.metadata["application"]["version"]
         self._handled: list[int] = []
@@ -62,7 +63,7 @@ class SubCommand(InfuseCommand):
 
     def progress_table(self):
         table = Table()
-        table.add_column(self._new_ver)
+        table.add_column(f"{self._app_name}\n{self._new_ver}")
         table.add_column("Count")
         table.add_row("Updated", str(self._updated))
         table.add_row("Already", str(self._already))
