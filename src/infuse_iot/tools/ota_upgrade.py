@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import binascii
+import time
 
 from rich.live import Live
 from rich.progress import (
@@ -41,10 +42,12 @@ class SubCommand(InfuseCommand):
         self._app_id = self._release.metadata["application"]["id"]
         self._new_ver = self._release.metadata["application"]["version"]
         self._handled: list[int] = []
+        self._pending: dict[int, float] = {}
         self._missing_diffs: set[str] = set()
         self._already = 0
         self._updated = 0
         self._no_diff = 0
+        self._failed = 0
         self.patch_file = b""
         self.state = "Scanning"
         self.progress = Progress(
@@ -66,7 +69,9 @@ class SubCommand(InfuseCommand):
         table.add_column(f"{self._app_name}\n{self._new_ver}")
         table.add_column("Count")
         table.add_row("Updated", str(self._updated))
+        table.add_row("Pending", str(len(self._pending)))
         table.add_row("Already", str(self._already))
+        table.add_row("Failed", str(self._failed))
         table.add_row("No Diff", str(self._no_diff))
 
         if len(self._missing_diffs) > 0:
@@ -94,12 +99,26 @@ class SubCommand(InfuseCommand):
     def run(self):
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
+                self.state_update(live, "Scanning")
                 if announce.application != self._app_id:
                     continue
                 if source.infuse_id in self._handled:
                     continue
                 v = announce.version
                 v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
+
+                # Check against pending upgrades
+                if source.infuse_id in self._pending:
+                    if time.time() < self._pending[source.infuse_id]:
+                        # Device could still be applying the upgrade
+                        continue
+                    self._pending.pop(source.infuse_id)
+                    self._handled.append(source.infuse_id)
+                    if v_str == self._new_ver:
+                        self._updated += 1
+                    else:
+                        self._failed += 1
+                    continue
 
                 # Already running the requested version?
                 if v_str == self._new_ver:
@@ -148,8 +167,7 @@ class SubCommand(InfuseCommand):
                         )
 
                         if hdr.return_code == 0:
-                            self._handled.append(source.infuse_id)
-                            self._updated += 1
+                            self._pending[source.infuse_id] = time.time() + 30
 
                 except ConnectionRefusedError:
                     self.state_update(live, "Scanning")
