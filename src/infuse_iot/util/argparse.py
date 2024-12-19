@@ -5,6 +5,8 @@ import pathlib
 import re
 from typing import cast
 
+import yaml
+
 from infuse_iot.generated.rpc_definitions import rpc_enum_bt_le_addr_type, rpc_struct_bt_addr_le
 from infuse_iot.util.ctypes import bytes_to_uint8
 
@@ -18,6 +20,32 @@ class ValidFile:
             return p
         else:
             raise argparse.ArgumentTypeError(f"{string} does not exist")
+
+
+class ValidDir:
+    """Filesystem directory that exists"""
+
+    def __new__(cls, string) -> pathlib.Path:  # type: ignore
+        p = pathlib.Path(string)
+        if not p.exists():
+            raise argparse.ArgumentTypeError(f"{string} does not exist")
+        if not p.is_dir():
+            raise argparse.ArgumentTypeError(f"{string} is not a directory")
+        return p
+
+
+class ValidRelease:
+    """Infuse-IoT release folder"""
+
+    def __init__(self, string):
+        p: pathlib.Path = ValidDir(string)  # type: ignore
+        metadata = p / "manifest.yaml"
+        if not metadata.exists():
+            raise argparse.ArgumentTypeError(f"{string} is not an Infuse-IoT release")
+        self.dir = p
+        metadata = self.dir / "manifest.yaml"
+        with open(metadata, encoding="utf-8") as f:
+            self.metadata = yaml.safe_load(f.read())
 
 
 class BtLeAddress:
