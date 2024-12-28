@@ -55,7 +55,7 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
         return base
 
     def iter_fields(self, prefix: str = "") -> Generator[tuple[str, Any], None, None]:
-        for field_name, _field_type in self._fields_:
+        for field_name, _field_type in self._fields_:  # type: ignore
             val = getattr(self, field_name)
             if isinstance(val, VLACompatLittleEndianStruct):
                 yield from val.iter_fields(f"{field_name}.")
