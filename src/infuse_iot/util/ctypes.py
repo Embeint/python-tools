@@ -5,6 +5,19 @@ from collections.abc import Generator
 
 from typing_extensions import Any, Self
 
+UINT8_MAX = 2**8 - 1
+UINT16_MAX = 2**16 - 1
+UINT32_MAX = 2**32 - 1
+UINT64_MAX = 2**64 - 1
+INT8_MIN = -(2**7)
+INT16_MIN = -(2**15)
+INT32_MIN = -(2**31)
+UINT64_MIN = -(2**63)
+INT8_MAX = 2**7 - 1
+INT16_MAX = 2**15 - 1
+INT32_MAX = 2**31 - 1
+INT64_MAX = 2**63 - 1
+
 
 def bytes_to_uint8(b: bytes):
     return (len(b) * ctypes.c_uint8)(*b)

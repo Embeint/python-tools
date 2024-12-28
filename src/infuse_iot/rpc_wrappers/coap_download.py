@@ -6,6 +6,7 @@ import os
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+from infuse_iot.util.ctypes import UINT32_MAX
 
 
 class coap_download(InfuseRpcCommand, defs.coap_download):
@@ -79,8 +80,6 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             ]
             _pack_ = 1
 
-        UINT32_MAX = 2**32 - 1
-
         return request(
             self.server,
             self.port,
@@ -92,8 +91,6 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
         )
 
     def request_json(self):
-        UINT32_MAX = 2**32 - 1
-
         return {
             "server_address": self.server.decode("utf-8"),
             "server_port": str(self.port),
