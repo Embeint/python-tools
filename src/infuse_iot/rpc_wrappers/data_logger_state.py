@@ -4,6 +4,7 @@ import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.util.time import humanised_seconds
 
 
 class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
@@ -29,7 +30,7 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({os.strerror(-return_code)})")
+            print(f"Failed to query data logger state ({os.strerror(-return_code)})")
             return
 
         def sizeof_fmt(num, suffix="B"):
@@ -48,5 +49,17 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
         print(f"{self.logger.name}")
         print(f"\t     Logged: {sizeof_fmt(total_logged)}")
         print(f"\t     Blocks: {r.current_block}/{r.logical_blocks} ({percent:.0f}%)")
-        print(f"\t Block Rate: {block_rate:.2f} blocks/sec")
-        print(f"\t  Byte Rate: {sizeof_fmt(byte_rate)}/sec")
+        if byte_rate == 0.0:
+            print("\t Block Rate: N/A")
+            print("\t  Byte Rate: N/A")
+        elif byte_rate < 0.1:
+            print(f"\t Block Rate: {1/block_rate:.2f} sec/block")
+            print(f"\t  Byte Rate: {1/byte_rate:.2f} sec/byte")
+        else:
+            print(f"\t Block Rate: {block_rate:.2f} blocks/sec")
+            print(f"\t  Byte Rate: {sizeof_fmt(byte_rate)}/sec")
+        if r.bytes_logged > 0:
+            physical_wrap_time = r.physical_blocks / block_rate
+            logical_fill_time = r.logical_blocks / block_rate
+            print(f"\t   Phy Wrap: {humanised_seconds(int(physical_wrap_time))}")
+            print(f"\t   Log Fill: {humanised_seconds(int(logical_fill_time))}")
