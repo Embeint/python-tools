@@ -24,7 +24,7 @@ from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Board, Error, NewDevice, NewDeviceMetadata
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
-from infuse_iot.util.soc import nrf, soc
+from infuse_iot.util.soc import nrf, soc, stm
 
 
 class ProvisioningStruct(ctypes.LittleEndianStructure):
@@ -44,6 +44,9 @@ class SubCommand(InfuseCommand):
         vendor_group = parser.add_mutually_exclusive_group(required=True)
         vendor_group.add_argument(
             "--nrf", dest="vendor", action="store_const", const="nrf", help="Nordic Semiconductor SoC"
+        )
+        vendor_group.add_argument(
+            "--stm", dest="vendor", action="store_const", const="stm", help="ST Microelectronics SoC"
         )
         parser.add_argument(
             "--snr",
@@ -129,6 +132,8 @@ class SubCommand(InfuseCommand):
         interface: soc.ProvisioningInterface
         if self._vendor == "nrf":
             interface = nrf.Interface(self._snr)
+        if self._vendor == "stm":
+            interface = stm.Interface()
         else:
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
 
