@@ -208,7 +208,7 @@ class LocalServer:
 
     def close(self):
         self._input_sock.close()
-        self._output_addr.close()
+        self._output_sock.close()
 
 
 class LocalClient:
