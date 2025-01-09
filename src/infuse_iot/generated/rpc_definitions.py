@@ -35,7 +35,7 @@ class rpc_struct_kv_store_crc(ctypes.LittleEndianStructure):
 
     _fields_ = [
         ("id", ctypes.c_uint16),
-        ("crc", ctypes.c_int32),
+        ("crc", ctypes.c_uint32),
     ]
     _pack_ = 1
 
@@ -111,10 +111,10 @@ class rpc_struct_lte_state(ctypes.LittleEndianStructure):
         ("mnc", ctypes.c_uint16),
         ("cell_id", ctypes.c_uint32),
         ("tac", ctypes.c_uint32),
-        ("tau", ctypes.c_uint32),
+        ("tau", ctypes.c_int32),
         ("earfcn", ctypes.c_uint16),
         ("band", ctypes.c_uint8),
-        ("psm_active_time", ctypes.c_uint16),
+        ("psm_active_time", ctypes.c_int16),
         ("edrx_interval", ctypes.c_float),
         ("edrx_paging_window", ctypes.c_float),
         ("rsrp", ctypes.c_int16),
