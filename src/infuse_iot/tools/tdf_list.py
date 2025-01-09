@@ -52,7 +52,7 @@ class SubCommand(InfuseCommand):
                     if idx == 0:
                         if tdf.time is not None:
                             if tdf.period is None:
-                                time = ""
+                                time = InfuseTime.utc_time_string(tdf.time)
                             else:
                                 offset = (len(tdf.data) - 1) * tdf.period
                                 time = InfuseTime.utc_time_string(tdf.time + offset)
