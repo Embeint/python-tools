@@ -132,7 +132,7 @@ class SubCommand(InfuseCommand):
         interface: soc.ProvisioningInterface
         if self._vendor == "nrf":
             interface = nrf.Interface(self._snr)
-        if self._vendor == "stm":
+        elif self._vendor == "stm":
             interface = stm.Interface()
         else:
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
