@@ -73,7 +73,12 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
         for r in response:
             if r.len > 0:
                 b = bytes(r.data)
-                kv_type = kv.slots.ID_MAPPING[r.id]
+                try:
+                    kv_type = kv.slots.ID_MAPPING[r.id]
+                except KeyError:
+                    print(f"Key: {r.id} ({r.len} bytes):")
+                    print(f"\tHex: {b.hex()}")
+                    continue
                 kv_val = kv_type.vla_from_buffer_copy(b)
 
                 print(f"Key: {kv_type.NAME} ({r.len} bytes):")
