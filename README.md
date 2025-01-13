@@ -22,18 +22,27 @@ eval "$(register-python-argcomplete infuse)"
 ## Usage
 
 ```
-infuse --help
-usage: infuse [-h] <command> ...
+> infuse --help
+usage: infuse [-h] [--version] <command> ...
 
 options:
   -h, --help         show this help message and exit
+  --version          show program's version number and exit
 
 commands:
   <command>
+    bt_log           Connect to remote Bluetooth device serial logs
+    cloud            Infuse-IoT cloud interaction
+    credentials      Manage Infuse-IoT credentials
     csv_annotate     Annotate CSV data
     csv_plot         Plot CSV data
     gateway          Connect to a local gateway device
+    localhost        Run a local server for TDF viewing
+    native_bt        Native Bluetooth gateway
+    ota_upgrade      Automatically OTA upgrade observed devices
+    provision        Provision device on Infuse Cloud
     rpc              Run remote procedure calls on devices
+    rpc_cloud        Manage remote procedure calls through Infuse-IoT cloud
     serial_throughput
                      Test serial throughput to local gateway
     tdf_csv          Save received TDFs in CSV files
