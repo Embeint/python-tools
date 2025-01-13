@@ -39,3 +39,23 @@ commands:
     tdf_csv          Save received TDFs in CSV files
     tdf_list         Display received TDFs in a list
 ```
+
+## Credential Storage
+
+Under linux, the preferred credential storage provider for the python ``keyring``
+package is provided by ``gnome-keyring``. The available backends can be listed with
+``keyring --list-backends``.
+
+```
+sudo apt install gnome-keyring
+```
+
+### WSL Issues
+
+Under WSL, they keyring has been observed to consistently raise
+``secretstorage.exceptions.PromptDismissedException: Prompt dismissed``.
+This can be resolved by adding the following to ``~/.bashrc`` and reloading
+the terminal.
+```
+dbus-update-activation-environment --all > /dev/null 2>&1
+```
