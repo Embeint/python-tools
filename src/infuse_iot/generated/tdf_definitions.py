@@ -919,7 +919,7 @@ class readings:
         }
 
 
-id_type_mapping: dict[int, TdfReadingBase] = {
+id_type_mapping: dict[int, type[TdfReadingBase]] = {
     1: readings.announce,
     2: readings.battery_state,
     3: readings.ambient_temp_pres_hum,
