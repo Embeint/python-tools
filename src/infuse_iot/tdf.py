@@ -8,6 +8,19 @@ from infuse_iot.generated import tdf_base, tdf_definitions
 from infuse_iot.time import InfuseTime
 
 
+def unknown_tdf_factory(tdf_id: int, tdf_len: int) -> type[tdf_base.TdfReadingBase]:
+    class UnknownTDF(tdf_base.TdfReadingBase):
+        name = str(tdf_id)
+        _fields_ = [
+            ("data", tdf_len * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {"data": ""}
+        _display_fmt_ = {"data": "{}"}
+
+    return UnknownTDF
+
+
 class TDF:
     class flags(enum.IntEnum):
         TIMESTAMP_NONE = 0x0000
@@ -83,7 +96,10 @@ class TDF:
             time_flags = header.id_flags & self.flags.TIMESTAMP_MASK
 
             tdf_id = header.id_flags & 0x0FFF
-            id_type = tdf_definitions.id_type_mapping[tdf_id]
+            try:
+                id_type = tdf_definitions.id_type_mapping[tdf_id]
+            except KeyError:
+                id_type = unknown_tdf_factory(tdf_id, header.len)
 
             if time_flags == self.flags.TIMESTAMP_NONE:
                 time = None
