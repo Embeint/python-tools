@@ -5,6 +5,8 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
+import time
+
 import tabulate
 
 from infuse_iot.commands import InfuseCommand
@@ -44,7 +46,7 @@ class SubCommand(InfuseCommand):
                 t = tdf.data[-1]
                 num = len(tdf.data)
                 if num > 1:
-                    tdf_name = f"{t.name}[{num-1}]"
+                    tdf_name = f"{t.name}[{num - 1}]"
                 else:
                     tdf_name = t.name
 
@@ -52,13 +54,13 @@ class SubCommand(InfuseCommand):
                     if idx == 0:
                         if tdf.time is not None:
                             if tdf.period is None:
-                                time = InfuseTime.utc_time_string(tdf.time)
+                                time_str = InfuseTime.utc_time_string(tdf.time)
                             else:
                                 offset = (len(tdf.data) - 1) * tdf.period
-                                time = InfuseTime.utc_time_string(tdf.time + offset)
+                                time_str = InfuseTime.utc_time_string(tdf.time + offset)
                         else:
-                            time = "N/A"
-                        table.append((time, tdf_name, field.name, field.val_fmt(), field.postfix))
+                            time_str = InfuseTime.utc_time_string(time.time())
+                        table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
                     else:
                         table.append((None, None, field.name, field.val_fmt(), field.postfix))
 
