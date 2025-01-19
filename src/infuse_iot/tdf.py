@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import ctypes
 import enum
 from collections.abc import Generator
@@ -29,7 +30,13 @@ class TDF:
         TIMESTAMP_EXTENDED_RELATIVE = 0xC000
         TIMESTAMP_MASK = 0xC000
         TIME_ARRAY = 0x1000
+        DIFF_ARRAY = 0x2000
         ID_MASK = 0x0FFF
+
+    class DiffType(enum.IntEnum):
+        DIFF_16_8 = 1
+        DIFF_32_8 = 2
+        DIFF_32_16 = 3
 
     class CoreHeader(ctypes.LittleEndianStructure):
         _fields_ = [
@@ -88,6 +95,46 @@ class TDF:
         b = buffer[ctypes.sizeof(ctype) :]
         return v, b
 
+    @classmethod
+    def _diff_expand(cls, buffer: bytes, tdf_len: int, diff_type: DiffType, diff_num: int) -> tuple[int, bytes]:
+        t_in: type[ctypes._SimpleCData]
+        t_diff: type[ctypes._SimpleCData]
+        if diff_type == cls.DiffType.DIFF_16_8:
+            t_in = ctypes.c_uint16
+            t_diff = ctypes.c_int8
+        elif diff_type == cls.DiffType.DIFF_32_8:
+            t_in = ctypes.c_uint32
+            t_diff = ctypes.c_int8
+        elif diff_type == cls.DiffType.DIFF_32_16:
+            t_in = ctypes.c_uint32
+            t_diff = ctypes.c_int16
+        else:
+            raise RuntimeError(f"Unknown diff type {diff_type}")
+        num_fields = tdf_len // ctypes.sizeof(t_in)
+
+        class _tdf(ctypes.LittleEndianStructure):
+            _fields_ = [("data", num_fields * t_in)]
+            _pack_ = 1
+
+        class _diff(ctypes.LittleEndianStructure):
+            _fields_ = [("data", num_fields * t_diff)]
+            _pack_ = 1
+
+        class _complete(ctypes.LittleEndianStructure):
+            _fields_ = [("base", _tdf), ("diffs", diff_num * _diff)]
+            _pack_ = 1
+
+        raw = _complete.from_buffer_copy(buffer)
+        out: list[ctypes.LittleEndianStructure] = [_tdf.from_buffer_copy(buffer)]
+        for idx in range(diff_num):
+            next = copy.copy(out[-1])
+            for f in range(num_fields):
+                next.data[f] += raw.diffs[idx].data[f]
+            out.append(next)
+
+        expanded = b"".join([bytes(b) for b in out])
+        return ctypes.sizeof(raw), expanded
+
     def decode(self, buffer: bytes) -> Generator[Reading, None, None]:
         buffer_time = None
 
@@ -122,7 +169,19 @@ class TDF:
                 raise RuntimeError("Unreachable time option")
 
             array_header = None
-            if header.id_flags & self.flags.TIME_ARRAY:
+            if header.id_flags & self.flags.DIFF_ARRAY:
+                array_header, buffer = self._buffer_pull(buffer, self.ArrayHeader)
+                diff_type = array_header.num >> 6
+                diff_num = array_header.num & 0x3F
+
+                total_len, expanded = self._diff_expand(buffer, header.len, self.DiffType(diff_type), diff_num)
+                buffer = buffer[total_len:]
+                assert buffer_time is not None
+                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                data = [
+                    id_type.from_buffer_consume(expanded[x : x + header.len]) for x in range(0, total_len, header.len)
+                ]
+            elif header.id_flags & self.flags.TIME_ARRAY:
                 array_header, buffer = self._buffer_pull(buffer, self.ArrayHeader)
                 total_len = array_header.num * header.len
                 total_data = buffer[:total_len]
