@@ -95,6 +95,9 @@ class TDF:
             header, buffer = self._buffer_pull(buffer, self.CoreHeader)
             time_flags = header.id_flags & self.flags.TIMESTAMP_MASK
 
+            if header.id_flags in [0x0000, 0xFFFF]:
+                break
+
             tdf_id = header.id_flags & 0x0FFF
             try:
                 id_type = tdf_definitions.id_type_mapping[tdf_id]
