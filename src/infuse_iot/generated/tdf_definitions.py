@@ -123,6 +123,40 @@ class structs:
             "tac": "{}",
         }
 
+    class tdf_struct_lte_cell_neighbour(TdfStructBase):
+        """LTE cell ID (Global)"""
+
+        _fields_ = [
+            ("earfcn", ctypes.c_uint32),
+            ("pci", ctypes.c_uint16),
+            ("_time_diff", ctypes.c_uint16),
+            ("_rsrp", ctypes.c_uint8),
+            ("rsrq", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "earfcn": "",
+            "pci": "",
+            "time_diff": "s",
+            "rsrp": "dBm",
+            "rsrq": "dB",
+        }
+        _display_fmt_ = {
+            "earfcn": "{}",
+            "pci": "{}",
+            "time_diff": "{}",
+            "rsrp": "{}",
+            "rsrq": "{}",
+        }
+
+        @property
+        def time_diff(self):
+            return self._time_diff * 0.001
+
+        @property
+        def rsrp(self):
+            return self._rsrp * -1
+
     class tdf_struct_bt_addr_le(TdfStructBase):
         """Bluetooth address type (bt_addr_le_t)"""
 
@@ -137,6 +171,24 @@ class structs:
         }
         _display_fmt_ = {
             "type": "{}",
+            "val": "0x{:012x}",
+        }
+
+        @property
+        def val(self):
+            return int.from_bytes(self._val, byteorder='little')
+
+    class tdf_struct_eui48(TdfStructBase):
+        """IEEE EUI-48 address"""
+
+        _fields_ = [
+            ("_val", 6 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
             "val": "0x{:012x}",
         }
 
@@ -903,6 +955,73 @@ class readings:
             "values": "{}",
         }
 
+    class lte_tac_cells(TdfReadingBase):
+        """Information on cells in a tracking area"""
+
+        name = "LTE_TAC_CELLS"
+        _fields_ = [
+            ("cell", structs.tdf_struct_lte_cell_id_global),
+            ("earfcn", ctypes.c_uint32),
+            ("_rsrp", ctypes.c_uint8),
+            ("rsrq", ctypes.c_int8),
+            ("neighbours", 0 * structs.tdf_struct_lte_cell_neighbour),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "cell": "",
+            "earfcn": "",
+            "rsrp": "dBm",
+            "rsrq": "dB",
+            "neighbours": "",
+        }
+        _display_fmt_ = {
+            "cell": "{}",
+            "earfcn": "{}",
+            "rsrp": "{}",
+            "rsrq": "{}",
+            "neighbours": "{}",
+        }
+
+        @property
+        def rsrp(self):
+            return self._rsrp * -1
+
+    class wifi_ap_info(TdfReadingBase):
+        """Wi-Fi access point information"""
+
+        name = "WIFI_AP_INFO"
+        _fields_ = [
+            ("bssid", structs.tdf_struct_eui48),
+            ("channel", ctypes.c_uint8),
+            ("rsrp", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "bssid": "",
+            "channel": "",
+            "rsrp": "",
+        }
+        _display_fmt_ = {
+            "bssid": "{}",
+            "channel": "{}",
+            "rsrp": "{}",
+        }
+
+    class device_tilt(TdfReadingBase):
+        """Tilt angle of the device"""
+
+        name = "DEVICE_TILT"
+        _fields_ = [
+            ("cosine", ctypes.c_float),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "cosine": "",
+        }
+        _display_fmt_ = {
+            "cosine": "{:.6f}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -950,5 +1069,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     31: readings.bluetooth_data_throughput,
     32: readings.algorithm_class_histogram,
     33: readings.algorithm_class_time_series,
+    34: readings.lte_tac_cells,
+    35: readings.wifi_ap_info,
+    36: readings.device_tilt,
     100: readings.array_type,
 }

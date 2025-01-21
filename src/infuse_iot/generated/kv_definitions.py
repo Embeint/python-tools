@@ -239,6 +239,19 @@ class slots:
         ]
         _pack_ = 1
 
+    class gravity_reference(VLACompatLittleEndianStruct):
+        """Reference gravity vector for tilt calculations"""
+
+        NAME = "GRAVITY_REFERENCE"
+        BASE_ID = 60
+        RANGE = 1
+        _fields_ = [
+            ("x", ctypes.c_int16),
+            ("y", ctypes.c_int16),
+            ("z", ctypes.c_int16),
+        ]
+        _pack_ = 1
+
     class geofence(VLACompatLittleEndianStruct):
         """Array of points defining a closed polygon"""
 
@@ -279,6 +292,7 @@ class slots:
         44: lte_sim_uicc,
         45: lte_pdp_config,
         50: bluetooth_peer,
+        60: gravity_reference,
         100: geofence,
         101: geofence,
         102: geofence,
