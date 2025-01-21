@@ -78,6 +78,8 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
                     sf_name = _public_name(subfield)
                     subfields.append({"name": sf_name, "type": subfield[1]})
                 info.append({"name": f_name, "type": field[1], "subfields": subfields})
+            elif isinstance(field[1], ctypes.Array):
+                info.append({"name": f_name, "type": list})
             else:
                 info.append({"name": f_name, "type": field[1]})
         return info
