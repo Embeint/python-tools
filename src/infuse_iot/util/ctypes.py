@@ -24,10 +24,23 @@ def bytes_to_uint8(b: bytes):
 
 
 class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
+    """
+    Class to simplify working with variable length arrays.
+    The standard `ctypes.LittleEndianStructure` field definitions can
+    be extended with an optional `vla_field` class parameter, which
+    will be populated when constructed with `vla_from_buffer_copy`.
+    """
+
     vla_field: tuple[str, type[Any]] | None = None
 
     @classmethod
     def vla_from_buffer_copy(cls, source, offset=0) -> Self:
+        """
+        Equivalent to `from_buffer_copy`, except if the `vla_field`
+        class property is not `None`, it will consume the remainder of
+        `source` to populate the trailing variable length array.
+        """
+
         base = cls.from_buffer_copy(source, offset)
         if cls.vla_field is None:
             return base
@@ -55,6 +68,11 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
         return base
 
     def iter_fields(self, prefix: str = "") -> Generator[tuple[str, Any], None, None]:
+        """
+        Yield all fields of the class as `("name", value)`. Fields that are themselves
+        instances of `VLACompatLittleEndianStruct` will have their fields yielded
+        individually as `("name.subfield", value)`.
+        """
         for field_name, _field_type in self._fields_:  # type: ignore
             val = getattr(self, field_name)
             if isinstance(val, VLACompatLittleEndianStruct):
