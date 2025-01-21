@@ -11,6 +11,7 @@ import tabulate
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
+from infuse_iot.generated.tdf_base import TdfStructBase
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
@@ -61,9 +62,31 @@ class SubCommand(InfuseCommand):
                     time_str = InfuseTime.utc_time_string(time.time())
 
                 for field in t.iter_fields():
-                    table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
-                    tdf_name = None
-                    time_str = None
+                    if isinstance(field.val, list):
+                        # Trailing VLA handling
+                        if len(field.val) > 0 and isinstance(field.val[0], TdfStructBase):
+                            for idx, val in enumerate(field.val):
+                                for subfield in val.iter_fields(f"{field.name}[{idx}]"):
+                                    table.append(
+                                        (
+                                            time_str,
+                                            tdf_name,
+                                            subfield.name,
+                                            subfield.val_fmt(),
+                                            subfield.postfix,
+                                        )
+                                    )
+                                    tdf_name = None
+                                    time_str = None
+                        else:
+                            table.append((time_str, tdf_name, f"{field.name}", field.val_fmt(), field.postfix))
+                            tdf_name = None
+                            time_str = None
+                    else:
+                        # Standard structs and sub-structs
+                        table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
+                        tdf_name = None
+                        time_str = None
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")
