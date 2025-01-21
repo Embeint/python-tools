@@ -123,6 +123,40 @@ class structs:
             "tac": "{}",
         }
 
+    class tdf_struct_lte_cell_neighbour(TdfStructBase):
+        """LTE cell ID (Global)"""
+
+        _fields_ = [
+            ("earfcn", ctypes.c_uint32),
+            ("pci", ctypes.c_uint16),
+            ("_time_diff", ctypes.c_uint16),
+            ("_rsrp", ctypes.c_uint8),
+            ("rsrq", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "earfcn": "",
+            "pci": "",
+            "time_diff": "s",
+            "rsrp": "dBm",
+            "rsrq": "dB",
+        }
+        _display_fmt_ = {
+            "earfcn": "{}",
+            "pci": "{}",
+            "time_diff": "{}",
+            "rsrp": "{}",
+            "rsrq": "{}",
+        }
+
+        @property
+        def time_diff(self):
+            return self._time_diff * 0.001
+
+        @property
+        def rsrp(self):
+            return self._rsrp * -1
+
     class tdf_struct_bt_addr_le(TdfStructBase):
         """Bluetooth address type (bt_addr_le_t)"""
 
@@ -903,6 +937,37 @@ class readings:
             "values": "{}",
         }
 
+    class lte_tac_cells(TdfReadingBase):
+        """Information on cells in a tracking area"""
+
+        name = "LTE_TAC_CELLS"
+        _fields_ = [
+            ("cell", structs.tdf_struct_lte_cell_id_global),
+            ("earfcn", ctypes.c_uint32),
+            ("_rsrp", ctypes.c_uint8),
+            ("rsrq", ctypes.c_int8),
+            ("neighbours", 0 * structs.tdf_struct_lte_cell_neighbour),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "cell": "",
+            "earfcn": "",
+            "rsrp": "dBm",
+            "rsrq": "dB",
+            "neighbours": "",
+        }
+        _display_fmt_ = {
+            "cell": "{}",
+            "earfcn": "{}",
+            "rsrp": "{}",
+            "rsrq": "{}",
+            "neighbours": "{}",
+        }
+
+        @property
+        def rsrp(self):
+            return self._rsrp * -1
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -950,5 +1015,6 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     31: readings.bluetooth_data_throughput,
     32: readings.algorithm_class_histogram,
     33: readings.algorithm_class_time_series,
+    34: readings.lte_tac_cells,
     100: readings.array_type,
 }
