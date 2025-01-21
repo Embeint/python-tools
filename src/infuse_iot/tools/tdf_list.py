@@ -45,24 +45,25 @@ class SubCommand(InfuseCommand):
             for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
                 num = len(tdf.data)
+                tdf_name: None | str = None
+                time_str: None | str = None
                 if num > 1:
                     tdf_name = f"{t.name}[{num - 1}]"
                 else:
                     tdf_name = t.name
-
-                for idx, field in enumerate(t.iter_fields()):
-                    if idx == 0:
-                        if tdf.time is not None:
-                            if tdf.period is None:
-                                time_str = InfuseTime.utc_time_string(tdf.time)
-                            else:
-                                offset = (len(tdf.data) - 1) * tdf.period
-                                time_str = InfuseTime.utc_time_string(tdf.time + offset)
-                        else:
-                            time_str = InfuseTime.utc_time_string(time.time())
-                        table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
+                if tdf.time is not None:
+                    if tdf.period is None:
+                        time_str = InfuseTime.utc_time_string(tdf.time)
                     else:
-                        table.append((None, None, field.name, field.val_fmt(), field.postfix))
+                        offset = (len(tdf.data) - 1) * tdf.period
+                        time_str = InfuseTime.utc_time_string(tdf.time + offset)
+                else:
+                    time_str = InfuseTime.utc_time_string(time.time())
+
+                for field in t.iter_fields():
+                    table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
+                    tdf_name = None
+                    time_str = None
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")
