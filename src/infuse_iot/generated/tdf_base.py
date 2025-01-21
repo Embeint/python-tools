@@ -103,6 +103,10 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             raise RuntimeError
         source_var_num = source_var_len // var_type_size
 
+        # No trailing VLA
+        if source_var_num == 0:
+            return cls.from_buffer_copy(source, offset)
+
         # Dynamically create subclass with correct length
         class TdfVLA(ctypes.LittleEndianStructure):
             name = cls.name
@@ -113,4 +117,11 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             iter_fields = cls.iter_fields
             field_information = cls.field_information
 
+        # Copy convertor functions for fields
+        for f in cls._fields_:
+            if f[0][0] == "_":
+                f_name = f[0][1:]
+                setattr(TdfVLA, f_name, getattr(cls, f_name))
+
+        # Create the object instance
         return cast(Self, TdfVLA.from_buffer_copy(source, offset))
