@@ -138,6 +138,17 @@ class rpc_struct_wifi_scan_result(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
+class rpc_struct_xyz_s16(ctypes.LittleEndianStructure):
+    """Signed 16 bit XYZ vector"""
+
+    _fields_ = [
+        ("x", ctypes.c_int16),
+        ("y", ctypes.c_int16),
+        ("z", ctypes.c_int16),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -612,6 +623,29 @@ class bt_disconnect:
 
     class response(ctypes.LittleEndianStructure):
         _fields_ = [
+        ]
+        _pack_ = 1
+
+
+class gravity_reference_update:
+    """Store the current accelerometer vector as the gravity reference"""
+
+    HELP = "Store the current accelerometer vector as the gravity reference"
+    DESCRIPTION = "Store the current accelerometer vector as the gravity reference"
+    COMMAND_ID = 60
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("max_variance", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("reference", rpc_struct_xyz_s16),
+            ("variance", rpc_struct_xyz_s16),
+            ("num_samples", ctypes.c_uint16),
+            ("sample_period_us", ctypes.c_uint32),
         ]
         _pack_ = 1
 
