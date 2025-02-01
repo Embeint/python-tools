@@ -53,7 +53,7 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
         for field in self._fields_:
             f_name = _public_name(field)
             val = getattr(self, f_name)
-            if nested_iter and isinstance(val, ctypes.LittleEndianStructure):
+            if nested_iter and isinstance(val, TdfStructBase):
                 yield from val.iter_fields(f_name)
             else:
                 if isinstance(val, ctypes.Array):
@@ -116,6 +116,7 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             _pack_ = 1
             _postfix_ = cls._postfix_
             _display_fmt_ = cls._display_fmt_
+            _vla_field_ = var_name
             iter_fields = cls.iter_fields
             field_information = cls.field_information
 
