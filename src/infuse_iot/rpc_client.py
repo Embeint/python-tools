@@ -32,11 +32,14 @@ class RpcClient:
 
     def _finalise_command(
         self, rpc_rsp: PacketReceived, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         # Convert response bytes back to struct form
         rsp_header = rpc.ResponseHeader.from_buffer_copy(rpc_rsp.payload)
         rsp_payload = rpc_rsp.payload[ctypes.sizeof(rpc.ResponseHeader) :]
-        rsp_data = rsp_decoder(rsp_payload)
+        try:
+            rsp_data = rsp_decoder(rsp_payload)
+        except ValueError:
+            rsp_data = None
         return (rsp_header, rsp_data)
 
     def _client_recv(self) -> ClientNotification | None:
@@ -89,7 +92,7 @@ class RpcClient:
         data: bytes,
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         ack_period = 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
@@ -151,7 +154,7 @@ class RpcClient:
         params: bytes,
         recv_cb: Callable[[int, bytes], None],
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)
         data_hdr = rpc.RequestDataHeader(0xFFFFFFFF, 0)
@@ -195,7 +198,7 @@ class RpcClient:
 
     def run_standard_cmd(
         self, cmd_id: int, auth: Auth, params: bytes, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure]:
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
 
