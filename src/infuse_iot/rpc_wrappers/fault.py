@@ -59,6 +59,13 @@ class fault(InfuseRpcCommand, defs.fault):
             const=128,
             help="Watchdog timeout exception",
         )
+        group.add_argument(
+            "--secure",
+            dest="fault",
+            action="store_const",
+            const=37,
+            help="Secure code exception",
+        )
 
     def __init__(self, args):
         self._fault_type = args.fault
