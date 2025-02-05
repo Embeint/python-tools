@@ -5,6 +5,8 @@ from abc import ABCMeta, abstractmethod
 
 import pylink
 import serial
+from pyocd.core.helpers import ConnectHelper
+from pyocd.debug.rtt import GenericRTTControlBlock
 
 
 class SerialFrame:
@@ -151,3 +153,38 @@ class RttPort(SerialLike):
         if self._modem_trace is not None:
             self._modem_trace.flush()
             self._modem_trace.close()
+
+
+class PyOcdPort(SerialLike):
+    """PyOcd RTT handling"""
+
+    def __init__(self, target: str):
+        self._session = ConnectHelper.session_with_chosen_probe(auto_open=False, options={"target_override": target})
+        self._target = self._session.target
+        self._rtt = GenericRTTControlBlock(self._target)
+
+    def open(self):
+        self._session.open()
+        self._target.resume()
+        self._rtt.start()
+        self._up_chan = self._rtt.up_channels[0]
+        self._down_chan = self._rtt.down_channels[0]
+
+    def read_bytes(self, num):
+        return self._up_chan.read()
+
+    def ping(self):
+        self._down_chan.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
+
+    def write(self, packet: bytes):
+        # Add header
+        pkt = SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
+        while True:
+            res = self._down_chan.write(pkt)
+            if res == len(pkt):
+                break
+            pkt = pkt[res:]
+            time.sleep(0.1)
+
+    def close(self):
+        self._session.close()
