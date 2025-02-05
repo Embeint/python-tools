@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import ctypes
-import errno
-import os
 from typing import Any
 
 from tabulate import tabulate
@@ -10,6 +8,7 @@ from tabulate import tabulate
 import infuse_iot.generated.kv_definitions as kv
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.zephyr.errno import errno
 
 
 class kv_read(InfuseRpcCommand, defs.kv_read):
@@ -67,7 +66,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({os.strerror(-return_code)})")
+            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
             return
 
         for r in response:
@@ -99,4 +98,4 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
                     fields.append((field_name, fmt_val))
                 print(tabulate(fields))
             else:
-                print(f"Key: {r.id} (Failed to read '{errno.errorcode[-r.len]}')")
+                print(f"Key: {r.id} (Failed to read '{errno.strerror(-r.len)}')")
