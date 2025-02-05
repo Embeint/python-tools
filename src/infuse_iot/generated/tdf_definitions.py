@@ -1022,6 +1022,150 @@ class readings:
             "cosine": "{:.6f}",
         }
 
+    class nrf9x_gnss_pvt(TdfReadingBase):
+        """nRF9x GNSS PVT data frame"""
+
+        name = "NRF9X_GNSS_PVT"
+        _fields_ = [
+            ("_lat", ctypes.c_int32),
+            ("_lon", ctypes.c_int32),
+            ("_height", ctypes.c_int32),
+            ("_h_acc", ctypes.c_uint32),
+            ("_v_acc", ctypes.c_uint32),
+            ("_h_speed", ctypes.c_int32),
+            ("_h_speed_acc", ctypes.c_uint32),
+            ("_v_speed", ctypes.c_int32),
+            ("_v_speed_acc", ctypes.c_uint32),
+            ("_head_mot", ctypes.c_int32),
+            ("_head_acc", ctypes.c_uint32),
+            ("year", ctypes.c_uint16),
+            ("month", ctypes.c_uint8),
+            ("day", ctypes.c_uint8),
+            ("hour", ctypes.c_uint8),
+            ("min", ctypes.c_uint8),
+            ("sec", ctypes.c_uint8),
+            ("ms", ctypes.c_uint16),
+            ("_p_dop", ctypes.c_uint16),
+            ("_h_dop", ctypes.c_uint16),
+            ("_v_dop", ctypes.c_uint16),
+            ("_t_dop", ctypes.c_uint16),
+            ("flags", ctypes.c_uint8),
+            ("num_sv", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "lat": "deg",
+            "lon": "deg",
+            "height": "m",
+            "h_acc": "m",
+            "v_acc": "m",
+            "h_speed": "m/s",
+            "h_speed_acc": "m/s",
+            "v_speed": "m/s",
+            "v_speed_acc": "m/s",
+            "head_mot": "deg",
+            "head_acc": "deg",
+            "year": "",
+            "month": "",
+            "day": "",
+            "hour": "",
+            "min": "",
+            "sec": "",
+            "ms": "",
+            "p_dop": "",
+            "h_dop": "",
+            "v_dop": "",
+            "t_dop": "",
+            "flags": "",
+            "num_sv": "",
+        }
+        _display_fmt_ = {
+            "lat": "{}",
+            "lon": "{}",
+            "height": "{}",
+            "h_acc": "{}",
+            "v_acc": "{}",
+            "h_speed": "{}",
+            "h_speed_acc": "{}",
+            "v_speed": "{}",
+            "v_speed_acc": "{}",
+            "head_mot": "{}",
+            "head_acc": "{}",
+            "year": "{}",
+            "month": "{}",
+            "day": "{}",
+            "hour": "{}",
+            "min": "{}",
+            "sec": "{}",
+            "ms": "{}",
+            "p_dop": "{}",
+            "h_dop": "{}",
+            "v_dop": "{}",
+            "t_dop": "{}",
+            "flags": "0x{:02x}",
+            "num_sv": "{}",
+        }
+
+        @property
+        def lat(self):
+            return self._lat * 1e-07
+
+        @property
+        def lon(self):
+            return self._lon * 1e-07
+
+        @property
+        def height(self):
+            return self._height * 0.001
+
+        @property
+        def h_acc(self):
+            return self._h_acc * 0.001
+
+        @property
+        def v_acc(self):
+            return self._v_acc * 0.001
+
+        @property
+        def h_speed(self):
+            return self._h_speed * 0.001
+
+        @property
+        def h_speed_acc(self):
+            return self._h_speed_acc * 0.001
+
+        @property
+        def v_speed(self):
+            return self._v_speed * 0.001
+
+        @property
+        def v_speed_acc(self):
+            return self._v_speed_acc * 0.001
+
+        @property
+        def head_mot(self):
+            return self._head_mot * 1e-05
+
+        @property
+        def head_acc(self):
+            return self._head_acc * 1e-05
+
+        @property
+        def p_dop(self):
+            return self._p_dop * 0.01
+
+        @property
+        def h_dop(self):
+            return self._h_dop * 0.01
+
+        @property
+        def v_dop(self):
+            return self._v_dop * 0.01
+
+        @property
+        def t_dop(self):
+            return self._t_dop * 0.01
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1072,5 +1216,6 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     34: readings.lte_tac_cells,
     35: readings.wifi_ap_info,
     36: readings.device_tilt,
+    37: readings.nrf9x_gnss_pvt,
     100: readings.array_type,
 }
