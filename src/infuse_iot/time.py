@@ -10,6 +10,7 @@ class InfuseTimeSource:
         GNSS = 1
         NTP = 2
         RPC = 3
+        INVALID = 4
 
     def __init__(self, value: int):
         self.recovered: bool = value & 0x80 != 0
