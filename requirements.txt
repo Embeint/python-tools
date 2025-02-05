@@ -6,6 +6,7 @@ httpx
 pylink-square
 pynrfjprog
 pyserial
+pyocd
 python-dateutil
 simple-term-menu
 tabulate

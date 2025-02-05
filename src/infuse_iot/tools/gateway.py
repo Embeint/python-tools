@@ -34,7 +34,7 @@ from infuse_iot.epacket.packet import (
     PacketOutputRouted,
     PacketReceived,
 )
-from infuse_iot.serial_comms import RttPort, SerialFrame, SerialLike, SerialPort
+from infuse_iot.serial_comms import PyOcdPort, RttPort, SerialFrame, SerialLike, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationConnectionCreated,
@@ -373,6 +373,7 @@ class SubCommand(InfuseCommand):
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument("--serial", type=ValidFile, help="Gateway serial port")
         group.add_argument("--rtt", type=str, help="RTT serial port")
+        group.add_argument("--pyocd", type=str, help="RTT via PyOCD")
         parser.add_argument(
             "--display-only",
             "-d",
@@ -395,6 +396,8 @@ class SubCommand(InfuseCommand):
             self.port = SerialPort(args.serial)
         elif args.rtt is not None:
             self.port = RttPort(args.rtt)
+        elif args.pyocd is not None:
+            self.port = PyOcdPort(args.pyocd)
         self.ddb = DeviceDatabase()
         if args.display_only:
             self.server = None
