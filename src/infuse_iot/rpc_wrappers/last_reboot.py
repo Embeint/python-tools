@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.zephyr.errno import errno
 
 
 class last_reboot(InfuseRpcCommand, defs.last_reboot):
@@ -22,7 +22,7 @@ class last_reboot(InfuseRpcCommand, defs.last_reboot):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query reboot info ({os.strerror(-return_code)})")
+            print(f"Failed to query reboot info ({errno.strerror(-return_code)})")
             return
 
         from infuse_iot.time import InfuseTime, InfuseTimeSource

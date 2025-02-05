@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import binascii
-import os
 
 from rich.progress import (
     DownloadColumn,
@@ -12,6 +11,7 @@ from rich.progress import (
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import Auth, InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+from infuse_iot.zephyr.errno import errno
 
 
 class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
@@ -103,7 +103,7 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
         self.progress.stop()
 
         if return_code != 0:
-            print(f"Failed to write file ({os.strerror(-return_code)})")
+            print(f"Failed to write file ({errno.strerror(-return_code)})")
             return
         print("File written")
         print(f"\tLength: {response.recv_len}")

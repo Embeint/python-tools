@@ -7,6 +7,7 @@ import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
+from infuse_iot.zephyr.errno import errno
 
 
 class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
@@ -59,7 +60,7 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({os.strerror(-return_code)})")
+            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
             return
 
         def print_status(name, rc):

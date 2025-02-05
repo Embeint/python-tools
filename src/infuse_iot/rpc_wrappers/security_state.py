@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import ctypes
-import os
 import random
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -14,6 +13,7 @@ from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.ctypes import bytes_to_uint8
+from infuse_iot.zephyr.errno import errno
 
 
 class challenge_response_header(ctypes.LittleEndianStructure):
@@ -84,7 +84,7 @@ class security_state(InfuseRpcCommand, defs.security_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({os.strerror(-return_code)})")
+            print(f"Failed to query current time ({errno.strerror(-return_code)})")
             return
 
         # Decrypt identity information

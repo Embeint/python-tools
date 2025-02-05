@@ -2,7 +2,8 @@
 
 # import ctypes
 import argparse
-import os
+
+from infuse_iot.zephyr.errno import errno
 
 from . import kv_read, lte_pdp_ctx
 
@@ -26,7 +27,7 @@ class lte_modem_info(kv_read.kv_read):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query modem info ({os.strerror(-return_code)})")
+            print(f"Failed to query modem info ({errno.strerror(-return_code)})")
             return
 
         unknown = b"_unknown"

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import ctypes
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
+from infuse_iot.zephyr.errno import errno
 
 
 class kv_reflect_crcs(InfuseRpcCommand, defs.kv_reflect_crcs):
@@ -32,7 +32,7 @@ class kv_reflect_crcs(InfuseRpcCommand, defs.kv_reflect_crcs):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid query ({os.strerror(-return_code)})")
+            print(f"Invalid query ({errno.strerror(-return_code)})")
             return
 
         print(f"Slot CRCs ({response.remaining} remaining):")

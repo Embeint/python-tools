@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -11,6 +10,7 @@ from infuse_iot.generated.rpc_definitions import (
 )
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
+from infuse_iot.zephyr.errno import errno
 
 
 class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
@@ -59,7 +59,7 @@ class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
 
     def handle_response(self, return_code, response):
         if return_code < 0:
-            print(f"Failed to connect ({os.strerror(-return_code)})")
+            print(f"Failed to connect ({errno.strerror(-return_code)})")
             return
 
         if return_code == 1:

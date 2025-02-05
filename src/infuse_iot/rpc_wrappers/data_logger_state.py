@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.time import humanised_seconds
+from infuse_iot.zephyr.errno import errno
 
 
 class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
@@ -30,7 +30,7 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query data logger state ({os.strerror(-return_code)})")
+            print(f"Failed to query data logger state ({errno.strerror(-return_code)})")
             return
 
         def sizeof_fmt(num, suffix="B"):
@@ -53,8 +53,8 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
             print("\t Block Rate: N/A")
             print("\t  Byte Rate: N/A")
         elif byte_rate < 0.1:
-            print(f"\t Block Rate: {1/block_rate:.2f} sec/block")
-            print(f"\t  Byte Rate: {1/byte_rate:.2f} sec/byte")
+            print(f"\t Block Rate: {1 / block_rate:.2f} sec/block")
+            print(f"\t  Byte Rate: {1 / byte_rate:.2f} sec/byte")
         else:
             print(f"\t Block Rate: {block_rate:.2f} blocks/sec")
             print(f"\t  Byte Rate: {sizeof_fmt(byte_rate)}/sec")

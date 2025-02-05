@@ -2,12 +2,12 @@
 
 import ctypes
 import ipaddress
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import wifi as z_wifi
+from infuse_iot.zephyr.errno import errno
 
 
 class interface_state(ctypes.LittleEndianStructure):
@@ -91,7 +91,7 @@ class wifi_state(InfuseRpcCommand, defs.wifi_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({os.strerror(-return_code)})")
+            print(f"Failed to query current time ({errno.strerror(-return_code)})")
             return
 
         common = response.common

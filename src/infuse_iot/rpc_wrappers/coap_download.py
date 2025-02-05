@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import ctypes
-import os
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 from infuse_iot.util.ctypes import UINT32_MAX
+from infuse_iot.zephyr.errno import errno
 
 
 class coap_download(InfuseRpcCommand, defs.coap_download):
@@ -103,7 +103,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to download file ({os.strerror(-return_code)})")
+            print(f"Failed to download file ({errno.strerror(-return_code)})")
             return
         else:
             print("File downloaded")
