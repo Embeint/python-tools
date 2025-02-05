@@ -77,6 +77,6 @@ class InfuseRpcCommand:
     def data_progress_cb(self, offset: int) -> None:
         """Progress callback"""
 
-    def handle_response(self, return_code, response):
+    def handle_response(self, return_code: int, response: ctypes.LittleEndianStructure | None):
         """Handle RPC_RSP"""
         raise NotImplementedError
