@@ -33,6 +33,7 @@ dependencies = [
     "keyring",
     "pyocd",
     "pyyaml",
+    "paho-mqtt",
 ]
 
 [project.license]
