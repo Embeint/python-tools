@@ -9,6 +9,7 @@ import argparse
 import base64
 import enum
 import json
+import sys
 
 import paho.mqtt.client as mqtt
 import tabulate
@@ -147,7 +148,7 @@ def main(host, port, username, password, organisation, device, output):
         print("Exiting...")
         client.disconnect()
     except ConnectionError as e:
-        print("Connection failed: ", e)
+        sys.exit(f"Connection failed: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
