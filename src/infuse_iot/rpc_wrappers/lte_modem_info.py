@@ -3,6 +3,9 @@
 # import ctypes
 import argparse
 
+from infuse_iot.generated.kv_definitions import slots as kv_slots
+from infuse_iot.generated.kv_definitions import structs as kv_structs
+from infuse_iot.zephyr import lte as z_lte
 from infuse_iot.zephyr.errno import errno
 
 from . import kv_read, lte_pdp_ctx
@@ -23,29 +26,42 @@ class lte_modem_info(kv_read.kv_read):
         return
 
     def __init__(self, _args):
-        super().__init__(argparse.Namespace(keys=[40, 41, 42, 43, 44, 45]))
+        super().__init__(argparse.Namespace(keys=[40, 41, 42, 43, 44, 45, 46]))
 
     def handle_response(self, return_code, response):
         if return_code != 0:
             print(f"Failed to query modem info ({errno.strerror(-return_code)})")
             return
 
-        unknown = b"_unknown"
-        modem_model = bytes(response[0].data) if response[0].len > 0 else unknown
-        modem_firmware = bytes(response[1].data) if response[1].len > 0 else unknown
-        modem_esn = bytes(response[2].data) if response[2].len > 0 else unknown
-        modem_imei = bytes(response[3].data) if response[3].len > 0 else unknown
-        sim_uicc = bytes(response[4].data) if response[4].len > 0 else unknown
-        if response[5].len > 0:
-            family = lte_pdp_ctx.lte_pdp_ctx.PDPFamily(response[5].data[0])
-            apn = bytes(response[5].data[2:]).decode("utf-8")
-            pdp_cfg = f'"{apn}" ({family.name})'
-        else:
-            pdp_cfg = "default"
+        def struct_decode(t, r):
+            if r.len <= 0:
+                return None
+            return t.vla_from_buffer_copy(bytes(r.data))
 
-        print(f"\t   Model: {modem_model[1:].decode('utf-8')}")
-        print(f"\tFirmware: {modem_firmware[1:].decode('utf-8')}")
-        print(f"\t     ESN: {modem_esn[1:].decode('utf-8')}")
-        print(f"\t    IMEI: {int.from_bytes(modem_imei, 'little')}")
-        print(f"\t     SIM: {sim_uicc[1:].decode('utf-8')}")
-        print(f"\t     APN: {pdp_cfg}")
+        def str_decode(r):
+            if r.len <= 0:
+                return "Unknown"
+            return str(kv_structs.kv_string.vla_from_buffer_copy(bytes(r.data)))
+
+        modem_imei = struct_decode(kv_slots.lte_modem_imei, response[3])
+        pdp_ctx = struct_decode(kv_slots.lte_pdp_config, response[5])
+        system_modes = struct_decode(kv_slots.lte_networking_modes, response[6])
+
+        if pdp_ctx:
+            pdp_str = f'"{str(pdp_ctx.apn)}" ({lte_pdp_ctx.lte_pdp_ctx.PDPFamily(pdp_ctx.family).name})'
+        else:
+            pdp_str = "unknown"
+        if system_modes:
+            system_mode = z_lte.LteSystemMode(system_modes.modes)
+            system_pref = z_lte.LteSystemPreference(system_modes.prefer)
+            modes_str = f"{system_mode} (Prefer: {system_pref})"
+        else:
+            modes_str = "default"
+
+        print(f"\t   Model: {str_decode(response[0])}")
+        print(f"\tFirmware: {str_decode(response[1])}")
+        print(f"\t     ESN: {str_decode(response[2])}")
+        print(f"\t    IMEI: {modem_imei.imei}")
+        print(f"\t     SIM: {str_decode(response[4])}")
+        print(f"\t     APN: {pdp_str}")
+        print(f"\t    Mode: {modes_str}")

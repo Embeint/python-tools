@@ -39,6 +39,48 @@ class AccessTechnology(enum.IntEnum):
         return pretty_names[self.value]
 
 
+class LteSystemMode(enum.IntEnum):
+    LTE_M = 1
+    NB_IOT = 2
+    GNSS = 3
+    LTE_M_GNSS = 4
+    NB_IOT_GNSS = 5
+    LTE_M_NB_IOT = 6
+    LTE_M_NB_IOT_GNSS = 7
+    DEFAULT = 0xFF
+
+    def __str__(self):
+        pretty_names = {
+            self.LTE_M: "LTE-M",
+            self.NB_IOT: "NB-IoT",
+            self.GNSS: "GNSS",
+            self.LTE_M_GNSS: "LTE-M + GNSS",
+            self.NB_IOT_GNSS: "NB-IoT + GNSS",
+            self.LTE_M_NB_IOT: "LTE-M + NB-IoT",
+            self.LTE_M_NB_IOT_GNSS: "LTE-M + NB-IoT + GNSS",
+            self.DEFAULT: "Modem default",
+        }
+        return pretty_names[self.value]
+
+
+class LteSystemPreference(enum.IntEnum):
+    AUTO = 0
+    LTE_M = 1
+    NB_IOT = 2
+    PLMN_LTE_M = 3
+    PLMN_NB_IOT = 4
+
+    def __str__(self):
+        pretty_names = {
+            self.AUTO: "No preference",
+            self.LTE_M: "LTE-M",
+            self.NB_IOT: "NB-IoT",
+            self.PLMN_LTE_M: "PLMN > LTE-M",
+            self.PLMN_NB_IOT: "PLMN > NB-IoT",
+        }
+        return pretty_names[self.value]
+
+
 class LteBand:
     def __init__(self, band, freq_dl_low, offset_dl, freq_ul_low, offset_ul):
         self.band = band

@@ -37,6 +37,9 @@ class structs:
         vla_field = ("value", 0 * ctypes.c_char)
         _pack_ = 1
 
+        def __str__(self) -> str:
+            return bytes(self.value).decode('utf-8')
+
     class kv_mcuboot_img_sem_ver(VLACompatLittleEndianStruct):
         """MCUboot semantic versioning struct"""
 
@@ -224,8 +227,21 @@ class slots:
         BASE_ID = 45
         RANGE = 1
         _fields_ = [
+            ("family", ctypes.c_uint8),
         ]
         vla_field = ("apn", structs.kv_string)
+        _pack_ = 1
+
+    class lte_networking_modes(VLACompatLittleEndianStruct):
+        """Enabled LTE networking modes and preferences"""
+
+        NAME = "LTE_NETWORKING_MODES"
+        BASE_ID = 46
+        RANGE = 1
+        _fields_ = [
+            ("modes", ctypes.c_uint8),
+            ("prefer", ctypes.c_uint8),
+        ]
         _pack_ = 1
 
     class bluetooth_peer(VLACompatLittleEndianStruct):
@@ -259,6 +275,7 @@ class slots:
         BASE_ID = 100
         RANGE = 16
         _fields_ = [
+            ("points_num", ctypes.c_uint8),
         ]
         vla_field = ("points", 0 * structs.gcs_location)
         _pack_ = 1
@@ -270,6 +287,7 @@ class slots:
         BASE_ID = 30000
         RANGE = 10
         _fields_ = [
+            ("data_num", ctypes.c_uint8),
         ]
         vla_field = ("data", 0 * ctypes.c_uint8)
         _pack_ = 1
@@ -291,6 +309,7 @@ class slots:
         43: lte_modem_imei,
         44: lte_sim_uicc,
         45: lte_pdp_config,
+        46: lte_networking_modes,
         50: bluetooth_peer,
         60: gravity_reference,
         100: geofence,
