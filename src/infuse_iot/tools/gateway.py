@@ -150,6 +150,7 @@ class SerialRxThread(SignaledThread):
         self._reconstructor.send(None)
         self._line = ""
         self._log = log
+        self._next_ping = 0.0
         super().__init__(self._iter)
 
     def _iter(self):
@@ -196,8 +197,12 @@ class SerialRxThread(SignaledThread):
                 assert self._common.ddb.gateway is not None
                 if not self._common.ddb.has_network_id(self._common.ddb.gateway):
                     # Need to know network ID before we can query the device key
-                    self._common.port.ping()
-                    Console.log_info(f"Dropping {len(frame)} byte packet to query network ID...")
+                    if time.time() >= self._next_ping:
+                        self._next_ping = time.time() + 1.1
+                        self._common.port.ping()
+                        Console.log_info(f"Dropping {len(frame)} byte packet to query network ID...")
+                    else:
+                        Console.log_info(f"Dropping {len(frame)} byte packet...")
                 else:
                     self._common.query_device_key(None)
                     Console.log_info(f"Dropping {len(frame)} byte packet to query device key...")
