@@ -62,6 +62,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._server = server
         self._mapping = bleak_mapping
         self._queues: dict[int, asyncio.Queue] = {}
+        self._tasks: dict[int, asyncio.Task] = {}
 
     def notification_handler(self, _characteristic: BleakGATTCharacteristic, data: bytearray):
         hdr, decr = CtypeBtGattFrame.decrypt(self._db, None, bytes(data))
@@ -140,6 +141,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
         # Queue no longer being handled
         self._queues.pop(request.infuse_id)
+        self._tasks.pop(request.infuse_id)
         Console.log_info(f"{dev}: Terminating connection")
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
@@ -168,7 +170,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         q = asyncio.Queue()
         self._queues[request.infuse_id] = q
         # Create task to handle the connection
-        loop.create_task(self.create_connection(request, ble_dev, q))
+        self._tasks[request.infuse_id] = loop.create_task(self.create_connection(request, ble_dev, q))
 
     def error_received(self, exc):
         Console.log_error(f"Error received: {exc}")
@@ -234,15 +236,14 @@ class SubCommand(InfuseCommand):
 
     async def async_bt_receiver(self):
         loop = asyncio.get_event_loop()
-        loop.create_task(self.server_handler())
+        handler = loop.create_task(self.server_handler())
 
         scanner = BleakScanner(self.simple_callback, [str(InfuseBluetoothUUID.SERVICE_UUID)], cb=dict(use_bdaddr=True))
 
         while True:
             Console.log_info("Starting scanner")
             async with scanner:
-                # Run the scanner forever
-                await asyncio.Future()
+                await handler
 
     def sync_request_handler(self):
         # Loop while there are packets to send
