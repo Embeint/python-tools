@@ -152,12 +152,13 @@ class RpcClient:
         cmd_id: int,
         auth: Auth,
         params: bytes,
+        size: int,
         recv_cb: Callable[[int, bytes], None],
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)
-        data_hdr = rpc.RequestDataHeader(0xFFFFFFFF, 0)
+        data_hdr = rpc.RequestDataHeader(size, 0)
 
         request_packet = bytes(header) + bytes(data_hdr) + params
         pkt = PacketOutput(
