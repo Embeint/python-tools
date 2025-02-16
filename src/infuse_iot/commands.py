@@ -71,6 +71,10 @@ class InfuseRpcCommand:
         """Payload to send with RPC_DATA"""
         raise NotImplementedError
 
+    def data_payload_recv_len(self) -> int:
+        """Length of payload to receive with RPC_DATA"""
+        return 0xFFFFFFFF
+
     def data_recv_cb(self, offset: int, data: bytes) -> None:
         """Data received callback"""
 

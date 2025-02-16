@@ -99,6 +99,7 @@ class SubCommand(InfuseCommand):
                         self._command.COMMAND_ID,  # type: ignore
                         self._command.auth_level(),
                         params,
+                        self._command.data_payload_recv_len(),
                         self._command.data_recv_cb,
                         decode_fn,
                     )
