@@ -5,6 +5,11 @@ import datetime
 
 import colorama
 
+try:
+    from simple_term_menu import TerminalMenu
+except NotImplementedError:
+    pass
+
 
 class Console:
     """Common terminal logging functions"""
@@ -47,3 +52,30 @@ class Console:
         """Log colourised string to terminal"""
         ts = timestamp.strftime("%H:%M:%S.%f")[:-3]
         print(f"[{ts}]{colour} {string}")
+
+
+def choose_one(title: str, options: list[str]) -> tuple[int, str]:
+    """Select a single option from a list"""
+
+    if TerminalMenu:
+        # Linux & MacOS
+        terminal_menu = TerminalMenu(options, title=title)
+        idx = terminal_menu.show()
+        if idx is None:
+            raise IndexError("No option chosen")
+        return idx, options[idx]
+    else:
+        # Windows
+        print(title)
+        for idx, option in enumerate(options):
+            print(f" {idx:2d}: {option}")
+        idx = None
+        while idx is None:
+            try:
+                idx = int(input(f"Enter index between 0 and {len(options) - 1}:"))
+                if not (0 <= idx < len(options)):
+                    idx = None
+            except ValueError:
+                pass
+
+        return idx, options[idx]
