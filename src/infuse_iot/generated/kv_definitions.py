@@ -280,6 +280,35 @@ class slots:
         vla_field = ("points", 0 * structs.gcs_location)
         _pack_ = 1
 
+    class task_schedules_default_id(VLACompatLittleEndianStruct):
+        """Unique identifier for default schedule set"""
+
+        NAME = "TASK_SCHEDULES_DEFAULT_ID"
+        BASE_ID = 1000
+        RANGE = 1
+        _fields_ = [
+            ("set_id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class task_schedules(VLACompatLittleEndianStruct):
+        """Task runner task schedule definition (@ref task_schedule)"""
+
+        NAME = "TASK_SCHEDULES"
+        BASE_ID = 1001
+        RANGE = 32
+        _fields_ = [
+            ("task_id", ctypes.c_uint8),
+            ("validity", ctypes.c_uint8),
+            ("periodicity_type", ctypes.c_uint8),
+            ("timeout_s", ctypes.c_uint32),
+            ("battery_start_threshold", ctypes.c_uint8),
+            ("battery_terminate_threshold", ctypes.c_uint8),
+            ("periodicity", ctypes.c_uint32),
+        ]
+        vla_field = ("_remainder", 0 * ctypes.c_uint8)
+        _pack_ = 1
+
     class secure_storage_reserved(VLACompatLittleEndianStruct):
         """Keys reserved for secure storage (do not enable)"""
 
@@ -328,6 +357,39 @@ class slots:
         113: geofence,
         114: geofence,
         115: geofence,
+        1000: task_schedules_default_id,
+        1001: task_schedules,
+        1002: task_schedules,
+        1003: task_schedules,
+        1004: task_schedules,
+        1005: task_schedules,
+        1006: task_schedules,
+        1007: task_schedules,
+        1008: task_schedules,
+        1009: task_schedules,
+        1010: task_schedules,
+        1011: task_schedules,
+        1012: task_schedules,
+        1013: task_schedules,
+        1014: task_schedules,
+        1015: task_schedules,
+        1016: task_schedules,
+        1017: task_schedules,
+        1018: task_schedules,
+        1019: task_schedules,
+        1020: task_schedules,
+        1021: task_schedules,
+        1022: task_schedules,
+        1023: task_schedules,
+        1024: task_schedules,
+        1025: task_schedules,
+        1026: task_schedules,
+        1027: task_schedules,
+        1028: task_schedules,
+        1029: task_schedules,
+        1030: task_schedules,
+        1031: task_schedules,
+        1032: task_schedules,
         30000: secure_storage_reserved,
         30001: secure_storage_reserved,
         30002: secure_storage_reserved,

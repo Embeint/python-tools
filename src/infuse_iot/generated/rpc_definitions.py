@@ -493,6 +493,27 @@ class data_logger_read:
         _pack_ = 1
 
 
+class mem_read:
+    """Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"""
+
+    HELP = "Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"
+    DESCRIPTION = "Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"
+    COMMAND_ID = 15
+
+    class request(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("address", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("sent_len", ctypes.c_uint32),
+            ("sent_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
 class lte_at_cmd:
     """Run AT command against LTE modem"""
 
