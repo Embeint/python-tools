@@ -153,7 +153,7 @@ class SerialRxThread(SignaledThread):
         self._next_ping = 0.0
         super().__init__(self._iter)
 
-    def _iter(self):
+    def _iter(self) -> None:
         # Read bytes from serial port
         rx = self._common.port.read_bytes(1024)
         if len(rx) == 0:
@@ -351,7 +351,7 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
-    def _iter(self):
+    def _iter(self) -> None:
         if self._common.server is None:
             time.sleep(1.0)
             return
