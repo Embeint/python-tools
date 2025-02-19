@@ -4,6 +4,7 @@ import enum
 import json
 import socket
 import struct
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import cast
@@ -216,7 +217,10 @@ class LocalClient:
         # Multicast input socket
         self._input_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._input_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._input_sock.bind(multicast_address)
+        if sys.platform == "win32":
+            self._input_sock.bind(("", multicast_address[1]))
+        else:
+            self._input_sock.bind(multicast_address)
         mreq = struct.pack("4sl", socket.inet_aton(multicast_address[0]), socket.INADDR_ANY)
         self._input_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         self._input_sock.settimeout(rx_timeout)
