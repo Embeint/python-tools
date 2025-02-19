@@ -174,7 +174,7 @@ class SubCommand(InfuseCommand):
             out.append(s)
         return out
 
-    def recv_thread(self):
+    def recv_thread(self) -> None:
         msg = self._client.receive()
         if msg is None:
             return

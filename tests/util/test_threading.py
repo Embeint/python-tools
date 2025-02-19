@@ -9,7 +9,7 @@ assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 count = 0
 
 
-def dummy_work():
+def dummy_work() -> None:
     global count
     count += 1
     time.sleep(0.1)

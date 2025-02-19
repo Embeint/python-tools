@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import threading
+from typing import Callable, Optional
 
 
 class SignaledThread(threading.Thread):
     """Thread that can be signaled to terminate"""
 
-    def __init__(self, fn):
+    def __init__(self, fn: Callable[[], None], sig: Optional[threading.Event] = None):
         self._fn = fn
-        self._sig = threading.Event()
+        self._sig = sig if sig is not None else threading.Event()
         super().__init__(target=self.run_loop)
 
     def stop(self):
@@ -17,5 +18,13 @@ class SignaledThread(threading.Thread):
 
     def run_loop(self):
         """Run the thread function in a loop"""
-        while not self._sig.is_set():
-            self._fn()
+        try:
+            while not self._sig.is_set():
+                self._fn()
+        except Exception as e:
+            import traceback
+
+            # Print the exception traceback
+            traceback.print_exception(e)
+            # Set the termination signal
+            self._sig.set()
