@@ -80,7 +80,7 @@
         });
 
         // Connect to the WebSocket server
-        const ws = new WebSocket('ws://localhost:8080/ws');
+        const ws = new WebSocket("ws://localhost:" + location.port + "/ws");
         let shownTDFs = {};
         let currentTDFs = [];
         let current_num_columns = 0;

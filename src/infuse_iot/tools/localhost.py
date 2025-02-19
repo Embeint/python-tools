@@ -36,10 +36,15 @@ class SubCommand(InfuseCommand):
     HELP = "Run a local server for TDF viewing"
     DESCRIPTION = "Run a local server for TDF viewing"
 
-    def __init__(self, _):
+    @classmethod
+    def add_parser(cls, parser):
+        parser.add_argument("--port", "-p", type=int, default=8080, help="Port number for localhost server")
+
+    def __init__(self, args):
         self._data_lock = threading.Lock()
         self._columns = {}
         self._data = {}
+        self._port = args.port
 
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
@@ -227,7 +232,7 @@ class SubCommand(InfuseCommand):
 
         # Run server
         try:
-            web.run_app(app, host="localhost", port=8080)
+            web.run_app(app, host="localhost", port=self._port)
         except GracefulExit:
             pass
         finally:
