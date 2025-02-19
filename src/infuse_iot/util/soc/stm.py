@@ -19,14 +19,16 @@ class STM32Family:
     SOC: str
 
 
-class STM32L43X_L44X(STM32Family):
+class STM32L4X(STM32Family):
     UID_ADDRESS = 0x1FFF7590
     OTP_ADDRESS = 0x1FFF7000
     SOC = "stm32l4x"
 
 
 DEVICE_ID_MAPPING = {
-    0x435: STM32L43X_L44X,
+    0x435: STM32L4X,
+    0x462: STM32L4X,
+    0x464: STM32L4X,
 }
 
 
