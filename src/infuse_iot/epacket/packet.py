@@ -9,7 +9,7 @@ from typing import Any
 
 from typing_extensions import Self
 
-from infuse_iot.common import InfuseType
+from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.database import DeviceDatabase, NoKeyError
 from infuse_iot.epacket.common import Serializable
 from infuse_iot.epacket.interface import ID as Interface
@@ -263,7 +263,6 @@ class PacketOutputRouted(Serializable):
 
         # Validation
         assert key_metadata is not None
-        assert database.gateway is not None
 
         # Create header
         header = CtypeSerialFrame(
@@ -275,7 +274,11 @@ class PacketOutputRouted(Serializable):
             entropy=random.randint(0, 65535),
         )
         header.key_metadata = key_metadata
-        header.device_id = database.gateway
+        if serial.infuse_id == InfuseID.GATEWAY:
+            assert database.gateway is not None
+            header.device_id = database.gateway
+        else:
+            header.device_id = serial.infuse_id
 
         # Encrypt and return payload
         header_bytes = bytes(header)
