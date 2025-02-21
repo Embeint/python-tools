@@ -30,21 +30,21 @@ class Console:
         Console.log(datetime.datetime.now(), colorama.Fore.MAGENTA, message)
 
     @staticmethod
-    def log_tx(data_type, length):
+    def log_tx(data_type, length, prefix=""):
         """Log transmitted packet to terminal"""
         Console.log(
             datetime.datetime.now(),
             colorama.Fore.BLUE,
-            f"TX {data_type.name} {length} bytes",
+            f"{prefix}TX {data_type.name} {length} bytes",
         )
 
     @staticmethod
-    def log_rx(data_type, length):
+    def log_rx(data_type, length, prefix=""):
         """Log received packet to terminal"""
         Console.log(
             datetime.datetime.now(),
             colorama.Fore.GREEN,
-            f"RX {data_type.name} {length} bytes",
+            f"{prefix}RX {data_type.name} {length} bytes",
         )
 
     @staticmethod
