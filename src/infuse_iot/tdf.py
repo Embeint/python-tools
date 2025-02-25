@@ -78,10 +78,12 @@ class TDF:
     class Reading:
         def __init__(
             self,
+            tdf_id: int,
             time: None | float,
             period: None | float,
             data: list[tdf_base.TdfReadingBase],
         ):
+            self.id = tdf_id
             self.time = time
             self.period = period
             self.data = data
@@ -202,4 +204,4 @@ class TDF:
             if array_header is not None:
                 period = array_header.period / 65536
 
-            yield self.Reading(time, period, data)
+            yield self.Reading(tdf_id, time, period, data)
