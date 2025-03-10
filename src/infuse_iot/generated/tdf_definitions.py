@@ -1166,6 +1166,39 @@ class readings:
         def t_dop(self):
             return self._t_dop * 0.01
 
+    class battery_charge_accumulated(TdfReadingBase):
+        """Battery charge accumulated over time (+ve entering battery, -ve exiting battery)"""
+
+        name = "BATTERY_CHARGE_ACCUMULATED"
+        _fields_ = [
+            ("charge", ctypes.c_int32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "charge": "uAs",
+        }
+        _display_fmt_ = {
+            "charge": "{}",
+        }
+
+    class infuse_bluetooth_rssi(TdfReadingBase):
+        """Received signal strength of Infuse-IoT Bluetooth device"""
+
+        name = "INFUSE_BLUETOOTH_RSSI"
+        _fields_ = [
+            ("infuse_id", ctypes.c_uint64),
+            ("rssi", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "infuse_id": "",
+            "rssi": "dBm",
+        }
+        _display_fmt_ = {
+            "infuse_id": "{}",
+            "rssi": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1217,5 +1250,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     35: readings.wifi_ap_info,
     36: readings.device_tilt,
     37: readings.nrf9x_gnss_pvt,
+    38: readings.battery_charge_accumulated,
+    39: readings.infuse_bluetooth_rssi,
     100: readings.array_type,
 }
