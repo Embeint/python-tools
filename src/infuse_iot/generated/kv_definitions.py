@@ -51,6 +51,15 @@ class structs:
         ]
         _pack_ = 1
 
+    class kv_range_u8(VLACompatLittleEndianStruct):
+        """Generic range structure"""
+
+        _fields_ = [
+            ("lower", ctypes.c_uint8),
+            ("upper", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
 
 class slots:
     class reboots(VLACompatLittleEndianStruct):
@@ -302,8 +311,8 @@ class slots:
             ("validity", ctypes.c_uint8),
             ("periodicity_type", ctypes.c_uint8),
             ("timeout_s", ctypes.c_uint32),
-            ("battery_start_threshold", ctypes.c_uint8),
-            ("battery_terminate_threshold", ctypes.c_uint8),
+            ("battery_start", structs.kv_range_u8),
+            ("battery_terminate", structs.kv_range_u8),
             ("periodicity", ctypes.c_uint32),
         ]
         vla_field = ("_remainder", 0 * ctypes.c_uint8)
