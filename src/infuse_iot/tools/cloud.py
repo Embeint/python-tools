@@ -8,17 +8,23 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 import sys
 from http import HTTPStatus
 from json import loads
+from typing import Any
 
 from tabulate import tabulate
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.board import (
     create_board,
+    get_board_by_id,
     get_boards,
+)
+from infuse_iot.api_client.api.device import (
+    get_device_by_device_id,
 )
 from infuse_iot.api_client.api.organisation import (
     create_organisation,
     get_all_organisations,
+    get_organisation_by_id,
 )
 from infuse_iot.api_client.models import Error, NewBoard, NewOrganisation
 from infuse_iot.commands import InfuseCommand
@@ -147,6 +153,47 @@ class Boards(CloudSubCommand):
             print(f"<{rsp.status_code}>: {c['message']}")
 
 
+class Device(CloudSubCommand):
+    @classmethod
+    def add_parser(cls, parser):
+        parser_boards = parser.add_parser("device", help="Infuse-IoT devices")
+        parser_boards.set_defaults(command_class=cls)
+
+        tool_parser = parser_boards.add_subparsers(title="commands", metavar="<command>", required=True)
+
+        info_parser = tool_parser.add_parser("info")
+        info_parser.set_defaults(command_fn=cls.info)
+        info_parser.add_argument("--id", type=str, help="Infuse-IoT device ID")
+
+    def run(self):
+        with self.client() as client:
+            self.args.command_fn(self, client)
+
+    def info(self, client):
+        id_int = int(self.args.id, 0)
+        id_str = f"{id_int:016x}"
+        info = get_device_by_device_id.sync(client=client, device_id=id_str)
+        if info is None:
+            sys.exit(f"No device with Infuse-IoT ID {id_str} found")
+        metadata: list[tuple[str, Any]] = []
+        if info.metadata:
+            metadata = [(f"Metadata.{k}", v) for k, v in info.metadata.additional_properties.items()]
+
+        org = get_organisation_by_id.sync(client=client, id=info.organisation_id)
+        board = get_board_by_id.sync(client=client, id=info.board_id)
+
+        table: list[tuple[str, Any]] = [
+            ("UUID", info.id),
+            ("MCU ID", info.mcu_id),
+            ("Organisation", f"{info.organisation_id} ({org.name if org else 'Unknown'})"),
+            ("Board", f"{info.board_id} ({board.name if board else 'Unknown'})"),
+            ("Created", info.created_at),
+            ("Updated", info.updated_at),
+            *metadata,
+        ]
+        print(tabulate(table))
+
+
 class SubCommand(InfuseCommand):
     NAME = "cloud"
     HELP = "Infuse-IoT cloud interaction"
@@ -158,6 +205,7 @@ class SubCommand(InfuseCommand):
 
         Organisations.add_parser(subparser)
         Boards.add_parser(subparser)
+        Device.add_parser(subparser)
 
     def __init__(self, args):
         self.tool = args.command_class(args)
