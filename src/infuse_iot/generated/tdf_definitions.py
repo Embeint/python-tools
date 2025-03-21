@@ -1199,6 +1199,51 @@ class readings:
             "rssi": "{}",
         }
 
+    class adc_raw_8(TdfReadingBase):
+        """Generic 8bit raw ADC reading"""
+
+        name = "ADC_RAW_8"
+        _fields_ = [
+            ("val", ctypes.c_int8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
+            "val": "{}",
+        }
+
+    class adc_raw_16(TdfReadingBase):
+        """Generic 16bit raw ADC reading"""
+
+        name = "ADC_RAW_16"
+        _fields_ = [
+            ("val", ctypes.c_int16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
+            "val": "{}",
+        }
+
+    class adc_raw_32(TdfReadingBase):
+        """Generic 32bit raw ADC reading"""
+
+        name = "ADC_RAW_32"
+        _fields_ = [
+            ("val", ctypes.c_int32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
+            "val": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1252,5 +1297,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     37: readings.nrf9x_gnss_pvt,
     38: readings.battery_charge_accumulated,
     39: readings.infuse_bluetooth_rssi,
+    40: readings.adc_raw_8,
+    41: readings.adc_raw_16,
+    42: readings.adc_raw_32,
     100: readings.array_type,
 }

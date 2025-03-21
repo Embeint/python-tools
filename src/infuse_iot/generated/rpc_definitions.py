@@ -6,8 +6,10 @@
 import ctypes
 import enum
 
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 
-class rpc_struct_mcuboot_img_sem_ver(ctypes.LittleEndianStructure):
+
+class rpc_struct_mcuboot_img_sem_ver(VLACompatLittleEndianStruct):
     """MCUboot semantic versioning struct"""
 
     _fields_ = [
@@ -19,18 +21,18 @@ class rpc_struct_mcuboot_img_sem_ver(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_kv_store_value(ctypes.LittleEndianStructure):
+class rpc_struct_kv_store_value(VLACompatLittleEndianStruct):
     """KV store data value"""
 
     _fields_ = [
         ("id", ctypes.c_uint16),
         ("len", ctypes.c_int16),
-        ("data", 0 * ctypes.c_uint8),
     ]
+    vla_field = ("data", 0 * ctypes.c_uint8)
     _pack_ = 1
 
 
-class rpc_struct_kv_store_crc(ctypes.LittleEndianStructure):
+class rpc_struct_kv_store_crc(VLACompatLittleEndianStruct):
     """KV store data CRC"""
 
     _fields_ = [
@@ -40,7 +42,7 @@ class rpc_struct_kv_store_crc(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_bt_addr_le(ctypes.LittleEndianStructure):
+class rpc_struct_bt_addr_le(VLACompatLittleEndianStruct):
     """Bluetooth LE address"""
 
     _fields_ = [
@@ -50,7 +52,7 @@ class rpc_struct_bt_addr_le(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_ipv4_address(ctypes.LittleEndianStructure):
+class rpc_struct_ipv4_address(VLACompatLittleEndianStruct):
     """IPv4 address"""
 
     _fields_ = [
@@ -59,7 +61,7 @@ class rpc_struct_ipv4_address(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_ipv6_address(ctypes.LittleEndianStructure):
+class rpc_struct_ipv6_address(VLACompatLittleEndianStruct):
     """IPv6 address"""
 
     _fields_ = [
@@ -68,7 +70,7 @@ class rpc_struct_ipv6_address(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_network_state(ctypes.LittleEndianStructure):
+class rpc_struct_network_state(VLACompatLittleEndianStruct):
     """Common network state"""
 
     _fields_ = [
@@ -82,7 +84,7 @@ class rpc_struct_network_state(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_wifi_state(ctypes.LittleEndianStructure):
+class rpc_struct_wifi_state(VLACompatLittleEndianStruct):
     """WiFi interface status"""
 
     _fields_ = [
@@ -101,7 +103,7 @@ class rpc_struct_wifi_state(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_lte_state(ctypes.LittleEndianStructure):
+class rpc_struct_lte_state(VLACompatLittleEndianStruct):
     """LTE interface status"""
 
     _fields_ = [
@@ -123,7 +125,7 @@ class rpc_struct_lte_state(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class rpc_struct_wifi_scan_result(ctypes.LittleEndianStructure):
+class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
     """WiFi interface status"""
 
     _fields_ = [
@@ -133,18 +135,28 @@ class rpc_struct_wifi_scan_result(ctypes.LittleEndianStructure):
         ("rssi", ctypes.c_int8),
         ("bssid", 6 * ctypes.c_char),
         ("ssid_len", ctypes.c_uint8),
-        ("ssid", 0 * ctypes.c_char),
     ]
+    vla_field = ("ssid", 0 * ctypes.c_char)
     _pack_ = 1
 
 
-class rpc_struct_xyz_s16(ctypes.LittleEndianStructure):
+class rpc_struct_xyz_s16(VLACompatLittleEndianStruct):
     """Signed 16 bit XYZ vector"""
 
     _fields_ = [
         ("x", ctypes.c_int16),
         ("y", ctypes.c_int16),
         ("z", ctypes.c_int16),
+    ]
+    _pack_ = 1
+
+
+class rpc_struct_infuse_state(VLACompatLittleEndianStruct):
+    """Single Infuse-IoT application state"""
+
+    _fields_ = [
+        ("state", ctypes.c_uint8),
+        ("timeout", ctypes.c_uint16),
     ]
     _pack_ = 1
 
@@ -189,13 +201,13 @@ class reboot:
     DESCRIPTION = "Reboot the device after a delay"
     COMMAND_ID = 1
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("delay_ms", ctypes.c_uint32),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("delay_ms", ctypes.c_uint32),
         ]
@@ -209,14 +221,14 @@ class fault:
     DESCRIPTION = "Immediately trigger an exception on the device"
     COMMAND_ID = 2
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("fault", ctypes.c_uint8),
             ("zero", ctypes.c_uint32),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
@@ -229,12 +241,12 @@ class time_get:
     DESCRIPTION = "Get the current time knowledge of the device"
     COMMAND_ID = 3
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("time_source", ctypes.c_uint8),
             ("epoch_time", ctypes.c_uint64),
@@ -250,13 +262,13 @@ class time_set:
     DESCRIPTION = "Set the current time of the device"
     COMMAND_ID = 4
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("epoch_time", ctypes.c_uint64),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
@@ -269,17 +281,17 @@ class kv_write:
     DESCRIPTION = "Write values to the KV store"
     COMMAND_ID = 5
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("num", ctypes.c_uint8),
-            ("values", 0 * rpc_struct_kv_store_value),
         ]
+        vla_field = ("values", 0 * rpc_struct_kv_store_value)
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("rc", 0 * ctypes.c_int16),
         ]
+        vla_field = ("rc", 0 * ctypes.c_int16)
         _pack_ = 1
 
 
@@ -290,17 +302,17 @@ class kv_read:
     DESCRIPTION = "Read values from the KV store"
     COMMAND_ID = 6
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("num", ctypes.c_uint8),
-            ("keys", 0 * ctypes.c_uint16),
         ]
+        vla_field = ("keys", 0 * ctypes.c_uint16)
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("values", 0 * rpc_struct_kv_store_value),
         ]
+        vla_field = ("values", 0 * rpc_struct_kv_store_value)
         _pack_ = 1
 
 
@@ -311,18 +323,18 @@ class kv_reflect_crcs:
     DESCRIPTION = "Read KV store CRC's"
     COMMAND_ID = 7
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("offset", ctypes.c_uint16),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("num", ctypes.c_uint16),
             ("remaining", ctypes.c_uint16),
-            ("crcs", 0 * rpc_struct_kv_store_crc),
         ]
+        vla_field = ("crcs", 0 * rpc_struct_kv_store_crc)
         _pack_ = 1
 
 
@@ -333,19 +345,19 @@ class zbus_channel_state:
     DESCRIPTION = "Query current state of zbus channel"
     COMMAND_ID = 8
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("channel_id", ctypes.c_uint32),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("publish_timestamp", ctypes.c_uint64),
             ("publish_count", ctypes.c_uint32),
             ("publish_period_avg_ms", ctypes.c_uint32),
-            ("data", 0 * ctypes.c_uint8),
         ]
+        vla_field = ("data", 0 * ctypes.c_uint8)
         _pack_ = 1
 
 
@@ -356,12 +368,12 @@ class application_info:
     DESCRIPTION = "Query basic application versions and state"
     COMMAND_ID = 9
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("application_id", ctypes.c_uint32),
             ("version", rpc_struct_mcuboot_img_sem_ver),
@@ -382,16 +394,16 @@ class wifi_scan:
     DESCRIPTION = "Scan for WiFi networks"
     COMMAND_ID = 10
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("network_count", ctypes.c_uint8),
-            ("networks", 0 * rpc_struct_wifi_scan_result),
         ]
+        vla_field = ("networks", 0 * rpc_struct_wifi_scan_result)
         _pack_ = 1
 
 
@@ -402,12 +414,12 @@ class wifi_state:
     DESCRIPTION = "Get current WiFi interface state"
     COMMAND_ID = 11
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("common", rpc_struct_network_state),
             ("wifi", rpc_struct_wifi_state),
@@ -422,12 +434,12 @@ class last_reboot:
     DESCRIPTION = "Retrieve information pertaining to the previous reboot"
     COMMAND_ID = 12
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("reason", ctypes.c_uint8),
             ("epoch_time_source", ctypes.c_uint8),
@@ -448,13 +460,13 @@ class data_logger_state:
     DESCRIPTION = "Get state of a data logger"
     COMMAND_ID = 13
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("logger", ctypes.c_uint8),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("bytes_logged", ctypes.c_uint64),
             ("logical_blocks", ctypes.c_uint32),
@@ -477,7 +489,7 @@ class data_logger_read:
     DESCRIPTION = "Read data from data logger"
     COMMAND_ID = 14
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("logger", ctypes.c_uint8),
             ("start_block", ctypes.c_uint32),
@@ -485,7 +497,7 @@ class data_logger_read:
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("sent_len", ctypes.c_uint32),
             ("sent_crc", ctypes.c_uint32),
@@ -500,16 +512,57 @@ class mem_read:
     DESCRIPTION = "Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"
     COMMAND_ID = 15
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("address", ctypes.c_uint32),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("sent_len", ctypes.c_uint32),
             ("sent_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class infuse_states_query:
+    """Read current Infuse-IoT application states"""
+
+    HELP = "Read current Infuse-IoT application states"
+    DESCRIPTION = "Read current Infuse-IoT application states"
+    COMMAND_ID = 16
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("offset", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("remaining", ctypes.c_uint8),
+        ]
+        vla_field = ("states", 0 * rpc_struct_infuse_state)
+        _pack_ = 1
+
+
+class infuse_states_update:
+    """Update Infuse-IoT application states"""
+
+    HELP = "Update Infuse-IoT application states"
+    DESCRIPTION = "Update Infuse-IoT application states"
+    COMMAND_ID = 17
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("num", ctypes.c_uint8),
+        ]
+        vla_field = ("states", 0 * rpc_struct_infuse_state)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
         ]
         _pack_ = 1
 
@@ -521,16 +574,16 @@ class lte_at_cmd:
     DESCRIPTION = "Run AT command against LTE modem"
     COMMAND_ID = 20
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("cmd", 0 * ctypes.c_char),
         ]
+        vla_field = ("cmd", 0 * ctypes.c_char)
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("rsp", 0 * ctypes.c_char),
         ]
+        vla_field = ("rsp", 0 * ctypes.c_char)
         _pack_ = 1
 
 
@@ -541,12 +594,12 @@ class lte_state:
     DESCRIPTION = "Get current LTE interface state"
     COMMAND_ID = 21
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("common", rpc_struct_network_state),
             ("lte", rpc_struct_lte_state),
@@ -561,7 +614,7 @@ class coap_download:
     DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
     COMMAND_ID = 30
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("server_address", 48 * ctypes.c_char),
             ("server_port", ctypes.c_uint16),
@@ -569,11 +622,11 @@ class coap_download:
             ("action", ctypes.c_uint8),
             ("resource_len", ctypes.c_uint32),
             ("resource_crc", ctypes.c_uint32),
-            ("resource", 0 * ctypes.c_char),
         ]
+        vla_field = ("resource", 0 * ctypes.c_char)
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("resource_len", ctypes.c_uint32),
             ("resource_crc", ctypes.c_uint32),
@@ -588,14 +641,14 @@ class file_write_basic:
     DESCRIPTION = "Write a file to the device"
     COMMAND_ID = 40
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("action", ctypes.c_uint8),
             ("file_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("recv_len", ctypes.c_uint32),
             ("recv_crc", ctypes.c_uint32),
@@ -610,7 +663,7 @@ class bt_connect_infuse:
     DESCRIPTION = "Connect to an Infuse-IoT Bluetooth device"
     COMMAND_ID = 50
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("peer", rpc_struct_bt_addr_le),
             ("conn_timeout_ms", ctypes.c_uint16),
@@ -619,7 +672,7 @@ class bt_connect_infuse:
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("peer", rpc_struct_bt_addr_le),
             ("cloud_public_key", 32 * ctypes.c_uint8),
@@ -636,13 +689,13 @@ class bt_disconnect:
     DESCRIPTION = "Disconnect from a Bluetooth device"
     COMMAND_ID = 51
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("peer", rpc_struct_bt_addr_le),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
@@ -655,13 +708,13 @@ class gravity_reference_update:
     DESCRIPTION = "Store the current accelerometer vector as the gravity reference"
     COMMAND_ID = 60
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("max_variance", ctypes.c_uint16),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("reference", rpc_struct_xyz_s16),
             ("variance", rpc_struct_xyz_s16),
@@ -678,20 +731,20 @@ class security_state:
     DESCRIPTION = "Query current security state and validate identity"
     COMMAND_ID = 30000
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("challenge", 16 * ctypes.c_uint8),
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("cloud_public_key", 32 * ctypes.c_uint8),
             ("device_public_key", 32 * ctypes.c_uint8),
             ("network_id", ctypes.c_uint32),
             ("challenge_response_type", ctypes.c_uint8),
-            ("challenge_response", 0 * ctypes.c_uint8),
         ]
+        vla_field = ("challenge_response", 0 * ctypes.c_uint8)
         _pack_ = 1
 
 
@@ -702,12 +755,12 @@ class data_sender:
     DESCRIPTION = "Send multiple INFUSE_RPC_DATA packets"
     COMMAND_ID = 32765
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
@@ -720,12 +773,12 @@ class data_receiver:
     DESCRIPTION = "Receive multiple INFUSE_RPC_DATA packets"
     COMMAND_ID = 32766
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
         ]
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("recv_len", ctypes.c_uint32),
             ("recv_crc", ctypes.c_uint32),
@@ -740,15 +793,15 @@ class echo:
     DESCRIPTION = "Echo any input data in the response"
     COMMAND_ID = 32767
 
-    class request(ctypes.LittleEndianStructure):
+    class request(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("array", 0 * ctypes.c_uint8),
         ]
+        vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
 
-    class response(ctypes.LittleEndianStructure):
+    class response(VLACompatLittleEndianStruct):
         _fields_ = [
-            ("array", 0 * ctypes.c_uint8),
         ]
+        vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
 
