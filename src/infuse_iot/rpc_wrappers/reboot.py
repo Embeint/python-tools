@@ -17,6 +17,9 @@ class reboot(InfuseRpcCommand, defs.reboot):
     def request_struct(self):
         return self.request(self._delay_ms)
 
+    def request_json(self):
+        return {"delay_ms": str(self._delay_ms)}
+
     def handle_response(self, return_code, response):
         if return_code == 0:
             print(f"Rebooting in {response.delay_ms} ms")
