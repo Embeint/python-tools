@@ -27,6 +27,7 @@ class ClientNotification:
         CONNECTION_FAILED = 1
         CONNECTION_CREATED = 2
         CONNECTION_DROPPED = 3
+        KNOWN_DEVICES = 4
 
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
@@ -44,6 +45,8 @@ class ClientNotification:
             return cast(Self, ClientNotificationConnectionCreated.from_json(values))
         elif values["type"] == cls.Type.CONNECTION_DROPPED:
             return cast(Self, ClientNotificationConnectionDropped.from_json(values))
+        elif values["type"] == cls.Type.KNOWN_DEVICES:
+            return cast(Self, ClientNotificationObservedDevices.from_json(values))
         raise NotImplementedError
 
 
@@ -60,6 +63,23 @@ class ClientNotificationEpacketReceived(ClientNotification):
     @classmethod
     def from_json(cls, values: dict) -> Self:
         return cls(PacketReceived.from_json(values["epacket"]))
+
+
+class ClientNotificationObservedDevices(ClientNotification):
+    TYPE = ClientNotification.Type.KNOWN_DEVICES
+
+    def __init__(self, devices: dict[int, dict]):
+        self.devices = devices
+
+    def to_json(self) -> dict:
+        """Convert class to json dictionary"""
+        return {"type": int(self.TYPE), "devices": json.dumps(self.devices)}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        raw = json.loads(values["devices"])
+        decoded = {int(k): v for k, v in raw.items()}
+        return cls(decoded)
 
 
 class ClientNotificationConnection(ClientNotification):
@@ -110,6 +130,7 @@ class GatewayRequest:
         EPACKET_SEND = 0
         CONNECTION_REQUEST = 1
         CONNECTION_RELEASE = 2
+        KNOWN_DEVICES = 3
 
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
@@ -124,6 +145,8 @@ class GatewayRequest:
             return cast(Self, GatewayRequestConnectionRequest.from_json(values))
         elif values["type"] == cls.Type.CONNECTION_RELEASE:
             return cast(Self, GatewayRequestConnectionRelease.from_json(values))
+        elif values["type"] == cls.Type.KNOWN_DEVICES:
+            return cast(Self, GatewayRequestObservedDevices.from_json(values))
         raise NotImplementedError
 
 
@@ -141,6 +164,22 @@ class GatewayRequestEpacketSend(GatewayRequest):
     @classmethod
     def from_json(cls, values: dict) -> Self:
         return cls(PacketOutput.from_json(values["epacket"]))
+
+
+class GatewayRequestObservedDevices(GatewayRequest):
+    """Request list of known devices"""
+
+    TYPE = GatewayRequest.Type.KNOWN_DEVICES
+
+    def __init__(self):
+        pass
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE)}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls()
 
 
 class GatewayRequestConnection(GatewayRequest):
