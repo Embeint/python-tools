@@ -58,10 +58,11 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
             return
 
         if response.sent_crc != binascii.crc32(self.output):
-            print(f"Unexpected received length ({response.sent_crc:08x} != {binascii.crc32(self.output)}:08x)")
+            print(f"Unexpected received CRC ({response.sent_crc:08x} != {binascii.crc32(self.output):08x})")
             return
 
-        output_file = f"{self.infuse_id:016x}_{self.logger.name}.bin"
+        file_prefix = f"{self.infuse_id:016x}" if self.infuse_id else "gateway"
+        output_file = f"{file_prefix}_{self.logger.name}.bin"
         with open(output_file, "wb") as f:
             f.write(self.output)
         print(f"Wrote {response.sent_len:d} bytes to {output_file}")
