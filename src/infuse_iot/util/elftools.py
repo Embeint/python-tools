@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import ctypes
-from typing import Optional
 
 from elftools.dwarf.die import DIE
 from elftools.dwarf.dwarf_expr import DW_OP_name2opcode
@@ -58,7 +57,7 @@ def symbols_from_name(elf: ELFFile, name: str) -> list[Symbol]:
     return symbols
 
 
-def symbol_from_address(elf: ELFFile, address: int) -> Optional[Symbol]:
+def symbol_from_address(elf: ELFFile, address: int) -> Symbol | None:
     """Get a list of symbols from an ELF file with names matching the provided string"""
     symtab = None
 
@@ -104,7 +103,7 @@ def dwarf_die_from_symbol(elf: ELFFile, symbol: Symbol) -> DIE | None:
     return None
 
 
-def dwarf_die_file_info(elf: ELFFile, die: DIE) -> tuple[Optional[str], int]:
+def dwarf_die_file_info(elf: ELFFile, die: DIE) -> tuple[str | None, int]:
     file_attr = die.attributes["DW_AT_decl_file"]
     line_attr = die.attributes["DW_AT_decl_line"]
 
@@ -123,8 +122,8 @@ class dwarf_field:
         self,
         name: str,
         tag: str,
-        ctype: Optional[type[ctypes._SimpleCData]],
-        children: Optional[list[Self]],
+        ctype: type[ctypes._SimpleCData] | None,
+        children: list[Self] | None,
         offset: int,
     ):
         self.name = name
@@ -143,7 +142,7 @@ def _type_from_dwarf_info(dwarfinfo: DWARFInfo, die: DIE):
 
 
 def dwarf_die_variable_inf(
-    dwarfinfo: DWARFInfo, die: DIE, offset: int = 0, name_override: Optional[str] = None
+    dwarfinfo: DWARFInfo, die: DIE, offset: int = 0, name_override: str | None = None
 ) -> dwarf_field:
     type_die = _type_from_dwarf_info(dwarfinfo, die)
 
