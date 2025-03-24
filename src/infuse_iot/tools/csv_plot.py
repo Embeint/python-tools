@@ -43,4 +43,4 @@ class SubCommand(InfuseCommand):
         app = Dash()
         app.layout = html.Div([dcc.Graph(figure=fig)])
 
-        app.run_server(debug=True)
+        app.run(debug=True)
