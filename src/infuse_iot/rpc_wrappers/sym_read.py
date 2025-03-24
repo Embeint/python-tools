@@ -2,7 +2,6 @@
 
 import binascii
 import sys
-from typing import Optional
 
 import tabulate
 from elftools.dwarf.die import DIE
@@ -29,7 +28,7 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
         # Ignore context-manager warning since ELFFile requires the file to remain opened
         self.elf_file = open(args.elf, "rb")  # noqa: SIM115
         self.elf = ELFFile(self.elf_file)
-        self.symbol_die: Optional[DIE]
+        self.symbol_die: DIE | None
 
         if args.sym:
             symbols = elftools.symbols_from_name(self.elf, args.sym)

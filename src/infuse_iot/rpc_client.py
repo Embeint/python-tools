@@ -2,7 +2,7 @@
 
 import ctypes
 import random
-from typing import Callable
+from collections.abc import Callable
 
 from infuse_iot import rpc
 from infuse_iot.common import InfuseType
