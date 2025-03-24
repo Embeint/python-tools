@@ -254,7 +254,7 @@ class SerialTxThread(SignaledThread):
         pkt = req.epacket
 
         # Construct routed output
-        if pkt.infuse_id == InfuseID.GATEWAY:
+        if pkt.infuse_id == InfuseID.GATEWAY or pkt.infuse_id == self._common.ddb.gateway:
             routed = PacketOutputRouted(
                 [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
                 pkt.ptype,
@@ -301,7 +301,7 @@ class SerialTxThread(SignaledThread):
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
         assert self._common.server is not None
 
-        if req.infuse_id == InfuseID.GATEWAY:
+        if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
             self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512))
             return
@@ -336,7 +336,7 @@ class SerialTxThread(SignaledThread):
         self._common.port.write(encrypted)
 
     def _handle_conn_release(self, req: GatewayRequestConnectionRelease):
-        if req.infuse_id == InfuseID.GATEWAY:
+        if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
             return
 
