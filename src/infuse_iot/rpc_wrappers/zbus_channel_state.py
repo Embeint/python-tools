@@ -32,6 +32,14 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
         id = 0x43210004
         data = defs.readings.gcs_wgs84_llha
 
+    class NavPvtUbxChannel(ctypes.LittleEndianStructure):
+        id = 0x43210007
+        data = defs.readings.ubx_nav_pvt
+
+    class NavPvtNRFChannel(ctypes.LittleEndianStructure):
+        id = 0x43210008
+        data = defs.readings.nrf9x_gnss_pvt
+
     @classmethod
     def add_parser(cls, parser):
         group = parser.add_mutually_exclusive_group(required=True)
@@ -55,6 +63,20 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
             action="store_const",
             const=cls.LocationChannel,
             help="Location channel",
+        )
+        group.add_argument(
+            "--nav-pvt-ubx",
+            dest="channel",
+            action="store_const",
+            const=cls.NavPvtUbxChannel,
+            help="ublox NAV-PVT channel",
+        )
+        group.add_argument(
+            "--nav-pvt-nrf",
+            dest="channel",
+            action="store_const",
+            const=cls.NavPvtNRFChannel,
+            help="nRF9x NAV-PVT channel",
         )
 
     def __init__(self, args):
