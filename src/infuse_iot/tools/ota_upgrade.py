@@ -37,6 +37,7 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 60.0)
         self._min_rssi: int | None = args.rssi
+        self._single_id: int | None = args.id
         self._release: ValidRelease = args.release
         self._app_name = self._release.metadata["application"]["primary"]
         self._app_id = self._release.metadata["application"]["id"]
@@ -63,6 +64,7 @@ class SubCommand(InfuseCommand):
             "--release", "-r", type=ValidRelease, required=True, help="Application release to upgrade to"
         )
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
+        parser.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
 
     def progress_table(self):
         table = Table()
@@ -102,6 +104,12 @@ class SubCommand(InfuseCommand):
                 self.state_update(live, "Scanning")
                 if announce.application != self._app_id:
                     continue
+                if self._single_id:
+                    if self._single_id != source.infuse_id:
+                        continue
+                    if self._single_id in self._handled:
+                        # The one device we care about has been upgraded
+                        return
                 if source.infuse_id in self._handled:
                     continue
                 v = announce.version
