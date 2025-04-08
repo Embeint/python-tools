@@ -4,7 +4,6 @@ cryptography
 colorama
 httpx
 pylink-square
-pynrfjprog
 pyserial
 pyocd
 python-dateutil
