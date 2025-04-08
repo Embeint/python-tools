@@ -49,6 +49,24 @@ class nRF53(NRFFamily):
             raise NotImplementedError(f"Unhandled device {version}")
 
 
+class nRF54L(NRFFamily):
+    FICR_ADDRESS = 0x00FFC000
+    DEVICE_ID_OFFSET = 0x304
+    CUSTOMER_OFFSET = 0x500
+
+    @staticmethod
+    def soc(device_info):
+        version: str = device_info["jlink"]["deviceVersion"]
+        if version.startswith("NRF54L15"):
+            return "nRF54L15"
+        elif version.startswith("NRF54L10"):
+            return "nRF54L10"
+        elif version.startswith("NRF54L05"):
+            return "nRF54L05"
+        else:
+            raise NotImplementedError(f"Unhandled device {version}")
+
+
 class nRF91(NRFFamily):
     FICR_ADDRESS = 0x00FF0000
     DEVICE_ID_OFFSET = 0x204
@@ -70,6 +88,7 @@ class nRF91(NRFFamily):
 DEVICE_FAMILY_MAPPING: dict[str, type[NRFFamily]] = {
     "NRF52_FAMILY": nRF52,
     "NRF53_FAMILY": nRF53,
+    "NRF54L_FAMILY": nRF54L,
     "NRF91_FAMILY": nRF91,
 }
 
