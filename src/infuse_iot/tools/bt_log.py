@@ -8,6 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Inc"
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
+from infuse_iot.epacket import interface
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
@@ -15,6 +16,7 @@ from infuse_iot.socket_comms import (
     LocalClient,
     default_multicast_address,
 )
+from infuse_iot.tdf import TDF
 
 
 class SubCommand(InfuseCommand):
@@ -24,24 +26,44 @@ class SubCommand(InfuseCommand):
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 60.0)
+        self._decoder = TDF()
         self._id = args.id
+        self._data = args.data
 
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to receive logs for")
+        parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
 
     def run(self):
         try:
-            with self._client.connection(self._id, GatewayRequestConnectionRequest.DataType.LOGGING) as _:
-                while rsp := self._client.receive():
-                    if isinstance(rsp, ClientNotificationConnectionDropped):
+            types = GatewayRequestConnectionRequest.DataType.LOGGING
+            if self._data:
+                types |= GatewayRequestConnectionRequest.DataType.DATA
+            with self._client.connection(self._id, types) as _:
+                while evt := self._client.receive():
+                    if evt is None:
+                        continue
+                    if isinstance(evt, ClientNotificationConnectionDropped):
                         print(f"Connection to {self._id:016x} lost")
                         break
-                    if (
-                        isinstance(rsp, ClientNotificationEpacketReceived)
-                        and rsp.epacket.ptype == InfuseType.SERIAL_LOG
-                    ):
-                        print(rsp.epacket.payload.decode("utf-8"), end="")
+                    if not isinstance(evt, ClientNotificationEpacketReceived):
+                        continue
+                    source = evt.epacket.route[0]
+                    if source.infuse_id != self._id:
+                        continue
+                    if source.interface != interface.ID.BT_CENTRAL:
+                        continue
+
+                    if evt.epacket.ptype == InfuseType.SERIAL_LOG:
+                        print(evt.epacket.payload.decode("utf-8"), end="")
+                    if evt.epacket.ptype == InfuseType.TDF:
+                        for tdf in self._decoder.decode(evt.epacket.payload):
+                            t = tdf.data[-1]
+                            if len(tdf.data) > 1:
+                                print(f"{tdf.time:.3f} TDF: {t.name}[{len(tdf.data)}]")
+                            else:
+                                print(f"{tdf.time:.3f} TDF: {t.name}")
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
