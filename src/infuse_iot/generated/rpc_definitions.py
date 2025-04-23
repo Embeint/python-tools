@@ -161,6 +161,18 @@ class rpc_struct_infuse_state(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_sockaddr(VLACompatLittleEndianStruct):
+    """`struct sockaddr_in` or `struct sockaddr_in6` compatible address"""
+
+    _fields_ = [
+        ("sin_family", ctypes.c_uint8),
+        ("sin_port", ctypes.c_uint16),
+        ("sin_addr", 16 * ctypes.c_uint8),
+        ("scope_id", ctypes.c_uint8),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -192,6 +204,16 @@ class rpc_enum_data_logger(enum.IntEnum):
 
     FLASH_ONBOARD = 1
     FLASH_REMOVABLE = 2
+
+
+class rpc_enum_zperf_data_source(enum.IntEnum):
+    """Source for zperf data upload"""
+
+    CONSTANT = 0
+    RANDOM = 1
+    FLASH_ONBOARD = 2
+    FLASH_REMOVABLE = 3
+    ENCRYPT = 128
 
 
 class reboot:
@@ -630,6 +652,40 @@ class coap_download:
         _fields_ = [
             ("resource_len", ctypes.c_uint32),
             ("resource_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class zperf_upload:
+    """Network upload bandwidth testing using zperf/iperf"""
+
+    HELP = "Network upload bandwidth testing using zperf/iperf"
+    DESCRIPTION = "Network upload bandwidth testing using zperf/iperf"
+    COMMAND_ID = 31
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("peer_address", rpc_struct_sockaddr),
+            ("sock_type", ctypes.c_uint8),
+            ("data_source", ctypes.c_uint8),
+            ("duration_ms", ctypes.c_uint32),
+            ("rate_kbps", ctypes.c_uint32),
+            ("packet_size", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("nb_packets_sent", ctypes.c_uint32),
+            ("nb_packets_rcvd", ctypes.c_uint32),
+            ("nb_packets_lost", ctypes.c_uint32),
+            ("nb_packets_outorder", ctypes.c_uint32),
+            ("total_len", ctypes.c_uint64),
+            ("time_in_us", ctypes.c_uint64),
+            ("jitter_in_us", ctypes.c_uint32),
+            ("client_time_in_us", ctypes.c_uint64),
+            ("packet_size", ctypes.c_uint32),
+            ("nb_packets_errors", ctypes.c_uint32),
         ]
         _pack_ = 1
 
