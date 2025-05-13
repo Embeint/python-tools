@@ -21,7 +21,7 @@ from infuse_iot.api_client.api.device import (
     get_device_by_soc_and_mcu_id,
 )
 from infuse_iot.api_client.api.organisation import get_all_organisations
-from infuse_iot.api_client.models import Board, Error, NewDevice, NewDeviceMetadata
+from infuse_iot.api_client.models import Board, DeviceMetadata, Error, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 from infuse_iot.util.soc import nrf, soc, stm
@@ -119,7 +119,7 @@ class SubCommand(InfuseCommand):
             mcu_id=hardware_id_str,
             organisation_id=self._org,
             board_id=self._board,
-            metadata=NewDeviceMetadata.from_dict(self._metadata),
+            metadata=DeviceMetadata.from_dict(self._metadata),
         )
         if self._id:
             new_board.device_id = f"{self._id:016x}"
