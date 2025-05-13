@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import httpx
@@ -13,15 +13,15 @@ from ...types import UNSET, Response
 def _get_kwargs(
     *,
     organisation_id: UUID,
-) -> Dict[str, Any]:
-    params: Dict[str, Any] = {}
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
 
     json_organisation_id = str(organisation_id)
     params["organisationId"] = json_organisation_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
-    _kwargs: Dict[str, Any] = {
+    _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/board",
         "params": params,
@@ -30,7 +30,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[List["Board"]]:
+def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[list["Board"]]:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -46,7 +46,7 @@ def _parse_response(*, client: Union[AuthenticatedClient, Client], response: htt
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[List["Board"]]:
+def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[list["Board"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -59,7 +59,7 @@ def sync_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
     organisation_id: UUID,
-) -> Response[List["Board"]]:
+) -> Response[list["Board"]]:
     """Get all boards in an organisation
 
     Args:
@@ -70,7 +70,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[List['Board']]
+        Response[list['Board']]
     """
 
     kwargs = _get_kwargs(
@@ -88,7 +88,7 @@ def sync(
     *,
     client: Union[AuthenticatedClient, Client],
     organisation_id: UUID,
-) -> Optional[List["Board"]]:
+) -> Optional[list["Board"]]:
     """Get all boards in an organisation
 
     Args:
@@ -99,7 +99,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        List['Board']
+        list['Board']
     """
 
     return sync_detailed(
@@ -112,7 +112,7 @@ async def asyncio_detailed(
     *,
     client: Union[AuthenticatedClient, Client],
     organisation_id: UUID,
-) -> Response[List["Board"]]:
+) -> Response[list["Board"]]:
     """Get all boards in an organisation
 
     Args:
@@ -123,7 +123,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[List['Board']]
+        Response[list['Board']]
     """
 
     kwargs = _get_kwargs(
@@ -139,7 +139,7 @@ async def asyncio(
     *,
     client: Union[AuthenticatedClient, Client],
     organisation_id: UUID,
-) -> Optional[List["Board"]]:
+) -> Optional[list["Board"]]:
     """Get all boards in an organisation
 
     Args:
@@ -150,7 +150,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        List['Board']
+        list['Board']
     """
 
     return (

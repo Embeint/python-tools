@@ -138,7 +138,7 @@ class SubCommand(InfuseCommand):
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
 
         hardware_id = interface.unique_device_id()
-        hardware_id_str = f"{hardware_id:0{2*interface.unique_device_id_len}x}"
+        hardware_id_str = f"{hardware_id:0{2 * interface.unique_device_id_len}x}"
 
         client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
 

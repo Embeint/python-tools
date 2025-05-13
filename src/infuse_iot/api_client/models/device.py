@@ -1,5 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -9,7 +10,8 @@ from dateutil.parser import isoparse
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.new_device_metadata import NewDeviceMetadata
+    from ..models.device_metadata import DeviceMetadata
+    from ..models.new_device_state import NewDeviceState
 
 
 T = TypeVar("T", bound="Device")
@@ -27,7 +29,8 @@ class Device:
         organisation_id (UUID): ID of organisation for board to exist in
         device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
-        metadata (Union[Unset, NewDeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
+        metadata (Union[Unset, DeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
+        initial_device_state (Union[Unset, NewDeviceState]):
     """
 
     id: UUID
@@ -37,10 +40,11 @@ class Device:
     board_id: UUID
     organisation_id: UUID
     device_id: Union[Unset, str] = UNSET
-    metadata: Union[Unset, "NewDeviceMetadata"] = UNSET
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    metadata: Union[Unset, "DeviceMetadata"] = UNSET
+    initial_device_state: Union[Unset, "NewDeviceState"] = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         id = str(self.id)
 
         created_at = self.created_at.isoformat()
@@ -55,11 +59,15 @@ class Device:
 
         device_id = self.device_id
 
-        metadata: Union[Unset, Dict[str, Any]] = UNSET
+        metadata: Union[Unset, dict[str, Any]] = UNSET
         if not isinstance(self.metadata, Unset):
             metadata = self.metadata.to_dict()
 
-        field_dict: Dict[str, Any] = {}
+        initial_device_state: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.initial_device_state, Unset):
+            initial_device_state = self.initial_device_state.to_dict()
+
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -75,14 +83,17 @@ class Device:
             field_dict["deviceId"] = device_id
         if metadata is not UNSET:
             field_dict["metadata"] = metadata
+        if initial_device_state is not UNSET:
+            field_dict["initialDeviceState"] = initial_device_state
 
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
-        from ..models.new_device_metadata import NewDeviceMetadata
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.device_metadata import DeviceMetadata
+        from ..models.new_device_state import NewDeviceState
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         id = UUID(d.pop("id"))
 
         created_at = isoparse(d.pop("createdAt"))
@@ -98,11 +109,18 @@ class Device:
         device_id = d.pop("deviceId", UNSET)
 
         _metadata = d.pop("metadata", UNSET)
-        metadata: Union[Unset, NewDeviceMetadata]
+        metadata: Union[Unset, DeviceMetadata]
         if isinstance(_metadata, Unset):
             metadata = UNSET
         else:
-            metadata = NewDeviceMetadata.from_dict(_metadata)
+            metadata = DeviceMetadata.from_dict(_metadata)
+
+        _initial_device_state = d.pop("initialDeviceState", UNSET)
+        initial_device_state: Union[Unset, NewDeviceState]
+        if isinstance(_initial_device_state, Unset):
+            initial_device_state = UNSET
+        else:
+            initial_device_state = NewDeviceState.from_dict(_initial_device_state)
 
         device = cls(
             id=id,
@@ -113,13 +131,14 @@ class Device:
             organisation_id=organisation_id,
             device_id=device_id,
             metadata=metadata,
+            initial_device_state=initial_device_state,
         )
 
         device.additional_properties = d
         return device
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

@@ -38,7 +38,7 @@ class structs:
         _pack_ = 1
 
         def __str__(self) -> str:
-            return bytes(self.value).decode('utf-8')
+            return bytes(self.value).decode("utf-8")
 
     class kv_mcuboot_img_sem_ver(VLACompatLittleEndianStruct):
         """MCUboot semantic versioning struct"""
@@ -125,8 +125,7 @@ class slots:
         NAME = "WIFI_SSID"
         BASE_ID = 20
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("ssid", structs.kv_string)
         _pack_ = 1
 
@@ -136,8 +135,7 @@ class slots:
         NAME = "WIFI_PSK"
         BASE_ID = 21
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("psk", structs.kv_string)
         _pack_ = 1
 
@@ -147,8 +145,7 @@ class slots:
         NAME = "NTP_SERVER_URL"
         BASE_ID = 30
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("url", structs.kv_string)
         _pack_ = 1
 
@@ -158,8 +155,7 @@ class slots:
         NAME = "EPACKET_UDP_URL"
         BASE_ID = 31
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("server", structs.kv_string)
         _pack_ = 1
 
@@ -180,8 +176,7 @@ class slots:
         NAME = "LTE_MODEM_MODEL"
         BASE_ID = 40
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("model", structs.kv_string)
         _pack_ = 1
 
@@ -191,8 +186,7 @@ class slots:
         NAME = "LTE_MODEM_FIRMWARE_REVISION"
         BASE_ID = 41
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("revision", structs.kv_string)
         _pack_ = 1
 
@@ -202,8 +196,7 @@ class slots:
         NAME = "LTE_MODEM_ESN"
         BASE_ID = 42
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("esn", structs.kv_string)
         _pack_ = 1
 
@@ -224,8 +217,7 @@ class slots:
         NAME = "LTE_SIM_UICC"
         BASE_ID = 44
         RANGE = 1
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("uicc", structs.kv_string)
         _pack_ = 1
 

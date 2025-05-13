@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 from uuid import UUID
 
 import httpx
@@ -15,8 +15,8 @@ def _get_kwargs(
     *,
     metadata_name: Union[Unset, str] = UNSET,
     metadata_value: Union[Unset, str] = UNSET,
-) -> Dict[str, Any]:
-    params: Dict[str, Any] = {}
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
 
     params["metadataName"] = metadata_name
 
@@ -24,7 +24,7 @@ def _get_kwargs(
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
-    _kwargs: Dict[str, Any] = {
+    _kwargs: dict[str, Any] = {
         "method": "get",
         "url": f"/board/id/{id}/devices",
         "params": params,
@@ -35,7 +35,7 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, List["Device"]]]:
+) -> Optional[Union[Any, list["Device"]]]:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -56,7 +56,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, List["Device"]]]:
+) -> Response[Union[Any, list["Device"]]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -71,7 +71,7 @@ def sync_detailed(
     client: Union[AuthenticatedClient, Client],
     metadata_name: Union[Unset, str] = UNSET,
     metadata_value: Union[Unset, str] = UNSET,
-) -> Response[Union[Any, List["Device"]]]:
+) -> Response[Union[Any, list["Device"]]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -84,7 +84,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, List['Device']]]
+        Response[Union[Any, list['Device']]]
     """
 
     kwargs = _get_kwargs(
@@ -106,7 +106,7 @@ def sync(
     client: Union[AuthenticatedClient, Client],
     metadata_name: Union[Unset, str] = UNSET,
     metadata_value: Union[Unset, str] = UNSET,
-) -> Optional[Union[Any, List["Device"]]]:
+) -> Optional[Union[Any, list["Device"]]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -119,7 +119,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, List['Device']]
+        Union[Any, list['Device']]
     """
 
     return sync_detailed(
@@ -136,7 +136,7 @@ async def asyncio_detailed(
     client: Union[AuthenticatedClient, Client],
     metadata_name: Union[Unset, str] = UNSET,
     metadata_value: Union[Unset, str] = UNSET,
-) -> Response[Union[Any, List["Device"]]]:
+) -> Response[Union[Any, list["Device"]]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -149,7 +149,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, List['Device']]]
+        Response[Union[Any, list['Device']]]
     """
 
     kwargs = _get_kwargs(
@@ -169,7 +169,7 @@ async def asyncio(
     client: Union[AuthenticatedClient, Client],
     metadata_name: Union[Unset, str] = UNSET,
     metadata_value: Union[Unset, str] = UNSET,
-) -> Optional[Union[Any, List["Device"]]]:
+) -> Optional[Union[Any, list["Device"]]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -182,7 +182,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, List['Device']]
+        Union[Any, list['Device']]
     """
 
     return (

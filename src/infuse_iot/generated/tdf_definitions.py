@@ -176,7 +176,7 @@ class structs:
 
         @property
         def val(self):
-            return int.from_bytes(self._val, byteorder='little')
+            return int.from_bytes(self._val, byteorder="little")
 
     class tdf_struct_eui48(TdfStructBase):
         """IEEE EUI-48 address"""
@@ -194,7 +194,7 @@ class structs:
 
         @property
         def val(self):
-            return int.from_bytes(self._val, byteorder='little')
+            return int.from_bytes(self._val, byteorder="little")
 
 
 class readings:

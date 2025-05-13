@@ -1,5 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -26,7 +27,7 @@ class Board:
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
         organisation_id (UUID): ID of organisation for board to exist in
-        metadata_fields (Union[Unset, List['MetadataField']]): Metadata fields for board Example: [{'name': 'Field
+        metadata_fields (Union[Unset, list['MetadataField']]): Metadata fields for board Example: [{'name': 'Field
             Name', 'required': True, 'unique': False}].
     """
 
@@ -37,10 +38,10 @@ class Board:
     description: str
     soc: str
     organisation_id: UUID
-    metadata_fields: Union[Unset, List["MetadataField"]] = UNSET
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    metadata_fields: Union[Unset, list["MetadataField"]] = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         id = str(self.id)
 
         created_at = self.created_at.isoformat()
@@ -55,7 +56,7 @@ class Board:
 
         organisation_id = str(self.organisation_id)
 
-        metadata_fields: Union[Unset, List[Dict[str, Any]]] = UNSET
+        metadata_fields: Union[Unset, list[dict[str, Any]]] = UNSET
         if not isinstance(self.metadata_fields, Unset):
             metadata_fields = []
             for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:
@@ -64,7 +65,7 @@ class Board:
                 )
                 metadata_fields.append(componentsschemas_board_metadata_fields_item)
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -83,10 +84,10 @@ class Board:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.metadata_field import MetadataField
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         id = UUID(d.pop("id"))
 
         created_at = isoparse(d.pop("createdAt"))
@@ -125,7 +126,7 @@ class Board:
         return board
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

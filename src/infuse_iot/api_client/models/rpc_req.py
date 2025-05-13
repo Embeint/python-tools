@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -29,22 +30,22 @@ class RpcReq:
     command_id: int
     params: Union[Unset, "RPCParams"] = UNSET
     route: Union[Unset, "DownlinkRoute"] = UNSET
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         request_id = self.request_id
 
         command_id = self.command_id
 
-        params: Union[Unset, Dict[str, Any]] = UNSET
+        params: Union[Unset, dict[str, Any]] = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
-        route: Union[Unset, Dict[str, Any]] = UNSET
+        route: Union[Unset, dict[str, Any]] = UNSET
         if not isinstance(self.route, Unset):
             route = self.route.to_dict()
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -60,11 +61,11 @@ class RpcReq:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.downlink_route import DownlinkRoute
         from ..models.rpc_params import RPCParams
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         request_id = d.pop("requestId")
 
         command_id = d.pop("commandId")
@@ -94,7 +95,7 @@ class RpcReq:
         return rpc_req
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

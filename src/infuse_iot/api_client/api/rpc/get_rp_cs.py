@@ -1,6 +1,6 @@
 import datetime
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import httpx
@@ -21,8 +21,10 @@ def _get_kwargs(
     start_time: Union[Unset, datetime.datetime] = UNSET,
     end_time: Union[Unset, datetime.datetime] = UNSET,
     limit: Union[Unset, int] = 10,
-) -> Dict[str, Any]:
-    params: Dict[str, Any] = {}
+    rpc_command_id: Union[Unset, int] = UNSET,
+    show_expired: Union[Unset, bool] = True,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
 
     json_organisation_id: Union[Unset, str] = UNSET
     if not isinstance(organisation_id, Unset):
@@ -49,9 +51,13 @@ def _get_kwargs(
 
     params["limit"] = limit
 
+    params["rpcCommandId"] = rpc_command_id
+
+    params["showExpired"] = show_expired
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
-    _kwargs: Dict[str, Any] = {
+    _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/rpc",
         "params": params,
@@ -62,7 +68,7 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Error, List["RpcMessage"]]]:
+) -> Optional[Union[Error, list["RpcMessage"]]]:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -84,7 +90,7 @@ def _parse_response(
 
 def _build_response(
     *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Error, List["RpcMessage"]]]:
+) -> Response[Union[Error, list["RpcMessage"]]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -102,7 +108,9 @@ def sync_detailed(
     start_time: Union[Unset, datetime.datetime] = UNSET,
     end_time: Union[Unset, datetime.datetime] = UNSET,
     limit: Union[Unset, int] = 10,
-) -> Response[Union[Error, List["RpcMessage"]]]:
+    rpc_command_id: Union[Unset, int] = UNSET,
+    show_expired: Union[Unset, bool] = True,
+) -> Response[Union[Error, list["RpcMessage"]]]:
     """Get RPC messages
 
     Args:
@@ -115,13 +123,15 @@ def sync_detailed(
         end_time (Union[Unset, datetime.datetime]): The end time of the query (only return items
             on or before this time)
         limit (Union[Unset, int]): Maximum number of items to return Default: 10.
+        rpc_command_id (Union[Unset, int]): ID of RPC command
+        show_expired (Union[Unset, bool]): Whether to show expired RPC messages Default: True.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Error, List['RpcMessage']]]
+        Response[Union[Error, list['RpcMessage']]]
     """
 
     kwargs = _get_kwargs(
@@ -131,6 +141,8 @@ def sync_detailed(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        rpc_command_id=rpc_command_id,
+        show_expired=show_expired,
     )
 
     response = client.get_httpx_client().request(
@@ -149,7 +161,9 @@ def sync(
     start_time: Union[Unset, datetime.datetime] = UNSET,
     end_time: Union[Unset, datetime.datetime] = UNSET,
     limit: Union[Unset, int] = 10,
-) -> Optional[Union[Error, List["RpcMessage"]]]:
+    rpc_command_id: Union[Unset, int] = UNSET,
+    show_expired: Union[Unset, bool] = True,
+) -> Optional[Union[Error, list["RpcMessage"]]]:
     """Get RPC messages
 
     Args:
@@ -162,13 +176,15 @@ def sync(
         end_time (Union[Unset, datetime.datetime]): The end time of the query (only return items
             on or before this time)
         limit (Union[Unset, int]): Maximum number of items to return Default: 10.
+        rpc_command_id (Union[Unset, int]): ID of RPC command
+        show_expired (Union[Unset, bool]): Whether to show expired RPC messages Default: True.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Error, List['RpcMessage']]
+        Union[Error, list['RpcMessage']]
     """
 
     return sync_detailed(
@@ -179,6 +195,8 @@ def sync(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        rpc_command_id=rpc_command_id,
+        show_expired=show_expired,
     ).parsed
 
 
@@ -191,7 +209,9 @@ async def asyncio_detailed(
     start_time: Union[Unset, datetime.datetime] = UNSET,
     end_time: Union[Unset, datetime.datetime] = UNSET,
     limit: Union[Unset, int] = 10,
-) -> Response[Union[Error, List["RpcMessage"]]]:
+    rpc_command_id: Union[Unset, int] = UNSET,
+    show_expired: Union[Unset, bool] = True,
+) -> Response[Union[Error, list["RpcMessage"]]]:
     """Get RPC messages
 
     Args:
@@ -204,13 +224,15 @@ async def asyncio_detailed(
         end_time (Union[Unset, datetime.datetime]): The end time of the query (only return items
             on or before this time)
         limit (Union[Unset, int]): Maximum number of items to return Default: 10.
+        rpc_command_id (Union[Unset, int]): ID of RPC command
+        show_expired (Union[Unset, bool]): Whether to show expired RPC messages Default: True.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Error, List['RpcMessage']]]
+        Response[Union[Error, list['RpcMessage']]]
     """
 
     kwargs = _get_kwargs(
@@ -220,6 +242,8 @@ async def asyncio_detailed(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        rpc_command_id=rpc_command_id,
+        show_expired=show_expired,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -236,7 +260,9 @@ async def asyncio(
     start_time: Union[Unset, datetime.datetime] = UNSET,
     end_time: Union[Unset, datetime.datetime] = UNSET,
     limit: Union[Unset, int] = 10,
-) -> Optional[Union[Error, List["RpcMessage"]]]:
+    rpc_command_id: Union[Unset, int] = UNSET,
+    show_expired: Union[Unset, bool] = True,
+) -> Optional[Union[Error, list["RpcMessage"]]]:
     """Get RPC messages
 
     Args:
@@ -249,13 +275,15 @@ async def asyncio(
         end_time (Union[Unset, datetime.datetime]): The end time of the query (only return items
             on or before this time)
         limit (Union[Unset, int]): Maximum number of items to return Default: 10.
+        rpc_command_id (Union[Unset, int]): ID of RPC command
+        show_expired (Union[Unset, bool]): Whether to show expired RPC messages Default: True.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Error, List['RpcMessage']]
+        Union[Error, list['RpcMessage']]
     """
 
     return (
@@ -267,5 +295,7 @@ async def asyncio(
             start_time=start_time,
             end_time=end_time,
             limit=limit,
+            rpc_command_id=rpc_command_id,
+            show_expired=show_expired,
         )
     ).parsed

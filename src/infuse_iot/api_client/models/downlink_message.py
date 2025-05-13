@@ -1,5 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -50,9 +51,9 @@ class DownlinkMessage:
     sent_at: Union[Unset, datetime.datetime] = UNSET
     expires_at: Union[Unset, datetime.datetime] = UNSET
     completed_at: Union[Unset, datetime.datetime] = UNSET
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         id = str(self.id)
 
         created_at = self.created_at.isoformat()
@@ -69,7 +70,7 @@ class DownlinkMessage:
 
         status = self.status.value
 
-        rpc_rsp: Union[Unset, Dict[str, Any]] = UNSET
+        rpc_rsp: Union[Unset, dict[str, Any]] = UNSET
         if not isinstance(self.rpc_rsp, Unset):
             rpc_rsp = self.rpc_rsp.to_dict()
 
@@ -87,7 +88,7 @@ class DownlinkMessage:
         if not isinstance(self.completed_at, Unset):
             completed_at = self.completed_at.isoformat()
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -115,11 +116,11 @@ class DownlinkMessage:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.rpc_req import RpcReq
         from ..models.rpc_rsp import RpcRsp
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         id = UUID(d.pop("id"))
 
         created_at = isoparse(d.pop("createdAt"))
@@ -186,7 +187,7 @@ class DownlinkMessage:
         return downlink_message
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:
