@@ -18,9 +18,7 @@ from infuse_iot.api_client.api.board import (
     get_board_by_id,
     get_boards,
 )
-from infuse_iot.api_client.api.device import (
-    get_device_by_device_id,
-)
+from infuse_iot.api_client.api.device import get_device_by_device_id, get_device_state_by_id
 from infuse_iot.api_client.api.organisation import (
     create_organisation,
     get_all_organisations,
@@ -181,6 +179,7 @@ class Device(CloudSubCommand):
 
         org = get_organisation_by_id.sync(client=client, id=info.organisation_id)
         board = get_board_by_id.sync(client=client, id=info.board_id)
+        state = get_device_state_by_id.sync(client=client, id=info.id)
 
         table: list[tuple[str, Any]] = [
             ("UUID", info.id),
@@ -191,6 +190,18 @@ class Device(CloudSubCommand):
             ("Updated", info.updated_at),
             *metadata,
         ]
+        if state is not None:
+            v = state.application_version
+            v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}" if v else "Unknown"
+
+            table += [
+                ("~~~State~~~", ""),
+                ("Updated", state.updated_at),
+                ("Application ID", f"0x{state.application_id:08x}"),
+                ("Version", v_str),
+                ("Last Heard", state.last_route_interface),
+            ]
+
         print(tabulate(table))
 
 
