@@ -251,8 +251,7 @@ class fault:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
 
@@ -264,8 +263,7 @@ class time_get:
     COMMAND_ID = 3
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -291,8 +289,7 @@ class time_set:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
 
@@ -311,8 +308,7 @@ class kv_write:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("rc", 0 * ctypes.c_int16)
         _pack_ = 1
 
@@ -332,8 +328,7 @@ class kv_read:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("values", 0 * rpc_struct_kv_store_value)
         _pack_ = 1
 
@@ -391,8 +386,7 @@ class application_info:
     COMMAND_ID = 9
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -417,8 +411,7 @@ class wifi_scan:
     COMMAND_ID = 10
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -437,8 +430,7 @@ class wifi_state:
     COMMAND_ID = 11
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -457,8 +449,7 @@ class last_reboot:
     COMMAND_ID = 12
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -584,8 +575,7 @@ class infuse_states_update:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
 
@@ -597,14 +587,12 @@ class lte_at_cmd:
     COMMAND_ID = 20
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("cmd", 0 * ctypes.c_char)
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("rsp", 0 * ctypes.c_char)
         _pack_ = 1
 
@@ -617,8 +605,7 @@ class lte_state:
     COMMAND_ID = 21
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -752,8 +739,7 @@ class bt_disconnect:
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
 
@@ -812,13 +798,11 @@ class data_sender:
     COMMAND_ID = 32765
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
 
@@ -830,8 +814,7 @@ class data_receiver:
     COMMAND_ID = 32766
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
@@ -850,14 +833,11 @@ class echo:
     COMMAND_ID = 32767
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-        ]
+        _fields_ = []
         vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
-

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -26,18 +27,18 @@ class DownlinkRoute:
     interface: RouteType
     interface_data: "InterfaceData"
     udp: Union[Unset, "UdpDownlinkRoute"] = UNSET
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         interface = self.interface.value
 
         interface_data = self.interface_data.to_dict()
 
-        udp: Union[Unset, Dict[str, Any]] = UNSET
+        udp: Union[Unset, dict[str, Any]] = UNSET
         if not isinstance(self.udp, Unset):
             udp = self.udp.to_dict()
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -51,11 +52,11 @@ class DownlinkRoute:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.interface_data import InterfaceData
         from ..models.udp_downlink_route import UdpDownlinkRoute
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         interface = RouteType(d.pop("interface"))
 
         interface_data = InterfaceData.from_dict(d.pop("interfaceData"))
@@ -77,7 +78,7 @@ class DownlinkRoute:
         return downlink_route
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

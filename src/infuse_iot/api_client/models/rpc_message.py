@@ -1,5 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -31,9 +32,9 @@ class RpcMessage:
     downlink_message_id: UUID
     device: "Device"
     downlink_message: "DownlinkMessage"
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         created_at = self.created_at.isoformat()
 
         id = str(self.id)
@@ -44,7 +45,7 @@ class RpcMessage:
 
         downlink_message = self.downlink_message.to_dict()
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -59,11 +60,11 @@ class RpcMessage:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.device import Device
         from ..models.downlink_message import DownlinkMessage
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         created_at = isoparse(d.pop("createdAt"))
 
         id = UUID(d.pop("id"))
@@ -86,7 +87,7 @@ class RpcMessage:
         return rpc_message
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:

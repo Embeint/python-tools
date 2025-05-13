@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Type, TypeVar, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -25,16 +26,16 @@ class NewRPCMessage:
     device_id: str
     rpc: "NewRPCReq"
     send_wait_timeout_ms: Union[Unset, int] = 60000
-    additional_properties: Dict[str, Any] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         device_id = self.device_id
 
         rpc = self.rpc.to_dict()
 
         send_wait_timeout_ms = self.send_wait_timeout_ms
 
-        field_dict: Dict[str, Any] = {}
+        field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
@@ -48,10 +49,10 @@ class NewRPCMessage:
         return field_dict
 
     @classmethod
-    def from_dict(cls: Type[T], src_dict: Dict[str, Any]) -> T:
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.new_rpc_req import NewRPCReq
 
-        d = src_dict.copy()
+        d = dict(src_dict)
         device_id = d.pop("deviceId")
 
         rpc = NewRPCReq.from_dict(d.pop("rpc"))
@@ -68,7 +69,7 @@ class NewRPCMessage:
         return new_rpc_message
 
     @property
-    def additional_keys(self) -> List[str]:
+    def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
     def __getitem__(self, key: str) -> Any:
