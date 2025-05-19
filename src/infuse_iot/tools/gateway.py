@@ -49,6 +49,7 @@ from infuse_iot.socket_comms import (
 )
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.console import Console
+from infuse_iot.util.os import is_wsl
 from infuse_iot.util.threading import SignaledThread
 
 
@@ -402,6 +403,8 @@ class SubCommand(InfuseCommand):
     def __init__(self, args: argparse.Namespace):
         self.port: SerialLike
         if args.serial is not None:
+            if is_wsl() and args.baud > 115200:
+                Console.log_info("High baudrates can result in dropped data on WSL (from USB passthrough)")
             self.port = SerialPort(args.serial, args.baud)
         elif args.rtt is not None:
             self.port = RttPort(args.rtt)
