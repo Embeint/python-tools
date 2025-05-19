@@ -136,7 +136,9 @@ class RpcClient:
 
             # Wait for ACKs at the period
             if ack_cnt == ack_period:
-                self._wait_data_ack()
+                recv = self._wait_data_ack()
+                if recv.ptype == InfuseType.RPC_RSP:
+                    return self._finalise_command(recv, rsp_decoder)
                 ack_cnt = 0
 
             offset += size
