@@ -579,6 +579,25 @@ class infuse_states_update:
         _pack_ = 1
 
 
+class data_logger_erase:
+    """Erase all data from a data logger"""
+
+    HELP = "Erase all data from a data logger"
+    DESCRIPTION = "Erase all data from a data logger"
+    COMMAND_ID = 18
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+            ("erase_empty", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+
 class lte_at_cmd:
     """Run AT command against LTE modem"""
 
