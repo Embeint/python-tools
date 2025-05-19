@@ -394,11 +394,12 @@ class SubCommand(InfuseCommand):
             type=argparse.FileType("w"),
             help="Save serial output to file",
         )
+        parser.add_argument("--baud", type=int, default=115200, help="Baudrate for serial port")
 
     def __init__(self, args: argparse.Namespace):
         self.port: SerialLike
         if args.serial is not None:
-            self.port = SerialPort(args.serial)
+            self.port = SerialPort(args.serial, args.baud)
         elif args.rtt is not None:
             self.port = RttPort(args.rtt)
         elif args.pyocd is not None:

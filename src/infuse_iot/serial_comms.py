@@ -66,11 +66,14 @@ class SerialLike(metaclass=ABCMeta):
 class SerialPort(SerialLike):
     """Serial Port handling"""
 
-    def __init__(self, serial_port):
+    def __init__(self, serial_port, baudrate=115200):
         self._ser = serial.Serial()
         self._ser.port = str(serial_port)
-        self._ser.baudrate = 115200
+        self._ser.baudrate = baudrate
         self._ser.timeout = 0.05
+        # Prepend leading 0's for high baudrates to give sleepy
+        # receivers (STM32) time to wake up on RX before real data arrives.
+        self._prefix = b"\x00\x00" if baudrate > 115200 else b""
 
     def open(self):
         self._ser.open()
@@ -79,12 +82,12 @@ class SerialPort(SerialLike):
         return self._ser.read(num)
 
     def ping(self):
-        self._ser.write(SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
+        self._ser.write(self._prefix + SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
         self._ser.flush()
 
     def write(self, packet: bytes):
         # Add header
-        pkt = SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
+        pkt = self._prefix + SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
         # Write packet to serial port
         self._ser.write(pkt)
         self._ser.flush()
