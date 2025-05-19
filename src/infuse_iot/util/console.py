@@ -30,6 +30,11 @@ class Console:
         Console.log(datetime.datetime.now(), colorama.Fore.MAGENTA, message)
 
     @staticmethod
+    def log_text(message):
+        """Log text to terminal"""
+        Console.log(datetime.datetime.now(), colorama.Fore.RESET, message)
+
+    @staticmethod
     def log_tx(data_type, length, prefix=""):
         """Log transmitted packet to terminal"""
         Console.log(
