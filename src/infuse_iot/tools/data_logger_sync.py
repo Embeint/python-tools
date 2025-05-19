@@ -64,7 +64,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Synchronise data logger state from remote devices"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 60.0)
+        self._client = LocalClient(default_multicast_address(), 1.0)
         self._min_rssi: int | None = args.rssi
         self._app = args.app
         self._out = args.out

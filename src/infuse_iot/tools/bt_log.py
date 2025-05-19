@@ -25,7 +25,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Connect to remote Bluetooth device serial logs"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 60.0)
+        self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
         self._id = args.id
         self._data = args.data
