@@ -35,7 +35,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Automatically OTA upgrade observed devices"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 60.0)
+        self._client = LocalClient(default_multicast_address(), 1.0)
         self._min_rssi: int | None = args.rssi
         self._single_id: int | None = args.id
         self._release: ValidRelease = args.release

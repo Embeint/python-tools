@@ -53,7 +53,7 @@ class SubCommand(InfuseCommand):
 
     def __init__(self, args: argparse.Namespace):
         self._args = args
-        self._client = LocalClient(default_multicast_address(), 10.0)
+        self._client = LocalClient(default_multicast_address(), 1.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
         self._max_payload = 0
