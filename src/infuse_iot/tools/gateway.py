@@ -11,6 +11,7 @@ import ctypes
 import io
 import queue
 import random
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -375,8 +376,10 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
+        # COM ports are not valid files
+        serial_type = str if sys.platform == "win32" else ValidFile
         group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument("--serial", type=ValidFile, help="Gateway serial port")
+        group.add_argument("--serial", type=serial_type, help="Gateway serial port")
         group.add_argument("--rtt", type=str, help="RTT serial port")
         group.add_argument("--pyocd", type=str, help="RTT via PyOCD")
         parser.add_argument(
