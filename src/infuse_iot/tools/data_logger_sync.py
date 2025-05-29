@@ -180,8 +180,10 @@ class SubCommand(InfuseCommand):
                 self.state_update(live, "Scanning")
                 if self._app and announce.application != self._app:
                     continue
-                if announce.flags & 0x01:
-                    # Skip data on removable loggers
+                # Don't consider announce packets that don't contain information about the requested logger
+                req_removable = self._logger == rpc_enum_data_logger.FLASH_REMOVABLE
+                announce_is_removable = announce.flags & 0x01
+                if req_removable != announce_is_removable:
                     continue
 
                 if source.infuse_id not in self._device_state:
