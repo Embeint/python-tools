@@ -114,12 +114,13 @@ class SubCommand(InfuseCommand):
     def progress_table(self):
         table = Table()
         table.add_column("Device ID")
-        table.add_column("On Disk")
-        table.add_column("On Device")
-        table.add_column("Downloaded")
+        table.add_column("On Disk", justify="right")
+        table.add_column("On Device", justify="right")
+        table.add_column("Downloaded", justify="right")
         for device, state in self._device_state.items():
             on_device = str(state.on_device) if state.on_device is not None else "?"
-            table.add_row(f"{device:016x}", str(state.on_disk), on_device, str(state.downloaded))
+            percent = f"{100 * state.on_disk / state.on_device:.0f}" if state.on_device is not None else "?"
+            table.add_row(f"{device:016x}", f"{state.on_disk} ({percent:>3s}%)", on_device, str(state.downloaded))
 
         meta = Table(box=None)
         meta.add_column()
