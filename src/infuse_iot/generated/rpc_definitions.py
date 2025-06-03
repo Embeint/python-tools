@@ -204,6 +204,7 @@ class rpc_enum_data_logger(enum.IntEnum):
 
     FLASH_ONBOARD = 1
     FLASH_REMOVABLE = 2
+    UDP = 3
 
 
 class rpc_enum_zperf_data_source(enum.IntEnum):
@@ -715,6 +716,26 @@ class file_write_basic:
             ("recv_len", ctypes.c_uint32),
             ("recv_crc", ctypes.c_uint32),
         ]
+        _pack_ = 1
+
+
+class annotate:
+    """Write an annotation to the device"""
+
+    HELP = "Write an annotation to the device"
+    DESCRIPTION = "Write an annotation to the device"
+    COMMAND_ID = 41
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+            ("timestamp", ctypes.c_uint32),
+        ]
+        vla_field = ("annotation", 0 * ctypes.c_char)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
         _pack_ = 1
 
 

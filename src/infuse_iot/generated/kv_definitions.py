@@ -108,6 +108,16 @@ class slots:
         ]
         _pack_ = 1
 
+    class device_name(VLACompatLittleEndianStruct):
+        """Personalised name for the device"""
+
+        NAME = "DEVICE_NAME"
+        BASE_ID = 4
+        RANGE = 1
+        _fields_ = []
+        vla_field = ("name", structs.kv_string)
+        _pack_ = 1
+
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
 
@@ -327,6 +337,7 @@ class slots:
         1: bluetooth_addr,
         2: exfat_disk_info,
         3: bluetooth_ctlr_version,
+        4: device_name,
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,

@@ -1244,6 +1244,24 @@ class readings:
             "val": "{}",
         }
 
+    class annotation(TdfReadingBase):
+        """Generic event annotation"""
+
+        name = "ANNOTATION"
+        _fields_ = [
+            ("timestamp", ctypes.c_uint32),
+            ("event", 0 * ctypes.c_char),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "timestamp": "",
+            "event": "",
+        }
+        _display_fmt_ = {
+            "timestamp": "{}",
+            "event": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1300,5 +1318,6 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     40: readings.adc_raw_8,
     41: readings.adc_raw_16,
     42: readings.adc_raw_32,
+    43: readings.annotation,
     100: readings.array_type,
 }
