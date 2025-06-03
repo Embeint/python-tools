@@ -156,8 +156,6 @@ def dwarf_die_variable_inf(
         type_name = None
     info_name = name_override if name_override is not None else field_name
 
-    # print(field_name, type_name, type_die.tag)
-
     if type_die.tag == "DW_TAG_array_type":
         count = 0
         for child in type_die.iter_children():
@@ -172,7 +170,8 @@ def dwarf_die_variable_inf(
             if "DW_AT_byte_size" in element_die.attributes:
                 element_offset += element_die.attributes["DW_AT_byte_size"].value
             else:
-                element_offset += ctypes.sizeof(child.ctype)
+                if child.ctype is not None:
+                    element_offset += ctypes.sizeof(child.ctype)
             children.append(child)
 
         return dwarf_field(info_name, type_die.tag, None, children, offset)
