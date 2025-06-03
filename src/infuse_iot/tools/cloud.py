@@ -192,15 +192,17 @@ class Device(CloudSubCommand):
         ]
         if state is not None:
             v = state.application_version
-            v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}" if v else "Unknown"
 
             table += [
                 ("~~~State~~~", ""),
                 ("Updated", state.updated_at),
-                ("Application ID", f"0x{state.application_id:08x}"),
-                ("Version", v_str),
-                ("Last Heard", state.last_route_interface),
             ]
+            if state.application_id:
+                table += [("Application ID", f"0x{state.application_id:08x}")]
+            if v:
+                table += [("Version", f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}")]
+            if state.last_route_interface:
+                table += [("Last Heard", state.last_route_interface)]
 
         print(tabulate(table))
 
