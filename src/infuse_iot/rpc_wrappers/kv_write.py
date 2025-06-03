@@ -2,7 +2,9 @@
 
 import ctypes
 import os
+import sys
 
+import infuse_iot.generated.kv_definitions as kv_defs
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
@@ -36,12 +38,32 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--key", type=int, required=True, help="KV key ID")
-        parser.add_argument("--value", type=str, required=True, help="KV value as hex string")
+        parser.add_argument("--key", "-k", type=int, required=True, help="KV key ID")
+        v_parser = parser.add_mutually_exclusive_group(required=True)
+        v_parser.add_argument("--value", "-v", type=str, help="KV value as hex string")
+        v_parser.add_argument("--string", "-s", type=str, help="KV string")
 
     def __init__(self, args):
         self.key = args.key
-        self.value = bytes.fromhex(args.value)
+        if args.value is not None:
+            self.value = bytes.fromhex(args.value)
+        elif args.string is not None:
+            if self.key not in kv_defs.slots.ID_MAPPING:
+                sys.exit(f"Key ID {self.key} not known, cannot validate")
+            kv_type = kv_defs.slots.ID_MAPPING[self.key]
+            # Validate key type is a string
+            if (
+                len(kv_type._fields_) != 0
+                or not hasattr(kv_type, "vla_field")
+                or not isinstance(kv_type.vla_field, tuple)
+                or kv_type.vla_field[1] != kv_defs.structs.kv_string
+            ):
+                sys.exit(f"Key ID {self.key} is not a string value")
+
+            str_val = args.string.encode("utf-8") + b"\x00"
+            self.value = len(str_val).to_bytes(1, "little") + str_val
+        else:
+            raise NotImplementedError("Unimplmented value parsing")
 
     def request_struct(self):
         kv_struct = self.kv_store_value_factory(self.key, self.value)
