@@ -28,6 +28,14 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
         id = 0x43210001
         data = defs.readings.ambient_temp_pres_hum
 
+    class ImuChannel(ctypes.LittleEndianStructure):
+        id = 0x43210002
+        data = None
+
+    class AccMagChannel(ctypes.LittleEndianStructure):
+        id = 0x43210003
+        data = None
+
     class LocationChannel(ctypes.LittleEndianStructure):
         id = 0x43210004
         data = defs.readings.gcs_wgs84_llha
@@ -56,6 +64,20 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
             action="store_const",
             const=cls.AmbeintEnvChannel,
             help="Ambient environmental channel",
+        )
+        group.add_argument(
+            "--imu",
+            dest="channel",
+            action="store_const",
+            const=cls.ImuChannel,
+            help="IMU channel",
+        )
+        group.add_argument(
+            "--acc-mag",
+            dest="channel",
+            action="store_const",
+            const=cls.AccMagChannel,
+            help="Accelerometer magnitude channel",
         )
         group.add_argument(
             "--location",
@@ -102,10 +124,13 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
         print(f"\t Publish count: {response.pub_count}")
         print(f"\tPublish period: {response.pub_period_ms} ms")
         try:
-            data = self._channel.data.from_buffer_copy(data_bytes)
-            table = []
-            for field in data.iter_fields():
-                table.append([field.name, field.val_fmt(), field.postfix])
-            print(tabulate.tabulate(table, tablefmt="simple"))
+            if self._channel.data is None:
+                print(f"\t          Data: {data_bytes.hex()}")
+            else:
+                data = self._channel.data.from_buffer_copy(data_bytes)
+                table = []
+                for field in data.iter_fields():
+                    table.append([field.name, field.val_fmt(), field.postfix])
+                print(tabulate.tabulate(table, tablefmt="simple"))
         except Exception as _:
             print(f"\t          Data: {data_bytes.hex()}")
