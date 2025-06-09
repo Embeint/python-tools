@@ -112,7 +112,10 @@ class wifi_state(InfuseRpcCommand, defs.wifi_state):
         print("WiFi State:")
         print(f"\t          State: {wifi.state.name}")
         if wifi.state >= z_wifi.WiFiState.AUTHENTICATING:
-            print(f"\t           SSID: {wifi.ssid.decode('utf-8')}")
+            try:
+                print(f"\t           SSID: {wifi.ssid.decode('utf-8')}")
+            except UnicodeDecodeError:
+                print(f"\t           SSID: Decode Error (Hex: {wifi.ssid.hex()})")
             print(f"\t          BSSID: {bssid}")
             print(f"\t Frequency Band: {wifi.band}")
             print(f"\t        Channel: {wifi.channel}")
