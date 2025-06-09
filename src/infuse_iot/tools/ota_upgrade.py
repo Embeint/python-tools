@@ -117,7 +117,7 @@ class SubCommand(InfuseCommand):
 
                 # Check against pending upgrades
                 if source.infuse_id in self._pending:
-                    if time.time() < self._pending[source.infuse_id]:
+                    if (v_str != self._new_ver) and (time.time() < self._pending[source.infuse_id]):
                         # Device could still be applying the upgrade
                         continue
                     self._pending.pop(source.infuse_id)
