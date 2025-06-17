@@ -241,6 +241,7 @@ class SerialTxThread(SignaledThread):
         common: CommonThreadState,
     ):
         self._common = common
+        self._connected: dict[int, int] = {}
         self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
 
@@ -297,6 +298,10 @@ class SerialTxThread(SignaledThread):
         if rc < 0:
             rsp = ClientNotificationConnectionFailed(infuse_id)
         else:
+            if infuse_id in self._connected:
+                self._connected[infuse_id] += 1
+            else:
+                self._connected[infuse_id] = 1
             rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.server.broadcast(rsp)
 
@@ -314,12 +319,17 @@ class SerialTxThread(SignaledThread):
             return
 
         subs = 0
+        bt_char = defs.rpc_enum_infuse_bt_characteristic
         if req.data_types & req.DataType.COMMAND:
-            subs |= defs.rpc_enum_infuse_bt_characteristic.COMMAND
+            subs |= bt_char.COMMAND
         if req.data_types & req.DataType.DATA:
-            subs |= defs.rpc_enum_infuse_bt_characteristic.DATA
+            subs |= bt_char.DATA
         if req.data_types & req.DataType.LOGGING:
-            subs |= defs.rpc_enum_infuse_bt_characteristic.LOGGING
+            subs |= bt_char.LOGGING
+
+        # Multiple connection users, subscribe all
+        if req.infuse_id in self._connected:
+            subs = bt_char.COMMAND | bt_char.DATA | bt_char.LOGGING
 
         connect_args = defs.bt_connect_infuse.request(
             state.bt_addr.to_rpc_struct(),
@@ -346,6 +356,14 @@ class SerialTxThread(SignaledThread):
         if state is None or state.bt_addr is None:
             # Unknown device, nothing to do
             return
+
+        if req.infuse_id in self._connected:
+            # Decrement reference count
+            self._connected[req.infuse_id] -= 1
+            if self._connected[req.infuse_id] > 0:
+                # Someone is still using the connection
+                return
+            self._connected.pop(req.infuse_id)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
         cmd = self._common.rpc.generate(defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None)
