@@ -266,6 +266,22 @@ class slots:
         ]
         _pack_ = 1
 
+    class lora_config(VLACompatLittleEndianStruct):
+        """LoRa modem configuration"""
+
+        NAME = "LORA_CONFIG"
+        BASE_ID = 51
+        RANGE = 1
+        _fields_ = [
+            ("frequency", ctypes.c_uint32),
+            ("bandwidth", ctypes.c_uint8),
+            ("spreading_factor", ctypes.c_uint8),
+            ("coding_rate", ctypes.c_uint8),
+            ("preamble_len", ctypes.c_uint16),
+            ("tx_power", ctypes.c_int8),
+        ]
+        _pack_ = 1
+
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
 
@@ -352,6 +368,7 @@ class slots:
         45: lte_pdp_config,
         46: lte_networking_modes,
         50: bluetooth_peer,
+        51: lora_config,
         60: gravity_reference,
         100: geofence,
         101: geofence,
