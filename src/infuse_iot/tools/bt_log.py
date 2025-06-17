@@ -60,10 +60,11 @@ class SubCommand(InfuseCommand):
                     if evt.epacket.ptype == InfuseType.TDF:
                         for tdf in self._decoder.decode(evt.epacket.payload):
                             t = tdf.data[-1]
+                            t_str = f"{tdf.time:.3f}" if tdf.time else "N/A"
                             if len(tdf.data) > 1:
-                                print(f"{tdf.time:.3f} TDF: {t.name}[{len(tdf.data)}]")
+                                print(f"{t_str} TDF: {t.name}[{len(tdf.data)}]")
                             else:
-                                print(f"{tdf.time:.3f} TDF: {t.name}")
+                                print(f"{t_str} TDF: {t.name}")
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
