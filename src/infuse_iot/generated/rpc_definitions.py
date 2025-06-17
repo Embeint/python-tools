@@ -173,6 +173,18 @@ class rpc_struct_sockaddr(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_heap_info(VLACompatLittleEndianStruct):
+    """struct k_heap information"""
+
+    _fields_ = [
+        ("addr", ctypes.c_uint32),
+        ("free_bytes", ctypes.c_uint32),
+        ("allocated_bytes", ctypes.c_uint32),
+        ("max_allocated_bytes", ctypes.c_uint32),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -596,6 +608,23 @@ class data_logger_erase:
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
+        _pack_ = 1
+
+
+class heap_stats:
+    """Query stats of heaps"""
+
+    HELP = "Query stats of heaps"
+    DESCRIPTION = "Query stats of heaps"
+    COMMAND_ID = 19
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        vla_field = ("stats", 0 * rpc_struct_heap_info)
         _pack_ = 1
 
 

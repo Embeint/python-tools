@@ -1262,6 +1262,42 @@ class readings:
             "event": "{}",
         }
 
+    class lora_rx(TdfReadingBase):
+        """Received LoRa packet"""
+
+        name = "LORA_RX"
+        _fields_ = [
+            ("snr", ctypes.c_int8),
+            ("rssi", ctypes.c_int16),
+            ("payload", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "snr": "",
+            "rssi": "",
+            "payload": "",
+        }
+        _display_fmt_ = {
+            "snr": "{}",
+            "rssi": "{}",
+            "payload": "{}",
+        }
+
+    class lora_tx(TdfReadingBase):
+        """Transmitted LoRa packet"""
+
+        name = "LORA_TX"
+        _fields_ = [
+            ("payload", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "payload": "",
+        }
+        _display_fmt_ = {
+            "payload": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1319,5 +1355,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     41: readings.adc_raw_16,
     42: readings.adc_raw_32,
     43: readings.annotation,
+    44: readings.lora_rx,
+    45: readings.lora_tx,
     100: readings.array_type,
 }
