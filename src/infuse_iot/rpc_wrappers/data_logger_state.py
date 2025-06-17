@@ -49,6 +49,8 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
         print(f"{self.logger.name}")
         print(f"\t     Logged: {sizeof_fmt(total_logged)}")
         print(f"\t     Blocks: {r.current_block}/{r.logical_blocks} ({percent:.0f}%)")
+        if r.earliest_block > 0:
+            print(f"\t   Earliest: {r.earliest_block}")
         if byte_rate == 0.0:
             print("\t Block Rate: N/A")
             print("\t  Byte Rate: N/A")
