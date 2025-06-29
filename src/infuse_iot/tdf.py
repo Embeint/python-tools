@@ -224,3 +224,25 @@ class TDF:
                 period = array_header.period / 65536
 
             yield self.Reading(tdf_id, time, period, base_idx, data)
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 2:
+        sys.exit("Expected `python -m infuse_iot.tdf /path/to/tdf.bin`")
+
+    decoder = TDF()
+
+    with open(sys.argv[1], "rb") as f:
+        tdf_binary_blob = f.read(-1)
+
+        # Check data is in the form we expect (single block, 2 byte prefix)
+        if tdf_binary_blob[1] != 0x02:
+            sys.exit("Expected second byte to be 0x02 (INFUSE_TDF)")
+
+        try:
+            for tdf in decoder.decode(tdf_binary_blob[2:]):
+                print(f"TDF {tdf.id} @ t={tdf.time}: {tdf.data}")
+        except Exception:
+            pass
