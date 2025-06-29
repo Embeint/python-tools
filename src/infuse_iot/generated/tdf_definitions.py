@@ -1298,6 +1298,42 @@ class readings:
             "payload": "{}",
         }
 
+    class idx_array_freq(TdfReadingBase):
+        """Sample frequency metadata for a TDF_DATA_FORMAT_IDX_ARRAY array"""
+
+        name = "IDX_ARRAY_FREQ"
+        _fields_ = [
+            ("tdf_id", ctypes.c_uint16),
+            ("frequency", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "tdf_id": "",
+            "frequency": "",
+        }
+        _display_fmt_ = {
+            "tdf_id": "{}",
+            "frequency": "{}",
+        }
+
+    class idx_array_period(TdfReadingBase):
+        """Sample frequency metadata for a TDF_DATA_FORMAT_IDX_ARRAY array"""
+
+        name = "IDX_ARRAY_PERIOD"
+        _fields_ = [
+            ("tdf_id", ctypes.c_uint16),
+            ("period", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "tdf_id": "",
+            "period": "",
+        }
+        _display_fmt_ = {
+            "tdf_id": "{}",
+            "period": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1357,5 +1393,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     43: readings.annotation,
     44: readings.lora_rx,
     45: readings.lora_tx,
+    46: readings.idx_array_freq,
+    47: readings.idx_array_period,
     100: readings.array_type,
 }
