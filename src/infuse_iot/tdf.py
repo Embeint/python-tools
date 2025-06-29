@@ -31,6 +31,8 @@ class TDF:
         TIMESTAMP_MASK = 0xC000
         TIME_ARRAY = 0x1000
         DIFF_ARRAY = 0x2000
+        IDX_ARRAY = 0x3000
+        ARRAY_MASK = 0x3000
         ID_MASK = 0x0FFF
 
     class DiffType(enum.IntEnum):
@@ -81,11 +83,13 @@ class TDF:
             tdf_id: int,
             time: None | float,
             period: None | float,
+            base_idx: None | int,
             data: list[tdf_base.TdfReadingBase],
         ):
             self.id = tdf_id
             self.time = time
             self.period = period
+            self.base_idx = base_idx
             self.data = data
 
     def __init__(self):
@@ -171,7 +175,9 @@ class TDF:
                 raise RuntimeError("Unreachable time option")
 
             array_header = None
-            if header.id_flags & self.flags.DIFF_ARRAY:
+            base_idx = None
+            array_type = header.id_flags & self.flags.ARRAY_MASK
+            if array_type == self.flags.DIFF_ARRAY:
                 array_header, buffer = self._buffer_pull(buffer, self.ArrayHeader)
                 diff_type = array_header.num >> 6
                 diff_num = array_header.num & 0x3F
@@ -183,7 +189,7 @@ class TDF:
                 data = [
                     id_type.from_buffer_consume(expanded[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
-            elif header.id_flags & self.flags.TIME_ARRAY:
+            elif array_type == self.flags.TIME_ARRAY:
                 array_header, buffer = self._buffer_pull(buffer, self.ArrayHeader)
                 total_len = array_header.num * header.len
                 total_data = buffer[:total_len]
@@ -194,6 +200,19 @@ class TDF:
                 data = [
                     id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
+            elif array_type == self.flags.IDX_ARRAY:
+                array_header, buffer = self._buffer_pull(buffer, self.ArrayHeader)
+                total_len = array_header.num * header.len
+                total_data = buffer[:total_len]
+                buffer = buffer[total_len:]
+
+                if time_flags != self.flags.TIMESTAMP_NONE:
+                    assert buffer_time is not None
+                    time = InfuseTime.unix_time_from_epoch(buffer_time)
+                base_idx = array_header.period
+                data = [
+                    id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
+                ]
             else:
                 data_bytes = buffer[: header.len]
                 buffer = buffer[header.len :]
@@ -201,7 +220,7 @@ class TDF:
                 data = [id_type.from_buffer_consume(data_bytes)]
 
             period = None
-            if array_header is not None:
+            if array_header is not None and base_idx is None:
                 period = array_header.period / 65536
 
-            yield self.Reading(tdf_id, time, period, data)
+            yield self.Reading(tdf_id, time, period, base_idx, data)
