@@ -59,7 +59,10 @@ class SubCommand(InfuseCommand):
                         offset = (len(tdf.data) - 1) * tdf.period
                         time_str = InfuseTime.utc_time_string(tdf.time + offset)
                 else:
-                    time_str = InfuseTime.utc_time_string(time.time())
+                    if tdf.base_idx is not None:
+                        time_str = f"IDX {tdf.base_idx}"
+                    else:
+                        time_str = InfuseTime.utc_time_string(time.time())
 
                 for field in t.iter_fields():
                     if isinstance(field.val, list):

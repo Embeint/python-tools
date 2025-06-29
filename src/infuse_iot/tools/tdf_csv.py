@@ -54,13 +54,18 @@ class SubCommand(InfuseCommand):
                 # Construct reading strings
                 lines = []
                 reading_time = tdf.time
-                for reading in tdf.data:
+                for idx, reading in enumerate(tdf.data):
                     if self.args.unix:
                         time_func = _to_str
                     else:
                         time_func = InfuseTime.utc_time_string_log
 
-                    if reading_time is None:
+                    if tdf.base_idx is not None:
+                        if reading_time is None or idx > 0:
+                            time_str = f"{tdf.base_idx + idx}"
+                        else:
+                            time_str = time_func(reading_time)
+                    elif reading_time is None:
                         # Log with local time
                         time_str = time_func(time.time())
                     else:
