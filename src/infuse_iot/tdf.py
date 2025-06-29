@@ -3,6 +3,7 @@
 import copy
 import ctypes
 import enum
+import time
 from collections.abc import Generator
 
 from infuse_iot.generated import tdf_base, tdf_definitions
@@ -81,13 +82,13 @@ class TDF:
         def __init__(
             self,
             tdf_id: int,
-            time: None | float,
+            reading_time: None | float,
             period: None | float,
             base_idx: None | int,
             data: list[tdf_base.TdfReadingBase],
         ):
             self.id = tdf_id
-            self.time = time
+            self.time = reading_time
             self.period = period
             self.base_idx = base_idx
             self.data = data
@@ -141,7 +142,7 @@ class TDF:
         expanded = b"".join([bytes(b) for b in out])
         return ctypes.sizeof(raw), expanded
 
-    def decode(self, buffer: bytes) -> Generator[Reading, None, None]:
+    def decode(self, buffer: bytes, no_defs: bool = False) -> Generator[Reading, None, None]:
         buffer_time = None
 
         while len(buffer) > 3:
@@ -152,25 +153,28 @@ class TDF:
                 break
 
             tdf_id = header.id_flags & 0x0FFF
-            try:
-                id_type = tdf_definitions.id_type_mapping[tdf_id]
-            except KeyError:
+            if no_defs:
                 id_type = unknown_tdf_factory(tdf_id, header.len)
+            else:
+                try:
+                    id_type = tdf_definitions.id_type_mapping[tdf_id]
+                except KeyError:
+                    id_type = unknown_tdf_factory(tdf_id, header.len)
 
             if time_flags == self.flags.TIMESTAMP_NONE:
-                time = None
+                reading_time = None
             elif time_flags == self.flags.TIMESTAMP_ABSOLUTE:
                 t, buffer = self._buffer_pull(buffer, self.AbsoluteTime)
                 buffer_time = t.seconds * 65536 + t.subseconds
-                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
             elif time_flags == self.flags.TIMESTAMP_RELATIVE:
                 t, buffer = self._buffer_pull(buffer, self.RelativeTime)
                 buffer_time += t.offset
-                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
             elif time_flags == self.flags.TIMESTAMP_EXTENDED_RELATIVE:
                 t, buffer = self._buffer_pull(buffer, self.ExtendedRelativeTime)
                 buffer_time += t.offset
-                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
             else:
                 raise RuntimeError("Unreachable time option")
 
@@ -184,8 +188,11 @@ class TDF:
 
                 total_len, expanded = self._diff_expand(buffer, header.len, self.DiffType(diff_type), diff_num)
                 buffer = buffer[total_len:]
-                assert buffer_time is not None
-                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                if buffer_time is None:
+                    t_now = int(time.time() * 65536)
+                    reading_time = InfuseTime.unix_time_from_epoch(t_now)
+                else:
+                    reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
                     id_type.from_buffer_consume(expanded[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
@@ -195,8 +202,11 @@ class TDF:
                 total_data = buffer[:total_len]
                 buffer = buffer[total_len:]
 
-                assert buffer_time is not None
-                time = InfuseTime.unix_time_from_epoch(buffer_time)
+                if buffer_time is None:
+                    t_now = int(time.time() * 65536)
+                    reading_time = InfuseTime.unix_time_from_epoch(t_now)
+                else:
+                    reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
                     id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
@@ -208,7 +218,7 @@ class TDF:
 
                 if time_flags != self.flags.TIMESTAMP_NONE:
                     assert buffer_time is not None
-                    time = InfuseTime.unix_time_from_epoch(buffer_time)
+                    reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
                 base_idx = array_header.period
                 data = [
                     id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
@@ -223,7 +233,7 @@ class TDF:
             if array_header is not None and base_idx is None:
                 period = array_header.period / 65536
 
-            yield self.Reading(tdf_id, time, period, base_idx, data)
+            yield self.Reading(tdf_id, reading_time, period, base_idx, data)
 
 
 if __name__ == "__main__":
