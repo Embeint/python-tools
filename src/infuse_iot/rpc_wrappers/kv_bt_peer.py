@@ -65,9 +65,15 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
 
         def print_status(name, rc):
             if rc < 0:
-                print(f"{name} failed to write ({os.strerror(-rc)})")
+                if self.addr == b"":
+                    print(f"{name} failed to delete ({os.strerror(-rc)})")
+                else:
+                    print(f"{name} failed to write ({os.strerror(-rc)})")
             elif rc == 0:
-                print(f"{name} already matched")
+                if self.addr == b"":
+                    print(f"{name} deleted")
+                else:
+                    print(f"{name} already matched")
             else:
                 print(f"{name} updated")
 
