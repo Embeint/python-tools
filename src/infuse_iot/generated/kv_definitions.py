@@ -118,6 +118,17 @@ class slots:
         vla_field = ("name", structs.kv_string)
         _pack_ = 1
 
+    class infuse_application_id(VLACompatLittleEndianStruct):
+        """CONFIG_INFUSE_APPLICATION_ID, store will be reset if the values don't match"""
+
+        NAME = "INFUSE_APPLICATION_ID"
+        BASE_ID = 5
+        RANGE = 1
+        _fields_ = [
+            ("application_id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
 
@@ -279,6 +290,7 @@ class slots:
             ("coding_rate", ctypes.c_uint8),
             ("preamble_len", ctypes.c_uint16),
             ("tx_power", ctypes.c_int8),
+            ("sync_word", ctypes.c_uint8),
         ]
         _pack_ = 1
 
@@ -354,6 +366,7 @@ class slots:
         2: exfat_disk_info,
         3: bluetooth_ctlr_version,
         4: device_name,
+        5: infuse_application_id,
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,
