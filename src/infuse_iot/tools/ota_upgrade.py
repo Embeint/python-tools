@@ -57,6 +57,10 @@ class SubCommand(InfuseCommand):
             TransferSpeedColumn(),
         )
         self.task = None
+        if args.log is None:
+            self._log = None
+        else:
+            self._log = open(args.log, "+a", encoding="utf-8")  # noqa: SIM115
 
     @classmethod
     def add_parser(cls, parser):
@@ -65,6 +69,7 @@ class SubCommand(InfuseCommand):
         )
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
         parser.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
+        parser.add_argument("--log", type=str, help="File to write upgrade results to")
 
     def progress_table(self):
         table = Table()
@@ -124,8 +129,15 @@ class SubCommand(InfuseCommand):
                     self._handled.append(source.infuse_id)
                     if v_str == self._new_ver:
                         self._updated += 1
+                        result = "upgraded"
                     else:
                         self._failed += 1
+                        result = "failed"
+                    if self._log:
+                        self._log.write(
+                            f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},{result}\n"
+                        )
+                        self._log.flush()
                     continue
 
                 # Already running the requested version?
@@ -133,6 +145,11 @@ class SubCommand(InfuseCommand):
                     self._handled.append(source.infuse_id)
                     self._already += 1
                     self.state_update(live, "Scanning")
+                    if self._log:
+                        self._log.write(
+                            f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},already\n"
+                        )
+                        self._log.flush()
                     continue
 
                 # Do we have a valid diff?
@@ -175,7 +192,7 @@ class SubCommand(InfuseCommand):
                         )
 
                         if hdr.return_code == 0:
-                            self._pending[source.infuse_id] = time.time() + 30
+                            self._pending[source.infuse_id] = time.time() + 60
 
                 except ConnectionRefusedError:
                     self.state_update(live, "Scanning")
