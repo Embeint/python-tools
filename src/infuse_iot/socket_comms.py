@@ -206,16 +206,22 @@ class GatewayRequestConnectionRequest(GatewayRequestConnection):
         DATA = 2
         LOGGING = 4
 
-    def __init__(self, infuse_id: int, data_types: DataType):
+    def __init__(self, infuse_id: int, data_types: DataType, timeout_ms: int):
         super().__init__(infuse_id)
         self.data_types = data_types
+        self.timeout_ms = timeout_ms
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "data_types": self.data_types}
+        return {
+            "type": int(self.TYPE),
+            "infuse_id": self.infuse_id,
+            "data_types": self.data_types,
+            "timeout": self.timeout_ms,
+        }
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
-        return cls(values["infuse_id"], values["data_types"])
+        return cls(values["infuse_id"], values["data_types"], values["timeout"])
 
 
 class GatewayRequestConnectionRelease(GatewayRequestConnection):
@@ -282,11 +288,13 @@ class LocalClient:
             return None
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
-    def connection_create(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType) -> int:
+    def connection_create(
+        self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int
+    ) -> int:
         self._connection_id = infuse_id
 
         # Send the request for the connection
-        req = GatewayRequestConnectionRequest(infuse_id, data_types)
+        req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms)
         self.send(req)
         # Wait for response from the server
         while True:
@@ -306,9 +314,9 @@ class LocalClient:
         self._connection_id = None
 
     @contextmanager
-    def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType):
+    def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int = 10000):
         try:
-            yield self.connection_create(infuse_id, data_types)
+            yield self.connection_create(infuse_id, data_types, timeout_ms)
         finally:
             self.connection_release()
 
