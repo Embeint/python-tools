@@ -29,18 +29,22 @@ class SubCommand(InfuseCommand):
         self._decoder = TDF()
         self._id = args.id
         self._data = args.data
+        self._conn_timeout = args.conn_timeout
 
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to receive logs for")
         parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
+        parser.add_argument(
+            "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
+        )
 
     def run(self):
         try:
             types = GatewayRequestConnectionRequest.DataType.LOGGING
             if self._data:
                 types |= GatewayRequestConnectionRequest.DataType.DATA
-            with self._client.connection(self._id, types) as _:
+            with self._client.connection(self._id, types, self._conn_timeout) as _:
                 while evt := self._client.receive():
                     if evt is None:
                         continue

@@ -36,6 +36,7 @@ class SubCommand(InfuseCommand):
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
+        self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
         self._single_id: int | None = args.id
         self._release: ValidRelease = args.release
@@ -70,6 +71,9 @@ class SubCommand(InfuseCommand):
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
         parser.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
         parser.add_argument("--log", type=str, help="File to write upgrade results to")
+        parser.add_argument(
+            "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
+        )
 
     def progress_table(self):
         table = Table()
@@ -173,7 +177,7 @@ class SubCommand(InfuseCommand):
                 self.state_update(live, f"Connecting to {source.infuse_id:016X}")
                 try:
                     with self._client.connection(
-                        source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND
+                        source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
                     ) as mtu:
                         self.state_update(live, f"Uploading patch file to {source.infuse_id:016X}")
                         rpc_client = RpcClient(self._client, mtu, source.infuse_id)
