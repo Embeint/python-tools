@@ -90,7 +90,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
     async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
         Console.log_info(f"{dev}: Initiating connection")
-        async with BleakClient(dev) as client:
+        async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
                 await client._backend._acquire_mtu()  # type: ignore

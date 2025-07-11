@@ -333,7 +333,7 @@ class SerialTxThread(SignaledThread):
 
         connect_args = defs.bt_connect_infuse.request(
             state.bt_addr.to_rpc_struct(),
-            10000,
+            req.timeout_ms,
             subs,
             0,
         )
