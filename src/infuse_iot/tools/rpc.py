@@ -34,6 +34,9 @@ class SubCommand(InfuseCommand):
         addr_group.add_argument("--gateway", action="store_true", help="Run command on local gateway")
         addr_group.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to run command on")
         parser.add_argument("--conn-log", action="store_true", help="Request logs from remote device")
+        parser.add_argument(
+            "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
+        )
         command_list_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
@@ -75,7 +78,7 @@ class SubCommand(InfuseCommand):
             types = GatewayRequestConnectionRequest.DataType.COMMAND
             if self._args.conn_log:
                 types |= GatewayRequestConnectionRequest.DataType.LOGGING
-            with self._client.connection(self._id, types) as mtu:
+            with self._client.connection(self._id, types, self._args.conn_timeout) as mtu:
                 self._max_payload = mtu
                 rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler)
                 params = bytes(self._command.request_struct())
