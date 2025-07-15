@@ -112,7 +112,7 @@ class DeviceDatabase:
             try:
                 info = load_network(network_id)
             except FileNotFoundError:
-                raise UnknownNetworkError from None
+                raise UnknownNetworkError(network_id) from None
             self._network_keys[network_id] = info["key"]
         base = self._network_keys[network_id]
         time_idx = gps_time // (60 * 60 * 24)

@@ -18,7 +18,7 @@ from bleak.backends.scanner import AdvertisementData
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
-from infuse_iot.database import DeviceDatabase
+from infuse_iot.database import DeviceDatabase, UnknownNetworkError
 from infuse_iot.epacket import interface
 from infuse_iot.epacket.packet import (
     Auth,
@@ -65,7 +65,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._tasks: dict[int, asyncio.Task] = {}
 
     def notification_handler(self, _characteristic: BleakGATTCharacteristic, data: bytearray):
-        hdr, decr = CtypeBtGattFrame.decrypt(self._db, None, bytes(data))
+        try:
+            hdr, decr = CtypeBtGattFrame.decrypt(self._db, None, bytes(data))
+        except UnknownNetworkError:
+            return
         # Correct values are annoying to get here
         if_addr = interface.Address(interface.Address.BluetoothLeAddr(0, 0))
         rssi = 0
@@ -193,6 +196,7 @@ class SubCommand(InfuseCommand):
         self.database = DeviceDatabase()
         self.server = LocalServer(default_multicast_address())
         self.bleak_mapping: dict[int, BLEDevice] = {}
+        self.unknown_networks: set[int] = set()
         Console.init()
 
     async def server_handler(self):
@@ -215,7 +219,14 @@ class SubCommand(InfuseCommand):
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
 
-        hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
+        try:
+            hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
+        except UnknownNetworkError as e:
+            network_id = e.args[0]
+            if network_id not in self.unknown_networks:
+                self.unknown_networks.add(network_id)
+                Console.log_info(f"Unknown network 0x{network_id:06x}")
+            return
         self.bleak_mapping[hdr.device_id] = device
 
         hop = HopReceived(
