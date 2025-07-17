@@ -111,7 +111,7 @@ class SubCommand(InfuseCommand):
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
                 self.state_update(live, "Scanning")
-                if announce.application != self._app_id:
+                if announce.application != self._app_id and not self._single_id:
                     continue
                 if self._single_id:
                     if self._single_id != source.infuse_id:
@@ -159,11 +159,14 @@ class SubCommand(InfuseCommand):
                 # Do we have a valid diff?
                 diff_file = self._release.dir / "diffs" / f"{v_str}.bin"
                 if not diff_file.exists():
-                    self._missing_diffs.add(v_str)
-                    self._handled.append(source.infuse_id)
-                    self._no_diff += 1
-                    self.state_update(live, "Scanning")
-                    continue
+                    # Is this a single diff from a different application we know about?
+                    diff_file = self._release.dir / "diffs" / f"0x{announce.application:08x}" / f"{v_str}.bin"
+                    if not diff_file.exists():
+                        self._missing_diffs.add(v_str)
+                        self._handled.append(source.infuse_id)
+                        self._no_diff += 1
+                        self.state_update(live, "Scanning")
+                        continue
 
                 # Is signal strong enough to connect?
                 if self._min_rssi and source.rssi < self._min_rssi:
