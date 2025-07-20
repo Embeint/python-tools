@@ -26,7 +26,7 @@ from infuse_iot.socket_comms import (
     LocalClient,
     default_multicast_address,
 )
-from infuse_iot.util.argparse import ValidRelease
+from infuse_iot.util.argparse import ValidFile, ValidRelease
 
 
 class SubCommand(InfuseCommand):
@@ -38,7 +38,7 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
-        self._single_id: int | None = args.id
+        self._explicit_ids: list[int] = []
         self._release: ValidRelease = args.release
         self._app_name = self._release.metadata["application"]["primary"]
         self._app_id = self._release.metadata["application"]["id"]
@@ -63,17 +63,26 @@ class SubCommand(InfuseCommand):
         else:
             self._log = open(args.log, "+a", encoding="utf-8")  # noqa: SIM115
 
+        if args.id is not None:
+            self._explicit_ids.append(args.id)
+        elif args.list is not None:
+            with args.list.open("r") as f:
+                for line in f.readlines():
+                    self._explicit_ids.append(int(line.strip(), 0))
+
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(
             "--release", "-r", type=ValidRelease, required=True, help="Application release to upgrade to"
         )
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
-        parser.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
         parser.add_argument("--log", type=str, help="File to write upgrade results to")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
+        explicit = parser.add_mutually_exclusive_group()
+        explicit.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
+        explicit.add_argument("--list", type=ValidFile, help="File containing a list of IDs to upgrade")
 
     def progress_table(self):
         table = Table()
@@ -111,14 +120,16 @@ class SubCommand(InfuseCommand):
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
                 self.state_update(live, "Scanning")
-                if announce.application != self._app_id and not self._single_id:
-                    continue
-                if self._single_id:
-                    if self._single_id != source.infuse_id:
+                if len(self._explicit_ids):
+                    if source.infuse_id not in self._explicit_ids:
                         continue
-                    if self._single_id in self._handled:
-                        # The one device we care about has been upgraded
+                    if len(self._handled) == len(self._explicit_ids):
+                        # We've handled all devices
+                        self.state_update(live, "All devices updated")
                         return
+                else:
+                    if announce.application != self._app_id:
+                        continue
                 if source.infuse_id in self._handled:
                     continue
                 v = announce.version
