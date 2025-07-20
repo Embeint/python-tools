@@ -21,7 +21,8 @@ import cryptography.exceptions
 
 import infuse_iot.epacket.interface as interface
 import infuse_iot.generated.rpc_definitions as defs
-from infuse_iot import rpc
+import infuse_iot.generated.tdf_definitions as tdf_defs
+from infuse_iot import rpc, tdf
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.database import (
@@ -39,6 +40,7 @@ from infuse_iot.serial_comms import PyOcdPort, RttPort, SerialFrame, SerialLike,
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationConnectionCreated,
+    ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRelease,
@@ -153,6 +155,7 @@ class SerialRxThread(SignaledThread):
         self._line = ""
         self._log = log
         self._next_ping = 0.0
+        self._tdf_decoder = tdf.TDF()
         super().__init__(self._iter)
 
     def _iter(self) -> None:
@@ -190,6 +193,17 @@ class SerialRxThread(SignaledThread):
             p = p[3 + hdr.len :]
             print(f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}")
 
+    def _handle_local_tdf(self, pkt: PacketReceived):
+        if self._common.server is None:
+            # No-one to broadcast events to
+            return
+        for reading in self._tdf_decoder.decode(pkt.payload):
+            if isinstance(reading.data[0], tdf_defs.readings.bluetooth_connection) and reading.data[0].connected == 0:
+                if_addr = interface.Address.BluetoothLeAddr.from_tdf_struct(reading.data[0].address)
+                infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
+                if infuse_id:
+                    self._common.server.broadcast(ClientNotificationConnectionDropped(infuse_id))
+
     def _handle_serial_frame(self, frame: bytearray):
         try:
             # Decode the serial packet
@@ -216,6 +230,9 @@ class SerialRxThread(SignaledThread):
             # Iterate over all contained subpackets
             for pkt in decoded:
                 Console.log_rx(pkt.ptype, len(frame))
+                # Handle any local TDFs
+                if len(pkt.route) == 1 and pkt.ptype == InfuseType.TDF:
+                    self._handle_local_tdf(pkt)
                 # Handle any local RPC responses
                 self._common.rpc.handle(pkt)
                 # Handle any Memfault chunks
