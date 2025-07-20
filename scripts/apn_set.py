@@ -48,7 +48,8 @@ class APNSetter:
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
-        vla_field = ("rc", ctypes.c_int16)
+        vla_field = ("rc", 0 * ctypes.c_int16)
+        _pack_ = 1
 
     def state_update(self, live: Live, state: str):
         self.state = state
@@ -75,7 +76,7 @@ class APNSetter:
                 params = bytes(rpc.kv_write.request(1)) + all_vals
 
                 hdr, rsp = rpc_client.run_standard_cmd(
-                    rpc.kv_write.COMMAND_ID, Auth.DEVICE, params, self.response.from_buffer_copy
+                    rpc.kv_write.COMMAND_ID, Auth.DEVICE, params, self.response.vla_from_buffer_copy
                 )
                 if hdr.return_code == 0:
                     assert rsp is not None and hasattr(rsp, "rc")
