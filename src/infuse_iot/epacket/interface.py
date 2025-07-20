@@ -6,6 +6,7 @@ import enum
 from typing_extensions import Self
 
 import infuse_iot.generated.rpc_definitions as rpc_defs
+import infuse_iot.generated.tdf_definitions as tdf_defs
 from infuse_iot.epacket.common import Serializable
 from infuse_iot.util.ctypes import bytes_to_uint8
 
@@ -82,6 +83,12 @@ class Address(Serializable):
             """Create instance from the common RPC address structure"""
 
             return cls(struct.type, int.from_bytes(struct.val, "little"))
+
+        @classmethod
+        def from_tdf_struct(cls, struct: tdf_defs.structs.tdf_struct_bt_addr_le):
+            """Create instance from the common TDF address structure"""
+
+            return cls(struct.type, struct.val)
 
     def __init__(self, val):
         self.val = val
