@@ -20,6 +20,7 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--api-key", type=str, help="Set Infuse-IoT API key")
+        parser.add_argument("--api-key-print", action="store_true", help="Print Infuse-IoT API key")
         parser.add_argument("--network", type=ValidFile, help="Load network credentials from file")
 
     def __init__(self, args):
@@ -28,6 +29,8 @@ class SubCommand(InfuseCommand):
     def run(self):
         if self.args.api_key is not None:
             credentials.set_api_key(self.args.api_key)
+        if self.args.api_key_print:
+            print(f"API Key: {credentials.get_api_key()}")
         if self.args.network is not None:
             # Read the file
             with self.args.network.open("r") as f:
