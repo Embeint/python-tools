@@ -90,7 +90,7 @@ class rpc_struct_wifi_state(VLACompatLittleEndianStruct):
     _fields_ = [
         ("state", ctypes.c_uint8),
         ("ssid", 32 * ctypes.c_char),
-        ("bssid", 6 * ctypes.c_char),
+        ("bssid", 6 * ctypes.c_uint8),
         ("band", ctypes.c_uint8),
         ("channel", ctypes.c_uint8),
         ("iface_mode", ctypes.c_uint8),
@@ -133,7 +133,7 @@ class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
         ("channel", ctypes.c_uint8),
         ("security", ctypes.c_uint8),
         ("rssi", ctypes.c_int8),
-        ("bssid", 6 * ctypes.c_char),
+        ("bssid", 6 * ctypes.c_uint8),
         ("ssid_len", ctypes.c_uint8),
     ]
     vla_field = ("ssid", 0 * ctypes.c_char)
