@@ -40,6 +40,10 @@ class FrequencyBand(enum.IntEnum):
         return pretty_names[self.value]
 
 
+class FrequencyChannel(enum.IntEnum):
+    CHANNEL_ANY = 255
+
+
 class LinkMode(enum.IntEnum):
     WIFI_802_11 = 0
     WIFI_802_11b = 1
