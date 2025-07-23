@@ -196,6 +196,48 @@ class structs:
         def val(self):
             return int.from_bytes(self._val, byteorder="little")
 
+    class tdf_struct_wifi_network_params(TdfStructBase):
+        """WiFi network parameters"""
+
+        _fields_ = [
+            ("_bssid", 6 * ctypes.c_uint8),
+            ("band", ctypes.c_uint8),
+            ("channel", ctypes.c_uint8),
+            ("iface_mode", ctypes.c_uint8),
+            ("link_mode", ctypes.c_uint8),
+            ("security", ctypes.c_uint8),
+            ("rssi", ctypes.c_int8),
+            ("beacon_interval", ctypes.c_uint16),
+            ("twt_capable", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "bssid": "",
+            "band": "",
+            "channel": "",
+            "iface_mode": "",
+            "link_mode": "",
+            "security": "",
+            "rssi": "",
+            "beacon_interval": "",
+            "twt_capable": "",
+        }
+        _display_fmt_ = {
+            "bssid": "0x{:012x}",
+            "band": "{}",
+            "channel": "{}",
+            "iface_mode": "{}",
+            "link_mode": "{}",
+            "security": "{}",
+            "rssi": "{}",
+            "beacon_interval": "{}",
+            "twt_capable": "{}",
+        }
+
+        @property
+        def bssid(self):
+            return int.from_bytes(self._bssid, byteorder="big")
+
 
 class readings:
     class announce(TdfReadingBase):
@@ -1334,6 +1376,51 @@ class readings:
             "period": "{}",
         }
 
+    class wifi_connected(TdfReadingBase):
+        """WiFi network is now connected"""
+
+        name = "WIFI_CONNECTED"
+        _fields_ = [
+            ("network", structs.tdf_struct_wifi_network_params),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "network": "",
+        }
+        _display_fmt_ = {
+            "network": "{}",
+        }
+
+    class wifi_connection_failed(TdfReadingBase):
+        """Failed to connect to a WiFi network"""
+
+        name = "WIFI_CONNECTION_FAILED"
+        _fields_ = [
+            ("reason", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "reason": "",
+        }
+        _display_fmt_ = {
+            "reason": "{}",
+        }
+
+    class wifi_disconnected(TdfReadingBase):
+        """Wi-Fi network is now disconnected"""
+
+        name = "WIFI_DISCONNECTED"
+        _fields_ = [
+            ("reason", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "reason": "",
+        }
+        _display_fmt_ = {
+            "reason": "{}",
+        }
+
     class array_type(TdfReadingBase):
         """Example array type"""
 
@@ -1395,5 +1482,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     45: readings.lora_tx,
     46: readings.idx_array_freq,
     47: readings.idx_array_period,
+    48: readings.wifi_connected,
+    49: readings.wifi_connection_failed,
+    50: readings.wifi_disconnected,
     100: readings.array_type,
 }

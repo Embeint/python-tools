@@ -160,6 +160,18 @@ class slots:
         vla_field = ("psk", structs.kv_string)
         _pack_ = 1
 
+    class wifi_channels(VLACompatLittleEndianStruct):
+        """WiFi band and channel configuration"""
+
+        NAME = "WIFI_CHANNELS"
+        BASE_ID = 22
+        RANGE = 1
+        _fields_ = [
+            ("band", ctypes.c_uint8),
+        ]
+        vla_field = ("channels", 0 * ctypes.c_uint8)
+        _pack_ = 1
+
     class ntp_server_url(VLACompatLittleEndianStruct):
         """URL of the NTP server to use for time synchronisation"""
 
@@ -370,6 +382,7 @@ class slots:
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,
+        22: wifi_channels,
         30: ntp_server_url,
         31: epacket_udp_url,
         32: epacket_udp_port,
