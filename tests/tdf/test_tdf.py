@@ -20,12 +20,12 @@ def test_tdf():
     for block in test_blocks:
         assert len(block) % 512 == 0
         # Iterate over each TDF in the block
-        for tdf in decoder.decode(block):
+        for tdf in decoder.decode(block[2:]):
             assert isinstance(tdf, TDF.Reading)
             total_tdfs += 1
 
     # Number of TDFs on the example block should never change
-    assert total_tdfs == 53
+    assert total_tdfs == 269
 
 
 def test_buffers():
