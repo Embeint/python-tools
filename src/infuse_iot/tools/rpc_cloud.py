@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Inc"
 
 import argparse
+import base64
 import importlib
 import json
 import pkgutil
@@ -83,10 +84,15 @@ class SubCommand(InfuseCommand):
         if rsp.downlink_message.status == DownlinkMessageStatus.COMPLETED:
             rpc_rsp = rsp.downlink_message.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
-            assert isinstance(rpc_rsp.params, RPCParams)
-
             print(f"   Result: {rpc_rsp.return_code}")
-            print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
+            if rpc_rsp.params:
+                print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
+            elif rpc_rsp.params_encoded:
+                raw_rsp = base64.b64decode(rpc_rsp.params_encoded)
+                print(f"      Raw: {raw_rsp.hex()}")
+            else:
+                # No response values
+                pass
 
     def run(self):
         with Client(base_url="https://api.infuse-iot.com").with_headers(
