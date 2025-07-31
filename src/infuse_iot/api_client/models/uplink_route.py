@@ -8,6 +8,8 @@ from ..models.route_type import RouteType
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.bt_le_route import BtLeRoute
+    from ..models.forwarded_uplink_route import ForwardedUplinkRoute
     from ..models.interface_data import InterfaceData
     from ..models.udp_uplink_route import UdpUplinkRoute
 
@@ -22,11 +24,19 @@ class UplinkRoute:
         interface (RouteType): Interface of route
         interface_data (InterfaceData):
         udp (Union[Unset, UdpUplinkRoute]):
+        bt_adv (Union[Unset, BtLeRoute]):
+        bt_peripheral (Union[Unset, BtLeRoute]):
+        bt_central (Union[Unset, BtLeRoute]):
+        forwarded (Union[Unset, ForwardedUplinkRoute]):
     """
 
     interface: RouteType
     interface_data: "InterfaceData"
     udp: Union[Unset, "UdpUplinkRoute"] = UNSET
+    bt_adv: Union[Unset, "BtLeRoute"] = UNSET
+    bt_peripheral: Union[Unset, "BtLeRoute"] = UNSET
+    bt_central: Union[Unset, "BtLeRoute"] = UNSET
+    forwarded: Union[Unset, "ForwardedUplinkRoute"] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -38,6 +48,22 @@ class UplinkRoute:
         if not isinstance(self.udp, Unset):
             udp = self.udp.to_dict()
 
+        bt_adv: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.bt_adv, Unset):
+            bt_adv = self.bt_adv.to_dict()
+
+        bt_peripheral: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.bt_peripheral, Unset):
+            bt_peripheral = self.bt_peripheral.to_dict()
+
+        bt_central: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.bt_central, Unset):
+            bt_central = self.bt_central.to_dict()
+
+        forwarded: Union[Unset, dict[str, Any]] = UNSET
+        if not isinstance(self.forwarded, Unset):
+            forwarded = self.forwarded.to_dict()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -48,11 +74,21 @@ class UplinkRoute:
         )
         if udp is not UNSET:
             field_dict["udp"] = udp
+        if bt_adv is not UNSET:
+            field_dict["btAdv"] = bt_adv
+        if bt_peripheral is not UNSET:
+            field_dict["btPeripheral"] = bt_peripheral
+        if bt_central is not UNSET:
+            field_dict["btCentral"] = bt_central
+        if forwarded is not UNSET:
+            field_dict["forwarded"] = forwarded
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.bt_le_route import BtLeRoute
+        from ..models.forwarded_uplink_route import ForwardedUplinkRoute
         from ..models.interface_data import InterfaceData
         from ..models.udp_uplink_route import UdpUplinkRoute
 
@@ -68,10 +104,42 @@ class UplinkRoute:
         else:
             udp = UdpUplinkRoute.from_dict(_udp)
 
+        _bt_adv = d.pop("btAdv", UNSET)
+        bt_adv: Union[Unset, BtLeRoute]
+        if isinstance(_bt_adv, Unset):
+            bt_adv = UNSET
+        else:
+            bt_adv = BtLeRoute.from_dict(_bt_adv)
+
+        _bt_peripheral = d.pop("btPeripheral", UNSET)
+        bt_peripheral: Union[Unset, BtLeRoute]
+        if isinstance(_bt_peripheral, Unset):
+            bt_peripheral = UNSET
+        else:
+            bt_peripheral = BtLeRoute.from_dict(_bt_peripheral)
+
+        _bt_central = d.pop("btCentral", UNSET)
+        bt_central: Union[Unset, BtLeRoute]
+        if isinstance(_bt_central, Unset):
+            bt_central = UNSET
+        else:
+            bt_central = BtLeRoute.from_dict(_bt_central)
+
+        _forwarded = d.pop("forwarded", UNSET)
+        forwarded: Union[Unset, ForwardedUplinkRoute]
+        if isinstance(_forwarded, Unset):
+            forwarded = UNSET
+        else:
+            forwarded = ForwardedUplinkRoute.from_dict(_forwarded)
+
         uplink_route = cls(
             interface=interface,
             interface_data=interface_data,
             udp=udp,
+            bt_adv=bt_adv,
+            bt_peripheral=bt_peripheral,
+            bt_central=bt_central,
+            forwarded=forwarded,
         )
 
         uplink_route.additional_properties = d

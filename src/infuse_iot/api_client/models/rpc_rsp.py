@@ -23,11 +23,14 @@ class RpcRsp:
         params (Union[Unset, RPCParams]): RPC request or response params (must be a JSON object with string or embedded
             json values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
             'value'}}.
+        params_encoded (Union[Unset, str]): Base64 encoded params (provided if there was an issue decoding the RPC
+            params)
     """
 
     route: "UplinkRoute"
     return_code: int
     params: Union[Unset, "RPCParams"] = UNSET
+    params_encoded: Union[Unset, str] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -39,6 +42,8 @@ class RpcRsp:
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
+        params_encoded = self.params_encoded
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -49,6 +54,8 @@ class RpcRsp:
         )
         if params is not UNSET:
             field_dict["params"] = params
+        if params_encoded is not UNSET:
+            field_dict["paramsEncoded"] = params_encoded
 
         return field_dict
 
@@ -69,10 +76,13 @@ class RpcRsp:
         else:
             params = RPCParams.from_dict(_params)
 
+        params_encoded = d.pop("paramsEncoded", UNSET)
+
         rpc_rsp = cls(
             route=route,
             return_code=return_code,
             params=params,
+            params_encoded=params_encoded,
         )
 
         rpc_rsp.additional_properties = d
