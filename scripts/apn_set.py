@@ -25,6 +25,7 @@ class APNSetter:
     def __init__(self, args: argparse.Namespace):
         self.app_id = args.app
         self.apn = args.apn
+        self.family = args.family
         self.client = LocalClient(default_multicast_address(), 1.0)
         self.decoder = TDF()
         self.state = "Scanning"
@@ -65,8 +66,7 @@ class APNSetter:
             with self.client.connection(infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
                 rpc_client = RpcClient(self.client, mtu, infuse_id)
 
-                ipv4 = 0
-                family_bytes = ipv4.to_bytes(1, "little")
+                family_bytes = self.family.to_bytes(1, "little")
                 apn_bytes = self.apn.encode("utf-8") + b"\x00"
                 val_bytes = family_bytes + len(apn_bytes).to_bytes(1, "little") + apn_bytes
 
@@ -102,6 +102,11 @@ if __name__ == "__main__":
     addr_group = parser.add_mutually_exclusive_group(required=True)
     addr_group.add_argument("--app", type=lambda x: int(x, 0), help="Application ID to configure")
     parser.add_argument("--apn", type=str, required=True, help="LTE APN value")
+    family_group = parser.add_mutually_exclusive_group()
+    family_group.add_argument("--ipv4", dest="family", action="store_const", const=0, help="IPv4")
+    family_group.add_argument("--ipv6", dest="family", action="store_const", const=1, help="IPv6")
+    family_group.add_argument("--ipv4v6", dest="family", action="store_const", default=2, const=2, help="IPv4v6")
+    family_group.add_argument("--nonip", dest="family", action="store_const", const=3, help="NonIP")
 
     args = parser.parse_args()
 

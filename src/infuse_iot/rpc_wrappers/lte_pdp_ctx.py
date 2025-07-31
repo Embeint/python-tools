@@ -43,13 +43,26 @@ class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--apn", "-a", type=str, required=True, help="Access Point Name")
+        family_group = parser.add_mutually_exclusive_group()
+        family_group.add_argument("--ipv4", dest="family", action="store_const", const=cls.PDPFamily.IPv4, help="IPv4")
+        family_group.add_argument("--ipv6", dest="family", action="store_const", const=cls.PDPFamily.IPv6, help="IPv6")
+        family_group.add_argument(
+            "--ipv4v6",
+            dest="family",
+            action="store_const",
+            default=cls.PDPFamily.IPv4v6,
+            const=cls.PDPFamily.IPv4v6,
+            help="IPv4v6",
+        )
+        family_group.add_argument(
+            "--nonip", dest="family", action="store_const", const=cls.PDPFamily.NonIP, help="NonIP"
+        )
 
     def __init__(self, args):
         self.args = args
 
     def request_struct(self):
-        # Hardcode IPv4 for now
-        family_bytes = self.PDPFamily.IPv4.to_bytes(1, "little")
+        family_bytes = self.args.family.to_bytes(1, "little")
         apn_bytes = self.args.apn.encode("utf-8") + b"\x00"
         apn_bytes = len(apn_bytes).to_bytes(1, "little") + apn_bytes
 
