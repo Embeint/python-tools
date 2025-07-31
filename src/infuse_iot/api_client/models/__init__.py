@@ -3,6 +3,8 @@
 from .algorithm import Algorithm
 from .application_version import ApplicationVersion
 from .board import Board
+from .bt_le_route import BtLeRoute
+from .bt_le_route_type import BtLeRouteType
 from .coap_file_stats import COAPFileStats
 from .coap_files_list import COAPFilesList
 from .created_board_properties import CreatedBoardProperties
@@ -34,9 +36,11 @@ from .definitions_tdf_definition import DefinitionsTDFDefinition
 from .definitions_tdf_definitions import DefinitionsTDFDefinitions
 from .definitions_tdf_response import DefinitionsTDFResponse
 from .definitions_tdf_structs import DefinitionsTDFStructs
+from .derive_device_key_body import DeriveDeviceKeyBody
 from .device import Device
 from .device_and_state import DeviceAndState
 from .device_id_field import DeviceIdField
+from .device_logger_state import DeviceLoggerState
 from .device_metadata import DeviceMetadata
 from .device_metadata_update import DeviceMetadataUpdate
 from .device_metadata_update_operation import DeviceMetadataUpdateOperation
@@ -46,9 +50,12 @@ from .downlink_message import DownlinkMessage
 from .downlink_message_status import DownlinkMessageStatus
 from .downlink_route import DownlinkRoute
 from .error import Error
+from .forwarded_downlink_route import ForwardedDownlinkRoute
+from .forwarded_uplink_route import ForwardedUplinkRoute
 from .health_check import HealthCheck
 from .interface_data import InterfaceData
 from .key import Key
+from .key_interface import KeyInterface
 from .metadata_field import MetadataField
 from .new_board import NewBoard
 from .new_device import NewDevice
@@ -61,7 +68,9 @@ from .route_type import RouteType
 from .rpc_message import RpcMessage
 from .rpc_params import RPCParams
 from .rpc_req import RpcReq
+from .rpc_req_data_header import RPCReqDataHeader
 from .rpc_rsp import RpcRsp
+from .security_state import SecurityState
 from .udp_downlink_route import UdpDownlinkRoute
 from .udp_uplink_route import UdpUplinkRoute
 from .uplink_route import UplinkRoute
@@ -70,6 +79,8 @@ __all__ = (
     "Algorithm",
     "ApplicationVersion",
     "Board",
+    "BtLeRoute",
+    "BtLeRouteType",
     "COAPFilesList",
     "COAPFileStats",
     "CreatedBoardProperties",
@@ -101,9 +112,11 @@ __all__ = (
     "DefinitionsTDFDefinitions",
     "DefinitionsTDFResponse",
     "DefinitionsTDFStructs",
+    "DeriveDeviceKeyBody",
     "Device",
     "DeviceAndState",
     "DeviceIdField",
+    "DeviceLoggerState",
     "DeviceMetadata",
     "DeviceMetadataUpdate",
     "DeviceMetadataUpdateOperation",
@@ -113,9 +126,12 @@ __all__ = (
     "DownlinkMessageStatus",
     "DownlinkRoute",
     "Error",
+    "ForwardedDownlinkRoute",
+    "ForwardedUplinkRoute",
     "HealthCheck",
     "InterfaceData",
     "Key",
+    "KeyInterface",
     "MetadataField",
     "NewBoard",
     "NewDevice",
@@ -128,7 +144,9 @@ __all__ = (
     "RpcMessage",
     "RPCParams",
     "RpcReq",
+    "RPCReqDataHeader",
     "RpcRsp",
+    "SecurityState",
     "UdpDownlinkRoute",
     "UdpUplinkRoute",
     "UplinkRoute",
