@@ -306,6 +306,17 @@ class slots:
         ]
         _pack_ = 1
 
+    class bluetooth_throughput_limit(VLACompatLittleEndianStruct):
+        """Request connected Bluetooth peers to limit throughtput"""
+
+        NAME = "BLUETOOTH_THROUGHPUT_LIMIT"
+        BASE_ID = 52
+        RANGE = 1
+        _fields_ = [
+            ("limit_kbps", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
 
@@ -395,6 +406,7 @@ class slots:
         46: lte_networking_modes,
         50: bluetooth_peer,
         51: lora_config,
+        52: bluetooth_throughput_limit,
         60: gravity_reference,
         100: geofence,
         101: geofence,
