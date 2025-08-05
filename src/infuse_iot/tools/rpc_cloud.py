@@ -67,11 +67,17 @@ class SubCommand(InfuseCommand):
         assert hasattr(command, "COMMAND_ID")
 
         try:
+            # Get the human readable arguments if implementated
             params = RPCParams.from_dict(command.request_json())
+            rpc_req = NewRPCReq(command_id=command.COMMAND_ID, params=params)
         except NotImplementedError:
-            sys.exit(f"Command '{command.__class__.__name__}' has not implemented cloud support")
-        req = NewRPCMessage(infuse_id, NewRPCReq(command.COMMAND_ID, params=params), timeout_ms)
-        rsp = send_rpc.sync(client=client, body=req)
+            # Otherwise, encode the raw binary struct
+            struct_bytes = bytes(command.request_struct())
+            params_encoded = base64.b64encode(struct_bytes).decode("utf-8")
+            rpc_req = NewRPCReq(command_id=command.COMMAND_ID, params_encoded=params_encoded)
+
+        rpc_msg = NewRPCMessage(infuse_id, rpc_req, timeout_ms)
+        rsp = send_rpc.sync(client=client, body=rpc_msg)
         if isinstance(rsp, Error) or rsp is None:
             sys.exit(f"Failed to queue RPC ({rsp})")
         print(f"Queued RPC ID: {rsp.id}")
