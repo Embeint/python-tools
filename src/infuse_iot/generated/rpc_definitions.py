@@ -863,6 +863,38 @@ class bt_file_copy_basic:
         _pack_ = 1
 
 
+class bt_file_copy_coap:
+    """Copy a file fetched from COAP to a remote device over Bluetooth"""
+
+    HELP = "Copy a file fetched from COAP to a remote device over Bluetooth"
+    DESCRIPTION = "Copy a file fetched from COAP to a remote device over Bluetooth"
+    COMMAND_ID = 53
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
+            ("conn_timeout_ms", ctypes.c_uint16),
+            ("action", ctypes.c_uint8),
+            ("file_idx", ctypes.c_uint8),
+            ("ack_period", ctypes.c_uint8),
+            ("pipelining", ctypes.c_uint8),
+            ("server_address", 48 * ctypes.c_char),
+            ("server_port", ctypes.c_uint16),
+            ("block_timeout_ms", ctypes.c_uint16),
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        vla_field = ("resource", 0 * ctypes.c_char)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
 class gravity_reference_update:
     """Store the current accelerometer vector as the gravity reference"""
 
