@@ -69,6 +69,13 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
             const=rpc_enum_file_action.NRF91_MODEM_DIFF,
             help="nRF91 LTE modem diff upgrade",
         )
+        group.add_argument(
+            "--for-copy",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.FILE_FOR_COPY,
+            help="File to copy to other device",
+        )
 
     def __init__(self, args):
         self.file = args.file
