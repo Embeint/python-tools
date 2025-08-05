@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import binascii
+import time
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
@@ -31,6 +32,7 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
             raise NotImplementedError
         self.expected_offset = 0
         self.output = b""
+        self.start_time = time.time()
 
     def request_struct(self):
         return self.request(self.logger, self.start, self.last)
@@ -39,6 +41,8 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         return {"logger": self.logger.name, "start_block": self.start, "last_block": self.last}
 
     def data_recv_cb(self, offset: int, data: bytes) -> None:
+        if self.expected_offset == 0:
+            self.start_time = time.time()
         if offset != self.expected_offset:
             missing = offset - self.expected_offset
             print(f"Missed {missing:d} bytes from offset 0x{self.expected_offset:08x}")
@@ -49,6 +53,7 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         self.expected_offset = offset + len(data)
 
     def handle_response(self, return_code, response):
+        end_time = time.time()
         if return_code != 0:
             print(f"Failed to read data logger ({errno.strerror(-return_code)})")
             return
@@ -59,8 +64,11 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         if response.sent_crc != binascii.crc32(self.output):
             print(f"Unexpected received CRC ({response.sent_crc:08x} != {binascii.crc32(self.output):08x})")
 
+        duration = end_time - self.start_time
+        bitrate = (len(self.output) * 8) / duration / 1024
+
         file_prefix = f"{self.infuse_id:016x}" if self.infuse_id else "gateway"
         output_file = f"{file_prefix}_{self.logger.name}.bin"
         with open(output_file, "wb") as f:
             f.write(self.output)
-        print(f"Wrote {response.sent_len:d} bytes to {output_file}")
+        print(f"Wrote {response.sent_len:d} bytes to {output_file} in {duration:.2f} sec ({bitrate:.3f} kbps)")
