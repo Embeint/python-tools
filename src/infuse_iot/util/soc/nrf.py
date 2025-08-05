@@ -141,7 +141,7 @@ class Interface(ProvisioningInterface):
     def unique_device_id(self) -> int:
         device_id_addr = self.family.FICR_ADDRESS + self.family.DEVICE_ID_OFFSET
 
-        result = self._exec(["x-read", "--address", hex(device_id_addr), "--bytes", "8", "--direct"])
+        result = self._exec(["read", "--address", hex(device_id_addr), "--bytes", "8", "--direct"])
         data_bytes = result[0]["devices"][0]["memoryData"][0]["values"]
         dev_id_bytes = bytes(data_bytes)
         return int.from_bytes(dev_id_bytes, "big")
@@ -149,7 +149,7 @@ class Interface(ProvisioningInterface):
     def read_provisioned_data(self, num: int) -> bytes:
         customer_addr = self.uicr_base + self.family.CUSTOMER_OFFSET
 
-        result = self._exec(["x-read", "--address", hex(customer_addr), "--bytes", str(num), "--direct"])
+        result = self._exec(["read", "--address", hex(customer_addr), "--bytes", str(num), "--direct"])
         data_bytes = result[0]["devices"][0]["memoryData"][0]["values"]
 
         return bytes(data_bytes)
@@ -164,4 +164,4 @@ class Interface(ProvisioningInterface):
                 chunk_bytes += b"\xff" * (4 - len(chunk_bytes))
             data_word = int.from_bytes(chunk_bytes, byteorder="little")
 
-            self._exec(["x-write", "--address", hex(customer_addr + offset), "--value", hex(data_word)])
+            self._exec(["write", "--address", hex(customer_addr + offset), "--value", hex(data_word)])
