@@ -201,6 +201,7 @@ class rpc_enum_file_action(enum.IntEnum):
     APP_CPATCH = 11
     BT_CTLR_CPATCH = 12
     NRF91_MODEM_DIFF = 20
+    FILE_FOR_COPY = 30
 
 
 class rpc_enum_infuse_bt_characteristic(enum.IntEnum):
@@ -665,6 +666,32 @@ class lte_state:
         _pack_ = 1
 
 
+class data_logger_read_available:
+    """Read data from data logger, with auto-updating start_block"""
+
+    HELP = "Read data from data logger, with auto-updating start_block"
+    DESCRIPTION = "Read data from data logger, with auto-updating start_block"
+    COMMAND_ID = 22
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+            ("start_block", ctypes.c_uint32),
+            ("num_blocks", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("sent_len", ctypes.c_uint32),
+            ("sent_crc", ctypes.c_uint32),
+            ("current_block", ctypes.c_uint32),
+            ("start_block_actual", ctypes.c_uint32),
+            ("block_size", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+
 class coap_download:
     """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
 
@@ -804,6 +831,30 @@ class bt_disconnect:
     class request(VLACompatLittleEndianStruct):
         _fields_ = [
             ("peer", rpc_struct_bt_addr_le),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+
+class bt_file_copy_basic:
+    """Copy a local file to a remote device over Bluetooth"""
+
+    HELP = "Copy a local file to a remote device over Bluetooth"
+    DESCRIPTION = "Copy a local file to a remote device over Bluetooth"
+    COMMAND_ID = 52
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
+            ("action", ctypes.c_uint8),
+            ("file_idx", ctypes.c_uint8),
+            ("file_len", ctypes.c_uint32),
+            ("file_crc", ctypes.c_uint32),
+            ("ack_period", ctypes.c_uint8),
+            ("pipelining", ctypes.c_uint8),
         ]
         _pack_ = 1
 
