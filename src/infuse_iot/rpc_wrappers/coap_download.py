@@ -1,27 +1,57 @@
 #!/usr/bin/env python3
 
 import ctypes
+import sys
+from http import HTTPStatus
+from json import loads
 
 import infuse_iot.generated.rpc_definitions as defs
+from infuse_iot.api_client import Client
+from infuse_iot.api_client.api.coap import get_coap_file_stats
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.credentials import get_api_key
 from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
 from infuse_iot.util.ctypes import UINT32_MAX
 from infuse_iot.zephyr.errno import errno
 
 
+def coap_server_file_stats(server: str, resource: str) -> tuple[int, int]:
+    if server == coap_download.INFUSE_COAP_SERVER_ADDR:
+        # Validate file prefix
+        if not resource.startswith("file/"):
+            sys.exit("Infuse-IoT COAP files start with 'file/'")
+        api_filename = resource.removeprefix("file/")
+        # Get COAP file information
+        client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+        with client as client:
+            response = get_coap_file_stats.sync_detailed(client=client, filename=api_filename)
+            decoded = loads(response.content.decode("utf-8"))
+            if response.status_code != HTTPStatus.OK:
+                sys.exit(f"<{response.status_code}>: {decoded['message']}")
+            return (decoded["len"], decoded["crc"])
+    else:
+        # Unknown, let the COAP download automatically determine
+        # This does mean that duplicate file are not detected
+        print("Custom COAP server, duplicate file detection disabled")
+        return (UINT32_MAX, UINT32_MAX)
+
+
 class coap_download(InfuseRpcCommand, defs.coap_download):
+    INFUSE_COAP_SERVER_ADDR = "coap.dev.infuse-iot.com"
+    INFUSE_COAP_SERVER_PORT = 5684
+
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(
             "--server",
             type=str,
-            default="coap.dev.infuse-iot.com",
+            default=cls.INFUSE_COAP_SERVER_ADDR,
             help="COAP server name",
         )
         parser.add_argument(
             "--port",
             type=int,
-            default=5684,
+            default=cls.INFUSE_COAP_SERVER_PORT,
             help="COAP server port",
         )
         parser.add_argument(
@@ -66,6 +96,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
         self.port = args.port
         self.resource = args.resource.encode("utf-8")
         self.action = args.action
+        self.file_len, self.file_crc = coap_server_file_stats(args.server, args.resource)
 
     def request_struct(self):
         class request(ctypes.LittleEndianStructure):
@@ -85,8 +116,8 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             self.port,
             2000,
             self.action,
-            UINT32_MAX,
-            UINT32_MAX,
+            self.file_len,
+            self.file_crc,
             self.resource,
         )
 
@@ -96,8 +127,8 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             "server_port": str(self.port),
             "block_timeout_ms": "2000",
             "action": self.action.name,
-            "resource_len": str(UINT32_MAX),
-            "resource_crc": str(UINT32_MAX),
+            "resource_len": str(self.file_len),
+            "resource_crc": str(self.file_crc),
             "resource": self.resource.decode("utf-8"),
         }
 
