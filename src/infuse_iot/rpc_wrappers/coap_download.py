@@ -90,6 +90,13 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             const=rpc_enum_file_action.NRF91_MODEM_DIFF,
             help="nRF91 LTE modem diff upgrade",
         )
+        group.add_argument(
+            "--for-copy",
+            dest="action",
+            action="store_const",
+            const=rpc_enum_file_action.FILE_FOR_COPY,
+            help="File to copy to other device",
+        )
 
     def __init__(self, args):
         self.server = args.server.encode("utf-8")
