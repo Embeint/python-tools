@@ -11,6 +11,7 @@ from infuse_iot.definitions.rpc import (
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
 from infuse_iot.zephyr.errno import errno
+from infuse_iot.zephyr.hci import error
 
 
 class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
@@ -61,11 +62,10 @@ class bt_connect_infuse(InfuseRpcCommand, defs.bt_connect_infuse):
         if return_code < 0:
             print(f"Failed to connect ({errno.strerror(-return_code)})")
             return
+        elif return_code > 0:
+            print(f"Failed to connect ({error.strerror(return_code)})")
 
-        if return_code == 1:
-            print("Already connected")
-        else:
-            print("Connected")
+        print("Connected")
         print(f"\tDevice Public Key: {bytes(response.device_public_key).hex()}")
         print(f"\t Cloud Public Key: {bytes(response.cloud_public_key).hex()}")
         print(f"\t          Network: 0x{response.network_id:06x}")
