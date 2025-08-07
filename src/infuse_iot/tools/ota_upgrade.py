@@ -21,8 +21,8 @@ from rich.table import Table
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID
+from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action
 from infuse_iot.epacket.packet import Auth, HopReceived
-from infuse_iot.generated.rpc_definitions import bt_file_copy_basic, file_write_basic, rpc_enum_file_action
 from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,

@@ -18,8 +18,8 @@ from aiohttp.web_runner import GracefulExit
 import infuse_iot.epacket.interface as interface
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
+from infuse_iot.definitions.tdf import structs
 from infuse_iot.generated.tdf_base import TdfStructBase
-from infuse_iot.generated.tdf_definitions import structs
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,

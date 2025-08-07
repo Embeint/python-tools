@@ -4,7 +4,7 @@ import ctypes
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.generated.rpc_definitions import rpc_enum_bt_le_addr_type, rpc_enum_file_action, rpc_struct_bt_addr_le
+from infuse_iot.definitions.rpc import rpc_enum_bt_le_addr_type, rpc_enum_file_action, rpc_struct_bt_addr_le
 from infuse_iot.rpc_wrappers.coap_download import coap_download, coap_server_file_stats
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8

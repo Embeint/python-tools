@@ -7,7 +7,7 @@ from typing import cast
 
 import yaml
 
-from infuse_iot.generated.rpc_definitions import rpc_enum_bt_le_addr_type, rpc_struct_bt_addr_le
+from infuse_iot.definitions.rpc import rpc_enum_bt_le_addr_type, rpc_struct_bt_addr_le
 from infuse_iot.util.ctypes import bytes_to_uint8
 
 

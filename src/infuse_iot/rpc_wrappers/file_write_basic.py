@@ -10,7 +10,7 @@ from rich.progress import (
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import Auth, InfuseRpcCommand
-from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+from infuse_iot.definitions.rpc import rpc_enum_file_action
 from infuse_iot.zephyr.errno import errno
 
 

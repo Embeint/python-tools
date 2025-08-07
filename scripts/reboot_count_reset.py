@@ -8,8 +8,8 @@ from rich.table import Table
 
 import infuse_iot.generated.kv_definitions as kv
 import infuse_iot.generated.rpc_definitions as rpc
+from infuse_iot.definitions.tdf import readings
 from infuse_iot.epacket.packet import Auth
-from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,

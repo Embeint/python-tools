@@ -10,7 +10,7 @@ from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.coap import get_coap_file_stats
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.credentials import get_api_key
-from infuse_iot.generated.rpc_definitions import rpc_enum_file_action
+from infuse_iot.definitions.rpc import rpc_enum_file_action
 from infuse_iot.util.ctypes import UINT32_MAX
 from infuse_iot.zephyr.errno import errno
 

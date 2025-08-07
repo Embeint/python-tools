@@ -20,8 +20,8 @@ from rich.status import Status
 from rich.table import Table
 
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.definitions.rpc import data_logger_read, rpc_enum_data_logger
 from infuse_iot.epacket.packet import Auth
-from infuse_iot.generated.rpc_definitions import data_logger_read, rpc_enum_data_logger
 from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
