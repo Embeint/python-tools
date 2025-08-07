@@ -3,8 +3,8 @@
 # import ctypes
 import argparse
 
-from infuse_iot.generated.kv_definitions import slots as kv_slots
-from infuse_iot.generated.kv_definitions import structs as kv_structs
+from infuse_iot.definitions.kv import slots as kv_slots
+from infuse_iot.definitions.kv import structs as kv_structs
 from infuse_iot.zephyr import lte as z_lte
 from infuse_iot.zephyr.errno import errno
 

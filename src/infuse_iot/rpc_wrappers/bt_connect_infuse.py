@@ -3,7 +3,7 @@
 
 import infuse_iot.generated.rpc_definitions as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.generated.rpc_definitions import (
+from infuse_iot.definitions.rpc import (
     rpc_enum_bt_le_addr_type,
     rpc_enum_infuse_bt_characteristic,
     rpc_struct_bt_addr_le,
