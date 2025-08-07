@@ -52,6 +52,7 @@ from .downlink_route import DownlinkRoute
 from .error import Error
 from .forwarded_downlink_route import ForwardedDownlinkRoute
 from .forwarded_uplink_route import ForwardedUplinkRoute
+from .get_last_routes_for_devices_body import GetLastRoutesForDevicesBody
 from .health_check import HealthCheck
 from .interface_data import InterfaceData
 from .key import Key
@@ -74,6 +75,7 @@ from .security_state import SecurityState
 from .udp_downlink_route import UdpDownlinkRoute
 from .udp_uplink_route import UdpUplinkRoute
 from .uplink_route import UplinkRoute
+from .uplink_route_and_device_id import UplinkRouteAndDeviceId
 
 __all__ = (
     "Algorithm",
@@ -128,6 +130,7 @@ __all__ = (
     "Error",
     "ForwardedDownlinkRoute",
     "ForwardedUplinkRoute",
+    "GetLastRoutesForDevicesBody",
     "HealthCheck",
     "InterfaceData",
     "Key",
@@ -150,4 +153,5 @@ __all__ = (
     "UdpDownlinkRoute",
     "UdpUplinkRoute",
     "UplinkRoute",
+    "UplinkRouteAndDeviceId",
 )
