@@ -1487,3 +1487,9 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     50: readings.wifi_disconnected,
     100: readings.array_type,
 }
+
+__all__ = [
+    "structs",
+    "readings",
+    "id_type_mapping",
+]

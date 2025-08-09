@@ -468,3 +468,9 @@ class slots:
         30008: secure_storage_reserved,
         30009: secure_storage_reserved,
     }
+
+
+__all__ = [
+    "structs",
+    "slots",
+]
