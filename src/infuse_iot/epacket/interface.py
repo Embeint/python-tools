@@ -5,8 +5,8 @@ import enum
 
 from typing_extensions import Self
 
-import infuse_iot.generated.rpc_definitions as rpc_defs
-import infuse_iot.generated.tdf_definitions as tdf_defs
+import infuse_iot.definitions.rpc as rpc_defs
+import infuse_iot.definitions.tdf as tdf_defs
 from infuse_iot.epacket.common import Serializable
 from infuse_iot.util.ctypes import bytes_to_uint8
 

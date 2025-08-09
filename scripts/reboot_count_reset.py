@@ -6,8 +6,8 @@ from rich.live import Live
 from rich.status import Status
 from rich.table import Table
 
-import infuse_iot.generated.kv_definitions as kv
-import infuse_iot.generated.rpc_definitions as rpc
+import infuse_iot.definitions.kv as kv
+import infuse_iot.definitions.rpc as rpc
 from infuse_iot.definitions.tdf import readings
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.rpc_client import RpcClient

@@ -5,7 +5,7 @@ import sys
 from http import HTTPStatus
 from json import loads
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.coap import get_coap_file_stats
 from infuse_iot.commands import InfuseRpcCommand

@@ -2,7 +2,7 @@
 
 import ctypes
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 import infuse_iot.zephyr.wifi as wifi
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import UINT8_MAX, VLACompatLittleEndianStruct, bytes_to_uint8

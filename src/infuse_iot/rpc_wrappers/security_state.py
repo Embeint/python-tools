@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.util.argparse import ValidFile

@@ -4,8 +4,8 @@ import ctypes
 import os
 import sys
 
-import infuse_iot.generated.kv_definitions as kv_defs
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.kv as kv_defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
 from infuse_iot.zephyr.errno import errno

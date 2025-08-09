@@ -8,7 +8,7 @@ from rich.progress import (
     TransferSpeedColumn,
 )
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import Auth, InfuseRpcCommand
 from infuse_iot.definitions.rpc import rpc_enum_file_action
 from infuse_iot.zephyr.errno import errno
