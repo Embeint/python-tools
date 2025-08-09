@@ -23,6 +23,7 @@ class SubCommand(InfuseCommand):
         parser.add_argument("--api-key-print", action="store_true", help="Print Infuse-IoT API key")
         parser.add_argument("--network", type=ValidFile, help="Load network credentials from file")
         parser.add_argument("--custom-tools", type=ValidDir, help="Location of custom tools")
+        parser.add_argument("--custom-definitions", type=ValidDir, help="Location of custom definitions")
 
     def __init__(self, args):
         self.args = args
@@ -44,3 +45,5 @@ class SubCommand(InfuseCommand):
             credentials.save_network(network_info["id"], content)
         if self.args.custom_tools:
             credentials.set_custom_tool_path(str(self.args.custom_tools.absolute()))
+        if self.args.custom_definitions:
+            credentials.set_custom_definitions_path(str(self.args.custom_definitions.absolute()))

@@ -20,6 +20,7 @@ def get_api_key() -> str:
         raise FileNotFoundError("API key does not exist in keyring")
     return key
 
+
 def delete_api_key() -> None:
     """
     Delete the Infuse-IoT API key from the keyring module
@@ -65,3 +66,24 @@ def delete_custom_tool_path() -> None:
     Delete the location of custom Infuse-IoT tools on the filesystem
     """
     return keyring.delete_password("infuse-iot", "custom-tools")
+
+
+def set_custom_definitions_path(path: str):
+    """
+    Save the location of custom Infuse-IoT definitions on the filesystem
+    """
+    keyring.set_password("infuse-iot", "custom-definitions", path)
+
+
+def get_custom_definitions_path() -> str | None:
+    """
+    Retrieve the location of custom Infuse-IoT definitions on the filesystem
+    """
+    return keyring.get_password("infuse-iot", "custom-definitions")
+
+
+def delete_custom_definitions_path() -> None:
+    """
+    Delete the location of custom Infuse-IoT definitions on the filesystem
+    """
+    return keyring.delete_password("infuse-iot", "custom-definitions")
