@@ -4,7 +4,7 @@ import ctypes
 
 import tabulate
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import wifi as z_wifi
 from infuse_iot.zephyr.errno import errno

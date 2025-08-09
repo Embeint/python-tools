@@ -7,7 +7,7 @@ import tabulate
 from elftools.dwarf.die import DIE
 from elftools.elf.elffile import ELFFile
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util import console, elftools
 from infuse_iot.util.argparse import ValidFile

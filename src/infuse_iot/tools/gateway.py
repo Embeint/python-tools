@@ -19,9 +19,9 @@ from collections.abc import Callable
 import cryptography
 import cryptography.exceptions
 
+import infuse_iot.definitions.rpc as defs
+import infuse_iot.definitions.tdf as tdf_defs
 import infuse_iot.epacket.interface as interface
-import infuse_iot.generated.rpc_definitions as defs
-import infuse_iot.generated.tdf_definitions as tdf_defs
 from infuse_iot import rpc, tdf
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType

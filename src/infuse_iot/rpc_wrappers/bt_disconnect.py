@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.definitions.rpc import (
     rpc_enum_bt_le_addr_type,

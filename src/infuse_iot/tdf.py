@@ -6,7 +6,8 @@ import enum
 import time
 from collections.abc import Generator
 
-from infuse_iot.generated import tdf_base, tdf_definitions
+from infuse_iot.definitions import tdf as tdf_defs
+from infuse_iot.generated import tdf_base
 from infuse_iot.time import InfuseTime
 
 
@@ -157,7 +158,7 @@ class TDF:
                 id_type = unknown_tdf_factory(tdf_id, header.len)
             else:
                 try:
-                    id_type = tdf_definitions.id_type_mapping[tdf_id]
+                    id_type = tdf_defs.id_type_mapping[tdf_id]
                 except KeyError:
                     id_type = unknown_tdf_factory(tdf_id, header.len)
 

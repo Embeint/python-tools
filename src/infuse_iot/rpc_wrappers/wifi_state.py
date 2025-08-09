@@ -3,7 +3,7 @@
 import ctypes
 import ipaddress
 
-import infuse_iot.generated.rpc_definitions as defs
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import net_if as z_nif
 from infuse_iot.zephyr import wifi as z_wifi

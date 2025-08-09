@@ -4,9 +4,9 @@ import ctypes
 
 import tabulate
 
-import infuse_iot.generated.rpc_definitions as rpc_defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.tdf import tdf_definitions as defs
+from infuse_iot.definitions import rpc as rpc_defs
+from infuse_iot.definitions import tdf as tdf_defs
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
 
@@ -22,11 +22,11 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
 
     class BatteryChannel:
         id = 0x43210000
-        data = defs.readings.battery_state
+        data = tdf_defs.readings.battery_state
 
     class AmbeintEnvChannel(ctypes.LittleEndianStructure):
         id = 0x43210001
-        data = defs.readings.ambient_temp_pres_hum
+        data = tdf_defs.readings.ambient_temp_pres_hum
 
     class ImuChannel(ctypes.LittleEndianStructure):
         id = 0x43210002
@@ -38,15 +38,15 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
 
     class LocationChannel(ctypes.LittleEndianStructure):
         id = 0x43210004
-        data = defs.readings.gcs_wgs84_llha
+        data = tdf_defs.readings.gcs_wgs84_llha
 
     class NavPvtUbxChannel(ctypes.LittleEndianStructure):
         id = 0x43210007
-        data = defs.readings.ubx_nav_pvt
+        data = tdf_defs.readings.ubx_nav_pvt
 
     class NavPvtNRFChannel(ctypes.LittleEndianStructure):
         id = 0x43210008
-        data = defs.readings.nrf9x_gnss_pvt
+        data = tdf_defs.readings.nrf9x_gnss_pvt
 
     @classmethod
     def add_parser(cls, parser):
