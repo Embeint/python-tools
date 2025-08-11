@@ -50,7 +50,7 @@ class SubCommand(InfuseCommand):
         self._decoder = TDF()
 
     # Serve the HTML file
-    async def handle_index(self, request):
+    async def handle_index(self, _request):
         this_folder = pathlib.Path(__file__).parent
 
         return web.FileResponse(this_folder / "localhost" / "index.html")
@@ -148,7 +148,7 @@ class SubCommand(InfuseCommand):
                 # Special case version struct to make reading versions easier
                 s = {
                     "title": column_title(tdf, field["name"]),
-                    "field": f"{tdf.name}.{field['name']}",
+                    "field": f"{tdf.NAME}.{field['name']}",
                     "headerVertical": "flip",
                     "hozAlign": "right",
                 }
@@ -158,7 +158,7 @@ class SubCommand(InfuseCommand):
                     sub.append(
                         {
                             "title": column_title(field["type"], subfield["name"]),
-                            "field": f"{tdf.name}.{field['name']}.{subfield['name']}",
+                            "field": f"{tdf.NAME}.{field['name']}.{subfield['name']}",
                             "headerVertical": "flip",
                             "hozAlign": "right",
                         }
@@ -167,7 +167,7 @@ class SubCommand(InfuseCommand):
             else:
                 s = {
                     "title": column_title(tdf, field["name"]),
-                    "field": f"{tdf.name}.{field['name']}",
+                    "field": f"{tdf.NAME}.{field['name']}",
                     "headerVertical": "flip",
                     "hozAlign": "right",
                 }
@@ -200,23 +200,23 @@ class SubCommand(InfuseCommand):
 
         for tdf in self._decoder.decode(msg.epacket.payload):
             t = tdf.data[-1]
-            if t.name not in self._columns:
-                self._columns[t.name] = self.tdf_columns(t)
-            if t.name not in self._data[source.infuse_id]:
-                self._data[source.infuse_id][t.name] = {}
+            if t.NAME not in self._columns:
+                self._columns[t.NAME] = self.tdf_columns(t)
+            if t.NAME not in self._data[source.infuse_id]:
+                self._data[source.infuse_id][t.NAME] = {}
 
             for field in t.iter_fields(nested_iter=False):
                 if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
                     # Special case version struct to make reading versions easier
                     val = f"{field.val.major}.{field.val.minor}.{field.val.revision}+{field.val.build_num:08x}"
-                    self._data[source.infuse_id][t.name][field.field] = val
+                    self._data[source.infuse_id][t.NAME][field.field] = val
                 elif isinstance(field.val, TdfStructBase):
                     for s in field.val.iter_fields(field.field):
-                        if s.field not in self._data[source.infuse_id][t.name]:
-                            self._data[source.infuse_id][t.name][s.field] = {}
-                        self._data[source.infuse_id][t.name][s.field][s.subfield] = s.val_fmt()
+                        if s.field not in self._data[source.infuse_id][t.NAME]:
+                            self._data[source.infuse_id][t.NAME][s.field] = {}
+                        self._data[source.infuse_id][t.NAME][s.field][s.subfield] = s.val_fmt()
                 else:
-                    self._data[source.infuse_id][t.name][field.field] = field.val_fmt()
+                    self._data[source.infuse_id][t.NAME][field.field] = field.val_fmt()
         self._data_lock.release()
 
     def run(self):

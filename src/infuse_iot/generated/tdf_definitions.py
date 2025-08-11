@@ -243,7 +243,8 @@ class readings:
     class announce(TdfReadingBase):
         """Common announcement packet"""
 
-        name = "ANNOUNCE"
+        ID = 1
+        NAME = "ANNOUNCE"
         _fields_ = [
             ("application", ctypes.c_uint32),
             ("version", structs.tdf_struct_mcuboot_img_sem_ver),
@@ -276,7 +277,8 @@ class readings:
     class battery_state(TdfReadingBase):
         """General battery state"""
 
-        name = "BATTERY_STATE"
+        ID = 2
+        NAME = "BATTERY_STATE"
         _fields_ = [
             ("voltage_mv", ctypes.c_uint32),
             ("current_ua", ctypes.c_int32),
@@ -297,7 +299,8 @@ class readings:
     class ambient_temp_pres_hum(TdfReadingBase):
         """Ambient temperature, pressure & humidity"""
 
-        name = "AMBIENT_TEMP_PRES_HUM"
+        ID = 3
+        NAME = "AMBIENT_TEMP_PRES_HUM"
         _fields_ = [
             ("_temperature", ctypes.c_int32),
             ("_pressure", ctypes.c_uint32),
@@ -330,7 +333,8 @@ class readings:
     class ambient_temperature(TdfReadingBase):
         """Ambient temperature"""
 
-        name = "AMBIENT_TEMPERATURE"
+        ID = 4
+        NAME = "AMBIENT_TEMPERATURE"
         _fields_ = [
             ("_temperature", ctypes.c_int32),
         ]
@@ -349,7 +353,8 @@ class readings:
     class time_sync(TdfReadingBase):
         """Time synchronised to new source"""
 
-        name = "TIME_SYNC"
+        ID = 5
+        NAME = "TIME_SYNC"
         _fields_ = [
             ("source", ctypes.c_uint8),
             ("_shift", ctypes.c_int32),
@@ -371,7 +376,8 @@ class readings:
     class reboot_info(TdfReadingBase):
         """Information pertaining to the previous reboot"""
 
-        name = "REBOOT_INFO"
+        ID = 6
+        NAME = "REBOOT_INFO"
         _fields_ = [
             ("reason", ctypes.c_uint8),
             ("hardware_flags", ctypes.c_uint32),
@@ -404,7 +410,8 @@ class readings:
     class acc_2g(TdfReadingBase):
         """Accelerometer +-2G"""
 
-        name = "ACC_2G"
+        ID = 10
+        NAME = "ACC_2G"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -419,7 +426,8 @@ class readings:
     class acc_4g(TdfReadingBase):
         """Accelerometer +-4G"""
 
-        name = "ACC_4G"
+        ID = 11
+        NAME = "ACC_4G"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -434,7 +442,8 @@ class readings:
     class acc_8g(TdfReadingBase):
         """Accelerometer +-8G"""
 
-        name = "ACC_8G"
+        ID = 12
+        NAME = "ACC_8G"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -449,7 +458,8 @@ class readings:
     class acc_16g(TdfReadingBase):
         """Accelerometer +-16G"""
 
-        name = "ACC_16G"
+        ID = 13
+        NAME = "ACC_16G"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -464,7 +474,8 @@ class readings:
     class gyr_125dps(TdfReadingBase):
         """Gyroscope +-125 DPS"""
 
-        name = "GYR_125DPS"
+        ID = 14
+        NAME = "GYR_125DPS"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -479,7 +490,8 @@ class readings:
     class gyr_250dps(TdfReadingBase):
         """Gyroscope +-250 DPS"""
 
-        name = "GYR_250DPS"
+        ID = 15
+        NAME = "GYR_250DPS"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -494,7 +506,8 @@ class readings:
     class gyr_500dps(TdfReadingBase):
         """Gyroscope +-500 DPS"""
 
-        name = "GYR_500DPS"
+        ID = 16
+        NAME = "GYR_500DPS"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -509,7 +522,8 @@ class readings:
     class gyr_1000dps(TdfReadingBase):
         """Gyroscope +-1000 DPS"""
 
-        name = "GYR_1000DPS"
+        ID = 17
+        NAME = "GYR_1000DPS"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -524,7 +538,8 @@ class readings:
     class gyr_2000dps(TdfReadingBase):
         """Gyroscope +-2000 DPS"""
 
-        name = "GYR_2000DPS"
+        ID = 18
+        NAME = "GYR_2000DPS"
         _fields_ = [
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
@@ -539,7 +554,8 @@ class readings:
     class gcs_wgs84_llha(TdfReadingBase):
         """Geo-location (WGS-84) + accuracy"""
 
-        name = "GCS_WGS84_LLHA"
+        ID = 19
+        NAME = "GCS_WGS84_LLHA"
         _fields_ = [
             ("location", structs.tdf_struct_gcs_location),
             ("_h_acc", ctypes.c_int32),
@@ -568,7 +584,8 @@ class readings:
     class ubx_nav_pvt(TdfReadingBase):
         """u-blox GNSS NAV-PVT message"""
 
-        name = "UBX_NAV_PVT"
+        ID = 20
+        NAME = "UBX_NAV_PVT"
         _fields_ = [
             ("itow", ctypes.c_uint32),
             ("year", ctypes.c_uint16),
@@ -747,7 +764,8 @@ class readings:
     class lte_conn_status(TdfReadingBase):
         """Information on service cell and registration status"""
 
-        name = "LTE_CONN_STATUS"
+        ID = 21
+        NAME = "LTE_CONN_STATUS"
         _fields_ = [
             ("cell", structs.tdf_struct_lte_cell_id_global),
             ("earfcn", ctypes.c_uint32),
@@ -781,7 +799,8 @@ class readings:
     class globalstar_pkt(TdfReadingBase):
         """9 byte payload transmitted over the Globalstar Simplex network"""
 
-        name = "GLOBALSTAR_PKT"
+        ID = 22
+        NAME = "GLOBALSTAR_PKT"
         _fields_ = [
             ("payload", 9 * ctypes.c_uint8),
         ]
@@ -796,7 +815,8 @@ class readings:
     class acc_magnitude_std_dev(TdfReadingBase):
         """Accelerometer magnitude standard deviation over a window"""
 
-        name = "ACC_MAGNITUDE_STD_DEV"
+        ID = 23
+        NAME = "ACC_MAGNITUDE_STD_DEV"
         _fields_ = [
             ("count", ctypes.c_uint32),
             ("std_dev", ctypes.c_uint32),
@@ -814,7 +834,8 @@ class readings:
     class activity_metric(TdfReadingBase):
         """Generic activity metric"""
 
-        name = "ACTIVITY_METRIC"
+        ID = 24
+        NAME = "ACTIVITY_METRIC"
         _fields_ = [
             ("value", ctypes.c_uint32),
         ]
@@ -829,7 +850,8 @@ class readings:
     class algorithm_output(TdfReadingBase):
         """Instantaneous algorithm output"""
 
-        name = "ALGORITHM_OUTPUT"
+        ID = 25
+        NAME = "ALGORITHM_OUTPUT"
         _fields_ = [
             ("algorithm_id", ctypes.c_uint32),
             ("algorithm_version", ctypes.c_uint16),
@@ -850,7 +872,8 @@ class readings:
     class runtime_error(TdfReadingBase):
         """Runtime error logging"""
 
-        name = "RUNTIME_ERROR"
+        ID = 26
+        NAME = "RUNTIME_ERROR"
         _fields_ = [
             ("error_id", ctypes.c_uint32),
             ("error_ctx", ctypes.c_uint32),
@@ -868,7 +891,8 @@ class readings:
     class charger_en_control(TdfReadingBase):
         """Battery charging enable state"""
 
-        name = "CHARGER_EN_CONTROL"
+        ID = 27
+        NAME = "CHARGER_EN_CONTROL"
         _fields_ = [
             ("enabled", ctypes.c_uint8),
         ]
@@ -883,7 +907,8 @@ class readings:
     class gnss_fix_info(TdfReadingBase):
         """Metadata about a GNSS location fix"""
 
-        name = "GNSS_FIX_INFO"
+        ID = 28
+        NAME = "GNSS_FIX_INFO"
         _fields_ = [
             ("time_fix", ctypes.c_uint16),
             ("location_fix", ctypes.c_uint16),
@@ -904,7 +929,8 @@ class readings:
     class bluetooth_connection(TdfReadingBase):
         """Bluetooth connection state change"""
 
-        name = "BLUETOOTH_CONNECTION"
+        ID = 29
+        NAME = "BLUETOOTH_CONNECTION"
         _fields_ = [
             ("address", structs.tdf_struct_bt_addr_le),
             ("connected", ctypes.c_uint8),
@@ -922,7 +948,8 @@ class readings:
     class bluetooth_rssi(TdfReadingBase):
         """Received signal strength of Bluetooth device"""
 
-        name = "BLUETOOTH_RSSI"
+        ID = 30
+        NAME = "BLUETOOTH_RSSI"
         _fields_ = [
             ("address", structs.tdf_struct_bt_addr_le),
             ("rssi", ctypes.c_int8),
@@ -940,7 +967,8 @@ class readings:
     class bluetooth_data_throughput(TdfReadingBase):
         """Data throughput of Bluetooth link"""
 
-        name = "BLUETOOTH_DATA_THROUGHPUT"
+        ID = 31
+        NAME = "BLUETOOTH_DATA_THROUGHPUT"
         _fields_ = [
             ("address", structs.tdf_struct_bt_addr_le),
             ("throughput", ctypes.c_int32),
@@ -958,7 +986,8 @@ class readings:
     class algorithm_class_histogram(TdfReadingBase):
         """Algorithm output class histogram over a time window"""
 
-        name = "ALGORITHM_CLASS_HISTOGRAM"
+        ID = 32
+        NAME = "ALGORITHM_CLASS_HISTOGRAM"
         _fields_ = [
             ("algorithm_id", ctypes.c_uint32),
             ("algorithm_version", ctypes.c_uint16),
@@ -979,7 +1008,8 @@ class readings:
     class algorithm_class_time_series(TdfReadingBase):
         """Algorithm output class time series vector"""
 
-        name = "ALGORITHM_CLASS_TIME_SERIES"
+        ID = 33
+        NAME = "ALGORITHM_CLASS_TIME_SERIES"
         _fields_ = [
             ("algorithm_id", ctypes.c_uint32),
             ("algorithm_version", ctypes.c_uint16),
@@ -1000,7 +1030,8 @@ class readings:
     class lte_tac_cells(TdfReadingBase):
         """Information on cells in a tracking area"""
 
-        name = "LTE_TAC_CELLS"
+        ID = 34
+        NAME = "LTE_TAC_CELLS"
         _fields_ = [
             ("cell", structs.tdf_struct_lte_cell_id_global),
             ("earfcn", ctypes.c_uint32),
@@ -1031,7 +1062,8 @@ class readings:
     class wifi_ap_info(TdfReadingBase):
         """Wi-Fi access point information"""
 
-        name = "WIFI_AP_INFO"
+        ID = 35
+        NAME = "WIFI_AP_INFO"
         _fields_ = [
             ("bssid", structs.tdf_struct_eui48),
             ("channel", ctypes.c_uint8),
@@ -1052,7 +1084,8 @@ class readings:
     class device_tilt(TdfReadingBase):
         """Tilt angle of the device"""
 
-        name = "DEVICE_TILT"
+        ID = 36
+        NAME = "DEVICE_TILT"
         _fields_ = [
             ("cosine", ctypes.c_float),
         ]
@@ -1067,7 +1100,8 @@ class readings:
     class nrf9x_gnss_pvt(TdfReadingBase):
         """nRF9x GNSS PVT data frame"""
 
-        name = "NRF9X_GNSS_PVT"
+        ID = 37
+        NAME = "NRF9X_GNSS_PVT"
         _fields_ = [
             ("_lat", ctypes.c_int32),
             ("_lon", ctypes.c_int32),
@@ -1211,7 +1245,8 @@ class readings:
     class battery_charge_accumulated(TdfReadingBase):
         """Battery charge accumulated over time (+ve entering battery, -ve exiting battery)"""
 
-        name = "BATTERY_CHARGE_ACCUMULATED"
+        ID = 38
+        NAME = "BATTERY_CHARGE_ACCUMULATED"
         _fields_ = [
             ("charge", ctypes.c_int32),
         ]
@@ -1226,7 +1261,8 @@ class readings:
     class infuse_bluetooth_rssi(TdfReadingBase):
         """Received signal strength of Infuse-IoT Bluetooth device"""
 
-        name = "INFUSE_BLUETOOTH_RSSI"
+        ID = 39
+        NAME = "INFUSE_BLUETOOTH_RSSI"
         _fields_ = [
             ("infuse_id", ctypes.c_uint64),
             ("rssi", ctypes.c_int8),
@@ -1244,7 +1280,8 @@ class readings:
     class adc_raw_8(TdfReadingBase):
         """Generic 8bit raw ADC reading"""
 
-        name = "ADC_RAW_8"
+        ID = 40
+        NAME = "ADC_RAW_8"
         _fields_ = [
             ("val", ctypes.c_int8),
         ]
@@ -1259,7 +1296,8 @@ class readings:
     class adc_raw_16(TdfReadingBase):
         """Generic 16bit raw ADC reading"""
 
-        name = "ADC_RAW_16"
+        ID = 41
+        NAME = "ADC_RAW_16"
         _fields_ = [
             ("val", ctypes.c_int16),
         ]
@@ -1274,7 +1312,8 @@ class readings:
     class adc_raw_32(TdfReadingBase):
         """Generic 32bit raw ADC reading"""
 
-        name = "ADC_RAW_32"
+        ID = 42
+        NAME = "ADC_RAW_32"
         _fields_ = [
             ("val", ctypes.c_int32),
         ]
@@ -1289,7 +1328,8 @@ class readings:
     class annotation(TdfReadingBase):
         """Generic event annotation"""
 
-        name = "ANNOTATION"
+        ID = 43
+        NAME = "ANNOTATION"
         _fields_ = [
             ("timestamp", ctypes.c_uint32),
             ("event", 0 * ctypes.c_char),
@@ -1307,7 +1347,8 @@ class readings:
     class lora_rx(TdfReadingBase):
         """Received LoRa packet"""
 
-        name = "LORA_RX"
+        ID = 44
+        NAME = "LORA_RX"
         _fields_ = [
             ("snr", ctypes.c_int8),
             ("rssi", ctypes.c_int16),
@@ -1328,7 +1369,8 @@ class readings:
     class lora_tx(TdfReadingBase):
         """Transmitted LoRa packet"""
 
-        name = "LORA_TX"
+        ID = 45
+        NAME = "LORA_TX"
         _fields_ = [
             ("payload", 0 * ctypes.c_uint8),
         ]
@@ -1343,7 +1385,8 @@ class readings:
     class idx_array_freq(TdfReadingBase):
         """Sample frequency metadata for a TDF_DATA_FORMAT_IDX_ARRAY array"""
 
-        name = "IDX_ARRAY_FREQ"
+        ID = 46
+        NAME = "IDX_ARRAY_FREQ"
         _fields_ = [
             ("tdf_id", ctypes.c_uint16),
             ("frequency", ctypes.c_uint32),
@@ -1361,7 +1404,8 @@ class readings:
     class idx_array_period(TdfReadingBase):
         """Sample frequency metadata for a TDF_DATA_FORMAT_IDX_ARRAY array"""
 
-        name = "IDX_ARRAY_PERIOD"
+        ID = 47
+        NAME = "IDX_ARRAY_PERIOD"
         _fields_ = [
             ("tdf_id", ctypes.c_uint16),
             ("period", ctypes.c_uint32),
@@ -1379,7 +1423,8 @@ class readings:
     class wifi_connected(TdfReadingBase):
         """WiFi network is now connected"""
 
-        name = "WIFI_CONNECTED"
+        ID = 48
+        NAME = "WIFI_CONNECTED"
         _fields_ = [
             ("network", structs.tdf_struct_wifi_network_params),
         ]
@@ -1394,7 +1439,8 @@ class readings:
     class wifi_connection_failed(TdfReadingBase):
         """Failed to connect to a WiFi network"""
 
-        name = "WIFI_CONNECTION_FAILED"
+        ID = 49
+        NAME = "WIFI_CONNECTION_FAILED"
         _fields_ = [
             ("reason", ctypes.c_uint8),
         ]
@@ -1409,7 +1455,8 @@ class readings:
     class wifi_disconnected(TdfReadingBase):
         """Wi-Fi network is now disconnected"""
 
-        name = "WIFI_DISCONNECTED"
+        ID = 50
+        NAME = "WIFI_DISCONNECTED"
         _fields_ = [
             ("reason", ctypes.c_uint8),
         ]
@@ -1424,7 +1471,8 @@ class readings:
     class array_type(TdfReadingBase):
         """Example array type"""
 
-        name = "ARRAY_TYPE"
+        ID = 100
+        NAME = "ARRAY_TYPE"
         _fields_ = [
             ("array", 4 * ctypes.c_uint8),
         ]
@@ -1438,54 +1486,54 @@ class readings:
 
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
-    1: readings.announce,
-    2: readings.battery_state,
-    3: readings.ambient_temp_pres_hum,
-    4: readings.ambient_temperature,
-    5: readings.time_sync,
-    6: readings.reboot_info,
-    10: readings.acc_2g,
-    11: readings.acc_4g,
-    12: readings.acc_8g,
-    13: readings.acc_16g,
-    14: readings.gyr_125dps,
-    15: readings.gyr_250dps,
-    16: readings.gyr_500dps,
-    17: readings.gyr_1000dps,
-    18: readings.gyr_2000dps,
-    19: readings.gcs_wgs84_llha,
-    20: readings.ubx_nav_pvt,
-    21: readings.lte_conn_status,
-    22: readings.globalstar_pkt,
-    23: readings.acc_magnitude_std_dev,
-    24: readings.activity_metric,
-    25: readings.algorithm_output,
-    26: readings.runtime_error,
-    27: readings.charger_en_control,
-    28: readings.gnss_fix_info,
-    29: readings.bluetooth_connection,
-    30: readings.bluetooth_rssi,
-    31: readings.bluetooth_data_throughput,
-    32: readings.algorithm_class_histogram,
-    33: readings.algorithm_class_time_series,
-    34: readings.lte_tac_cells,
-    35: readings.wifi_ap_info,
-    36: readings.device_tilt,
-    37: readings.nrf9x_gnss_pvt,
-    38: readings.battery_charge_accumulated,
-    39: readings.infuse_bluetooth_rssi,
-    40: readings.adc_raw_8,
-    41: readings.adc_raw_16,
-    42: readings.adc_raw_32,
-    43: readings.annotation,
-    44: readings.lora_rx,
-    45: readings.lora_tx,
-    46: readings.idx_array_freq,
-    47: readings.idx_array_period,
-    48: readings.wifi_connected,
-    49: readings.wifi_connection_failed,
-    50: readings.wifi_disconnected,
-    100: readings.array_type,
+    readings.announce.ID: readings.announce,
+    readings.battery_state.ID: readings.battery_state,
+    readings.ambient_temp_pres_hum.ID: readings.ambient_temp_pres_hum,
+    readings.ambient_temperature.ID: readings.ambient_temperature,
+    readings.time_sync.ID: readings.time_sync,
+    readings.reboot_info.ID: readings.reboot_info,
+    readings.acc_2g.ID: readings.acc_2g,
+    readings.acc_4g.ID: readings.acc_4g,
+    readings.acc_8g.ID: readings.acc_8g,
+    readings.acc_16g.ID: readings.acc_16g,
+    readings.gyr_125dps.ID: readings.gyr_125dps,
+    readings.gyr_250dps.ID: readings.gyr_250dps,
+    readings.gyr_500dps.ID: readings.gyr_500dps,
+    readings.gyr_1000dps.ID: readings.gyr_1000dps,
+    readings.gyr_2000dps.ID: readings.gyr_2000dps,
+    readings.gcs_wgs84_llha.ID: readings.gcs_wgs84_llha,
+    readings.ubx_nav_pvt.ID: readings.ubx_nav_pvt,
+    readings.lte_conn_status.ID: readings.lte_conn_status,
+    readings.globalstar_pkt.ID: readings.globalstar_pkt,
+    readings.acc_magnitude_std_dev.ID: readings.acc_magnitude_std_dev,
+    readings.activity_metric.ID: readings.activity_metric,
+    readings.algorithm_output.ID: readings.algorithm_output,
+    readings.runtime_error.ID: readings.runtime_error,
+    readings.charger_en_control.ID: readings.charger_en_control,
+    readings.gnss_fix_info.ID: readings.gnss_fix_info,
+    readings.bluetooth_connection.ID: readings.bluetooth_connection,
+    readings.bluetooth_rssi.ID: readings.bluetooth_rssi,
+    readings.bluetooth_data_throughput.ID: readings.bluetooth_data_throughput,
+    readings.algorithm_class_histogram.ID: readings.algorithm_class_histogram,
+    readings.algorithm_class_time_series.ID: readings.algorithm_class_time_series,
+    readings.lte_tac_cells.ID: readings.lte_tac_cells,
+    readings.wifi_ap_info.ID: readings.wifi_ap_info,
+    readings.device_tilt.ID: readings.device_tilt,
+    readings.nrf9x_gnss_pvt.ID: readings.nrf9x_gnss_pvt,
+    readings.battery_charge_accumulated.ID: readings.battery_charge_accumulated,
+    readings.infuse_bluetooth_rssi.ID: readings.infuse_bluetooth_rssi,
+    readings.adc_raw_8.ID: readings.adc_raw_8,
+    readings.adc_raw_16.ID: readings.adc_raw_16,
+    readings.adc_raw_32.ID: readings.adc_raw_32,
+    readings.annotation.ID: readings.annotation,
+    readings.lora_rx.ID: readings.lora_rx,
+    readings.lora_tx.ID: readings.lora_tx,
+    readings.idx_array_freq.ID: readings.idx_array_freq,
+    readings.idx_array_period.ID: readings.idx_array_period,
+    readings.wifi_connected.ID: readings.wifi_connected,
+    readings.wifi_connection_failed.ID: readings.wifi_connection_failed,
+    readings.wifi_disconnected.ID: readings.wifi_disconnected,
+    readings.array_type.ID: readings.array_type,
 }
 
 __all__ = [
