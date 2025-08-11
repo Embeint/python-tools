@@ -9,11 +9,6 @@ import ctypes
 import sys
 from http import HTTPStatus
 
-try:
-    from simple_term_menu import TerminalMenu
-except NotImplementedError:
-    TerminalMenu = None
-
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.board import get_board_by_id, get_boards
 from infuse_iot.api_client.api.device import (
@@ -24,6 +19,7 @@ from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Board, DeviceMetadata, Error, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.util.console import choose_one
 from infuse_iot.util.soc import nrf, soc, stm
 
 
@@ -90,11 +86,7 @@ class SubCommand(InfuseCommand):
                 sys.exit(f"Organisation query failed {orgs}")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
-            if TerminalMenu is None:
-                sys.exit("Specify organisation with --organisation:\n" + "\n".join(options))
-
-            terminal_menu = TerminalMenu(options)
-            idx = terminal_menu.show()
+            idx, _val = choose_one("Organisation", options)
             self._org = orgs[idx].id
 
         if self._board is None:
@@ -103,11 +95,7 @@ class SubCommand(InfuseCommand):
                 sys.exit(f"Board query failed {boards}")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
-            if TerminalMenu is None:
-                sys.exit("Specify board with --board:\n" + "\n".join(options))
-
-            terminal_menu = TerminalMenu(options)
-            idx = terminal_menu.show()
+            idx, _val = choose_one("Board", options)
             self._board = boards[idx].id
         board = get_board_by_id.sync(client=client, id=self._board)
         if not isinstance(board, Board):
