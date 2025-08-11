@@ -49,6 +49,9 @@ class TdfStructBase(ctypes.LittleEndianStructure):
 
 
 class TdfReadingBase(ctypes.LittleEndianStructure):
+    NAME: str
+    ID: int
+
     def iter_fields(self, nested_iter: bool = True) -> Generator[TdfField, None, None]:
         for field in self._fields_:
             f_name = _public_name(field)
@@ -111,7 +114,8 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
 
         # Dynamically create subclass with correct length
         class TdfVLA(ctypes.LittleEndianStructure):
-            name = cls.name
+            NAME = cls.NAME
+            ID = cls.ID
             _fields_ = cls._fields_[:-1] + [(var_name, source_var_num * var_type)]  # type: ignore
             _pack_ = 1
             _postfix_ = cls._postfix_
