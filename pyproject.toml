@@ -28,7 +28,6 @@ dependencies = [
     "rich",
     "simple-term-menu",
     "tabulate",
-    "typing-extensions",
     "keyring",
     "pyocd",
     "pyyaml",

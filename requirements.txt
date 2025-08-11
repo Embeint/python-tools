@@ -9,6 +9,5 @@ pyocd
 python-dateutil
 simple-term-menu
 tabulate
-typing-extensions
 keyring
 paho-mqtt
