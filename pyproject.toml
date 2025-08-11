@@ -12,6 +12,7 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
+    "License :: Free To Use But Restricted",
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -35,7 +36,8 @@ dependencies = [
 ]
 
 [project.license]
-file = "LICENSE"
+file = "LICENSE.md"
+content-type = "text/markdown"
 
 [project.readme]
 file = "README.md"
