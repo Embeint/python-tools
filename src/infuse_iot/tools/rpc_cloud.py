@@ -86,9 +86,19 @@ class SubCommand(InfuseCommand):
         rsp = get_rpc_by_id.sync(client=client, id=UUID(self._args.id))
         if isinstance(rsp, Error) or rsp is None:
             sys.exit(f"Failed to query RPC state ({rsp})")
-        print(f"RPC State: {rsp.downlink_message.status}")
-        if rsp.downlink_message.status == DownlinkMessageStatus.COMPLETED:
-            rpc_rsp = rsp.downlink_message.rpc_rsp
+        downlink = rsp.downlink_message
+        print(f"RPC State: {downlink.status}")
+        if downlink.status in [DownlinkMessageStatus.SENT, DownlinkMessageStatus.COMPLETED]:
+            route = downlink.rpc_req.route
+            if downlink.sent_at:
+                print(f"       At: {downlink.sent_at}")
+            if route:
+                if route.forwarded:
+                    print(f"  Through: {route.forwarded.device_id} ({route.forwarded.route.interface.upper()})")
+                else:
+                    print(f"  Through: Direct ({route.interface.upper()})")
+        if downlink.status == DownlinkMessageStatus.COMPLETED:
+            rpc_rsp = downlink.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
             print(f"   Result: {rpc_rsp.return_code}")
             if rpc_rsp.params:
