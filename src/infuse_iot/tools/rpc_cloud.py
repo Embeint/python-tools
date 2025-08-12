@@ -80,7 +80,8 @@ class SubCommand(InfuseCommand):
         rsp = send_rpc.sync(client=client, body=rpc_msg)
         if isinstance(rsp, Error) or rsp is None:
             sys.exit(f"Failed to queue RPC ({rsp})")
-        print(f"Queued RPC ID: {rsp.id}")
+        print("Query RPC state with:")
+        print(f"\tinfuse rpc_cloud query --id {rsp.id}")
 
     def query(self, client: Client):
         rsp = get_rpc_by_id.sync(client=client, id=UUID(self._args.id))
