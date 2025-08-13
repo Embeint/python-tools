@@ -895,6 +895,25 @@ class bt_file_copy_coap:
         _pack_ = 1
 
 
+class bt_mcumgr_reboot:
+    """Connect to a Bluetooth device and run the MCUMGR reboot command"""
+
+    HELP = "Connect to a Bluetooth device and run the MCUMGR reboot command"
+    DESCRIPTION = "Connect to a Bluetooth device and run the MCUMGR reboot command"
+    COMMAND_ID = 54
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("peer", rpc_struct_bt_addr_le),
+            ("conn_timeout_ms", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+
 class gravity_reference_update:
     """Store the current accelerometer vector as the gravity reference"""
 
@@ -1045,6 +1064,7 @@ __all__ = [
     "bt_disconnect",
     "bt_file_copy_basic",
     "bt_file_copy_coap",
+    "bt_mcumgr_reboot",
     "gravity_reference_update",
     "security_state",
     "data_sender",
