@@ -34,7 +34,7 @@ class SubCommand(InfuseCommand):
         parser_queue = subparser.add_parser("queue", help="Queue a RPC to be sent")
         parser_queue.set_defaults(_tool_action="queue")
         parser_queue.add_argument("--id", required=True, type=lambda x: int(x, 0), help="Infuse ID to run command on")
-        parser_queue.add_argument("--timeout", type=int, default=600, help="Timeout to send command in seconds")
+        parser_queue.add_argument("--queue-timeout", type=int, default=600, help="Timeout to send command in seconds")
         command_list_parser = parser_queue.add_subparsers(title="commands", metavar="<command>", required=True)
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
@@ -62,7 +62,7 @@ class SubCommand(InfuseCommand):
     def queue(self, client: Client):
         infuse_id = f"{self._args.id:016x}"
         command: InfuseRpcCommand = self._args.rpc_class(self._args)
-        timeout_ms = 1000 * self._args.timeout
+        timeout_ms = 1000 * self._args.queue_timeout
 
         assert hasattr(command, "COMMAND_ID")
 
