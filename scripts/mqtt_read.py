@@ -22,8 +22,10 @@ class OutputFormat(enum.Enum):
     JSON = "json"
     TABLE = "table"
 
+
 class ConnectionError(Exception):
     pass
+
 
 def get_enum_name(enum, value):
     try:
@@ -31,8 +33,10 @@ def get_enum_name(enum, value):
     except ValueError:
         return None
 
+
 def get_payload_type(payload_type):
     return get_enum_name(InfuseType, payload_type)
+
 
 def print_metadata_table(data):
     metadata_table = [
@@ -41,14 +45,16 @@ def print_metadata_table(data):
         ["Timestamp", data["time"]],
         ["Payload Type", get_payload_type(data["payloadType"])],
         ["Sequence", data["sequence"]],
-        ["Key ID", base64.b64decode(data["keyId"]).hex()]
+        ["Key ID", base64.b64decode(data["keyId"]).hex()],
     ]
 
     print("[Metadata]")
     print(tabulate.tabulate(metadata_table, tablefmt="grid"))
 
+
 def get_interface_type(interface_type):
     return get_enum_name(InterfaceID, interface_type)
+
 
 def print_route_table(route):
     route_table = [
@@ -64,11 +70,11 @@ def print_route_table(route):
         route_table.append(["UDP Address", route["udp"]["address"]])
         route_table.append(["Arrival Time", route["udp"]["time"]])
 
-
     print("[Route]")
     print(tabulate.tabulate(route_table, tablefmt="grid"))
 
-def flatten_tdf(tdf, parent_key=''):
+
+def flatten_tdf(tdf, parent_key=""):
     items = []
     for k, v in tdf.items():
         new_key = f"{parent_key}->{k}" if parent_key else k
@@ -80,6 +86,7 @@ def flatten_tdf(tdf, parent_key=''):
             items.append((new_key, v))
     return dict(items)
 
+
 def print_tdfs_table(tdfs, packet_time):
     table = []
     for tdf in tdfs:
@@ -89,12 +96,11 @@ def print_tdfs_table(tdfs, packet_time):
         tdf_time = tdf.get("time", packet_time)
 
         for key, value in flatten_tdf(tdf["fields"]).items():
-            table.append(
-                [tdf_id, tdf_name, key, value, tdf_time]
-            )
+            table.append([tdf_id, tdf_name, key, value, tdf_time])
 
     print("[TDFs]")
     print(tabulate.tabulate(table, headers=["TDF ID", "Name", "Field", "Value", "Time"], tablefmt="grid"))
+
 
 def print_table(data):
     print_metadata_table(data)
@@ -107,6 +113,7 @@ def print_table(data):
 
     print()
 
+
 def on_message(client, userdata, message):
     payload = message.payload.decode("utf-8")
     output = userdata["output"]
@@ -115,6 +122,7 @@ def on_message(client, userdata, message):
     elif output == OutputFormat.TABLE:
         data = json.loads(payload)
         print_table(data)
+
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code != 0:
@@ -126,6 +134,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
     # reconnect then subscriptions will be renewed.
     topic = userdata["topic"]
     client.subscribe(topic)
+
 
 def main(host, port, username, password, organisation, device, output):
     topic = f"organisation/{organisation}"
@@ -150,6 +159,7 @@ def main(host, port, username, password, organisation, device, output):
     except ConnectionError as e:
         sys.exit(f"Connection failed: {e}")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Read device packets from the Infuse-IoT Cloud MQTT broker",
@@ -157,42 +167,45 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--broker", "-b",
+        "--broker",
+        "-b",
         type=str,
         default="mqtt.dev.infuse-iot.com",
         help="MQTT broker address",
     )
     parser.add_argument(
-        "--port", "-p",
+        "--port",
+        "-p",
         type=int,
         default=1883,
         help="MQTT broker port",
     )
     parser.add_argument(
-        "--username", "-u",
+        "--username",
+        "-u",
         type=str,
         required=True,
         help="MQTT username",
     )
+    parser.add_argument("--password", "-P", type=str, required=True, help="MQTT password")
     parser.add_argument(
-        "--password", "-P",
-        type=str,
-        required=True,
-        help="MQTT password")
-    parser.add_argument(
-        "--organisation", "--org", "-O",
+        "--organisation",
+        "--org",
+        "-O",
         type=str,
         required=True,
         help="ID of organisation to read packets from",
     )
     parser.add_argument(
-        "--device", "-d",
+        "--device",
+        "-d",
         type=lambda x: int(x, 0),
         required=False,
         help="Infuse ID of device to read packets from (in hex)",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=OutputFormat,
         default=OutputFormat.JSON,
         choices=list(OutputFormat),
