@@ -1,6 +1,6 @@
 import os
 
-from infuse_iot.tdf import TDF
+from infuse_iot.tdf import TDF, unknown_tdf_factory
 
 # assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -61,3 +61,20 @@ def test_buffers():
             assert isinstance(tdf, TDF.Reading)
             total_tdfs += 1
         assert total_tdfs > 0
+
+
+def test_unknown_tdf():
+    for i in range(1, 10):
+        unknown_id = 400 + i
+        unknown_len = 5 + i
+        unknown_class = unknown_tdf_factory(unknown_id, unknown_len)
+
+        assert hasattr(unknown_class, "ID")
+        assert hasattr(unknown_class, "NAME")
+        assert hasattr(unknown_class, "data")
+
+        unknown_inst = unknown_class.from_buffer_copy(unknown_len * b"\x00")
+
+        assert unknown_id == unknown_inst.ID
+        assert str(unknown_id) == unknown_inst.NAME
+        assert unknown_len == len(unknown_inst.data)
