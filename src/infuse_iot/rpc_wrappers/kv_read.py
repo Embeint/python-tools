@@ -20,7 +20,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     class response:
         @classmethod
-        def from_buffer_copy(cls, source: bytes, _offset: int = 0):
+        def from_buffer_copy(cls, source: bytes, _offset: int = 0) -> list:
             values = []
             while len(source) > 0:
 
@@ -49,6 +49,10 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
                 values.append(struct)
                 source = source[ctypes.sizeof(struct) :]
             return values
+
+        @classmethod
+        def vla_from_buffer_copy(cls, source: bytes, offset: int = 0) -> list:
+            return cls.from_buffer_copy(source, offset)
 
     @classmethod
     def add_parser(cls, parser):
