@@ -16,13 +16,13 @@ def extension_load(name: str) -> None | types.ModuleType:
     defs_path = infuse_iot.credentials.get_custom_definitions_path()
     if defs_path is None:
         return None
-    tdf_extensions = pathlib.Path(defs_path) / f"{name}.py"
-    if not tdf_extensions.exists():
+    extensions_file = pathlib.Path(defs_path) / f"{name}.py"
+    if not extensions_file.exists():
         return None
 
     try:
         # Import the extension file
-        spec = importlib.util.spec_from_file_location(f"infuse_iot.extension.{name}", str(tdf_extensions))
+        spec = importlib.util.spec_from_file_location(f"infuse_iot.extension.{name}", str(extensions_file))
         if spec is None or spec.loader is None:
             return None
         file_module = importlib.util.module_from_spec(spec)
