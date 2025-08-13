@@ -2,11 +2,10 @@
 
 ## Installation
 
-Clone source code from Github and install as a local pip package.
+Install from PyPI with ``pip`` or ``pipx``:
 
 ```
-git clone git@github.com:Embeint/python-tools.git
-pip install -e python-tools
+pip install infuse-iot
 ```
 
 ## Register Autocomplete
@@ -36,6 +35,8 @@ commands:
     credentials      Manage Infuse-IoT credentials
     csv_annotate     Annotate CSV data
     csv_plot         Plot CSV data
+    data_logger_sync
+                     Synchronise data logger state from remote devices
     gateway          Connect to a local gateway device
     localhost        Run a local server for TDF viewing
     native_bt        Native Bluetooth gateway
