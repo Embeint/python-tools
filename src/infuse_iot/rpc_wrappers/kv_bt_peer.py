@@ -5,8 +5,9 @@ import os
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.rpc_wrappers.kv_write import kv_write
 from infuse_iot.util.argparse import BtLeAddress
-from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
 
 
@@ -22,18 +23,6 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
 
     class response(VLACompatLittleEndianStruct):
         vla_field = ("rc", 0 * ctypes.c_int16)
-
-    @staticmethod
-    def kv_store_value_factory(id, value_bytes):
-        class kv_store_value(ctypes.LittleEndianStructure):
-            _fields_ = [
-                ("id", ctypes.c_uint16),
-                ("len", ctypes.c_uint16),
-                ("data", ctypes.c_ubyte * len(value_bytes)),
-            ]
-            _pack_ = 1
-
-        return kv_store_value(id, len(value_bytes), bytes_to_uint8(value_bytes))
 
     @classmethod
     def add_parser(cls, parser):
@@ -54,7 +43,7 @@ class kv_bt_peer(InfuseRpcCommand, defs.kv_write):
         self.addr = addr
 
     def request_struct(self):
-        addr_struct = self.kv_store_value_factory(50, self.addr)
+        addr_struct = kv_write.kv_store_value_factory(50, self.addr)
         request_bytes = bytes(addr_struct)
         return bytes(self.request(1)) + request_bytes
 

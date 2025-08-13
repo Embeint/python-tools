@@ -5,7 +5,8 @@ import ctypes
 import infuse_iot.definitions.rpc as defs
 import infuse_iot.zephyr.wifi as wifi
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.util.ctypes import UINT8_MAX, VLACompatLittleEndianStruct, bytes_to_uint8
+from infuse_iot.rpc_wrappers.kv_write import kv_write
+from infuse_iot.util.ctypes import UINT8_MAX, VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
 
 
@@ -21,18 +22,6 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
 
     class response(VLACompatLittleEndianStruct):
         vla_field = ("rc", 0 * ctypes.c_int16)
-
-    @staticmethod
-    def kv_store_value_factory(id, value_bytes):
-        class kv_store_value(ctypes.LittleEndianStructure):
-            _fields_ = [
-                ("id", ctypes.c_uint16),
-                ("len", ctypes.c_uint16),
-                ("data", ctypes.c_ubyte * len(value_bytes)),
-            ]
-            _pack_ = 1
-
-        return kv_store_value(id, len(value_bytes), bytes_to_uint8(value_bytes))
 
     @classmethod
     def add_parser(cls, parser):
@@ -80,9 +69,9 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
         psk_bytes = self.args.psk.encode("utf-8") + b"\x00"
         chan_bytes = self.args.band.to_bytes(1, "little") + self.args.channel.to_bytes(1, "little")
 
-        ssid_struct = self.kv_store_value_factory(20, len(ssid_bytes).to_bytes(1, "little") + ssid_bytes)
-        psk_struct = self.kv_store_value_factory(21, len(psk_bytes).to_bytes(1, "little") + psk_bytes)
-        chan_struct = self.kv_store_value_factory(22, chan_bytes)
+        ssid_struct = kv_write.kv_store_value_factory(20, len(ssid_bytes).to_bytes(1, "little") + ssid_bytes)
+        psk_struct = kv_write.kv_store_value_factory(21, len(psk_bytes).to_bytes(1, "little") + psk_bytes)
+        chan_struct = kv_write.kv_store_value_factory(22, chan_bytes)
 
         request_bytes = bytes(ssid_struct) + bytes(psk_struct) + bytes(chan_struct)
         return bytes(self.request(3)) + request_bytes
