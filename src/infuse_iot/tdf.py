@@ -13,7 +13,8 @@ from infuse_iot.time import InfuseTime
 
 def unknown_tdf_factory(tdf_id: int, tdf_len: int) -> type[tdf_base.TdfReadingBase]:
     class UnknownTDF(tdf_base.TdfReadingBase):
-        name = str(tdf_id)
+        NAME = str(tdf_id)
+        ID = tdf_id
         _fields_ = [
             ("data", tdf_len * ctypes.c_uint8),
         ]
