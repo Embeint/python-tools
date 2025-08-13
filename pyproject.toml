@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "infuse_iot"
-version = "0.1.1"
+version = "0.1.2"
 authors = [{name = "Embeint Holdings Pty Ltd", email = "support@embeint.com"}]
 description = "Infuse-IoT Platform python package"
 classifiers = [
@@ -54,3 +54,6 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = false
+
+[tool.setuptools.package-data]
+infuse_iot =["tools/localhost/index.html"]
