@@ -4,7 +4,7 @@
 """Infuse-IoT SDK meta-tool (infuse) main module"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2024, Embeint Inc"
+__copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
 import importlib.util
