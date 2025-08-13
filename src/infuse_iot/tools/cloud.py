@@ -18,7 +18,11 @@ from infuse_iot.api_client.api.board import (
     get_board_by_id,
     get_boards,
 )
-from infuse_iot.api_client.api.device import get_device_by_device_id, get_device_state_by_id
+from infuse_iot.api_client.api.device import (
+    get_device_by_device_id,
+    get_device_last_route_by_device_id,
+    get_device_state_by_id,
+)
 from infuse_iot.api_client.api.organisation import (
     create_organisation,
     get_all_organisations,
@@ -180,6 +184,7 @@ class Device(CloudSubCommand):
         org = get_organisation_by_id.sync(client=client, id=info.organisation_id)
         board = get_board_by_id.sync(client=client, id=info.board_id)
         state = get_device_state_by_id.sync(client=client, id=info.id)
+        route = get_device_last_route_by_device_id.sync(client=client, device_id=id_str)
 
         table: list[tuple[str, Any]] = [
             ("UUID", info.id),
@@ -201,8 +206,13 @@ class Device(CloudSubCommand):
                 table += [("Application ID", f"0x{state.application_id:08x}")]
             if v:
                 table += [("Version", f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}")]
-            if state.last_route_interface:
-                table += [("Last Heard", state.last_route_interface)]
+        if route is not None:
+            table += [
+                ("~~~Latest Route~~~", ""),
+                ("Interface", route.interface.upper()),
+            ]
+            if route.bt_adv:
+                table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
 
         print(tabulate(table))
 
