@@ -5,6 +5,7 @@ import enum
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.rpc_wrappers.kv_write import kv_write
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
 
@@ -27,18 +28,6 @@ class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
         IPv6 = 1
         IPv4v6 = 2
         NonIP = 3
-
-    @staticmethod
-    def kv_store_value_factory(id, value_bytes):
-        class kv_store_value(ctypes.LittleEndianStructure):
-            _fields_ = [
-                ("id", ctypes.c_uint16),
-                ("len", ctypes.c_uint16),
-                ("data", ctypes.c_ubyte * len(value_bytes)),
-            ]
-            _pack_ = 1
-
-        return kv_store_value(id, len(value_bytes), (ctypes.c_ubyte * len(value_bytes))(*value_bytes))
 
     @classmethod
     def add_parser(cls, parser):
@@ -66,7 +55,7 @@ class lte_pdp_ctx(InfuseRpcCommand, defs.kv_write):
         apn_bytes = self.args.apn.encode("utf-8") + b"\x00"
         apn_bytes = len(apn_bytes).to_bytes(1, "little") + apn_bytes
 
-        pdp_struct = self.kv_store_value_factory(45, family_bytes + apn_bytes)
+        pdp_struct = kv_write.kv_store_value_factory(45, family_bytes + apn_bytes)
         request_bytes = bytes(pdp_struct)
         return bytes(self.request(1)) + request_bytes
 
