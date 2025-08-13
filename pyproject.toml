@@ -12,7 +12,6 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
-    "License :: Free To Use But Restricted",
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -34,10 +33,7 @@ dependencies = [
     "pyyaml",
     "paho-mqtt",
 ]
-
-[project.license]
-file = "LICENSE.md"
-content-type = "text/markdown"
+license = "LicenseRef-FSL-1.1-ALv2"
 
 [project.readme]
 file = "README.md"
