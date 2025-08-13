@@ -3,7 +3,7 @@
 """Connect to remote Bluetooth device serial logs"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2024, Embeint Inc"
+__copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 
 from infuse_iot.commands import InfuseCommand

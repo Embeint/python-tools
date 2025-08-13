@@ -3,7 +3,7 @@
 """Run a local server for TDF viewing"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2024, Embeint Inc"
+__copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import asyncio
 import pathlib

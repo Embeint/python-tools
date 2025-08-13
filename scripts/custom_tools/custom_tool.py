@@ -3,7 +3,7 @@
 """Example out-of-tree tool"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2025, Embeint Inc"
+__copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"
 
 from infuse_iot.commands import InfuseCommand
 

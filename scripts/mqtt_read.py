@@ -3,7 +3,7 @@
 """Read device packets from the Infuse-IoT Cloud MQTT broker"""
 
 __author__ = "Jace Galvin"
-__copyright__ = "Copyright 2025, Embeint Inc"
+__copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"
 
 import argparse
 import base64
