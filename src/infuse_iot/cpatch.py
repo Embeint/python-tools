@@ -591,7 +591,6 @@ class cpatch:
                 if len(instructions) >= 2 and isinstance(instructions[1], SetAddrInstr):
                     # ADDR, COPY, ADRR
                     if instr.shift == -instructions[1].shift:
-                        print(copy.length)
                         # Replace with a write instead
                         merged.append(WriteInstr(old[instr.new : instr.new + copy.length]))
                         replaced = True
