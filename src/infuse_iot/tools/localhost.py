@@ -42,9 +42,9 @@ class SubCommand(InfuseCommand):
 
     def __init__(self, args):
         self._data_lock = threading.Lock()
-        self._columns = {}
-        self._data = {}
-        self._port = args.port
+        self._columns: dict[str, dict] = {}
+        self._data: dict[int, dict] = {}
+        self._port: int = args.port
 
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
@@ -191,6 +191,9 @@ class SubCommand(InfuseCommand):
             self._data[source.infuse_id] = {
                 "infuse_id": f"0x{source.infuse_id:016x}",
             }
+            # Set default application ID
+            self._data[source.infuse_id]["ANNOUNCE"] = {"application": "Unknown"}
+
         self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
         if source.interface == interface.ID.BT_ADV:
             addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
