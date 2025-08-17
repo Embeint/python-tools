@@ -469,7 +469,7 @@ class PatchInstr(Instr):
         return length
 
 
-class diff:
+class cpatch:
     class PatchHeader(ctypes.LittleEndianStructure):
         VERSION_MAJOR = 1
         VERSION_MINOR = 0
@@ -591,6 +591,7 @@ class diff:
                 if len(instructions) >= 2 and isinstance(instructions[1], SetAddrInstr):
                     # ADDR, COPY, ADRR
                     if instr.shift == -instructions[1].shift:
+                        print(copy.length)
                         # Replace with a write instead
                         merged.append(WriteInstr(old[instr.new : instr.new + copy.length]))
                         replaced = True
@@ -845,9 +846,9 @@ class diff:
         bin_new: bytes,
         verbose: bool,
     ) -> bytes:
-        meta, instructions = diff._gen_patch_instr(bin_original, bin_new)
-        patch_data = diff._gen_patch_data(instructions)
-        patch_header = diff._gen_patch_header(meta, patch_data)
+        meta, instructions = cls._gen_patch_instr(bin_original, bin_new)
+        patch_data = cls._gen_patch_data(instructions)
+        patch_header = cls._gen_patch_header(meta, patch_data)
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
 
@@ -901,14 +902,14 @@ class diff:
         )
         instructions.append(CopyInstr(len(bin_original) - 544))
 
-        meta, _ = diff._gen_patch_instr(bin_original, bin_original)
+        meta, _ = cls._gen_patch_instr(bin_original, bin_original)
         if invalid_length:
             meta["new"]["len"] -= 1
         if invalid_crc:
             meta["new"]["crc"] -= 1
 
-        patch_data = diff._gen_patch_data(instructions)
-        patch_header = diff._gen_patch_header(meta, patch_data)
+        patch_data = cls._gen_patch_data(instructions)
+        patch_header = cls._gen_patch_header(meta, patch_data)
         bin_patch = patch_header + patch_data
 
         # Validate that file can be reconstructed
@@ -924,7 +925,7 @@ class diff:
         bin_original: bytes,
         bin_patch: bytes,
     ) -> bytes:
-        meta, instructions = diff._patch_load(bin_patch)
+        meta, instructions = cls._patch_load(bin_patch)
         patched = b""
         orig_offset = 0
 
@@ -984,7 +985,7 @@ class diff:
         cls,
         bin_patch: bytes,
     ):
-        meta, instructions = diff._patch_load(bin_patch)
+        meta, instructions = cls._patch_load(bin_patch)
         total_write_bytes = 0
 
         print(f"Original File: {meta['original']['len']:6d} bytes")
@@ -1003,7 +1004,7 @@ class diff:
 
         print("")
         print("Total WRITE data:")
-        print(f"\t{total_write_bytes} bytes ({100*total_write_bytes/len(bin_patch):.2f}%)")
+        print(f"\t{total_write_bytes} bytes ({100 * total_write_bytes / len(bin_patch):.2f}%)")
 
         print("")
         print("Instruction Count:")
@@ -1050,7 +1051,7 @@ if __name__ == "__main__":
     # Run requested command
     if args.command == "generate":
         with open(args.original, "rb") as f_orig, open(args.new, "rb") as f_new:
-            patch = diff.generate(
+            patch = cpatch.generate(
                 f_orig.read(-1),
                 f_new.read(-1),
                 args.verbose,
@@ -1059,14 +1060,14 @@ if __name__ == "__main__":
             f_output.write(patch)
     elif args.command == "validation":
         with open(args.input_file, "rb") as f_input:
-            patch = diff.validation(f_input.read(-1), args.invalid_length, args.invalid_crc)
+            patch = cpatch.validation(f_input.read(-1), args.invalid_length, args.invalid_crc)
         with open(args.patch, "wb") as f_output:
             f_output.write(patch)
     elif args.command == "patch":
         with open(args.original, "rb") as f_orig, open(args.patch, "rb") as f_patch:
-            output = diff.patch(f_orig.read(-1), f_patch.read(-1))
+            output = cpatch.patch(f_orig.read(-1), f_patch.read(-1))
         with open(args.output, "wb") as f_output:
             f_output.write(output)
     elif args.command == "dump":
         with open(args.patch, "rb") as f_patch:
-            diff.dump(f_patch.read(-1))
+            cpatch.dump(f_patch.read(-1))
