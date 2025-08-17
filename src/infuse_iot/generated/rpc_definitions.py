@@ -477,6 +477,7 @@ class last_reboot:
             ("param_2", ctypes.c_uint32),
             ("thread", 8 * ctypes.c_char),
         ]
+        vla_field = ("esf", 0 * ctypes.c_uint32)
         _pack_ = 1
 
 

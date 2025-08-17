@@ -36,3 +36,5 @@ class last_reboot(InfuseRpcCommand, defs.last_reboot):
         print(f"\t    Param 1: 0x{response.param_1:08x}")
         print(f"\t    Param 2: 0x{response.param_2:08x}")
         print(f"\t     Thread: {response.thread.decode('utf-8')}")
+        for idx, val in enumerate(response.esf):
+            print(f"\t    ESF[{idx:2d}]: 0x{val:08x}")
