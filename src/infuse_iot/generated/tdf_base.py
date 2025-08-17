@@ -28,7 +28,10 @@ class TdfField:
         return self.field
 
     def val_fmt(self) -> str:
-        return self._display_fmt.format(self.val)
+        if isinstance(self.val, list) and self._display_fmt != "{}":
+            return ",".join([self._display_fmt.format(v) for v in self.val])
+        else:
+            return self._display_fmt.format(self.val)
 
 
 class TdfStructBase(ctypes.LittleEndianStructure):

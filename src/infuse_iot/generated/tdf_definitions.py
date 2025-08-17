@@ -1356,14 +1356,14 @@ class readings:
         ]
         _pack_ = 1
         _postfix_ = {
-            "snr": "",
-            "rssi": "",
+            "snr": "dB",
+            "rssi": "dBm",
             "payload": "",
         }
         _display_fmt_ = {
             "snr": "{}",
             "rssi": "{}",
-            "payload": "{}",
+            "payload": "0x{:02x}",
         }
 
     class lora_tx(TdfReadingBase):
@@ -1379,7 +1379,7 @@ class readings:
             "payload": "",
         }
         _display_fmt_ = {
-            "payload": "{}",
+            "payload": "0x{:02x}",
         }
 
     class idx_array_freq(TdfReadingBase):
@@ -1394,7 +1394,7 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             "tdf_id": "",
-            "frequency": "",
+            "frequency": "Hz",
         }
         _display_fmt_ = {
             "tdf_id": "{}",
@@ -1413,7 +1413,7 @@ class readings:
         _pack_ = 1
         _postfix_ = {
             "tdf_id": "",
-            "period": "",
+            "period": "ns",
         }
         _display_fmt_ = {
             "tdf_id": "{}",
@@ -1500,7 +1500,7 @@ class readings:
             "frame": "",
         }
         _display_fmt_ = {
-            "frame": "{}",
+            "frame": "0x{:08x}",
         }
 
 
