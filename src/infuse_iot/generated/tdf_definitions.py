@@ -1468,20 +1468,39 @@ class readings:
             "reason": "{}",
         }
 
-    class array_type(TdfReadingBase):
-        """Example array type"""
+    class network_scan_count(TdfReadingBase):
+        """Counts associated with scanning Wi-Fi and LTE networks"""
 
-        ID = 100
-        NAME = "ARRAY_TYPE"
+        ID = 51
+        NAME = "NETWORK_SCAN_COUNT"
         _fields_ = [
-            ("array", 4 * ctypes.c_uint8),
+            ("num_wifi", ctypes.c_uint8),
+            ("num_lte", ctypes.c_uint8),
         ]
         _pack_ = 1
         _postfix_ = {
-            "array": "",
+            "num_wifi": "",
+            "num_lte": "",
         }
         _display_fmt_ = {
-            "array": "{}",
+            "num_wifi": "{}",
+            "num_lte": "{}",
+        }
+
+    class exception_stack_frame(TdfReadingBase):
+        """Generic exception stack frame"""
+
+        ID = 52
+        NAME = "EXCEPTION_STACK_FRAME"
+        _fields_ = [
+            ("frame", 0 * ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "frame": "",
+        }
+        _display_fmt_ = {
+            "frame": "{}",
         }
 
 
@@ -1533,7 +1552,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.wifi_connected.ID: readings.wifi_connected,
     readings.wifi_connection_failed.ID: readings.wifi_connection_failed,
     readings.wifi_disconnected.ID: readings.wifi_disconnected,
-    readings.array_type.ID: readings.array_type,
+    readings.network_scan_count.ID: readings.network_scan_count,
+    readings.exception_stack_frame.ID: readings.exception_stack_frame,
 }
 
 __all__ = [
