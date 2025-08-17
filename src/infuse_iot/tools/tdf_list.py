@@ -49,9 +49,9 @@ class SubCommand(InfuseCommand):
                 tdf_name: None | str = None
                 time_str: None | str = None
                 if num > 1:
-                    tdf_name = f"{t.name}[{num - 1}]"
+                    tdf_name = f"{t.NAME}[{num - 1}]"
                 else:
-                    tdf_name = t.name
+                    tdf_name = t.NAME
                 if tdf.time is not None:
                     if tdf.period is None:
                         time_str = InfuseTime.utc_time_string(tdf.time)

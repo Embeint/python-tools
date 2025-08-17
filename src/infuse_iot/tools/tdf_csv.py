@@ -78,7 +78,7 @@ class SubCommand(InfuseCommand):
 
                 # Handle file creation/opening
                 first = tdf.data[0]
-                filename = f"{source.infuse_id:016x}_{first.name}.csv"
+                filename = f"{source.infuse_id:016x}_{first.NAME}.csv"
                 if filename not in files:
                     if os.path.exists(filename):
                         print(f"Appending to existing {filename}")
