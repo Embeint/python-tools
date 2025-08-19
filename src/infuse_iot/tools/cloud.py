@@ -18,6 +18,7 @@ from infuse_iot.api_client.api.board import (
     get_board_by_id,
     get_boards,
 )
+from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
     get_device_by_device_id,
     get_device_last_route_by_device_id,
@@ -28,7 +29,7 @@ from infuse_iot.api_client.api.organisation import (
     get_all_organisations,
     get_organisation_by_id,
 )
-from infuse_iot.api_client.models import Error, NewBoard, NewOrganisation
+from infuse_iot.api_client.models import COAPFilesList, Error, NewBoard, NewOrganisation
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 
@@ -64,7 +65,7 @@ class Organisations(CloudSubCommand):
         with self.client() as client:
             self.args.command_fn(self, client)
 
-    def list(self, client):
+    def list(self, client: Client):
         org_list = []
 
         orgs = get_all_organisations.sync(client=client)
@@ -80,7 +81,7 @@ class Organisations(CloudSubCommand):
             )
         )
 
-    def create(self, client):
+    def create(self, client: Client):
         rsp = create_organisation.sync_detailed(
             client=client,
             body=NewOrganisation(self.args.name),
@@ -116,7 +117,7 @@ class Boards(CloudSubCommand):
         with self.client() as client:
             self.args.command_fn(self, client)
 
-    def list(self, client):
+    def list(self, client: Client):
         board_list = []
 
         orgs = get_all_organisations.sync(client=client)
@@ -137,7 +138,7 @@ class Boards(CloudSubCommand):
             )
         )
 
-    def create(self, client):
+    def create(self, client: Client):
         rsp = create_board.sync_detailed(
             client=client,
             body=NewBoard(
@@ -171,7 +172,7 @@ class Device(CloudSubCommand):
         with self.client() as client:
             self.args.command_fn(self, client)
 
-    def info(self, client):
+    def info(self, client: Client):
         id_int = int(self.args.id, 0)
         id_str = f"{id_int:016x}"
         info = get_device_by_device_id.sync(client=client, device_id=id_str)
@@ -217,6 +218,32 @@ class Device(CloudSubCommand):
         print(tabulate(table))
 
 
+class Coap(CloudSubCommand):
+    @classmethod
+    def add_parser(cls, parser):
+        parser_coap = parser.add_parser("coap", help="CoAP file server")
+        parser_coap.set_defaults(command_class=cls)
+
+        tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
+
+        list_parser = tool_parser.add_parser("list")
+        list_parser.set_defaults(command_fn=cls.list)
+
+    def run(self):
+        with self.client() as client:
+            self.args.command_fn(self, client)
+
+    def list(self, client: Client):
+        files = get_coap_files.sync(client=client)
+
+        if isinstance(files, COAPFilesList):
+            sorted_list: list[str] = sorted(files.filenames)
+            print("CoAP Files:")
+            print("\t" + "\n\t".join(sorted_list))
+        else:
+            print(f"Failed to retrieve file list {files}")
+
+
 class SubCommand(InfuseCommand):
     NAME = "cloud"
     HELP = "Infuse-IoT cloud interaction"
@@ -229,6 +256,7 @@ class SubCommand(InfuseCommand):
         Organisations.add_parser(subparser)
         Boards.add_parser(subparser)
         Device.add_parser(subparser)
+        Coap.add_parser(subparser)
 
     def __init__(self, args):
         self.tool = args.command_class(args)
