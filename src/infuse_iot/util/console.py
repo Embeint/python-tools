@@ -2,6 +2,7 @@
 
 
 import datetime
+import threading
 
 import colorama
 
@@ -9,6 +10,8 @@ try:
     from simple_term_menu import TerminalMenu
 except NotImplementedError:
     pass
+
+_lock = threading.Lock()
 
 
 class Console:
@@ -56,7 +59,8 @@ class Console:
     def log(timestamp: datetime.datetime, colour, string: str):
         """Log colourised string to terminal"""
         ts = timestamp.strftime("%H:%M:%S.%f")[:-3]
-        print(f"[{ts}]{colour} {string}")
+        with _lock:
+            print(f"[{ts}]{colour} {string}")
 
 
 def choose_one(title: str, options: list[str]) -> tuple[int, str]:
