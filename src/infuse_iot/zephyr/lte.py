@@ -22,7 +22,7 @@ class RegistrationState(enum.IntEnum):
             self.REGISTERED_ROAMING: "Registered (Roaming)",
             self.UICC_FAIL: "SIM card failure",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class AccessTechnology(enum.IntEnum):
@@ -36,7 +36,7 @@ class AccessTechnology(enum.IntEnum):
             self.LTE_M: "LTE-M",
             self.NB_IOT: "NB-IoT",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class LteSystemMode(enum.IntEnum):
@@ -60,7 +60,7 @@ class LteSystemMode(enum.IntEnum):
             self.LTE_M_NB_IOT_GNSS: "LTE-M + NB-IoT + GNSS",
             self.DEFAULT: "Modem default",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class LteSystemPreference(enum.IntEnum):
@@ -78,7 +78,7 @@ class LteSystemPreference(enum.IntEnum):
             self.PLMN_LTE_M: "PLMN > LTE-M",
             self.PLMN_NB_IOT: "PLMN > NB-IoT",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class LteBand:
