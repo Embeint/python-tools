@@ -1503,6 +1503,38 @@ class readings:
             "frame": "0x{:08x}",
         }
 
+    class battery_voltage(TdfReadingBase):
+        """Battery voltage"""
+
+        ID = 53
+        NAME = "BATTERY_VOLTAGE"
+        _fields_ = [
+            ("voltage", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "voltage": "mV",
+        }
+        _display_fmt_ = {
+            "voltage": "{}",
+        }
+
+    class battery_soc(TdfReadingBase):
+        """Battery state of charge"""
+
+        ID = 54
+        NAME = "BATTERY_SOC"
+        _fields_ = [
+            ("soc", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "soc": "%",
+        }
+        _display_fmt_ = {
+            "soc": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1554,6 +1586,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.wifi_disconnected.ID: readings.wifi_disconnected,
     readings.network_scan_count.ID: readings.network_scan_count,
     readings.exception_stack_frame.ID: readings.exception_stack_frame,
+    readings.battery_voltage.ID: readings.battery_voltage,
+    readings.battery_soc.ID: readings.battery_soc,
 }
 
 __all__ = [

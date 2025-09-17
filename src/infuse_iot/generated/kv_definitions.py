@@ -278,6 +278,17 @@ class slots:
         ]
         _pack_ = 1
 
+    class lte_sim_imsi(VLACompatLittleEndianStruct):
+        """'International Modem Subscriber Identity' as returned by AT+CIMI"""
+
+        NAME = "LTE_SIM_IMSI"
+        BASE_ID = 47
+        RANGE = 1
+        _fields_ = [
+            ("imsi", ctypes.c_uint64),
+        ]
+        _pack_ = 1
+
     class bluetooth_peer(VLACompatLittleEndianStruct):
         """Bluetooth peer device"""
 
@@ -404,6 +415,7 @@ class slots:
         44: lte_sim_uicc,
         45: lte_pdp_config,
         46: lte_networking_modes,
+        47: lte_sim_imsi,
         50: bluetooth_peer,
         51: lora_config,
         52: bluetooth_throughput_limit,
