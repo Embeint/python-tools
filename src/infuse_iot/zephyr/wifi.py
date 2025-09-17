@@ -37,7 +37,7 @@ class FrequencyBand(enum.IntEnum):
             self.BAND_5_GHZ: "5 GHz",
             self.BAND_6_GHZ: "6 GHz",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class FrequencyChannel(enum.IntEnum):
@@ -67,7 +67,7 @@ class LinkMode(enum.IntEnum):
             self.WIFI_802_11ax_6Ghz: "802.11.ax (6 GHz)",
             self.WIFI_802_11be: "802.11.be",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
 
 
 class SecurityType(enum.IntEnum):
@@ -91,4 +91,4 @@ class SecurityType(enum.IntEnum):
             self.WEP: "WEP",
             self.WPA_PSK: "WPA-PSK",
         }
-        return pretty_names[self.value]
+        return pretty_names[self]
