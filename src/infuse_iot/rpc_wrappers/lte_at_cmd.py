@@ -29,9 +29,12 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
         return {"cmd": self.args.cmd}
 
     def handle_response(self, return_code, response):
+        if response:
+            # Print returned strings even on failure
+            response_bytes = bytes(response.rsp)
+            if len(response_bytes):
+                decoded = bytes(response.rsp).decode("utf-8").strip()
+                print(decoded)
+        # Notification that command failed
         if return_code != 0:
             print(f"Failed to run command ({errno.strerror(-return_code)})")
-            return
-        decoded = bytes(response.rsp).decode("utf-8").strip()
-
-        print(decoded)
