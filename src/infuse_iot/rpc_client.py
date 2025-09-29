@@ -162,6 +162,17 @@ class RpcClient:
         # Run with pre-computed chunks
         return self._run_data_send_core(cmd_id, auth, params, chunks, len(data), False, progress_cb, rsp_decoder)
 
+    def run_data_send_cmd_chunked(
+        self,
+        cmd_id: int,
+        auth: Auth,
+        params: bytes,
+        data: list[bytes],
+        progress_cb: Callable[[int], None] | None,
+        rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+        return self._run_data_send_core(cmd_id, auth, params, data, len(data), True, progress_cb, rsp_decoder)
+
     def run_data_recv_cmd(
         self,
         cmd_id: int,
