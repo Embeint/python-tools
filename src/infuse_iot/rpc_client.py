@@ -84,19 +84,21 @@ class RpcClient:
                 continue
             return rsp.epacket
 
-    def run_data_send_cmd(
+    def _run_data_send_core(
         self,
         cmd_id: int,
         auth: Auth,
         params: bytes,
-        data: bytes,
+        data: list[bytes],
+        total_size: int,
+        packet_idx: bool,
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         ack_period = 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
-        data_hdr = rpc.RequestDataHeader(len(data), ack_period)
+        data_hdr = rpc.RequestDataHeader(total_size, ack_period)
 
         request_packet = bytes(header) + bytes(data_hdr) + params
         pkt = PacketOutput(
@@ -113,18 +115,12 @@ class RpcClient:
         if recv.ptype == InfuseType.RPC_RSP:
             return self._finalise_command(recv, rsp_decoder)
 
-        # Send data payloads with maximum interface size
+        # Send data payloads chunked as requested
         ack_cnt = -ack_period
         offset = 0
-        size = self._max_payload - ctypes.sizeof(rpc.DataHeader)
-        # Round payload down to multiple of 4 bytes
-        size -= size % 4
-        while len(data) > 0:
-            size = min(size, len(data))
-            payload = data[:size]
-
-            hdr = rpc.DataHeader(self._request_id, offset)
-            pkt_bytes = bytes(hdr) + payload
+        for chunk_id, chunk in enumerate(data):
+            hdr = rpc.DataHeader(self._request_id, chunk_id if packet_idx else offset)
+            pkt_bytes = bytes(hdr) + chunk
             pkt = PacketOutput(
                 self._id,
                 auth,
@@ -141,13 +137,30 @@ class RpcClient:
                     return self._finalise_command(recv, rsp_decoder)
                 ack_cnt = 0
 
-            offset += size
-            data = data[size:]
+            offset += len(chunk)
             if progress_cb:
-                progress_cb(offset)
+                progress_cb(chunk_id + 1 if packet_idx else offset)
 
         recv = self._wait_rpc_rsp()
         return self._finalise_command(recv, rsp_decoder)
+
+    def run_data_send_cmd(
+        self,
+        cmd_id: int,
+        auth: Auth,
+        params: bytes,
+        data: bytes,
+        progress_cb: Callable[[int], None] | None,
+        rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+        # Maxmimum payload size of interface
+        size = self._max_payload - ctypes.sizeof(rpc.DataHeader)
+        # Round payload down to multiple of 4 bytes
+        size -= size % 4
+        # itertools.batched once Python 3.12 is the minimum version
+        chunks = [data[i : i + size] for i in range(0, len(data), size)]
+        # Run with pre-computed chunks
+        return self._run_data_send_core(cmd_id, auth, params, chunks, len(data), False, progress_cb, rsp_decoder)
 
     def run_data_recv_cmd(
         self,
