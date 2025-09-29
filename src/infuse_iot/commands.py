@@ -46,6 +46,7 @@ class InfuseCommand(metaclass=ABCMeta):
 
 class InfuseRpcCommand:
     RPC_DATA_SEND = False
+    RPC_DATA_SEND_CHUNKED = False
     RPC_DATA_RECEIVE = False
 
     @classmethod
@@ -69,6 +70,10 @@ class InfuseRpcCommand:
 
     def data_payload(self) -> bytes:
         """Payload to send with RPC_DATA"""
+        raise NotImplementedError
+
+    def data_payload_chunked(self) -> list[bytes]:
+        """Payloads to send with RPC_DATA"""
         raise NotImplementedError
 
     def data_payload_recv_len(self) -> int:

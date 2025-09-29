@@ -97,6 +97,15 @@ class SubCommand(InfuseCommand):
                         self._command.data_progress_cb,
                         decode_fn,
                     )
+                elif self._command.RPC_DATA_SEND_CHUNKED:
+                    hdr, rsp = rpc_client.run_data_send_cmd_chunked(
+                        self._command.COMMAND_ID,  # type: ignore
+                        self._command.auth_level(),
+                        params,
+                        self._command.data_payload_chunked(),
+                        self._command.data_progress_cb,
+                        decode_fn,
+                    )
                 elif self._command.RPC_DATA_RECEIVE:
                     hdr, rsp = rpc_client.run_data_recv_cmd(
                         self._command.COMMAND_ID,  # type: ignore
