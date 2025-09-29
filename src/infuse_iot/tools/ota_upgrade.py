@@ -49,9 +49,12 @@ class SubCommand(InfuseCommand):
         elif args.single:
             # Find the associated release
             diff_folder = args.single.parent
-            release_folder = diff_folder.parent
             if diff_folder.name != "diffs":
-                raise argparse.ArgumentTypeError(f"{args.single} is not in a diff folder")
+                # Try the next level up
+                diff_folder = diff_folder.parent
+            if diff_folder.name != "diffs":
+                raise argparse.ArgumentTypeError(f"{args.single} is not in a diff (sub)folder")
+            release_folder = diff_folder.parent
             self._release = ValidRelease(str(release_folder))
             self._single_diff = args.single
         else:
@@ -251,13 +254,6 @@ class SubCommand(InfuseCommand):
 
                 # Do we have a valid diff?
                 diff_file = self._release.dir / "diffs" / f"{v_str}.bin"
-                if self._single_diff and self._single_diff != diff_file:
-                    # Not the file we've copied to the gateway flash
-                    self._missing_diffs.add(v_str)
-                    self._handled.append(source.infuse_id)
-                    self._no_diff += 1
-                    self.state_update(live, "Scanning")
-                    continue
 
                 if not diff_file.exists():
                     # Is this a single diff from a different application we know about?
@@ -268,6 +264,14 @@ class SubCommand(InfuseCommand):
                         self._no_diff += 1
                         self.state_update(live, "Scanning")
                         continue
+
+                if self._single_diff and self._single_diff != diff_file:
+                    # Not the file we've copied to the gateway flash
+                    self._missing_diffs.add(v_str)
+                    self._handled.append(source.infuse_id)
+                    self._no_diff += 1
+                    self.state_update(live, "Scanning")
+                    continue
 
                 # Is signal strong enough to connect?
                 if self._min_rssi and source.rssi < self._min_rssi:
