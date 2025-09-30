@@ -986,7 +986,9 @@ class data_receiver:
     COMMAND_ID = 32766
 
     class request(VLACompatLittleEndianStruct):
-        _fields_ = []
+        _fields_ = [
+            ("unaligned_input", ctypes.c_uint8),
+        ]
         _pack_ = 1
 
     class response(VLACompatLittleEndianStruct):
