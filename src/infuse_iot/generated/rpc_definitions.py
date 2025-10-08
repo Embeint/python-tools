@@ -29,6 +29,7 @@ class rpc_struct_kv_store_value(VLACompatLittleEndianStruct):
         ("len", ctypes.c_int16),
     ]
     vla_field = ("data", 0 * ctypes.c_uint8)
+    vla_counted_by = "len"
     _pack_ = 1
 
 
@@ -137,6 +138,7 @@ class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
         ("ssid_len", ctypes.c_uint8),
     ]
     vla_field = ("ssid", 0 * ctypes.c_char)
+    vla_counted_by = "ssid_len"
     _pack_ = 1
 
 
@@ -230,9 +232,17 @@ class rpc_enum_zperf_data_source(enum.IntEnum):
     ENCRYPT = 128
 
 
-class reboot:
+class RPCDefinitionBase:
+    NAME: str
+    HELP: str
+    DESCRIPTION: str
+    COMMAND_ID: int
+
+
+class reboot(RPCDefinitionBase):
     """Reboot the device after a delay"""
 
+    NAME = "reboot"
     HELP = "Reboot the device after a delay"
     DESCRIPTION = "Reboot the device after a delay"
     COMMAND_ID = 1
@@ -250,9 +260,10 @@ class reboot:
         _pack_ = 1
 
 
-class fault:
+class fault(RPCDefinitionBase):
     """Immediately trigger an exception on the device"""
 
+    NAME = "fault"
     HELP = "Immediately trigger an exception on the device"
     DESCRIPTION = "Immediately trigger an exception on the device"
     COMMAND_ID = 2
@@ -269,9 +280,10 @@ class fault:
         _pack_ = 1
 
 
-class time_get:
+class time_get(RPCDefinitionBase):
     """Get the current time knowledge of the device"""
 
+    NAME = "time_get"
     HELP = "Get the current time knowledge of the device"
     DESCRIPTION = "Get the current time knowledge of the device"
     COMMAND_ID = 3
@@ -289,9 +301,10 @@ class time_get:
         _pack_ = 1
 
 
-class time_set:
+class time_set(RPCDefinitionBase):
     """Set the current time of the device"""
 
+    NAME = "time_set"
     HELP = "Set the current time of the device"
     DESCRIPTION = "Set the current time of the device"
     COMMAND_ID = 4
@@ -307,9 +320,10 @@ class time_set:
         _pack_ = 1
 
 
-class kv_write:
+class kv_write(RPCDefinitionBase):
     """Write values to the KV store"""
 
+    NAME = "kv_write"
     HELP = "Write values to the KV store"
     DESCRIPTION = "Write values to the KV store"
     COMMAND_ID = 5
@@ -327,9 +341,10 @@ class kv_write:
         _pack_ = 1
 
 
-class kv_read:
+class kv_read(RPCDefinitionBase):
     """Read values from the KV store"""
 
+    NAME = "kv_read"
     HELP = "Read values from the KV store"
     DESCRIPTION = "Read values from the KV store"
     COMMAND_ID = 6
@@ -347,9 +362,10 @@ class kv_read:
         _pack_ = 1
 
 
-class kv_reflect_crcs:
+class kv_reflect_crcs(RPCDefinitionBase):
     """Read KV store CRC's"""
 
+    NAME = "kv_reflect_crcs"
     HELP = "Read KV store CRC's"
     DESCRIPTION = "Read KV store CRC's"
     COMMAND_ID = 7
@@ -369,9 +385,10 @@ class kv_reflect_crcs:
         _pack_ = 1
 
 
-class zbus_channel_state:
+class zbus_channel_state(RPCDefinitionBase):
     """Query current state of zbus channel"""
 
+    NAME = "zbus_channel_state"
     HELP = "Query current state of zbus channel"
     DESCRIPTION = "Query current state of zbus channel"
     COMMAND_ID = 8
@@ -392,9 +409,10 @@ class zbus_channel_state:
         _pack_ = 1
 
 
-class application_info:
+class application_info(RPCDefinitionBase):
     """Query basic application versions and state"""
 
+    NAME = "application_info"
     HELP = "Query basic application versions and state"
     DESCRIPTION = "Query basic application versions and state"
     COMMAND_ID = 9
@@ -417,9 +435,10 @@ class application_info:
         _pack_ = 1
 
 
-class wifi_scan:
+class wifi_scan(RPCDefinitionBase):
     """Scan for WiFi networks"""
 
+    NAME = "wifi_scan"
     HELP = "Scan for WiFi networks"
     DESCRIPTION = "Scan for WiFi networks"
     COMMAND_ID = 10
@@ -436,9 +455,10 @@ class wifi_scan:
         _pack_ = 1
 
 
-class wifi_state:
+class wifi_state(RPCDefinitionBase):
     """Get current WiFi interface state"""
 
+    NAME = "wifi_state"
     HELP = "Get current WiFi interface state"
     DESCRIPTION = "Get current WiFi interface state"
     COMMAND_ID = 11
@@ -455,9 +475,10 @@ class wifi_state:
         _pack_ = 1
 
 
-class last_reboot:
+class last_reboot(RPCDefinitionBase):
     """Retrieve information pertaining to the previous reboot"""
 
+    NAME = "last_reboot"
     HELP = "Retrieve information pertaining to the previous reboot"
     DESCRIPTION = "Retrieve information pertaining to the previous reboot"
     COMMAND_ID = 12
@@ -481,9 +502,10 @@ class last_reboot:
         _pack_ = 1
 
 
-class data_logger_state:
+class data_logger_state(RPCDefinitionBase):
     """Get state of a data logger"""
 
+    NAME = "data_logger_state"
     HELP = "Get state of a data logger"
     DESCRIPTION = "Get state of a data logger"
     COMMAND_ID = 13
@@ -510,9 +532,10 @@ class data_logger_state:
         _pack_ = 1
 
 
-class data_logger_read:
+class data_logger_read(RPCDefinitionBase):
     """Read data from data logger"""
 
+    NAME = "data_logger_read"
     HELP = "Read data from data logger"
     DESCRIPTION = "Read data from data logger"
     COMMAND_ID = 14
@@ -533,9 +556,10 @@ class data_logger_read:
         _pack_ = 1
 
 
-class mem_read:
+class mem_read(RPCDefinitionBase):
     """Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"""
 
+    NAME = "mem_read"
     HELP = "Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"
     DESCRIPTION = "Read arbitrary memory (NO ADDRESS VALIDATION PERFORMED)"
     COMMAND_ID = 15
@@ -554,9 +578,10 @@ class mem_read:
         _pack_ = 1
 
 
-class infuse_states_query:
+class infuse_states_query(RPCDefinitionBase):
     """Read current Infuse-IoT application states"""
 
+    NAME = "infuse_states_query"
     HELP = "Read current Infuse-IoT application states"
     DESCRIPTION = "Read current Infuse-IoT application states"
     COMMAND_ID = 16
@@ -575,9 +600,10 @@ class infuse_states_query:
         _pack_ = 1
 
 
-class infuse_states_update:
+class infuse_states_update(RPCDefinitionBase):
     """Update Infuse-IoT application states"""
 
+    NAME = "infuse_states_update"
     HELP = "Update Infuse-IoT application states"
     DESCRIPTION = "Update Infuse-IoT application states"
     COMMAND_ID = 17
@@ -594,9 +620,10 @@ class infuse_states_update:
         _pack_ = 1
 
 
-class data_logger_erase:
+class data_logger_erase(RPCDefinitionBase):
     """Erase all data from a data logger"""
 
+    NAME = "data_logger_erase"
     HELP = "Erase all data from a data logger"
     DESCRIPTION = "Erase all data from a data logger"
     COMMAND_ID = 18
@@ -613,9 +640,10 @@ class data_logger_erase:
         _pack_ = 1
 
 
-class heap_stats:
+class heap_stats(RPCDefinitionBase):
     """Query stats of heaps"""
 
+    NAME = "heap_stats"
     HELP = "Query stats of heaps"
     DESCRIPTION = "Query stats of heaps"
     COMMAND_ID = 19
@@ -630,9 +658,10 @@ class heap_stats:
         _pack_ = 1
 
 
-class lte_at_cmd:
+class lte_at_cmd(RPCDefinitionBase):
     """Run AT command against LTE modem"""
 
+    NAME = "lte_at_cmd"
     HELP = "Run AT command against LTE modem"
     DESCRIPTION = "Run AT command against LTE modem"
     COMMAND_ID = 20
@@ -648,9 +677,10 @@ class lte_at_cmd:
         _pack_ = 1
 
 
-class lte_state:
+class lte_state(RPCDefinitionBase):
     """Get current LTE interface state"""
 
+    NAME = "lte_state"
     HELP = "Get current LTE interface state"
     DESCRIPTION = "Get current LTE interface state"
     COMMAND_ID = 21
@@ -667,9 +697,10 @@ class lte_state:
         _pack_ = 1
 
 
-class data_logger_read_available:
+class data_logger_read_available(RPCDefinitionBase):
     """Read data from data logger, with auto-updating start_block"""
 
+    NAME = "data_logger_read_available"
     HELP = "Read data from data logger, with auto-updating start_block"
     DESCRIPTION = "Read data from data logger, with auto-updating start_block"
     COMMAND_ID = 22
@@ -693,9 +724,10 @@ class data_logger_read_available:
         _pack_ = 1
 
 
-class coap_download:
+class coap_download(RPCDefinitionBase):
     """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
 
+    NAME = "coap_download"
     HELP = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
     DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
     COMMAND_ID = 30
@@ -720,9 +752,10 @@ class coap_download:
         _pack_ = 1
 
 
-class zperf_upload:
+class zperf_upload(RPCDefinitionBase):
     """Network upload bandwidth testing using zperf/iperf"""
 
+    NAME = "zperf_upload"
     HELP = "Network upload bandwidth testing using zperf/iperf"
     DESCRIPTION = "Network upload bandwidth testing using zperf/iperf"
     COMMAND_ID = 31
@@ -754,9 +787,10 @@ class zperf_upload:
         _pack_ = 1
 
 
-class file_write_basic:
+class file_write_basic(RPCDefinitionBase):
     """Write a file to the device"""
 
+    NAME = "file_write_basic"
     HELP = "Write a file to the device"
     DESCRIPTION = "Write a file to the device"
     COMMAND_ID = 40
@@ -776,9 +810,10 @@ class file_write_basic:
         _pack_ = 1
 
 
-class annotate:
+class annotate(RPCDefinitionBase):
     """Write an annotation to the device"""
 
+    NAME = "annotate"
     HELP = "Write an annotation to the device"
     DESCRIPTION = "Write an annotation to the device"
     COMMAND_ID = 41
@@ -796,9 +831,10 @@ class annotate:
         _pack_ = 1
 
 
-class bt_connect_infuse:
+class bt_connect_infuse(RPCDefinitionBase):
     """Connect to an Infuse-IoT Bluetooth device"""
 
+    NAME = "bt_connect_infuse"
     HELP = "Connect to an Infuse-IoT Bluetooth device"
     DESCRIPTION = "Connect to an Infuse-IoT Bluetooth device"
     COMMAND_ID = 50
@@ -822,9 +858,10 @@ class bt_connect_infuse:
         _pack_ = 1
 
 
-class bt_disconnect:
+class bt_disconnect(RPCDefinitionBase):
     """Disconnect from a Bluetooth device"""
 
+    NAME = "bt_disconnect"
     HELP = "Disconnect from a Bluetooth device"
     DESCRIPTION = "Disconnect from a Bluetooth device"
     COMMAND_ID = 51
@@ -840,9 +877,10 @@ class bt_disconnect:
         _pack_ = 1
 
 
-class bt_file_copy_basic:
+class bt_file_copy_basic(RPCDefinitionBase):
     """Copy a local file to a remote device over Bluetooth"""
 
+    NAME = "bt_file_copy_basic"
     HELP = "Copy a local file to a remote device over Bluetooth"
     DESCRIPTION = "Copy a local file to a remote device over Bluetooth"
     COMMAND_ID = 52
@@ -864,9 +902,10 @@ class bt_file_copy_basic:
         _pack_ = 1
 
 
-class bt_file_copy_coap:
+class bt_file_copy_coap(RPCDefinitionBase):
     """Copy a file fetched from COAP to a remote device over Bluetooth"""
 
+    NAME = "bt_file_copy_coap"
     HELP = "Copy a file fetched from COAP to a remote device over Bluetooth"
     DESCRIPTION = "Copy a file fetched from COAP to a remote device over Bluetooth"
     COMMAND_ID = 53
@@ -896,9 +935,10 @@ class bt_file_copy_coap:
         _pack_ = 1
 
 
-class bt_mcumgr_reboot:
+class bt_mcumgr_reboot(RPCDefinitionBase):
     """Connect to a Bluetooth device and run the MCUMGR reboot command"""
 
+    NAME = "bt_mcumgr_reboot"
     HELP = "Connect to a Bluetooth device and run the MCUMGR reboot command"
     DESCRIPTION = "Connect to a Bluetooth device and run the MCUMGR reboot command"
     COMMAND_ID = 54
@@ -915,9 +955,10 @@ class bt_mcumgr_reboot:
         _pack_ = 1
 
 
-class gravity_reference_update:
+class gravity_reference_update(RPCDefinitionBase):
     """Store the current accelerometer vector as the gravity reference"""
 
+    NAME = "gravity_reference_update"
     HELP = "Store the current accelerometer vector as the gravity reference"
     DESCRIPTION = "Store the current accelerometer vector as the gravity reference"
     COMMAND_ID = 60
@@ -938,9 +979,10 @@ class gravity_reference_update:
         _pack_ = 1
 
 
-class security_state:
+class security_state(RPCDefinitionBase):
     """Query current security state and validate identity"""
 
+    NAME = "security_state"
     HELP = "Query current security state and validate identity"
     DESCRIPTION = "Query current security state and validate identity"
     COMMAND_ID = 30000
@@ -962,9 +1004,10 @@ class security_state:
         _pack_ = 1
 
 
-class data_sender:
+class data_sender(RPCDefinitionBase):
     """Send multiple INFUSE_RPC_DATA packets"""
 
+    NAME = "data_sender"
     HELP = "Send multiple INFUSE_RPC_DATA packets"
     DESCRIPTION = "Send multiple INFUSE_RPC_DATA packets"
     COMMAND_ID = 32765
@@ -978,9 +1021,10 @@ class data_sender:
         _pack_ = 1
 
 
-class data_receiver:
+class data_receiver(RPCDefinitionBase):
     """Receive multiple INFUSE_RPC_DATA packets"""
 
+    NAME = "data_receiver"
     HELP = "Receive multiple INFUSE_RPC_DATA packets"
     DESCRIPTION = "Receive multiple INFUSE_RPC_DATA packets"
     COMMAND_ID = 32766
@@ -999,9 +1043,10 @@ class data_receiver:
         _pack_ = 1
 
 
-class echo:
+class echo(RPCDefinitionBase):
     """Echo any input data in the response"""
 
+    NAME = "echo"
     HELP = "Echo any input data in the response"
     DESCRIPTION = "Echo any input data in the response"
     COMMAND_ID = 32767
@@ -1017,7 +1062,47 @@ class echo:
         _pack_ = 1
 
 
+id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
+    reboot.COMMAND_ID: reboot,
+    fault.COMMAND_ID: fault,
+    time_get.COMMAND_ID: time_get,
+    time_set.COMMAND_ID: time_set,
+    kv_write.COMMAND_ID: kv_write,
+    kv_read.COMMAND_ID: kv_read,
+    kv_reflect_crcs.COMMAND_ID: kv_reflect_crcs,
+    zbus_channel_state.COMMAND_ID: zbus_channel_state,
+    application_info.COMMAND_ID: application_info,
+    wifi_scan.COMMAND_ID: wifi_scan,
+    wifi_state.COMMAND_ID: wifi_state,
+    last_reboot.COMMAND_ID: last_reboot,
+    data_logger_state.COMMAND_ID: data_logger_state,
+    data_logger_read.COMMAND_ID: data_logger_read,
+    mem_read.COMMAND_ID: mem_read,
+    infuse_states_query.COMMAND_ID: infuse_states_query,
+    infuse_states_update.COMMAND_ID: infuse_states_update,
+    data_logger_erase.COMMAND_ID: data_logger_erase,
+    heap_stats.COMMAND_ID: heap_stats,
+    lte_at_cmd.COMMAND_ID: lte_at_cmd,
+    lte_state.COMMAND_ID: lte_state,
+    data_logger_read_available.COMMAND_ID: data_logger_read_available,
+    coap_download.COMMAND_ID: coap_download,
+    zperf_upload.COMMAND_ID: zperf_upload,
+    file_write_basic.COMMAND_ID: file_write_basic,
+    annotate.COMMAND_ID: annotate,
+    bt_connect_infuse.COMMAND_ID: bt_connect_infuse,
+    bt_disconnect.COMMAND_ID: bt_disconnect,
+    bt_file_copy_basic.COMMAND_ID: bt_file_copy_basic,
+    bt_file_copy_coap.COMMAND_ID: bt_file_copy_coap,
+    bt_mcumgr_reboot.COMMAND_ID: bt_mcumgr_reboot,
+    gravity_reference_update.COMMAND_ID: gravity_reference_update,
+    security_state.COMMAND_ID: security_state,
+    data_sender.COMMAND_ID: data_sender,
+    data_receiver.COMMAND_ID: data_receiver,
+    echo.COMMAND_ID: echo,
+}
+
 __all__ = [
+    "id_type_mapping",
     "rpc_struct_mcuboot_img_sem_ver",
     "rpc_struct_kv_store_value",
     "rpc_struct_kv_store_crc",

@@ -32,6 +32,7 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
     """
 
     vla_field: tuple[str, type[Any]] | None = None
+    vla_counted_by: str | None = None
 
     @classmethod
     def vla_from_buffer_copy(cls, source, offset=0) -> Self:
