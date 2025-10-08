@@ -20,6 +20,7 @@ from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCPar
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.definitions.rpc import id_type_mapping
 
 
 class SubCommand(InfuseCommand):
@@ -99,8 +100,14 @@ class SubCommand(InfuseCommand):
                 else:
                     print(f"  Through: Direct ({route.interface.upper()})")
         if downlink.status == DownlinkMessageStatus.COMPLETED:
+            rpc_req = downlink.rpc_req
             rpc_rsp = downlink.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
+            try:
+                command_name = id_type_mapping[rpc_req.command_id].NAME
+            except KeyError:
+                command_name = "Unknown"
+            print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
             print(f"   Result: {rpc_rsp.return_code}")
             if rpc_rsp.params:
                 print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
