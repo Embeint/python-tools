@@ -31,7 +31,7 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         else:
             raise NotImplementedError
         self.expected_offset = 0
-        self.output = b""
+        self.output = bytearray()
         self.start_time = time.time()
 
     def request_struct(self):
@@ -43,14 +43,20 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
     def data_recv_cb(self, offset: int, data: bytes) -> None:
         if self.expected_offset == 0:
             self.start_time = time.time()
-        if offset != self.expected_offset:
+        if offset == self.expected_offset:
+            self.output += data
+            # Next expected offset
+            self.expected_offset = offset + len(data)
+        else:
             missing = offset - self.expected_offset
-            print(f"Missed {missing:d} bytes from offset 0x{self.expected_offset:08x}")
-            self.output += b"\x00" * missing
-
-        self.output += data
-        # Next expected offset
-        self.expected_offset = offset + len(data)
+            if missing > 0:
+                print(f"Missed {missing:d} bytes from offset 0x{self.expected_offset:08x}")
+                self.output += b"\x00" * missing
+                self.output += data
+                self.expected_offset = offset + len(data)
+            else:
+                print(f"Received missing bytes from offset 0x{self.expected_offset:08x}")
+                self.output[offset : offset + len(data)] = data
 
     def handle_response(self, return_code, response):
         end_time = time.time()
