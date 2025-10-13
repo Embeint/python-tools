@@ -15,12 +15,6 @@ class lte_modem_info(kv_read.kv_read):
     HELP = "Get LTE modem information"
     DESCRIPTION = "Get LTE modem information"
 
-    class request(kv_read.kv_read.request):
-        pass
-
-    class response(kv_read.kv_read.response):
-        pass
-
     @classmethod
     def add_parser(cls, parser):
         return
@@ -43,9 +37,9 @@ class lte_modem_info(kv_read.kv_read):
                 return "Unknown"
             return str(kv_structs.kv_string.vla_from_buffer_copy(bytes(r.data)))
 
-        modem_imei = struct_decode(kv_slots.lte_modem_imei, response[3])
-        pdp_ctx = struct_decode(kv_slots.lte_pdp_config, response[5])
-        system_modes = struct_decode(kv_slots.lte_networking_modes, response[6])
+        modem_imei = struct_decode(kv_slots.lte_modem_imei, response.values[3])
+        pdp_ctx = struct_decode(kv_slots.lte_pdp_config, response.values[5])
+        system_modes = struct_decode(kv_slots.lte_networking_modes, response.values[6])
 
         if pdp_ctx:
             pdp_str = f'"{str(pdp_ctx.apn)}" ({lte_pdp_ctx.lte_pdp_ctx.PDPFamily(pdp_ctx.family).name})'
@@ -58,10 +52,10 @@ class lte_modem_info(kv_read.kv_read):
         else:
             modes_str = "default"
 
-        print(f"\t   Model: {str_decode(response[0])}")
-        print(f"\tFirmware: {str_decode(response[1])}")
-        print(f"\t     ESN: {str_decode(response[2])}")
+        print(f"\t   Model: {str_decode(response.values[0])}")
+        print(f"\tFirmware: {str_decode(response.values[1])}")
+        print(f"\t     ESN: {str_decode(response.values[2])}")
         print(f"\t    IMEI: {modem_imei.imei}")
-        print(f"\t     SIM: {str_decode(response[4])}")
+        print(f"\t     SIM: {str_decode(response.values[4])}")
         print(f"\t     APN: {pdp_str}")
         print(f"\t    Mode: {modes_str}")

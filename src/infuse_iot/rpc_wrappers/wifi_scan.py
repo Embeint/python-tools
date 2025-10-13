@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import ctypes
-
 import tabulate
 
 import infuse_iot.definitions.rpc as defs
@@ -11,43 +9,6 @@ from infuse_iot.zephyr.errno import errno
 
 
 class wifi_scan(InfuseRpcCommand, defs.wifi_scan):
-    class response(ctypes.LittleEndianStructure):
-        @classmethod
-        def from_buffer_copy(cls, source, offset=0):
-            values = []
-            source = source[1:]
-            while len(source) > 0:
-
-                class scan_rsp_header(ctypes.LittleEndianStructure):
-                    _fields_ = [
-                        ("band", ctypes.c_uint8),
-                        ("channel", ctypes.c_uint8),
-                        ("security", ctypes.c_uint8),
-                        ("rssi", ctypes.c_int8),
-                        ("bssid", 6 * ctypes.c_char),
-                        ("ssid_length", ctypes.c_uint8),
-                    ]
-                    _pack_ = 1
-
-                header = scan_rsp_header.from_buffer_copy(source)
-
-                class scan_result(ctypes.LittleEndianStructure):
-                    _fields_ = [
-                        ("band", ctypes.c_uint8),
-                        ("channel", ctypes.c_uint8),
-                        ("security", ctypes.c_uint8),
-                        ("rssi", ctypes.c_int8),
-                        ("bssid", 6 * ctypes.c_char),
-                        ("ssid_length", ctypes.c_uint8),
-                        ("ssid", header.ssid_length * ctypes.c_char),
-                    ]
-                    _pack_ = 1
-
-                struct = scan_result.from_buffer_copy(source)
-                values.append(struct)
-                source = source[ctypes.sizeof(struct) :]
-            return values
-
     @classmethod
     def add_parser(cls, parser):
         return
@@ -64,12 +25,12 @@ class wifi_scan(InfuseRpcCommand, defs.wifi_scan):
             return
 
         table = []
-        for network in response:
+        for network in response.networks:
             bssid = ":".join([f"{b:02x}" for b in network.bssid])
 
             table.append(
                 [
-                    network.ssid.decode("utf-8"),
+                    bytes(network.ssid).decode("utf-8"),
                     bssid,
                     str(z_wifi.FrequencyBand(network.band)),
                     network.channel,

@@ -12,48 +12,6 @@ from infuse_iot.zephyr.errno import errno
 
 
 class kv_read(InfuseRpcCommand, defs.kv_read):
-    class request(ctypes.LittleEndianStructure):
-        _fields_ = [
-            ("num", ctypes.c_uint8),
-        ]
-        _pack_ = 1
-
-    class response:
-        @classmethod
-        def from_buffer_copy(cls, source: bytes, _offset: int = 0) -> list:
-            values = []
-            while len(source) > 0:
-
-                class kv_store_header(ctypes.LittleEndianStructure):
-                    _fields_ = [
-                        ("id", ctypes.c_uint16),
-                        ("len", ctypes.c_int16),
-                    ]
-                    _pack_ = 1
-
-                header = kv_store_header.from_buffer_copy(source)
-                struct: ctypes.LittleEndianStructure
-                if header.len > 0:
-
-                    class kv_store_value(ctypes.LittleEndianStructure):
-                        _fields_ = [
-                            ("id", ctypes.c_uint16),
-                            ("len", ctypes.c_int16),
-                            ("data", ctypes.c_ubyte * header.len),
-                        ]
-                        _pack_ = 1
-
-                    struct = kv_store_value.from_buffer_copy(source)
-                else:
-                    struct = header
-                values.append(struct)
-                source = source[ctypes.sizeof(struct) :]
-            return values
-
-        @classmethod
-        def vla_from_buffer_copy(cls, source: bytes, offset: int = 0) -> list:
-            return cls.from_buffer_copy(source, offset)
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--keys", "-k", required=True, type=int, nargs="+", help="Keys to read")
@@ -73,7 +31,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
             print(f"Invalid data buffer ({errno.strerror(-return_code)})")
             return
 
-        for r in response:
+        for r in response.values:
             if r.len > 0:
                 b = bytes(r.data)
                 try:
