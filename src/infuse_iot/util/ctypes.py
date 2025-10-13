@@ -43,6 +43,7 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
         """
 
         base = cls.from_buffer_copy(source, offset)
+        vla_val: list | VLACompatLittleEndianStruct
         if cls.vla_field is None:
             return base
 
@@ -50,16 +51,38 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
         vla_field_name, vla_field_type = cls.vla_field  # type: ignore
 
         if issubclass(vla_field_type, ctypes.Array):
-            array_base: ctypes._CData = vla_field_type._type_  # type: ignore
+            array_base: ctypes._PyCSimpleType = vla_field_type._type_  # type: ignore
+            if hasattr(array_base, "vla_counted_by"):
+                # This is an array of VLA arrays where the sub-arrys define their own length
+                vla_val = []
+                # Consume all remaining buffer bytes
+                while len(remainder) > 0:
+                    sub_vla_field_name, sub_vla_field_type = array_base.vla_field  # type: ignore
+                    sub_array_base: ctypes._CData = sub_vla_field_type._type_  # type: ignore
+                    sub_base = array_base.from_buffer_copy(remainder)
+                    sub_base_size = ctypes.sizeof(sub_base)
+                    sub_count = getattr(sub_base, array_base.vla_counted_by)
+                    if sub_count < 0:
+                        # Assume that negative length is an error code and use 0
+                        vla_val.append(sub_base)
+                    else:
+                        sub_vla_type = sub_count * sub_array_base
+                        # Don't use ctypes.sizeof on constructed type, it returns the wrong value
+                        sub_vla_size = sub_count * ctypes.sizeof(sub_array_base)
+                        sub_vla_val = sub_vla_type.from_buffer_copy(remainder[sub_base_size:])
+                        setattr(sub_base, sub_vla_field_name, sub_vla_val)
+                        vla_val.append(sub_base)
+                    remainder = remainder[sub_base_size + sub_vla_size :]
+            else:
+                # Determine the number of VLA elements on "source"
+                vla_byte_len = (len(source) - offset) - ctypes.sizeof(cls)
+                vla_element_size = ctypes.sizeof(array_base)
+                if vla_byte_len % vla_element_size != 0:
+                    raise TypeError(f"Unaligned VLA buffer for {cls} (len {len(source)})")
+                vla_num = vla_byte_len // vla_element_size
+                vla_type = vla_num * array_base
+                vla_val = vla_type.from_buffer_copy(remainder)
 
-            # Determine the number of VLA elements on "source"
-            vla_byte_len = (len(source) - offset) - ctypes.sizeof(cls)
-            vla_element_size = ctypes.sizeof(array_base)
-            if vla_byte_len % vla_element_size != 0:
-                raise TypeError(f"Unaligned VLA buffer for {cls} (len {len(source)})")
-            vla_num = vla_byte_len // vla_element_size
-            vla_type = vla_num * array_base
-            vla_val = vla_type.from_buffer_copy(remainder)
         elif issubclass(vla_field_type, VLACompatLittleEndianStruct):
             vla_val = vla_field_type.vla_from_buffer_copy(remainder)
         else:
