@@ -4,6 +4,8 @@ import enum
 
 
 class RegistrationState(enum.IntEnum):
+    """Network registration state (3GPP TS 127.007)"""
+
     NOT_REGISTERED = 0
     REGISTERED_HOME = 1
     SEARCHING = 2
@@ -26,15 +28,47 @@ class RegistrationState(enum.IntEnum):
 
 
 class AccessTechnology(enum.IntEnum):
-    NONE = 0
-    LTE_M = 7
-    NB_IOT = 9
+    """Access Technology (3GPP TS 127.007)"""
+
+    GSM = 0
+    GSM_COMPACT = 1
+    UTRAN = 2
+    GSM_EGPRS = 3
+    UTRAN_HSDPA = 4
+    UTRAN_HSUPA = 5
+    UTRAN_HSDPA_HSUPA = 6
+    E_UTRAN = 7
+    EC_GSM_IOT = 8
+    E_UTRAN_NB_S1 = 9
+    E_UTRA_5G_CN = 10
+    NR_5G_CN = 11
+    NG_RAN = 12
+    E_UTRA_NR_DUAL = 13
+    E_UTRAN_NB_S1_SAT = 14
+    E_UTRAN_WB_S1_SAT = 15
+    NG_RAN_SAT = 16
+    UNKNOWN = 255
 
     def __str__(self):
         pretty_names = {
-            self.NONE: "None",
-            self.LTE_M: "LTE-M",
-            self.NB_IOT: "NB-IoT",
+            self.GSM: "GSM (2G, 3GPP Rel 99)",
+            self.GSM_COMPACT: "GSM Compact (2G, 3GPP Rel 99)",
+            self.UTRAN: "UTRAN (3G, 3GPP Rel 99)",
+            self.GSM_EGPRS: "GSM Enhanced (2.5G, 3GPP Rel 99)",
+            self.UTRAN_HSDPA: "UTRAN High Speed Downlink (3.5G, 3GPP Rel 5)",
+            self.UTRAN_HSUPA: "UTRAN High Speed Uplink (3.75G, 3GPP Rel 6)",
+            self.UTRAN_HSDPA_HSUPA: "UTRAN High Speed Uplink/Downlink (3.75G, 3GPP Rel 6)",
+            self.E_UTRAN: "LTE/Evolved UTRAN (4G, 3GPP Rel 8)",
+            self.EC_GSM_IOT: "Extended Coverage GSM for IoT (2G, 3GPP Rel 13)",
+            self.E_UTRAN_NB_S1: "EUTRAN Narrowband-IoT (4G, 3GPP Rel 13)",
+            self.E_UTRA_5G_CN: "LTE/E-UTRA connected to 5G Core Network (5G, 3GPP Rel 15)",
+            self.NR_5G_CN: "New Radio with 5G Core Network (5G, 3GPP Rel 15)",
+            self.NG_RAN: "Next Generation RAN (5G, 3GPP Rel 15)",
+            self.E_UTRA_NR_DUAL: "LTE/E-UTRA & NR dual connectivity (5G, 3GPP Rel 15)",
+            self.E_UTRAN_NB_S1_SAT: "Narrowband-IoT over Satellite (4G, 3GPP Rel 17)",
+            self.E_UTRAN_WB_S1_SAT: "LTE (wideband) over Satellite (4G, 3GPP Rel 17)",
+            self.NG_RAN_SAT: "Next Generation RAN over Satellite (5G, 3GPP Rel 17)",
+            self.UNKNOWN: "Unknown",
         }
         return pretty_names[self]
 
