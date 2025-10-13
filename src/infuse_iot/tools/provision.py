@@ -66,6 +66,9 @@ class SubCommand(InfuseCommand):
             type=str,
             help="Define a number of key-value pairs for metadata",
         )
+        parser.add_argument(
+            "--dry-run", action="store_true", help="Generate the request that would be sent, but do not send it"
+        )
 
     def __init__(self, args):
         self._vendor = args.vendor
@@ -73,6 +76,7 @@ class SubCommand(InfuseCommand):
         self._board = args.board
         self._org = args.organisation
         self._id = args.id
+        self._dry_run = args.dry_run
         self._metadata = {}
         if args.metadata:
             for meta in args.metadata:
@@ -112,6 +116,10 @@ class SubCommand(InfuseCommand):
         if self._id:
             new_board.device_id = f"{self._id:016x}"
 
+        if self._dry_run:
+            print(new_board)
+            return
+
         response = create_device.sync_detailed(client=client, body=new_board)
         if response.status_code != HTTPStatus.CREATED:
             sys.exit(f"Failed to create device:\n\t<{response.status_code}> {response.content.decode('utf-8')}")
@@ -141,6 +149,9 @@ class SubCommand(InfuseCommand):
             elif response.status_code == HTTPStatus.NOT_FOUND:
                 # Create new device here
                 self.create_device(client, interface.soc_name, hardware_id_str)
+                # Exit if dry run only
+                if self._dry_run:
+                    return
                 # Query information back out
                 response = get_device_by_soc_and_mcu_id.sync_detailed(
                     client=client, soc=interface.soc_name, mcu_id=hardware_id_str
