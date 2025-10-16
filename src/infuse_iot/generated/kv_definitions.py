@@ -60,6 +60,16 @@ class structs:
         ]
         _pack_ = 1
 
+    class kv_utc_hms(VLACompatLittleEndianStruct):
+        """UTC Hour-Minute-Second"""
+
+        _fields_ = [
+            ("hour", ctypes.c_uint8),
+            ("minute", ctypes.c_uint8),
+            ("second", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
 
 class slots:
     class reboots(VLACompatLittleEndianStruct):
@@ -328,6 +338,18 @@ class slots:
         ]
         _pack_ = 1
 
+    class led_disable_daily_time_range(VLACompatLittleEndianStruct):
+        """Disable LEDs between two UTC times daily"""
+
+        NAME = "LED_DISABLE_DAILY_TIME_RANGE"
+        BASE_ID = 53
+        RANGE = 1
+        _fields_ = [
+            ("disable_start", structs.kv_utc_hms),
+            ("disable_end", structs.kv_utc_hms),
+        ]
+        _pack_ = 1
+
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
 
@@ -419,6 +441,7 @@ class slots:
         50: bluetooth_peer,
         51: lora_config,
         52: bluetooth_throughput_limit,
+        53: led_disable_daily_time_range,
         60: gravity_reference,
         100: geofence,
         101: geofence,
