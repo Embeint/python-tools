@@ -45,12 +45,12 @@ class InfuseCommand(metaclass=ABCMeta):
 
 
 class InfuseRpcCommand:
-    RPC_DATA_SEND = False
-    RPC_DATA_SEND_CHUNKED = False
-    RPC_DATA_RECEIVE = False
+    RPC_DATA_SEND: bool = False
+    RPC_DATA_SEND_CHUNKED: bool = False
+    RPC_DATA_RECEIVE: bool = False
 
     @classmethod
-    def add_parser(cls, parser: argparse.ArgumentParser):
+    def add_parser(cls, parser: argparse.ArgumentParser) -> None:
         raise NotImplementedError
 
     def __init__(self, **kwargs):
@@ -82,10 +82,12 @@ class InfuseRpcCommand:
 
     def data_recv_cb(self, offset: int, data: bytes) -> None:
         """Data received callback"""
+        raise NotImplementedError
 
     def data_progress_cb(self, offset: int) -> None:
         """Progress callback"""
+        raise NotImplementedError
 
-    def handle_response(self, return_code: int, response: ctypes.LittleEndianStructure | None):
+    def handle_response(self, return_code: int, response: ctypes.LittleEndianStructure | None) -> None:
         """Handle RPC_RSP"""
         raise NotImplementedError
