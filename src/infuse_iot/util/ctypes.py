@@ -65,6 +65,7 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
                     if sub_count < 0:
                         # Assume that negative length is an error code and use 0
                         vla_val.append(sub_base)
+                        sub_vla_size = 0
                     else:
                         sub_vla_type = sub_count * sub_array_base
                         # Don't use ctypes.sizeof on constructed type, it returns the wrong value
