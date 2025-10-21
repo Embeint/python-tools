@@ -62,6 +62,10 @@ class SerialLike(metaclass=ABCMeta):
     def close(self):
         """Close the serial port"""
 
+    @abstractmethod
+    def __str__(self):
+        """Human readable description of the port"""
+
 
 class SerialPort(SerialLike):
     """Serial Port handling"""
@@ -78,22 +82,27 @@ class SerialPort(SerialLike):
     def open(self):
         self._ser.open()
 
-    def read_bytes(self, num):
+    def read_bytes(self, num) -> bytes:
         return self._ser.read(num)
 
-    def ping(self):
+    def ping(self) -> None:
         self._ser.write(self._prefix + SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
         self._ser.flush()
 
-    def write(self, packet: bytes):
+    def write(self, packet: bytes) -> None:
         # Add header
         pkt = self._prefix + SerialFrame.SYNC + len(packet).to_bytes(2, "little") + packet
         # Write packet to serial port
         self._ser.write(pkt)
         self._ser.flush()
 
-    def close(self):
+    def close(self) -> None:
         self._ser.close()
+
+    def __str__(self) -> str:
+        if self._ser.port:
+            return f"Serial: {self._ser.port}"
+        return "Serial: N/A"
 
 
 class RttPort(SerialLike):
@@ -157,11 +166,15 @@ class RttPort(SerialLike):
             self._modem_trace.flush()
             self._modem_trace.close()
 
+    def __str__(self) -> str:
+        return f"RTT: {self._name}"
+
 
 class PyOcdPort(SerialLike):
     """PyOcd RTT handling"""
 
     def __init__(self, target: str):
+        self._name = target
         self._session = ConnectHelper.session_with_chosen_probe(auto_open=False, options={"target_override": target})
         self._target = self._session.target
         self._rtt = GenericRTTControlBlock(self._target)
@@ -191,3 +204,6 @@ class PyOcdPort(SerialLike):
 
     def close(self):
         self._session.close()
+
+    def __str__(self) -> str:
+        return f"PYOCD: {self._name}"
