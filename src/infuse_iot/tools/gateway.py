@@ -458,6 +458,7 @@ class SubCommand(InfuseCommand):
     def run(self):
         # Open the serial port
         self.port.open()
+        Console.log_info(f"Port '{str(self.port)}' opened")
         # Ping the port to get the local device ID
         self.port.ping()
 
