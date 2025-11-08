@@ -98,12 +98,12 @@ class Interface(ProvisioningInterface):
         self.snr = snr
         devices = self._exec(["device-info"])
         if len(devices) == 0:
-            sys.exit()
+            raise RuntimeError("No devices found")
         devices_info = devices[0]["devices"]
 
         if len(devices_info) > 1:
             serials = ",".join([d["serialNumber"] for d in devices_info])
-            sys.exit(f"Multiple devices found without a SNR provided (Found: {serials})")
+            raise RuntimeError(f"Multiple devices found without a SNR provided (Found: {serials})")
         self.snr = devices_info[0]["serialNumber"]
         self.device_info = devices_info[0]["deviceInfo"]
         self.core_info = self._exec(["core-info"])
