@@ -132,6 +132,9 @@ class DeviceDatabase:
     def _bt_gatt_key(self, base: bytes, time_idx: int) -> bytes:
         return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"bt_gatt")
 
+    def _udp_key(self, base: bytes, time_idx: int) -> bytes:
+        return hkdf_derive(base, time_idx.to_bytes(4, "little"), b"udp")
+
     def has_public_key(self, address: int) -> bool:
         """Does the database have the public key for this device?"""
         if address not in self.devices:
@@ -219,3 +222,27 @@ class DeviceDatabase:
         time_idx = gps_time // (60 * 60 * 24)
 
         return self._bt_gatt_key(base, time_idx)
+
+    def udp_network_key(self, address: int, gps_time: int) -> bytes:
+        """Network key for UDP interface"""
+        if address not in self.devices:
+            raise DeviceUnknownNetworkKey
+        network_id = self.devices[address].network_id
+        if network_id is None:
+            raise DeviceUnknownNetworkKey
+
+        return self._network_key(network_id, b"udp", gps_time)
+
+    def udp_device_key(self, address: int, gps_time: int) -> bytes:
+        """Device key for UDP interface"""
+        if address not in self.devices:
+            raise DeviceUnknownDeviceKey
+        d = self.devices[address]
+        if d.device_id is None:
+            raise DeviceUnknownDeviceKey
+        base = self.devices[address].shared_key
+        if base is None:
+            raise DeviceUnknownDeviceKey
+        time_idx = gps_time // (60 * 60 * 24)
+
+        return self._udp_key(base, time_idx)
