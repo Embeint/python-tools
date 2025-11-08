@@ -503,6 +503,21 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         return header, decrypted
 
 
+class CtypeUdpFrame(CtypeV0UnversionedFrame):
+    @classmethod
+    def decrypt(cls, database: DeviceDatabase, frame: bytes):
+        header = cls.from_buffer_copy(frame)
+        if header.flags & Flags.ENCR_DEVICE:
+            database.observe_device(header.device_id, device_id=header.key_metadata)
+            key = database.udp_device_key(header.device_id, header.gps_time)
+        else:
+            database.observe_device(header.device_id, network_id=header.key_metadata)
+            key = database.udp_network_key(header.device_id, header.gps_time)
+
+        decrypted = chachapoly_decrypt(key, frame[:10], frame[10:22], frame[22:])
+        return header, decrypted
+
+
 class CtypePacketReceived:
     class CommonHeader(ctypes.Structure):
         _fields_ = [
