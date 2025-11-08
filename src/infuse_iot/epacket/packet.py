@@ -337,18 +337,8 @@ class CtypeForwardHeaderBtGatt(ctypes.LittleEndianStructure):
     _pack_ = 1
 
 
-class CtypeV0VersionedFrame(ctypes.LittleEndianStructure):
-    _fields_ = [
-        ("version", ctypes.c_uint8),
-        ("_type", ctypes.c_uint8),
-        ("flags", ctypes.c_uint16),
-        ("_key_metadata", ctypes.c_uint8 * 3),
-        ("_device_id_upper", ctypes.c_uint32),
-        ("_device_id_lower", ctypes.c_uint32),
-        ("gps_time", ctypes.c_uint32),
-        ("sequence", ctypes.c_uint16),
-        ("entropy", ctypes.c_uint16),
-    ]
+class CtypeV0Frame(ctypes.LittleEndianStructure):
+    _fields_ = []
     _pack_ = 1
 
     @property
@@ -379,6 +369,35 @@ class CtypeV0VersionedFrame(ctypes.LittleEndianStructure):
             cls.from_buffer_copy(frame),
             len(frame) - ctypes.sizeof(CtypeV0VersionedFrame) - 16,
         )
+
+
+class CtypeV0VersionedFrame(CtypeV0Frame):
+    _fields_ = [
+        ("version", ctypes.c_uint8),
+        ("_type", ctypes.c_uint8),
+        ("flags", ctypes.c_uint16),
+        ("_key_metadata", ctypes.c_uint8 * 3),
+        ("_device_id_upper", ctypes.c_uint32),
+        ("_device_id_lower", ctypes.c_uint32),
+        ("gps_time", ctypes.c_uint32),
+        ("sequence", ctypes.c_uint16),
+        ("entropy", ctypes.c_uint16),
+    ]
+    _pack_ = 1
+
+
+class CtypeV0UnversionedFrame(CtypeV0Frame):
+    _fields_ = [
+        ("_type", ctypes.c_uint8),
+        ("flags", ctypes.c_uint16),
+        ("_key_metadata", ctypes.c_uint8 * 3),
+        ("_device_id_upper", ctypes.c_uint32),
+        ("_device_id_lower", ctypes.c_uint32),
+        ("gps_time", ctypes.c_uint32),
+        ("sequence", ctypes.c_uint16),
+        ("entropy", ctypes.c_uint16),
+    ]
+    _pack_ = 1
 
 
 class CtypeSerialFrame(CtypeV0VersionedFrame):
