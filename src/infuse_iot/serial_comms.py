@@ -2,6 +2,7 @@
 
 import time
 from abc import ABCMeta, abstractmethod
+from io import BufferedWriter
 
 import pylink
 import serial
@@ -108,14 +109,15 @@ class SerialPort(SerialLike):
 class RttPort(SerialLike):
     """Segger RTT handling"""
 
-    def __init__(self, rtt_device):
+    def __init__(self, rtt_device: str, serial_number: str | None = None):
         self._jlink = pylink.JLink()
         self._name = rtt_device
-        self._modem_trace = None
+        self._serial_number = serial_number
+        self._modem_trace: BufferedWriter | None = None
         self._modem_trace_buf = 0
 
     def open(self):
-        self._jlink.open()
+        self._jlink.open(serial_no=self._serial_number)
         self._jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
         self._jlink.connect(self._name, 4000)
         self._jlink.rtt_start()
