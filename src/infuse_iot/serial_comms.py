@@ -44,7 +44,7 @@ class SerialFrame:
 
 class SerialLike(metaclass=ABCMeta):
     @abstractmethod
-    def open(self) -> None:
+    def open(self, timeout: float | None = None) -> None:
         """Open serial port"""
 
     @abstractmethod
@@ -80,7 +80,7 @@ class SerialPort(SerialLike):
         # receivers (STM32) time to wake up on RX before real data arrives.
         self._prefix = b"\x00\x00" if baudrate > 115200 else b""
 
-    def open(self):
+    def open(self, timeout: float | None = None):
         self._ser.open()
 
     def read_bytes(self, num) -> bytes:
@@ -116,14 +116,18 @@ class RttPort(SerialLike):
         self._modem_trace: BufferedWriter | None = None
         self._modem_trace_buf = 0
 
-    def open(self):
+    def open(self, timeout: float | None = None):
         self._jlink.open(serial_no=self._serial_number)
         self._jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
         self._jlink.connect(self._name, 4000)
         self._jlink.rtt_start()
 
+        end_time = time.time() + timeout if timeout else None
+
         # Loop until JLink initialised properly
         while True:
+            if end_time and time.time() > end_time:
+                raise TimeoutError("RTT port never initialised")
             try:
                 num_up = self._jlink.rtt_get_num_up_buffers()
                 _num_down = self._jlink.rtt_get_num_down_buffers()
@@ -181,7 +185,7 @@ class PyOcdPort(SerialLike):
         self._target = self._session.target
         self._rtt = GenericRTTControlBlock(self._target)
 
-    def open(self):
+    def open(self, timeout: float | None = None):
         self._session.open()
         self._target.resume()
         self._rtt.start()
