@@ -1,10 +1,17 @@
 #!/usr/bin/env
 
+import ctypes
 from abc import ABCMeta, abstractmethod
 
 
 class ProvisioningInterface(metaclass=ABCMeta):
     "Generic SoC provisioning interface"
+
+    class DefaultProvisioningStruct(ctypes.LittleEndianStructure):
+        _fields_ = [
+            ("device_id", ctypes.c_uint64),
+        ]
+        _pack_ = 1
 
     @property
     @abstractmethod
