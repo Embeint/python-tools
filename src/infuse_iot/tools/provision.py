@@ -23,13 +23,6 @@ from infuse_iot.util.console import choose_one
 from infuse_iot.util.soc import nrf, soc, stm
 
 
-class ProvisioningStruct(ctypes.LittleEndianStructure):
-    _fields_ = [
-        ("device_id", ctypes.c_uint64),
-    ]
-    _pack_ = 1
-
-
 class SubCommand(InfuseCommand):
     NAME = "provision"
     HELP = "Provision device on Infuse Cloud"
@@ -171,8 +164,8 @@ class SubCommand(InfuseCommand):
         assert isinstance(response.parsed.device_id, str)
         # Compare current flash contents to desired flash contents
         cloud_id = int(response.parsed.device_id, 16)
-        current_bytes = interface.read_provisioned_data(ctypes.sizeof(ProvisioningStruct))
-        desired = ProvisioningStruct(cloud_id)
+        current_bytes = interface.read_provisioned_data(ctypes.sizeof(interface.DefaultProvisioningStruct))
+        desired = interface.DefaultProvisioningStruct(cloud_id)
         desired_bytes = bytes(desired)
 
         if current_bytes == desired_bytes:
