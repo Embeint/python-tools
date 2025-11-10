@@ -101,15 +101,19 @@ class Interface(ProvisioningInterface):
             raise RuntimeError("No devices found")
         devices_info = devices[0]["devices"]
 
-        if len(devices_info) > 1:
-            serials = ",".join([d["serialNumber"] for d in devices_info])
-            raise RuntimeError(f"Multiple devices found without a SNR provided (Found: {serials})")
-        self.snr = devices_info[0]["serialNumber"]
-        self.device_info = devices_info[0]["deviceInfo"]
+        if snr is None:
+            if len(devices_info) > 1:
+                serials = ",".join([d["serialNumber"] for d in devices_info])
+                raise RuntimeError(f"Multiple devices found without a SNR provided (Found: {serials})")
+            self.snr = int(devices_info[0]["serialNumber"])
+        infos = [info for info in devices_info if int(info["serialNumber"]) == self.snr]
+        if len(infos) == 0:
+            raise RuntimeError(f"Devices with SNR {self.snr} not found")
+        self.device_info = infos[0]["deviceInfo"]
         self.core_info = self._exec(["core-info"])
         self.family = DEVICE_FAMILY_MAPPING[self.device_info["jlink"]["deviceFamily"]]
-        self.uicr_base = self.core_info[0]["devices"][0]["uicrAddress"]
-        self._soc_name = self.family.soc(self.device_info)
+        self.uicr_base: int = self.core_info[0]["devices"][0]["uicrAddress"]
+        self._soc_name: str = self.family.soc(self.device_info)
 
     def _exec(self, args: list[str]):
         jout_all = []
