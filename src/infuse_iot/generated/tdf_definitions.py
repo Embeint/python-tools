@@ -1535,6 +1535,89 @@ class readings:
             "soc": "{}",
         }
 
+    class state_event_set(TdfReadingBase):
+        """Infuse-IoT application state transitioned from cleared to set"""
+
+        ID = 55
+        NAME = "STATE_EVENT_SET"
+        _fields_ = [
+            ("state", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "state": "",
+        }
+        _display_fmt_ = {
+            "state": "{}",
+        }
+
+    class state_event_cleared(TdfReadingBase):
+        """Infuse-IoT application state transitioned from set to cleared"""
+
+        ID = 56
+        NAME = "STATE_EVENT_CLEARED"
+        _fields_ = [
+            ("state", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "state": "",
+        }
+        _display_fmt_ = {
+            "state": "{}",
+        }
+
+    class state_duration(TdfReadingBase):
+        """Duration an Infuse-IoT application state was asserted for"""
+
+        ID = 57
+        NAME = "STATE_DURATION"
+        _fields_ = [
+            ("state", ctypes.c_uint8),
+            ("duration", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "state": "",
+            "duration": "",
+        }
+        _display_fmt_ = {
+            "state": "{}",
+            "duration": "{}",
+        }
+
+    class pcm_16bit_chan_left(TdfReadingBase):
+        """16bit PCM (Audio) data for the left channel"""
+
+        ID = 58
+        NAME = "PCM_16BIT_CHAN_LEFT"
+        _fields_ = [
+            ("val", ctypes.c_int16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
+            "val": "{}",
+        }
+
+    class pcm_16bit_chan_right(TdfReadingBase):
+        """Duration an Infuse-IoT application state was asserted for"""
+
+        ID = 59
+        NAME = "PCM_16BIT_CHAN_RIGHT"
+        _fields_ = [
+            ("val", ctypes.c_int16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "val": "",
+        }
+        _display_fmt_ = {
+            "val": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1588,6 +1671,11 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.exception_stack_frame.ID: readings.exception_stack_frame,
     readings.battery_voltage.ID: readings.battery_voltage,
     readings.battery_soc.ID: readings.battery_soc,
+    readings.state_event_set.ID: readings.state_event_set,
+    readings.state_event_cleared.ID: readings.state_event_cleared,
+    readings.state_duration.ID: readings.state_duration,
+    readings.pcm_16bit_chan_left.ID: readings.pcm_16bit_chan_left,
+    readings.pcm_16bit_chan_right.ID: readings.pcm_16bit_chan_right,
 }
 
 __all__ = [

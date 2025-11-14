@@ -232,6 +232,20 @@ class rpc_enum_zperf_data_source(enum.IntEnum):
     ENCRYPT = 128
 
 
+class rpc_enum_key_id(enum.IntEnum):
+    """Infuse security key identifier"""
+
+    NETWORK_KEY = 0
+    SECONDARY_NETWORK_KEY = 1
+
+
+class rpc_enum_key_action(enum.IntEnum):
+    """Infuse security key action"""
+
+    KEY_WRITE = 0
+    KEY_DELETE = 1
+
+
 class RPCDefinitionBase:
     NAME: str
     HELP: str
@@ -1004,6 +1018,29 @@ class security_state(RPCDefinitionBase):
         _pack_ = 1
 
 
+class security_key_update(RPCDefinitionBase):
+    """Update key material"""
+
+    NAME = "security_key_update"
+    HELP = "Update key material"
+    DESCRIPTION = "Update key material"
+    COMMAND_ID = 30001
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("key_id", ctypes.c_uint8),
+            ("key_action", ctypes.c_uint8),
+            ("key_global_identifier", ctypes.c_uint32),
+            ("key_bitstream", 32 * ctypes.c_uint8),
+            ("reboot_delay", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+
 class data_sender(RPCDefinitionBase):
     """Send multiple INFUSE_RPC_DATA packets"""
 
@@ -1096,6 +1133,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     bt_mcumgr_reboot.COMMAND_ID: bt_mcumgr_reboot,
     gravity_reference_update.COMMAND_ID: gravity_reference_update,
     security_state.COMMAND_ID: security_state,
+    security_key_update.COMMAND_ID: security_key_update,
     data_sender.COMMAND_ID: data_sender,
     data_receiver.COMMAND_ID: data_receiver,
     echo.COMMAND_ID: echo,
@@ -1122,6 +1160,8 @@ __all__ = [
     "rpc_enum_infuse_bt_characteristic",
     "rpc_enum_data_logger",
     "rpc_enum_zperf_data_source",
+    "rpc_enum_key_id",
+    "rpc_enum_key_action",
     "reboot",
     "fault",
     "time_get",
@@ -1155,6 +1195,7 @@ __all__ = [
     "bt_mcumgr_reboot",
     "gravity_reference_update",
     "security_state",
+    "security_key_update",
     "data_sender",
     "data_receiver",
     "echo",

@@ -139,6 +139,17 @@ class slots:
         ]
         _pack_ = 1
 
+    class application_active(VLACompatLittleEndianStruct):
+        """Control STATE_APPLICATION_ACTIVE"""
+
+        NAME = "APPLICATION_ACTIVE"
+        BASE_ID = 6
+        RANGE = 1
+        _fields_ = [
+            ("active", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
 
@@ -423,6 +434,7 @@ class slots:
         3: bluetooth_ctlr_version,
         4: device_name,
         5: infuse_application_id,
+        6: application_active,
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,
