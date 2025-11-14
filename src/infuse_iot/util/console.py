@@ -60,7 +60,7 @@ class Console:
         """Log colourised string to terminal"""
         ts = timestamp.strftime("%H:%M:%S.%f")[:-3]
         with _lock:
-            print(f"[{ts}]{colour} {string}")
+            print(f"[{ts}]{colour} {string}{colorama.Fore.RESET}")
 
 
 def choose_one(title: str, options: list[str]) -> tuple[int, str]:
