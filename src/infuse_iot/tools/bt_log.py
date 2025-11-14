@@ -66,9 +66,9 @@ class SubCommand(InfuseCommand):
                             t = tdf.data[-1]
                             t_str = f"{tdf.time:.3f}" if tdf.time else "N/A"
                             if len(tdf.data) > 1:
-                                print(f"{t_str} TDF: {t.name}[{len(tdf.data)}]")
+                                print(f"{t_str} TDF: {t.NAME}[{len(tdf.data)}]")
                             else:
-                                print(f"{t_str} TDF: {t.name}")
+                                print(f"{t_str} TDF: {t.NAME}")
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
