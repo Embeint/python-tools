@@ -3,6 +3,11 @@
 import keyring
 import yaml
 
+DEFAULT_NETWORK_KEY = (
+    b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+    b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
+)
+
 
 def set_api_key(api_key: str) -> None:
     """
@@ -36,10 +41,14 @@ def save_network(network_id: int, network_info: str) -> None:
     keyring.set_password("infuse-iot", username, network_info)
 
 
-def load_network(network_id: int):
+def load_network(network_id: int) -> dict:
     """
     Retrieve an Infuse-IoT network key from the keyring module
     """
+    if network_id == 0x000000:
+        # Default network
+        return {"id": 0, "key": DEFAULT_NETWORK_KEY}
+
     username = f"network-{network_id:06x}"
     key = keyring.get_password("infuse-iot", username)
     if key is None:
