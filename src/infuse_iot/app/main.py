@@ -73,7 +73,8 @@ class InfuseApp:
                 module = importlib.util.module_from_spec(spec)
                 try:
                     spec.loader.exec_module(module)
-                except Exception as _:
+                except Exception as e:
+                    print(f"Failed to import '{name}': {str(e)}")
                     continue
                 if hasattr(module, "SubCommand"):
                     self._load_from_module(tools_parser, module)
