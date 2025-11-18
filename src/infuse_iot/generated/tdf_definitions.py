@@ -1603,7 +1603,7 @@ class readings:
         }
 
     class pcm_16bit_chan_right(TdfReadingBase):
-        """Duration an Infuse-IoT application state was asserted for"""
+        """16bit PCM (Audio) data for the right channel"""
 
         ID = 59
         NAME = "PCM_16BIT_CHAN_RIGHT"
@@ -1616,6 +1616,25 @@ class readings:
         }
         _display_fmt_ = {
             "val": "{}",
+        }
+
+    class pcm_16bit_chan_dual(TdfReadingBase):
+        """16bit PCM (Audio) data for both the left and right channels"""
+
+        ID = 60
+        NAME = "PCM_16BIT_CHAN_DUAL"
+        _fields_ = [
+            ("left", ctypes.c_int16),
+            ("right", ctypes.c_int16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "left": "",
+            "right": "",
+        }
+        _display_fmt_ = {
+            "left": "{}",
+            "right": "{}",
         }
 
 
@@ -1676,6 +1695,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.state_duration.ID: readings.state_duration,
     readings.pcm_16bit_chan_left.ID: readings.pcm_16bit_chan_left,
     readings.pcm_16bit_chan_right.ID: readings.pcm_16bit_chan_right,
+    readings.pcm_16bit_chan_dual.ID: readings.pcm_16bit_chan_dual,
 }
 
 __all__ = [
