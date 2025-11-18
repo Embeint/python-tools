@@ -43,9 +43,11 @@ from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
+    ClientNotificationObservedDevices,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
+    GatewayRequestObservedDevices,
     LocalServer,
     default_multicast_address,
 )
@@ -388,6 +390,21 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
+    def _handle_observed_devices(self):
+        if self._common.server is None:
+            raise RuntimeError
+        observed_devices = {}
+        for device, state in self._common.ddb.devices.items():
+            info = {}
+            if state.network_id is not None:
+                info["network_id"] = state.network_id
+            if state.device_id is not None:
+                info["device_id"] = state.device_id
+            if self._common.ddb.gateway == device:
+                info["gateway"] = True
+            observed_devices[device] = info
+        self._common.server.broadcast(ClientNotificationObservedDevices(observed_devices))
+
     def _iter(self) -> None:
         if self._common.server is None:
             time.sleep(1.0)
@@ -401,6 +418,8 @@ class SerialTxThread(SignaledThread):
                 self._handle_conn_request(req)
             elif isinstance(req, GatewayRequestConnectionRelease):
                 self._handle_conn_release(req)
+            elif isinstance(req, GatewayRequestObservedDevices):
+                self._handle_observed_devices()
             else:
                 Console.log_error(f"Unhandled request {type(req)}")
 
