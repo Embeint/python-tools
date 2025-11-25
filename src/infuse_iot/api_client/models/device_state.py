@@ -32,11 +32,11 @@ class DeviceState:
 
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    application_id: Union[Unset, int] = UNSET
+    application_id: Unset | int = UNSET
     application_version: Union[Unset, "ApplicationVersion"] = UNSET
-    algorithms: Union[Unset, list["Algorithm"]] = UNSET
-    last_route_interface: Union[Unset, RouteType] = UNSET
-    last_route_udp_address: Union[Unset, str] = UNSET
+    algorithms: Unset | list["Algorithm"] = UNSET
+    last_route_interface: Unset | RouteType = UNSET
+    last_route_udp_address: Unset | str = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,18 +46,18 @@ class DeviceState:
 
         application_id = self.application_id
 
-        application_version: Union[Unset, dict[str, Any]] = UNSET
+        application_version: Unset | dict[str, Any] = UNSET
         if not isinstance(self.application_version, Unset):
             application_version = self.application_version.to_dict()
 
-        algorithms: Union[Unset, list[dict[str, Any]]] = UNSET
+        algorithms: Unset | list[dict[str, Any]] = UNSET
         if not isinstance(self.algorithms, Unset):
             algorithms = []
             for algorithms_item_data in self.algorithms:
                 algorithms_item = algorithms_item_data.to_dict()
                 algorithms.append(algorithms_item)
 
-        last_route_interface: Union[Unset, str] = UNSET
+        last_route_interface: Unset | str = UNSET
         if not isinstance(self.last_route_interface, Unset):
             last_route_interface = self.last_route_interface.value
 
@@ -97,7 +97,7 @@ class DeviceState:
         application_id = d.pop("applicationId", UNSET)
 
         _application_version = d.pop("applicationVersion", UNSET)
-        application_version: Union[Unset, ApplicationVersion]
+        application_version: Unset | ApplicationVersion
         if isinstance(_application_version, Unset):
             application_version = UNSET
         else:
@@ -111,7 +111,7 @@ class DeviceState:
             algorithms.append(algorithms_item)
 
         _last_route_interface = d.pop("lastRouteInterface", UNSET)
-        last_route_interface: Union[Unset, RouteType]
+        last_route_interface: Unset | RouteType
         if isinstance(_last_route_interface, Unset):
             last_route_interface = UNSET
         else:

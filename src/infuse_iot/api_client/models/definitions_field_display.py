@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,13 +20,13 @@ class DefinitionsFieldDisplay:
         postfix (Union[Unset, str]):
     """
 
-    fmt: Union[Unset, DefinitionsFieldDisplayFmt] = UNSET
-    digits: Union[Unset, int] = UNSET
-    postfix: Union[Unset, str] = UNSET
+    fmt: Unset | DefinitionsFieldDisplayFmt = UNSET
+    digits: Unset | int = UNSET
+    postfix: Unset | str = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        fmt: Union[Unset, str] = UNSET
+        fmt: Unset | str = UNSET
         if not isinstance(self.fmt, Unset):
             fmt = self.fmt.value
 
@@ -50,7 +50,7 @@ class DefinitionsFieldDisplay:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         _fmt = d.pop("fmt", UNSET)
-        fmt: Union[Unset, DefinitionsFieldDisplayFmt]
+        fmt: Unset | DefinitionsFieldDisplayFmt
         if isinstance(_fmt, Unset):
             fmt = UNSET
         else:

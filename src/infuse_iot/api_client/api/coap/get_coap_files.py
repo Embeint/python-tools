@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -12,7 +12,7 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    regex: Union[Unset, str] = UNSET,
+    regex: Unset | str = UNSET,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
@@ -29,9 +29,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[COAPFilesList, Error]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> COAPFilesList | Error | None:
     if response.status_code == 200:
         response_200 = COAPFilesList.from_dict(response.json())
 
@@ -51,8 +49,8 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[COAPFilesList, Error]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[COAPFilesList | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -63,9 +61,9 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-    regex: Union[Unset, str] = UNSET,
-) -> Response[Union[COAPFilesList, Error]]:
+    client: AuthenticatedClient | Client,
+    regex: Unset | str = UNSET,
+) -> Response[COAPFilesList | Error]:
     """Get a list of files on the COAP server
 
     Args:
@@ -92,9 +90,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
-    regex: Union[Unset, str] = UNSET,
-) -> Optional[Union[COAPFilesList, Error]]:
+    client: AuthenticatedClient | Client,
+    regex: Unset | str = UNSET,
+) -> COAPFilesList | Error | None:
     """Get a list of files on the COAP server
 
     Args:
@@ -116,9 +114,9 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-    regex: Union[Unset, str] = UNSET,
-) -> Response[Union[COAPFilesList, Error]]:
+    client: AuthenticatedClient | Client,
+    regex: Unset | str = UNSET,
+) -> Response[COAPFilesList | Error]:
     """Get a list of files on the COAP server
 
     Args:
@@ -143,9 +141,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
-    regex: Union[Unset, str] = UNSET,
-) -> Optional[Union[COAPFilesList, Error]]:
+    client: AuthenticatedClient | Client,
+    regex: Unset | str = UNSET,
+) -> COAPFilesList | Error | None:
     """Get a list of files on the COAP server
 
     Args:

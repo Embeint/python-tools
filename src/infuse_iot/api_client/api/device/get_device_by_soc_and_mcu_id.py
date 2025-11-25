@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 import httpx
 
@@ -21,9 +21,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, Device]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Device | None:
     if response.status_code == 200:
         response_200 = Device.from_dict(response.json())
 
@@ -37,9 +35,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, Device]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Device]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -52,8 +48,8 @@ def sync_detailed(
     soc: str,
     mcu_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Any, Device]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Any | Device]:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -84,8 +80,8 @@ def sync(
     soc: str,
     mcu_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Any, Device]]:
+    client: AuthenticatedClient | Client,
+) -> Any | Device | None:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -111,8 +107,8 @@ async def asyncio_detailed(
     soc: str,
     mcu_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Any, Device]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Any | Device]:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -141,8 +137,8 @@ async def asyncio(
     soc: str,
     mcu_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Any, Device]]:
+    client: AuthenticatedClient | Client,
+) -> Any | Device | None:
     """Get a device by SoC and MCU ID
 
     Args:

@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 import httpx
 
@@ -20,9 +20,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, DeviceState]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | DeviceState | None:
     if response.status_code == 200:
         response_200 = DeviceState.from_dict(response.json())
 
@@ -36,9 +34,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, DeviceState]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | DeviceState]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -50,8 +46,8 @@ def _build_response(
 def sync_detailed(
     device_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Any, DeviceState]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Any | DeviceState]:
     """Get device state by DeviceID
 
     Args:
@@ -79,8 +75,8 @@ def sync_detailed(
 def sync(
     device_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Any, DeviceState]]:
+    client: AuthenticatedClient | Client,
+) -> Any | DeviceState | None:
     """Get device state by DeviceID
 
     Args:
@@ -103,8 +99,8 @@ def sync(
 async def asyncio_detailed(
     device_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Any, DeviceState]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Any | DeviceState]:
     """Get device state by DeviceID
 
     Args:
@@ -130,8 +126,8 @@ async def asyncio_detailed(
 async def asyncio(
     device_id: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Any, DeviceState]]:
+    client: AuthenticatedClient | Client,
+) -> Any | DeviceState | None:
     """Get device state by DeviceID
 
     Args:

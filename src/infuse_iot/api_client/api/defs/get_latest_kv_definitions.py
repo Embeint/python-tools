@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -20,8 +20,8 @@ def _get_kwargs() -> dict[str, Any]:
 
 
 def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[DefinitionsKVResponse, Error]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> DefinitionsKVResponse | Error | None:
     if response.status_code == 200:
         response_200 = DefinitionsKVResponse.from_dict(response.json())
 
@@ -41,8 +41,8 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[DefinitionsKVResponse, Error]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[DefinitionsKVResponse | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -53,8 +53,8 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[DefinitionsKVResponse, Error]]:
+    client: AuthenticatedClient | Client,
+) -> Response[DefinitionsKVResponse | Error]:
     """Get the latest KV definitions
 
     Raises:
@@ -76,8 +76,8 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[DefinitionsKVResponse, Error]]:
+    client: AuthenticatedClient | Client,
+) -> DefinitionsKVResponse | Error | None:
     """Get the latest KV definitions
 
     Raises:
@@ -95,8 +95,8 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[DefinitionsKVResponse, Error]]:
+    client: AuthenticatedClient | Client,
+) -> Response[DefinitionsKVResponse | Error]:
     """Get the latest KV definitions
 
     Raises:
@@ -116,8 +116,8 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[DefinitionsKVResponse, Error]]:
+    client: AuthenticatedClient | Client,
+) -> DefinitionsKVResponse | Error | None:
     """Get the latest KV definitions
 
     Raises:

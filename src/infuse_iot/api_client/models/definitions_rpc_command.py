@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,30 +20,28 @@ class DefinitionsRPCCommand:
     Attributes:
         name (str):
         description (str):
-        default (str):
         default_auth (DefinitionsRPCCommandDefaultAuth):
         request_params (list['DefinitionsFieldDefinition']):
         response_params (list['DefinitionsFieldDefinition']):
         depends_on (Union[Unset, str]):
+        default (Union[Unset, str]):
         rpc_data (Union[Unset, bool]): Whether the command is an RPC data command
     """
 
     name: str
     description: str
-    default: str
     default_auth: DefinitionsRPCCommandDefaultAuth
     request_params: list["DefinitionsFieldDefinition"]
     response_params: list["DefinitionsFieldDefinition"]
-    depends_on: Union[Unset, str] = UNSET
-    rpc_data: Union[Unset, bool] = UNSET
+    depends_on: Unset | str = UNSET
+    default: Unset | str = UNSET
+    rpc_data: Unset | bool = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
 
         description = self.description
-
-        default = self.default
 
         default_auth = self.default_auth.value
 
@@ -59,6 +57,8 @@ class DefinitionsRPCCommand:
 
         depends_on = self.depends_on
 
+        default = self.default
+
         rpc_data = self.rpc_data
 
         field_dict: dict[str, Any] = {}
@@ -67,7 +67,6 @@ class DefinitionsRPCCommand:
             {
                 "name": name,
                 "description": description,
-                "default": default,
                 "default_auth": default_auth,
                 "request_params": request_params,
                 "response_params": response_params,
@@ -75,6 +74,8 @@ class DefinitionsRPCCommand:
         )
         if depends_on is not UNSET:
             field_dict["depends_on"] = depends_on
+        if default is not UNSET:
+            field_dict["default"] = default
         if rpc_data is not UNSET:
             field_dict["rpc_data"] = rpc_data
 
@@ -88,8 +89,6 @@ class DefinitionsRPCCommand:
         name = d.pop("name")
 
         description = d.pop("description")
-
-        default = d.pop("default")
 
         default_auth = DefinitionsRPCCommandDefaultAuth(d.pop("default_auth"))
 
@@ -109,16 +108,18 @@ class DefinitionsRPCCommand:
 
         depends_on = d.pop("depends_on", UNSET)
 
+        default = d.pop("default", UNSET)
+
         rpc_data = d.pop("rpc_data", UNSET)
 
         definitions_rpc_command = cls(
             name=name,
             description=description,
-            default=default,
             default_auth=default_auth,
             request_params=request_params,
             response_params=response_params,
             depends_on=depends_on,
+            default=default,
             rpc_data=rpc_data,
         )
 

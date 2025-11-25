@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -31,12 +31,12 @@ class DefinitionsKVDefinition:
     name: str
     description: str
     fields: list["DefinitionsFieldDefinition"]
-    reflect: Union[Unset, bool] = UNSET
-    read_only: Union[Unset, bool] = UNSET
-    write_only: Union[Unset, bool] = UNSET
-    default: Union[Unset, str] = UNSET
-    depends_on: Union[Unset, str] = UNSET
-    range_: Union[Unset, int] = UNSET
+    reflect: Unset | bool = UNSET
+    read_only: Unset | bool = UNSET
+    write_only: Unset | bool = UNSET
+    default: Unset | str = UNSET
+    depends_on: Unset | str = UNSET
+    range_: Unset | int = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

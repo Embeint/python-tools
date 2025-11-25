@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 from uuid import UUID
 
 import httpx
@@ -13,8 +13,8 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     id: UUID,
     *,
-    metadata_name: Union[Unset, str] = UNSET,
-    metadata_value: Union[Unset, str] = UNSET,
+    metadata_name: Unset | str = UNSET,
+    metadata_value: Unset | str = UNSET,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
@@ -33,9 +33,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, list["Device"]]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list["Device"] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -55,8 +53,8 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, list["Device"]]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | list["Device"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -68,10 +66,10 @@ def _build_response(
 def sync_detailed(
     id: UUID,
     *,
-    client: Union[AuthenticatedClient, Client],
-    metadata_name: Union[Unset, str] = UNSET,
-    metadata_value: Union[Unset, str] = UNSET,
-) -> Response[Union[Any, list["Device"]]]:
+    client: AuthenticatedClient | Client,
+    metadata_name: Unset | str = UNSET,
+    metadata_value: Unset | str = UNSET,
+) -> Response[Any | list["Device"]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -103,10 +101,10 @@ def sync_detailed(
 def sync(
     id: UUID,
     *,
-    client: Union[AuthenticatedClient, Client],
-    metadata_name: Union[Unset, str] = UNSET,
-    metadata_value: Union[Unset, str] = UNSET,
-) -> Optional[Union[Any, list["Device"]]]:
+    client: AuthenticatedClient | Client,
+    metadata_name: Unset | str = UNSET,
+    metadata_value: Unset | str = UNSET,
+) -> Any | list["Device"] | None:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -133,10 +131,10 @@ def sync(
 async def asyncio_detailed(
     id: UUID,
     *,
-    client: Union[AuthenticatedClient, Client],
-    metadata_name: Union[Unset, str] = UNSET,
-    metadata_value: Union[Unset, str] = UNSET,
-) -> Response[Union[Any, list["Device"]]]:
+    client: AuthenticatedClient | Client,
+    metadata_name: Unset | str = UNSET,
+    metadata_value: Unset | str = UNSET,
+) -> Response[Any | list["Device"]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -166,10 +164,10 @@ async def asyncio_detailed(
 async def asyncio(
     id: UUID,
     *,
-    client: Union[AuthenticatedClient, Client],
-    metadata_name: Union[Unset, str] = UNSET,
-    metadata_value: Union[Unset, str] = UNSET,
-) -> Optional[Union[Any, list["Device"]]]:
+    client: AuthenticatedClient | Client,
+    metadata_name: Unset | str = UNSET,
+    metadata_value: Unset | str = UNSET,
+) -> Any | list["Device"] | None:
     """Get devices by board id and optional metadata field
 
     Args:

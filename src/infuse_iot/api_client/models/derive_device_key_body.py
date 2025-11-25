@@ -33,7 +33,7 @@ class DeriveDeviceKeyBody:
 
         interface = self.interface.value
 
-        security_state: Union[Unset, dict[str, Any]] = UNSET
+        security_state: Unset | dict[str, Any] = UNSET
         if not isinstance(self.security_state, Unset):
             security_state = self.security_state.to_dict()
 
@@ -60,7 +60,7 @@ class DeriveDeviceKeyBody:
         interface = KeyInterface(d.pop("interface"))
 
         _security_state = d.pop("securityState", UNSET)
-        security_state: Union[Unset, SecurityState]
+        security_state: Unset | SecurityState
         if isinstance(_security_state, Unset):
             security_state = UNSET
         else:

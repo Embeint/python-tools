@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -22,17 +22,17 @@ class DeviceLoggerState:
         last_downloaded_time (Union[Unset, datetime.datetime]): Last time logger state was downloaded
     """
 
-    last_reported_block: Union[Unset, int] = UNSET
-    last_reported_time: Union[Unset, datetime.datetime] = UNSET
-    last_downloaded_block: Union[Unset, int] = UNSET
-    last_downloaded_wrap_count: Union[Unset, int] = UNSET
-    last_downloaded_time: Union[Unset, datetime.datetime] = UNSET
+    last_reported_block: Unset | int = UNSET
+    last_reported_time: Unset | datetime.datetime = UNSET
+    last_downloaded_block: Unset | int = UNSET
+    last_downloaded_wrap_count: Unset | int = UNSET
+    last_downloaded_time: Unset | datetime.datetime = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         last_reported_block = self.last_reported_block
 
-        last_reported_time: Union[Unset, str] = UNSET
+        last_reported_time: Unset | str = UNSET
         if not isinstance(self.last_reported_time, Unset):
             last_reported_time = self.last_reported_time.isoformat()
 
@@ -40,7 +40,7 @@ class DeviceLoggerState:
 
         last_downloaded_wrap_count = self.last_downloaded_wrap_count
 
-        last_downloaded_time: Union[Unset, str] = UNSET
+        last_downloaded_time: Unset | str = UNSET
         if not isinstance(self.last_downloaded_time, Unset):
             last_downloaded_time = self.last_downloaded_time.isoformat()
 
@@ -66,7 +66,7 @@ class DeviceLoggerState:
         last_reported_block = d.pop("lastReportedBlock", UNSET)
 
         _last_reported_time = d.pop("lastReportedTime", UNSET)
-        last_reported_time: Union[Unset, datetime.datetime]
+        last_reported_time: Unset | datetime.datetime
         if isinstance(_last_reported_time, Unset):
             last_reported_time = UNSET
         else:
@@ -77,7 +77,7 @@ class DeviceLoggerState:
         last_downloaded_wrap_count = d.pop("lastDownloadedWrapCount", UNSET)
 
         _last_downloaded_time = d.pop("lastDownloadedTime", UNSET)
-        last_downloaded_time: Union[Unset, datetime.datetime]
+        last_downloaded_time: Unset | datetime.datetime
         if isinstance(_last_downloaded_time, Unset):
             last_downloaded_time = UNSET
         else:

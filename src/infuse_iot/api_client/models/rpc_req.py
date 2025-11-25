@@ -32,7 +32,7 @@ class RpcReq:
     request_id: int
     command_id: int
     params: Union[Unset, "RPCParams"] = UNSET
-    params_encoded: Union[Unset, str] = UNSET
+    params_encoded: Unset | str = UNSET
     data_header: Union[Unset, "RPCReqDataHeader"] = UNSET
     route: Union[Unset, "DownlinkRoute"] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -42,17 +42,17 @@ class RpcReq:
 
         command_id = self.command_id
 
-        params: Union[Unset, dict[str, Any]] = UNSET
+        params: Unset | dict[str, Any] = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
         params_encoded = self.params_encoded
 
-        data_header: Union[Unset, dict[str, Any]] = UNSET
+        data_header: Unset | dict[str, Any] = UNSET
         if not isinstance(self.data_header, Unset):
             data_header = self.data_header.to_dict()
 
-        route: Union[Unset, dict[str, Any]] = UNSET
+        route: Unset | dict[str, Any] = UNSET
         if not isinstance(self.route, Unset):
             route = self.route.to_dict()
 
@@ -87,7 +87,7 @@ class RpcReq:
         command_id = d.pop("commandId")
 
         _params = d.pop("params", UNSET)
-        params: Union[Unset, RPCParams]
+        params: Unset | RPCParams
         if isinstance(_params, Unset):
             params = UNSET
         else:
@@ -96,14 +96,14 @@ class RpcReq:
         params_encoded = d.pop("paramsEncoded", UNSET)
 
         _data_header = d.pop("dataHeader", UNSET)
-        data_header: Union[Unset, RPCReqDataHeader]
+        data_header: Unset | RPCReqDataHeader
         if isinstance(_data_header, Unset):
             data_header = UNSET
         else:
             data_header = RPCReqDataHeader.from_dict(_data_header)
 
         _route = d.pop("route", UNSET)
-        route: Union[Unset, DownlinkRoute]
+        route: Unset | DownlinkRoute
         if isinstance(_route, Unset):
             route = UNSET
         else:

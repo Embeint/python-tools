@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -13,8 +13,8 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     organisation_id: UUID,
-    limit: Union[Unset, int] = 100,
-    offset: Union[Unset, int] = 0,
+    limit: Unset | int = 100,
+    offset: Unset | int = 0,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
@@ -36,9 +36,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[list["DeviceAndState"]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> list["DeviceAndState"] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -55,7 +53,7 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+    *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Response[list["DeviceAndState"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
@@ -67,10 +65,10 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-    limit: Union[Unset, int] = 100,
-    offset: Union[Unset, int] = 0,
+    limit: Unset | int = 100,
+    offset: Unset | int = 0,
 ) -> Response[list["DeviceAndState"]]:
     """Get all devices and their states in an organisation
 
@@ -102,11 +100,11 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-    limit: Union[Unset, int] = 100,
-    offset: Union[Unset, int] = 0,
-) -> Optional[list["DeviceAndState"]]:
+    limit: Unset | int = 100,
+    offset: Unset | int = 0,
+) -> list["DeviceAndState"] | None:
     """Get all devices and their states in an organisation
 
     Args:
@@ -132,10 +130,10 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-    limit: Union[Unset, int] = 100,
-    offset: Union[Unset, int] = 0,
+    limit: Unset | int = 100,
+    offset: Unset | int = 0,
 ) -> Response[list["DeviceAndState"]]:
     """Get all devices and their states in an organisation
 
@@ -165,11 +163,11 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-    limit: Union[Unset, int] = 100,
-    offset: Union[Unset, int] = 0,
-) -> Optional[list["DeviceAndState"]]:
+    limit: Unset | int = 100,
+    offset: Unset | int = 0,
+) -> list["DeviceAndState"] | None:
     """Get all devices and their states in an organisation
 
     Args:
