@@ -56,7 +56,7 @@ class APNSetter:
         self.state = state
         live.update(self.progress_table())
 
-    def announce_observed(self, live: Live, infuse_id: int, pkt: readings.announce):
+    def announce_observed(self, live: Live, infuse_id: int, pkt: readings.announce | readings.announce_v2):
         if infuse_id in self.updated or infuse_id in self.already:
             return
         if pkt.application != self.app_id:

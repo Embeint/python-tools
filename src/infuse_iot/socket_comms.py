@@ -330,7 +330,7 @@ class LocalClient:
         # Close the socket
         self._input_sock.close()
 
-    def observe_announce(self) -> Generator[tuple[HopReceived, readings.announce], None, None]:
+    def observe_announce(self) -> Generator[tuple[HopReceived, readings.announce | readings.announce_v2], None, None]:
         decoder = TDF()
         while True:
             msg = self.receive()
@@ -343,6 +343,7 @@ class LocalClient:
             source = msg.epacket.route[0]
 
             for tdf in decoder.decode(msg.epacket.payload):
-                if not isinstance(tdf.data[0], readings.announce):
-                    continue
-                yield (source, tdf.data[0])
+                if isinstance(tdf.data[0], readings.announce):
+                    yield (source, tdf.data[0])
+                if isinstance(tdf.data[0], readings.announce_v2):
+                    yield (source, tdf.data[0])
