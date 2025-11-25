@@ -21,6 +21,7 @@ from infuse_iot.api_client.api.board import (
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
     get_device_by_device_id,
+    get_device_kv_entries_by_device_id,
     get_device_last_route_by_device_id,
     get_device_state_by_id,
 )
@@ -30,6 +31,7 @@ from infuse_iot.api_client.api.organisation import (
     get_organisation_by_id,
 )
 from infuse_iot.api_client.models import COAPFilesList, Error, NewBoard, NewOrganisation
+from infuse_iot.api_client.types import Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 
@@ -167,6 +169,9 @@ class Device(CloudSubCommand):
         info_parser = tool_parser.add_parser("info")
         info_parser.set_defaults(command_fn=cls.info)
         info_parser.add_argument("--id", type=str, help="Infuse-IoT device ID")
+        info_parser = tool_parser.add_parser("kv_state")
+        info_parser.set_defaults(command_fn=cls.kv_state)
+        info_parser.add_argument("--id", type=str, help="Infuse-IoT device ID")
 
     def run(self):
         with self.client() as client:
@@ -214,6 +219,36 @@ class Device(CloudSubCommand):
             ]
             if route.bt_adv:
                 table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
+
+        print(tabulate(table))
+
+    def _kv_display(self, table: list[tuple[str, Any]], name_base: str, dictionary: dict):
+        for name, value in dictionary.items():
+            if isinstance(value, dict):
+                self._kv_display(table, f"{name_base}.{name}", value)
+            else:
+                table.append((f"{name_base}.{name}", value))
+
+    def kv_state(self, client: Client):
+        id_int = int(self.args.id, 0)
+        id_str = f"{id_int:016x}"
+
+        kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
+        if kv_state is None:
+            print(f"Unable to query KV state for {id_str}")
+            return
+
+        table: list[tuple[str, Any]] = []
+        for element in kv_state:
+            key = element.key_name if isinstance(element.key_name, str) else str(element.key_id)
+
+            if isinstance(element.data, Unset):
+                table.append((key, "Not set"))
+            else:
+                if isinstance(element.decoded, Unset):
+                    table.append((key, element.data))
+                else:
+                    self._kv_display(table, key, element.decoded.additional_properties)
 
         print(tabulate(table))
 
