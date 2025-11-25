@@ -22,14 +22,17 @@ class DefinitionsFieldDefinition:
         type_ (str): Field type
         description (Union[Unset, str]): Field description
         num (Union[Unset, int]): If field is array, the number of elements (0 for variable length)
+        counted_by (Union[Unset, str]): If field is array, the name of the field that contains the number of elements
+            (overrides num)
         display (Union[Unset, DefinitionsFieldDisplay]): Display settings for a field
         conversion (Union[Unset, DefinitionsFieldConversion]): Conversion formula for a field (m * <value> + c)
     """
 
     name: str
     type_: str
-    description: Union[Unset, str] = UNSET
-    num: Union[Unset, int] = UNSET
+    description: Unset | str = UNSET
+    num: Unset | int = UNSET
+    counted_by: Unset | str = UNSET
     display: Union[Unset, "DefinitionsFieldDisplay"] = UNSET
     conversion: Union[Unset, "DefinitionsFieldConversion"] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -43,11 +46,13 @@ class DefinitionsFieldDefinition:
 
         num = self.num
 
-        display: Union[Unset, dict[str, Any]] = UNSET
+        counted_by = self.counted_by
+
+        display: Unset | dict[str, Any] = UNSET
         if not isinstance(self.display, Unset):
             display = self.display.to_dict()
 
-        conversion: Union[Unset, dict[str, Any]] = UNSET
+        conversion: Unset | dict[str, Any] = UNSET
         if not isinstance(self.conversion, Unset):
             conversion = self.conversion.to_dict()
 
@@ -63,6 +68,8 @@ class DefinitionsFieldDefinition:
             field_dict["description"] = description
         if num is not UNSET:
             field_dict["num"] = num
+        if counted_by is not UNSET:
+            field_dict["counted_by"] = counted_by
         if display is not UNSET:
             field_dict["display"] = display
         if conversion is not UNSET:
@@ -84,15 +91,17 @@ class DefinitionsFieldDefinition:
 
         num = d.pop("num", UNSET)
 
+        counted_by = d.pop("counted_by", UNSET)
+
         _display = d.pop("display", UNSET)
-        display: Union[Unset, DefinitionsFieldDisplay]
+        display: Unset | DefinitionsFieldDisplay
         if isinstance(_display, Unset):
             display = UNSET
         else:
             display = DefinitionsFieldDisplay.from_dict(_display)
 
         _conversion = d.pop("conversion", UNSET)
-        conversion: Union[Unset, DefinitionsFieldConversion]
+        conversion: Unset | DefinitionsFieldConversion
         if isinstance(_conversion, Unset):
             conversion = UNSET
         else:
@@ -103,6 +112,7 @@ class DefinitionsFieldDefinition:
             type_=type_,
             description=description,
             num=num,
+            counted_by=counted_by,
             display=display,
             conversion=conversion,
         )

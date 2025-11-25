@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,9 +20,9 @@ class DefinitionsFieldConversion:
         int_ (Union[Unset, DefinitionsFieldConversionInt]): Byte array value should be treated  as an integer
     """
 
-    m: Union[Unset, float] = UNSET
-    c: Union[Unset, float] = UNSET
-    int_: Union[Unset, DefinitionsFieldConversionInt] = UNSET
+    m: Unset | float = UNSET
+    c: Unset | float = UNSET
+    int_: Unset | DefinitionsFieldConversionInt = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -30,7 +30,7 @@ class DefinitionsFieldConversion:
 
         c = self.c
 
-        int_: Union[Unset, str] = UNSET
+        int_: Unset | str = UNSET
         if not isinstance(self.int_, Unset):
             int_ = self.int_.value
 
@@ -54,7 +54,7 @@ class DefinitionsFieldConversion:
         c = d.pop("c", UNSET)
 
         _int_ = d.pop("int", UNSET)
-        int_: Union[Unset, DefinitionsFieldConversionInt]
+        int_: Unset | DefinitionsFieldConversionInt
         if isinstance(_int_, Unset):
             int_ = UNSET
         else:

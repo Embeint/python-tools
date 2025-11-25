@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -21,9 +21,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[COAPFileStats, Error]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> COAPFileStats | Error | None:
     if response.status_code == 200:
         response_200 = COAPFileStats.from_dict(response.json())
 
@@ -43,8 +41,8 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[COAPFileStats, Error]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[COAPFileStats | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -56,8 +54,8 @@ def _build_response(
 def sync_detailed(
     filename: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[COAPFileStats, Error]]:
+    client: AuthenticatedClient | Client,
+) -> Response[COAPFileStats | Error]:
     """Get statistics for a file on the COAP server
 
     Args:
@@ -85,8 +83,8 @@ def sync_detailed(
 def sync(
     filename: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[COAPFileStats, Error]]:
+    client: AuthenticatedClient | Client,
+) -> COAPFileStats | Error | None:
     """Get statistics for a file on the COAP server
 
     Args:
@@ -109,8 +107,8 @@ def sync(
 async def asyncio_detailed(
     filename: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[COAPFileStats, Error]]:
+    client: AuthenticatedClient | Client,
+) -> Response[COAPFileStats | Error]:
     """Get statistics for a file on the COAP server
 
     Args:
@@ -136,8 +134,8 @@ async def asyncio_detailed(
 async def asyncio(
     filename: str,
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[COAPFileStats, Error]]:
+    client: AuthenticatedClient | Client,
+) -> COAPFileStats | Error | None:
     """Get statistics for a file on the COAP server
 
     Args:

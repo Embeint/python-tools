@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -38,7 +38,7 @@ class Board:
     description: str
     soc: str
     organisation_id: UUID
-    metadata_fields: Union[Unset, list["MetadataField"]] = UNSET
+    metadata_fields: Unset | list["MetadataField"] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,7 +56,7 @@ class Board:
 
         organisation_id = str(self.organisation_id)
 
-        metadata_fields: Union[Unset, list[dict[str, Any]]] = UNSET
+        metadata_fields: Unset | list[dict[str, Any]] = UNSET
         if not isinstance(self.metadata_fields, Unset):
             metadata_fields = []
             for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:

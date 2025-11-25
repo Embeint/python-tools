@@ -24,7 +24,7 @@ class DeviceUpdate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        metadata: Union[Unset, dict[str, Any]] = UNSET
+        metadata: Unset | dict[str, Any] = UNSET
         if not isinstance(self.metadata, Unset):
             metadata = self.metadata.to_dict()
 
@@ -42,7 +42,7 @@ class DeviceUpdate:
 
         d = dict(src_dict)
         _metadata = d.pop("metadata", UNSET)
-        metadata: Union[Unset, DeviceMetadataUpdate]
+        metadata: Unset | DeviceMetadataUpdate
         if isinstance(_metadata, Unset):
             metadata = UNSET
         else:

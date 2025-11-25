@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -20,8 +20,8 @@ def _get_kwargs() -> dict[str, Any]:
 
 
 def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Error, list["Organisation"]]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Error | list["Organisation"] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -42,8 +42,8 @@ def _parse_response(
 
 
 def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Error, list["Organisation"]]]:
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Error | list["Organisation"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -54,8 +54,8 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Error, list["Organisation"]]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Error | list["Organisation"]]:
     """Get all organisations that user has access to
 
     Raises:
@@ -77,8 +77,8 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Error, list["Organisation"]]]:
+    client: AuthenticatedClient | Client,
+) -> Error | list["Organisation"] | None:
     """Get all organisations that user has access to
 
     Raises:
@@ -96,8 +96,8 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Response[Union[Error, list["Organisation"]]]:
+    client: AuthenticatedClient | Client,
+) -> Response[Error | list["Organisation"]]:
     """Get all organisations that user has access to
 
     Raises:
@@ -117,8 +117,8 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
-) -> Optional[Union[Error, list["Organisation"]]]:
+    client: AuthenticatedClient | Client,
+) -> Error | list["Organisation"] | None:
     """Get all organisations that user has access to
 
     Raises:

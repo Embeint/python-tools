@@ -30,7 +30,7 @@ class RpcRsp:
     route: "UplinkRoute"
     return_code: int
     params: Union[Unset, "RPCParams"] = UNSET
-    params_encoded: Union[Unset, str] = UNSET
+    params_encoded: Unset | str = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -38,7 +38,7 @@ class RpcRsp:
 
         return_code = self.return_code
 
-        params: Union[Unset, dict[str, Any]] = UNSET
+        params: Unset | dict[str, Any] = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
@@ -70,7 +70,7 @@ class RpcRsp:
         return_code = d.pop("returnCode")
 
         _params = d.pop("params", UNSET)
-        params: Union[Unset, RPCParams]
+        params: Unset | RPCParams
         if isinstance(_params, Unset):
             params = UNSET
         else:

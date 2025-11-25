@@ -39,7 +39,7 @@ class Device:
     mcu_id: str
     board_id: UUID
     organisation_id: UUID
-    device_id: Union[Unset, str] = UNSET
+    device_id: Unset | str = UNSET
     metadata: Union[Unset, "DeviceMetadata"] = UNSET
     initial_device_state: Union[Unset, "NewDeviceState"] = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -59,11 +59,11 @@ class Device:
 
         device_id = self.device_id
 
-        metadata: Union[Unset, dict[str, Any]] = UNSET
+        metadata: Unset | dict[str, Any] = UNSET
         if not isinstance(self.metadata, Unset):
             metadata = self.metadata.to_dict()
 
-        initial_device_state: Union[Unset, dict[str, Any]] = UNSET
+        initial_device_state: Unset | dict[str, Any] = UNSET
         if not isinstance(self.initial_device_state, Unset):
             initial_device_state = self.initial_device_state.to_dict()
 
@@ -109,14 +109,14 @@ class Device:
         device_id = d.pop("deviceId", UNSET)
 
         _metadata = d.pop("metadata", UNSET)
-        metadata: Union[Unset, DeviceMetadata]
+        metadata: Unset | DeviceMetadata
         if isinstance(_metadata, Unset):
             metadata = UNSET
         else:
             metadata = DeviceMetadata.from_dict(_metadata)
 
         _initial_device_state = d.pop("initialDeviceState", UNSET)
-        initial_device_state: Union[Unset, NewDeviceState]
+        initial_device_state: Unset | NewDeviceState
         if isinstance(_initial_device_state, Unset):
             initial_device_state = UNSET
         else:

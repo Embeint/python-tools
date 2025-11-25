@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -31,9 +31,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Error, Key]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Error | Key | None:
     if response.status_code == 200:
         response_200 = Key.from_dict(response.json())
 
@@ -48,9 +46,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Error, Key]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Error | Key]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -61,9 +57,9 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: DeriveDeviceKeyBody,
-) -> Response[Union[Error, Key]]:
+) -> Response[Error | Key]:
     """Derive a device key for encryption
 
      Generate a derived key to use for device level encrpytion, if security state is provided, it will be
@@ -93,9 +89,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: DeriveDeviceKeyBody,
-) -> Optional[Union[Error, Key]]:
+) -> Error | Key | None:
     """Derive a device key for encryption
 
      Generate a derived key to use for device level encrpytion, if security state is provided, it will be
@@ -120,9 +116,9 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: DeriveDeviceKeyBody,
-) -> Response[Union[Error, Key]]:
+) -> Response[Error | Key]:
     """Derive a device key for encryption
 
      Generate a derived key to use for device level encrpytion, if security state is provided, it will be
@@ -150,9 +146,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: DeriveDeviceKeyBody,
-) -> Optional[Union[Error, Key]]:
+) -> Error | Key | None:
     """Derive a device key for encryption
 
      Generate a derived key to use for device level encrpytion, if security state is provided, it will be

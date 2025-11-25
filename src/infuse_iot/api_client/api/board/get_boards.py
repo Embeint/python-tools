@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -30,7 +30,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[list["Board"]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> list["Board"] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -46,7 +46,7 @@ def _parse_response(*, client: Union[AuthenticatedClient, Client], response: htt
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[list["Board"]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[list["Board"]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -57,7 +57,7 @@ def _build_response(*, client: Union[AuthenticatedClient, Client], response: htt
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
 ) -> Response[list["Board"]]:
     """Get all boards in an organisation
@@ -86,9 +86,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-) -> Optional[list["Board"]]:
+) -> list["Board"] | None:
     """Get all boards in an organisation
 
     Args:
@@ -110,7 +110,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
 ) -> Response[list["Board"]]:
     """Get all boards in an organisation
@@ -137,9 +137,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     organisation_id: UUID,
-) -> Optional[list["Board"]]:
+) -> list["Board"] | None:
     """Get all boards in an organisation
 
     Args:

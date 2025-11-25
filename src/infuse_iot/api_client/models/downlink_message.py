@@ -47,10 +47,10 @@ class DownlinkMessage:
     rpc_req: "RpcReq"
     status: DownlinkMessageStatus
     rpc_rsp: Union[Unset, "RpcRsp"] = UNSET
-    send_wait_timeout_ms: Union[Unset, int] = UNSET
-    sent_at: Union[Unset, datetime.datetime] = UNSET
-    expires_at: Union[Unset, datetime.datetime] = UNSET
-    completed_at: Union[Unset, datetime.datetime] = UNSET
+    send_wait_timeout_ms: Unset | int = UNSET
+    sent_at: Unset | datetime.datetime = UNSET
+    expires_at: Unset | datetime.datetime = UNSET
+    completed_at: Unset | datetime.datetime = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,21 +70,21 @@ class DownlinkMessage:
 
         status = self.status.value
 
-        rpc_rsp: Union[Unset, dict[str, Any]] = UNSET
+        rpc_rsp: Unset | dict[str, Any] = UNSET
         if not isinstance(self.rpc_rsp, Unset):
             rpc_rsp = self.rpc_rsp.to_dict()
 
         send_wait_timeout_ms = self.send_wait_timeout_ms
 
-        sent_at: Union[Unset, str] = UNSET
+        sent_at: Unset | str = UNSET
         if not isinstance(self.sent_at, Unset):
             sent_at = self.sent_at.isoformat()
 
-        expires_at: Union[Unset, str] = UNSET
+        expires_at: Unset | str = UNSET
         if not isinstance(self.expires_at, Unset):
             expires_at = self.expires_at.isoformat()
 
-        completed_at: Union[Unset, str] = UNSET
+        completed_at: Unset | str = UNSET
         if not isinstance(self.completed_at, Unset):
             completed_at = self.completed_at.isoformat()
 
@@ -138,7 +138,7 @@ class DownlinkMessage:
         status = DownlinkMessageStatus(d.pop("status"))
 
         _rpc_rsp = d.pop("rpcRsp", UNSET)
-        rpc_rsp: Union[Unset, RpcRsp]
+        rpc_rsp: Unset | RpcRsp
         if isinstance(_rpc_rsp, Unset):
             rpc_rsp = UNSET
         else:
@@ -147,21 +147,21 @@ class DownlinkMessage:
         send_wait_timeout_ms = d.pop("sendWaitTimeoutMs", UNSET)
 
         _sent_at = d.pop("sentAt", UNSET)
-        sent_at: Union[Unset, datetime.datetime]
+        sent_at: Unset | datetime.datetime
         if isinstance(_sent_at, Unset):
             sent_at = UNSET
         else:
             sent_at = isoparse(_sent_at)
 
         _expires_at = d.pop("expiresAt", UNSET)
-        expires_at: Union[Unset, datetime.datetime]
+        expires_at: Unset | datetime.datetime
         if isinstance(_expires_at, Unset):
             expires_at = UNSET
         else:
             expires_at = isoparse(_expires_at)
 
         _completed_at = d.pop("completedAt", UNSET)
-        completed_at: Union[Unset, datetime.datetime]
+        completed_at: Unset | datetime.datetime
         if isinstance(_completed_at, Unset):
             completed_at = UNSET
         else:

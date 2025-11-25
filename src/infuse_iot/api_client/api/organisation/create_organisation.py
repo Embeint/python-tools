@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 import httpx
 
@@ -30,9 +30,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Optional[Union[Any, Organisation]]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Organisation | None:
     if response.status_code == 201:
         response_201 = Organisation.from_dict(response.json())
 
@@ -46,9 +44,7 @@ def _parse_response(
         return None
 
 
-def _build_response(
-    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
-) -> Response[Union[Any, Organisation]]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Organisation]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -59,9 +55,9 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Response[Union[Any, Organisation]]:
+) -> Response[Any | Organisation]:
     """Create a new organisation
 
     Args:
@@ -88,9 +84,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Optional[Union[Any, Organisation]]:
+) -> Any | Organisation | None:
     """Create a new organisation
 
     Args:
@@ -112,9 +108,9 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Response[Union[Any, Organisation]]:
+) -> Response[Any | Organisation]:
     """Create a new organisation
 
     Args:
@@ -139,9 +135,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Optional[Union[Any, Organisation]]:
+) -> Any | Organisation | None:
     """Create a new organisation
 
     Args:

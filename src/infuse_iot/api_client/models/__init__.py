@@ -1,6 +1,9 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .algorithm import Algorithm
+from .api_key_org_user_type import APIKeyOrgUserType
+from .api_key_resource_name import APIKeyResourceName
+from .api_key_resource_perm import APIKeyResourcePerm
 from .application_version import ApplicationVersion
 from .board import Board
 from .bt_le_route import BtLeRoute
@@ -39,7 +42,11 @@ from .definitions_tdf_structs import DefinitionsTDFStructs
 from .derive_device_key_body import DeriveDeviceKeyBody
 from .device import Device
 from .device_and_state import DeviceAndState
+from .device_entry_update_status import DeviceEntryUpdateStatus
 from .device_id_field import DeviceIdField
+from .device_kv_entry import DeviceKVEntry
+from .device_kv_entry_decoded import DeviceKVEntryDecoded
+from .device_kv_entry_update import DeviceKVEntryUpdate
 from .device_logger_state import DeviceLoggerState
 from .device_metadata import DeviceMetadata
 from .device_metadata_update import DeviceMetadataUpdate
@@ -52,6 +59,11 @@ from .downlink_route import DownlinkRoute
 from .error import Error
 from .forwarded_downlink_route import ForwardedDownlinkRoute
 from .forwarded_uplink_route import ForwardedUplinkRoute
+from .generate_api_key_body import GenerateAPIKeyBody
+from .generate_api_key_body_resource_perms import GenerateAPIKeyBodyResourcePerms
+from .generate_mqtt_token_body import GenerateMQTTTokenBody
+from .generated_api_key import GeneratedAPIKey
+from .generated_mqtt_token import GeneratedMQTTToken
 from .get_last_routes_for_devices_body import GetLastRoutesForDevicesBody
 from .health_check import HealthCheck
 from .interface_data import InterfaceData
@@ -60,6 +72,8 @@ from .key_interface import KeyInterface
 from .metadata_field import MetadataField
 from .new_board import NewBoard
 from .new_device import NewDevice
+from .new_device_kv_entry_update import NewDeviceKVEntryUpdate
+from .new_device_kv_entry_update_decoded import NewDeviceKVEntryUpdateDecoded
 from .new_device_state import NewDeviceState
 from .new_organisation import NewOrganisation
 from .new_rpc_message import NewRPCMessage
@@ -79,6 +93,9 @@ from .uplink_route_and_device_id import UplinkRouteAndDeviceId
 
 __all__ = (
     "Algorithm",
+    "APIKeyOrgUserType",
+    "APIKeyResourceName",
+    "APIKeyResourcePerm",
     "ApplicationVersion",
     "Board",
     "BtLeRoute",
@@ -117,7 +134,11 @@ __all__ = (
     "DeriveDeviceKeyBody",
     "Device",
     "DeviceAndState",
+    "DeviceEntryUpdateStatus",
     "DeviceIdField",
+    "DeviceKVEntry",
+    "DeviceKVEntryDecoded",
+    "DeviceKVEntryUpdate",
     "DeviceLoggerState",
     "DeviceMetadata",
     "DeviceMetadataUpdate",
@@ -130,6 +151,11 @@ __all__ = (
     "Error",
     "ForwardedDownlinkRoute",
     "ForwardedUplinkRoute",
+    "GenerateAPIKeyBody",
+    "GenerateAPIKeyBodyResourcePerms",
+    "GeneratedAPIKey",
+    "GeneratedMQTTToken",
+    "GenerateMQTTTokenBody",
     "GetLastRoutesForDevicesBody",
     "HealthCheck",
     "InterfaceData",
@@ -138,6 +164,8 @@ __all__ = (
     "MetadataField",
     "NewBoard",
     "NewDevice",
+    "NewDeviceKVEntryUpdate",
+    "NewDeviceKVEntryUpdateDecoded",
     "NewDeviceState",
     "NewOrganisation",
     "NewRPCMessage",

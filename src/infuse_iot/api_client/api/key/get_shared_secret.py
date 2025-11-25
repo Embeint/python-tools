@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, Optional, Union
+from typing import Any
 
 import httpx
 
@@ -29,7 +29,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Optional[Key]:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Key | None:
     if response.status_code == 200:
         response_200 = Key.from_dict(response.json())
 
@@ -40,7 +40,7 @@ def _parse_response(*, client: Union[AuthenticatedClient, Client], response: htt
         return None
 
 
-def _build_response(*, client: Union[AuthenticatedClient, Client], response: httpx.Response) -> Response[Key]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Key]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -51,7 +51,7 @@ def _build_response(*, client: Union[AuthenticatedClient, Client], response: htt
 
 def sync_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: Key,
 ) -> Response[Key]:
     """Generate a shared secret key from a device's public key
@@ -80,9 +80,9 @@ def sync_detailed(
 
 def sync(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: Key,
-) -> Optional[Key]:
+) -> Key | None:
     """Generate a shared secret key from a device's public key
 
     Args:
@@ -104,7 +104,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: Key,
 ) -> Response[Key]:
     """Generate a shared secret key from a device's public key
@@ -131,9 +131,9 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: Union[AuthenticatedClient, Client],
+    client: AuthenticatedClient | Client,
     body: Key,
-) -> Optional[Key]:
+) -> Key | None:
     """Generate a shared secret key from a device's public key
 
     Args:
