@@ -45,7 +45,7 @@ class DeviceState:
         else:
             self.on_disk = os.path.getsize(self.path) // self.BLOCK_SIZE
 
-    def observe(self, announce: readings.announce):
+    def observe(self, announce: readings.announce | readings.announce_v2):
         self.on_device = announce.blocks
 
     def append_data(self, data: bytes):

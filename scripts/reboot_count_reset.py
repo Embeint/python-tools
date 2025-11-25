@@ -48,7 +48,7 @@ class RebootCountResetter:
         self.state = state
         live.update(self.progress_table())
 
-    def announce_observed(self, live: Live, infuse_id: int, pkt: readings.announce):
+    def announce_observed(self, live: Live, infuse_id: int, pkt: readings.announce | readings.announce_v2):
         if pkt.application != self.app_id:
             return
         if pkt.reboots == self.count:
