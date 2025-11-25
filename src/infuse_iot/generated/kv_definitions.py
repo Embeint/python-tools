@@ -150,6 +150,16 @@ class slots:
         ]
         _pack_ = 1
 
+    class board_target(VLACompatLittleEndianStruct):
+        """Value of CONFIG_BOARD_TARGET"""
+
+        NAME = "BOARD_TARGET"
+        BASE_ID = 7
+        RANGE = 1
+        _fields_ = []
+        vla_field = ("board_target", structs.kv_string)
+        _pack_ = 1
+
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
 
@@ -435,6 +445,7 @@ class slots:
         4: device_name,
         5: infuse_application_id,
         6: application_active,
+        7: board_target,
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,

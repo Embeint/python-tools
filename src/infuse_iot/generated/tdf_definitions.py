@@ -407,6 +407,43 @@ class readings:
             "thread": "{}",
         }
 
+    class announce_v2(TdfReadingBase):
+        """Common announcement packet"""
+
+        ID = 7
+        NAME = "ANNOUNCE_V2"
+        _fields_ = [
+            ("application", ctypes.c_uint32),
+            ("version", structs.tdf_struct_mcuboot_img_sem_ver),
+            ("board_crc", ctypes.c_uint16),
+            ("kv_crc", ctypes.c_uint32),
+            ("blocks", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+            ("reboots", ctypes.c_uint16),
+            ("flags", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "application": "",
+            "version": "",
+            "board_crc": "",
+            "kv_crc": "",
+            "blocks": "",
+            "uptime": "",
+            "reboots": "",
+            "flags": "",
+        }
+        _display_fmt_ = {
+            "application": "0x{:08x}",
+            "version": "{}",
+            "board_crc": "0x{:04x}",
+            "kv_crc": "0x{:08x}",
+            "blocks": "{}",
+            "uptime": "{}",
+            "reboots": "{}",
+            "flags": "0x{:02x}",
+        }
+
     class acc_2g(TdfReadingBase):
         """Accelerometer +-2G"""
 
@@ -1645,6 +1682,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.ambient_temperature.ID: readings.ambient_temperature,
     readings.time_sync.ID: readings.time_sync,
     readings.reboot_info.ID: readings.reboot_info,
+    readings.announce_v2.ID: readings.announce_v2,
     readings.acc_2g.ID: readings.acc_2g,
     readings.acc_4g.ID: readings.acc_4g,
     readings.acc_8g.ID: readings.acc_8g,
