@@ -235,6 +235,7 @@ class LocalServer:
         # Multicast output socket
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+        self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton("127.0.0.1"))
         self._output_addr = multicast_address
         # Single input socket
         unicast_address = ("localhost", multicast_address[1] + 1)
@@ -266,7 +267,7 @@ class LocalClient:
             self._input_sock.bind(("", multicast_address[1]))
         else:
             self._input_sock.bind(multicast_address)
-        mreq = struct.pack("4sl", socket.inet_aton(multicast_address[0]), socket.INADDR_ANY)
+        mreq = struct.pack("4s4s", socket.inet_aton(multicast_address[0]), socket.inet_aton("127.0.0.1"))
         self._input_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         self._input_sock.settimeout(rx_timeout)
         # Unicast output socket
