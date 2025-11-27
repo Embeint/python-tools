@@ -91,7 +91,9 @@ class MulticastHandler(asyncio.DatagramProtocol):
         Console.log_rx(pkt.ptype, len(data))
         self._server.broadcast(ClientNotificationEpacketReceived(pkt))
 
-    async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
+    async def create_connection_internal(
+        self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
+    ):
         Console.log_info(f"{dev}: Initiating connection")
         async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
@@ -146,6 +148,12 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._queues.pop(request.infuse_id)
         self._tasks.pop(request.infuse_id)
         Console.log_info(f"{dev}: Terminating connection")
+
+    async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
+        try:
+            await self.create_connection_internal(request, dev, queue)
+        except TimeoutError as e:
+            Console.log_info(f"Timeout: {str(e)}")
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
