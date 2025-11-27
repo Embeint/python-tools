@@ -45,7 +45,8 @@ class SubCommand(InfuseCommand):
             if self._data:
                 types |= GatewayRequestConnectionRequest.DataType.DATA
             with self._client.connection(self._id, types, self._conn_timeout) as _:
-                while evt := self._client.receive():
+                while True:
+                    evt = self._client.receive()
                     if evt is None:
                         continue
                     if isinstance(evt, ClientNotificationConnectionDropped):
