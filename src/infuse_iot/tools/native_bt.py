@@ -30,6 +30,7 @@ from infuse_iot.epacket.packet import (
     PacketReceived,
 )
 from infuse_iot.socket_comms import (
+    ClientNotification,
     ClientNotificationConnectionCreated,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
@@ -64,6 +65,12 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._queues: dict[int, asyncio.Queue] = {}
         self._tasks: dict[int, asyncio.Task] = {}
 
+    def wrapped_broadcast(self, notifcation: ClientNotification):
+        try:
+            self._server.broadcast(notifcation)
+        except OSError as e:
+            Console.log_error(f"Failed to broadcast notification: {str(e)}")
+
     def notification_handler(self, _characteristic: BleakGATTCharacteristic, data: bytearray):
         try:
             hdr, decr = CtypeBtGattFrame.decrypt(self._db, None, bytes(data))
@@ -89,7 +96,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
             bytes(decr),
         )
         Console.log_rx(pkt.ptype, len(data))
-        self._server.broadcast(ClientNotificationEpacketReceived(pkt))
+        self.wrapped_broadcast(ClientNotificationEpacketReceived(pkt))
 
     async def create_connection_internal(
         self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
@@ -118,7 +125,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
             Console.log_info(f"{dev}: Connected (MTU {client.mtu_size})")
 
-            self._server.broadcast(
+            self.wrapped_broadcast(
                 ClientNotificationConnectionCreated(
                     request.infuse_id,
                     # ATT header uses 3 bytes of the MTU
@@ -174,7 +181,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
         ble_dev = self._mapping.get(request.infuse_id, None)
         if ble_dev is None:
-            self._server.broadcast(ClientNotificationConnectionFailed(request.infuse_id))
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
             return
 
         # Create queue for further data transfer
@@ -251,7 +258,10 @@ class SubCommand(InfuseCommand):
         Console.log_rx(hdr.type, len(payload))
         pkt = PacketReceived([hop], hdr.type, decr)
         notification = ClientNotificationEpacketReceived(pkt)
-        self.server.broadcast(notification)
+        try:
+            self.server.broadcast(notification)
+        except OSError as e:
+            Console.log_error(f"Failed to broadcast notification: {str(e)}")
 
     async def async_bt_receiver(self):
         loop = asyncio.get_event_loop()

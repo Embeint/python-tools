@@ -126,6 +126,10 @@ class CommonThreadState:
         self.ddb = ddb
         self.rpc = rpc_server
 
+    def notification_broadcast(self, notification: ClientNotification):
+        if self.server:
+            self.server.broadcast(notification)
+
     def query_device_key(self, cb_event: threading.Event | None = None):
         def security_state_done(pkt: PacketReceived, _: int, response: bytes):
             cloud_key = response[:32]
@@ -204,7 +208,7 @@ class SerialRxThread(SignaledThread):
                 if_addr = interface.Address.BluetoothLeAddr.from_tdf_struct(reading.data[0].address)
                 infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
                 if infuse_id:
-                    self._common.server.broadcast(ClientNotificationConnectionDropped(infuse_id))
+                    self._common.notification_broadcast(ClientNotificationConnectionDropped(infuse_id))
 
     def _handle_serial_frame(self, frame: bytearray):
         try:
@@ -244,10 +248,9 @@ class SerialRxThread(SignaledThread):
                 elif pkt.ptype == InfuseType.KEY_IDS:
                     self._common.query_device_key(None)
 
+                # Forward to clients
                 notification = ClientNotificationEpacketReceived(pkt)
-                if self._common.server:
-                    # Forward to clients
-                    self._common.server.broadcast(notification)
+                self._common.notification_broadcast(notification)
         except (ValueError, KeyError) as e:
             print(f"Decode failed ({e})")
 
@@ -322,19 +325,19 @@ class SerialTxThread(SignaledThread):
             else:
                 self._connected[infuse_id] = 1
             rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
-        self._common.server.broadcast(rsp)
+        self._common.notification_broadcast(rsp)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
         assert self._common.server is not None
 
         if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
-            self._common.server.broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512))
+            self._common.notification_broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512))
             return
 
         state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
-            self._common.server.broadcast(ClientNotificationConnectionFailed(req.infuse_id))
+            self._common.notification_broadcast(ClientNotificationConnectionFailed(req.infuse_id))
             return
 
         subs = 0
@@ -403,7 +406,7 @@ class SerialTxThread(SignaledThread):
             if self._common.ddb.gateway == device:
                 info["gateway"] = True
             observed_devices[device] = info
-        self._common.server.broadcast(ClientNotificationObservedDevices(observed_devices))
+        self._common.notification_broadcast(ClientNotificationObservedDevices(observed_devices))
 
     def _iter(self) -> None:
         if self._common.server is None:
