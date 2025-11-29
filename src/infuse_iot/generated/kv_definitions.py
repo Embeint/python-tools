@@ -70,6 +70,33 @@ class structs:
         ]
         _pack_ = 1
 
+    class kv_algorithm_logging(VLACompatLittleEndianStruct):
+        """Algorithm logging configuration"""
+
+        _fields_ = [
+            ("loggers", ctypes.c_uint8),
+            ("tdf_mask", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class kv_algorithm_stationary_windowed_args(VLACompatLittleEndianStruct):
+        """Arguments for 'Stationary Windowed' algorithm"""
+
+        _fields_ = [
+            ("window_seconds", ctypes.c_uint32),
+            ("std_dev_threshold_ug", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class kv_algorithm_tilt_args(VLACompatLittleEndianStruct):
+        """Arguments for 'Tilt' algorithm"""
+
+        _fields_ = [
+            ("iir_filter_alpha", ctypes.c_float),
+            ("one_g_percent", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
 
 class slots:
     class reboots(VLACompatLittleEndianStruct):
@@ -265,7 +292,7 @@ class slots:
         _pack_ = 1
 
     class lte_modem_imei(VLACompatLittleEndianStruct):
-        """'International Modem Equiment Identifier' as returned by AT+CGSN=1"""
+        """'International Modem Equipment Identifier' as returned by AT+CGSN=1"""
 
         NAME = "LTE_MODEM_IMEI"
         BASE_ID = 43
@@ -349,7 +376,7 @@ class slots:
         _pack_ = 1
 
     class bluetooth_throughput_limit(VLACompatLittleEndianStruct):
-        """Request connected Bluetooth peers to limit throughtput"""
+        """Request connected Bluetooth peers to limit throughput"""
 
         NAME = "BLUETOOTH_THROUGHPUT_LIMIT"
         BASE_ID = 52
@@ -368,6 +395,17 @@ class slots:
         _fields_ = [
             ("disable_start", structs.kv_utc_hms),
             ("disable_end", structs.kv_utc_hms),
+        ]
+        _pack_ = 1
+
+    class memfault_disable(VLACompatLittleEndianStruct):
+        """Disable Memfault reporting at runtime"""
+
+        NAME = "MEMFAULT_DISABLE"
+        BASE_ID = 54
+        RANGE = 1
+        _fields_ = [
+            ("disable", ctypes.c_uint8),
         ]
         _pack_ = 1
 
@@ -396,6 +434,30 @@ class slots:
         vla_field = ("points", 0 * structs.gcs_location)
         _pack_ = 1
 
+    class alg_stationary_windowed_args(VLACompatLittleEndianStruct):
+        """Configuration for the 'Stationary Windowed' algorithm"""
+
+        NAME = "ALG_STATIONARY_WINDOWED_ARGS"
+        BASE_ID = 200
+        RANGE = 1
+        _fields_ = [
+            ("logging", structs.kv_algorithm_logging),
+            ("args", structs.kv_algorithm_stationary_windowed_args),
+        ]
+        _pack_ = 1
+
+    class alg_tilt_args(VLACompatLittleEndianStruct):
+        """Configuration for the 'Tilt' algorithm"""
+
+        NAME = "ALG_TILT_ARGS"
+        BASE_ID = 201
+        RANGE = 1
+        _fields_ = [
+            ("logging", structs.kv_algorithm_logging),
+            ("args", structs.kv_algorithm_tilt_args),
+        ]
+        _pack_ = 1
+
     class task_schedules_default_id(VLACompatLittleEndianStruct):
         """Unique identifier for default schedule set"""
 
@@ -417,10 +479,10 @@ class slots:
             ("task_id", ctypes.c_uint8),
             ("validity", ctypes.c_uint8),
             ("periodicity_type", ctypes.c_uint8),
+            ("boot_lockout_minutes", ctypes.c_uint8),
             ("timeout_s", ctypes.c_uint32),
             ("battery_start", structs.kv_range_u8),
             ("battery_terminate", structs.kv_range_u8),
-            ("periodicity", ctypes.c_uint32),
         ]
         vla_field = ("_remainder", 0 * ctypes.c_uint8)
         _pack_ = 1
@@ -465,6 +527,7 @@ class slots:
         51: lora_config,
         52: bluetooth_throughput_limit,
         53: led_disable_daily_time_range,
+        54: memfault_disable,
         60: gravity_reference,
         100: geofence,
         101: geofence,
@@ -482,6 +545,8 @@ class slots:
         113: geofence,
         114: geofence,
         115: geofence,
+        200: alg_stationary_windowed_args,
+        201: alg_tilt_args,
         1000: task_schedules_default_id,
         1001: task_schedules,
         1002: task_schedules,
