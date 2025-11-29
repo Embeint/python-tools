@@ -126,6 +126,30 @@ class rpc_struct_lte_state(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_lte_state_v2(VLACompatLittleEndianStruct):
+    """LTE interface status"""
+
+    _fields_ = [
+        ("registration_state", ctypes.c_uint8),
+        ("access_technology", ctypes.c_uint8),
+        ("mcc", ctypes.c_uint16),
+        ("mnc", ctypes.c_uint16),
+        ("cell_id", ctypes.c_uint32),
+        ("tac", ctypes.c_uint32),
+        ("tau", ctypes.c_int32),
+        ("earfcn", ctypes.c_uint16),
+        ("band", ctypes.c_uint8),
+        ("psm_active_time", ctypes.c_int16),
+        ("edrx_interval", ctypes.c_float),
+        ("edrx_paging_window", ctypes.c_float),
+        ("rsrp", ctypes.c_int16),
+        ("rsrq", ctypes.c_int8),
+        ("as_rai", ctypes.c_uint8),
+        ("cp_rai", ctypes.c_uint8),
+    ]
+    _pack_ = 1
+
+
 class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
     """WiFi interface status"""
 
@@ -244,6 +268,14 @@ class rpc_enum_key_action(enum.IntEnum):
 
     KEY_WRITE = 0
     KEY_DELETE = 1
+
+
+class rpc_enum_support_status(enum.IntEnum):
+    """Field support status"""
+
+    UNSUPPORTED = 0
+    SUPPORTED = 1
+    UNKNOWN = 255
 
 
 class RPCDefinitionBase:
@@ -377,11 +409,11 @@ class kv_read(RPCDefinitionBase):
 
 
 class kv_reflect_crcs(RPCDefinitionBase):
-    """Read KV store CRC's"""
+    """Read KV store CRCs"""
 
     NAME = "kv_reflect_crcs"
-    HELP = "Read KV store CRC's"
-    DESCRIPTION = "Read KV store CRC's"
+    HELP = "Read KV store CRCs"
+    DESCRIPTION = "Read KV store CRCs"
     COMMAND_ID = 7
 
     class request(VLACompatLittleEndianStruct):
@@ -734,6 +766,26 @@ class data_logger_read_available(RPCDefinitionBase):
             ("current_block", ctypes.c_uint32),
             ("start_block_actual", ctypes.c_uint32),
             ("block_size", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+
+class lte_state_v2(RPCDefinitionBase):
+    """Get current LTE interface state (with RAI information)"""
+
+    NAME = "lte_state_v2"
+    HELP = "Get current LTE interface state (with RAI information)"
+    DESCRIPTION = "Get current LTE interface state (with RAI information)"
+    COMMAND_ID = 23
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("common", rpc_struct_network_state),
+            ("lte", rpc_struct_lte_state_v2),
         ]
         _pack_ = 1
 
@@ -1122,6 +1174,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     lte_at_cmd.COMMAND_ID: lte_at_cmd,
     lte_state.COMMAND_ID: lte_state,
     data_logger_read_available.COMMAND_ID: data_logger_read_available,
+    lte_state_v2.COMMAND_ID: lte_state_v2,
     coap_download.COMMAND_ID: coap_download,
     zperf_upload.COMMAND_ID: zperf_upload,
     file_write_basic.COMMAND_ID: file_write_basic,
@@ -1150,6 +1203,7 @@ __all__ = [
     "rpc_struct_network_state",
     "rpc_struct_wifi_state",
     "rpc_struct_lte_state",
+    "rpc_struct_lte_state_v2",
     "rpc_struct_wifi_scan_result",
     "rpc_struct_xyz_s16",
     "rpc_struct_infuse_state",
@@ -1162,6 +1216,7 @@ __all__ = [
     "rpc_enum_zperf_data_source",
     "rpc_enum_key_id",
     "rpc_enum_key_action",
+    "rpc_enum_support_status",
     "reboot",
     "fault",
     "time_get",
@@ -1184,6 +1239,7 @@ __all__ = [
     "lte_at_cmd",
     "lte_state",
     "data_logger_read_available",
+    "lte_state_v2",
     "coap_download",
     "zperf_upload",
     "file_write_basic",
