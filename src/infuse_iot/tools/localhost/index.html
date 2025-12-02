@@ -117,7 +117,7 @@
             );
 
             const uniqueApplications = [
-                ...new Set(rows.map(obj => obj.ANNOUNCE?.application).filter(app => app !== undefined).sort())
+                ...new Set(rows.map(obj => obj.application).filter(app => app !== undefined).sort())
             ];
             if (!arraysEqual(currentApps, uniqueApplications)) {
                 versions = uniqueApplications.map((v, idx) => { return { id: `row-${idx}`, name: v, checked: true }; })
@@ -159,7 +159,7 @@
                 enabledApps = currentApps.filter(a => appShow[a]);
 
                 dataTable.clearFilter();
-                dataTable.setFilter("ANNOUNCE.application", "in", enabledApps);
+                dataTable.setFilter("application", "in", enabledApps);
 
                 filtering_update = false;
             }
