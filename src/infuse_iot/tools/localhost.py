@@ -77,6 +77,11 @@ class SubCommand(InfuseCommand):
                                 "headerHozAlign": "center",
                             },
                             {
+                                "title": "App ID",
+                                "field": "application",
+                                "headerHozAlign": "center",
+                            },
+                            {
                                 "title": "Last Heard",
                                 "field": "time",
                                 "headerHozAlign": "center",
@@ -101,11 +106,9 @@ class SubCommand(InfuseCommand):
                         ],
                     }
                 ]
-                # Put ANNOUNCE TDF first, if it exists
-                if "ANNOUNCE" in self._columns:
-                    sorted_tdfs = ["ANNOUNCE"] + [v for v in sorted(self._columns) if v != "ANNOUNCE"]
-                else:
-                    sorted_tdfs = sorted(self._columns)
+                # Put the announce TDFs first for clarity
+                priorities = {"ANNOUNCE_V2": 0, "ANNOUNCE": 1}
+                sorted_tdfs = sorted(self._columns, key=lambda x: priorities.get(x, 2))
 
                 for tdf_name in sorted_tdfs:
                     columns.append(
@@ -190,9 +193,8 @@ class SubCommand(InfuseCommand):
         if source.infuse_id not in self._data:
             self._data[source.infuse_id] = {
                 "infuse_id": f"0x{source.infuse_id:016x}",
+                "application": "Unknown",
             }
-            # Set default application ID
-            self._data[source.infuse_id]["ANNOUNCE"] = {"application": "Unknown"}
 
         self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
         if source.interface == interface.ID.BT_ADV:
@@ -207,6 +209,8 @@ class SubCommand(InfuseCommand):
                 self._columns[t.NAME] = self.tdf_columns(t)
             if t.NAME not in self._data[source.infuse_id]:
                 self._data[source.infuse_id][t.NAME] = {}
+            if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
+                self._data[source.infuse_id]["application"] = f"0x{t.application:08x}"
 
             for field in t.iter_fields(nested_iter=False):
                 if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
