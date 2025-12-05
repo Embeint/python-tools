@@ -17,6 +17,7 @@ from infuse_iot.socket_comms import (
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
+from infuse_iot.util.console import Console
 
 
 class SubCommand(InfuseCommand):
@@ -45,12 +46,13 @@ class SubCommand(InfuseCommand):
             if self._data:
                 types |= GatewayRequestConnectionRequest.DataType.DATA
             with self._client.connection(self._id, types, self._conn_timeout) as _:
+                Console.log_info(f"Connected to {self._id:016x} ({types.name})")
                 while True:
                     evt = self._client.receive()
                     if evt is None:
                         continue
                     if isinstance(evt, ClientNotificationConnectionDropped):
-                        print(f"Connection to {self._id:016x} lost")
+                        Console.log_error(f"Connection to {self._id:016x} lost")
                         break
                     if not isinstance(evt, ClientNotificationEpacketReceived):
                         continue
