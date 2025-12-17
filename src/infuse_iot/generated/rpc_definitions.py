@@ -790,6 +790,36 @@ class lte_state_v2(RPCDefinitionBase):
         _pack_ = 1
 
 
+class data_logger_state_v2(RPCDefinitionBase):
+    """Get state of a data logger (Larger erase unit)"""
+
+    NAME = "data_logger_state_v2"
+    HELP = "Get state of a data logger (Larger erase unit)"
+    DESCRIPTION = "Get state of a data logger (Larger erase unit)"
+    COMMAND_ID = 24
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("bytes_logged", ctypes.c_uint64),
+            ("logical_blocks", ctypes.c_uint32),
+            ("physical_blocks", ctypes.c_uint32),
+            ("boot_block", ctypes.c_uint32),
+            ("current_block", ctypes.c_uint32),
+            ("earliest_block", ctypes.c_uint32),
+            ("block_size", ctypes.c_uint16),
+            ("block_overhead", ctypes.c_uint16),
+            ("erase_unit", ctypes.c_uint32),
+            ("uptime", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
 class coap_download(RPCDefinitionBase):
     """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
 
@@ -849,6 +879,35 @@ class zperf_upload(RPCDefinitionBase):
             ("client_time_in_us", ctypes.c_uint64),
             ("packet_size", ctypes.c_uint32),
             ("nb_packets_errors", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class coap_download_v2(RPCDefinitionBase):
+    """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
+
+    NAME = "coap_download_v2"
+    HELP = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    COMMAND_ID = 32
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("server_address", 48 * ctypes.c_char),
+            ("server_port", ctypes.c_uint16),
+            ("block_timeout_ms", ctypes.c_uint16),
+            ("block_size", ctypes.c_uint16),
+            ("action", ctypes.c_uint8),
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        vla_field = ("resource", 0 * ctypes.c_char)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
 
@@ -1045,6 +1104,28 @@ class gravity_reference_update(RPCDefinitionBase):
         _pack_ = 1
 
 
+class ubx_assist_now_ztp_creds(RPCDefinitionBase):
+    """Retrieve U-blox AssistNow Zero Touch Provisioning credentials"""
+
+    NAME = "ubx_assist_now_ztp_creds"
+    HELP = "Retrieve U-blox AssistNow Zero Touch Provisioning credentials"
+    DESCRIPTION = "Retrieve U-blox AssistNow Zero Touch Provisioning credentials"
+    COMMAND_ID = 70
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("mon_ver_offset", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("ubx_sec_uniqid", 18 * ctypes.c_uint8),
+        ]
+        vla_field = ("ubx_mon_ver", 0 * ctypes.c_uint8)
+        _pack_ = 1
+
+
 class security_state(RPCDefinitionBase):
     """Query current security state and validate identity"""
 
@@ -1175,8 +1256,10 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     lte_state.COMMAND_ID: lte_state,
     data_logger_read_available.COMMAND_ID: data_logger_read_available,
     lte_state_v2.COMMAND_ID: lte_state_v2,
+    data_logger_state_v2.COMMAND_ID: data_logger_state_v2,
     coap_download.COMMAND_ID: coap_download,
     zperf_upload.COMMAND_ID: zperf_upload,
+    coap_download_v2.COMMAND_ID: coap_download_v2,
     file_write_basic.COMMAND_ID: file_write_basic,
     annotate.COMMAND_ID: annotate,
     bt_connect_infuse.COMMAND_ID: bt_connect_infuse,
@@ -1185,6 +1268,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     bt_file_copy_coap.COMMAND_ID: bt_file_copy_coap,
     bt_mcumgr_reboot.COMMAND_ID: bt_mcumgr_reboot,
     gravity_reference_update.COMMAND_ID: gravity_reference_update,
+    ubx_assist_now_ztp_creds.COMMAND_ID: ubx_assist_now_ztp_creds,
     security_state.COMMAND_ID: security_state,
     security_key_update.COMMAND_ID: security_key_update,
     data_sender.COMMAND_ID: data_sender,
@@ -1240,8 +1324,10 @@ __all__ = [
     "lte_state",
     "data_logger_read_available",
     "lte_state_v2",
+    "data_logger_state_v2",
     "coap_download",
     "zperf_upload",
+    "coap_download_v2",
     "file_write_basic",
     "annotate",
     "bt_connect_infuse",
@@ -1250,6 +1336,7 @@ __all__ = [
     "bt_file_copy_coap",
     "bt_mcumgr_reboot",
     "gravity_reference_update",
+    "ubx_assist_now_ztp_creds",
     "security_state",
     "security_key_update",
     "data_sender",
