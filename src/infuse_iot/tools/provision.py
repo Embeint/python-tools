@@ -17,7 +17,7 @@ from infuse_iot.api_client.api.device import (
     get_device_by_soc_and_mcu_id,
 )
 from infuse_iot.api_client.api.organisation import get_all_organisations
-from infuse_iot.api_client.models import Board, DeviceMetadata, Error, NewDevice
+from infuse_iot.api_client.models import Board, Device, DeviceMetadata, Error, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
 from infuse_iot.util.console import choose_one
@@ -145,6 +145,9 @@ class SubCommand(InfuseCommand):
             )
             if response.status_code == HTTPStatus.OK:
                 # Device found, fall through
+                assert isinstance(response.parsed, Device)
+                self._org = response.parsed.organisation_id
+                self._board = response.parsed.board_id
                 pass
             elif response.status_code == HTTPStatus.NOT_FOUND:
                 # Create new device here
@@ -160,8 +163,6 @@ class SubCommand(InfuseCommand):
                     err = "Failed to query device after creation:\n"
                     err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
                     sys.exit(err)
-                print("To provision more devices like this:")
-                print(f"\t infuse provision --organisation {self._org} --board {self._board}")
             else:
                 err = "Failed to query device information:\n"
                 err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
@@ -186,3 +187,7 @@ class SubCommand(InfuseCommand):
             print(f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}")
 
         interface.close()
+
+        example_cmd = f"infuse provision --organisation {self._org} --board {self._board} --{self._vendor}"
+        print("To provision more devices like this:")
+        print(f"\t {example_cmd}")
