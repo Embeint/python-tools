@@ -96,7 +96,7 @@ class RpcClient:
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
-        ack_period = 1
+        ack_period = 2
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
         data_hdr = rpc.RequestDataHeader(total_size, ack_period)
 
