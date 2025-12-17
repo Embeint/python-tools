@@ -60,18 +60,24 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
         parser.add_argument(
             "--channel", "-c", type=int, default=wifi.FrequencyChannel.CHANNEL_ANY, help="Network channel index"
         )
+        parser.add_argument("--delete", action="store_true", help="Delete configured network")
 
     def __init__(self, args):
         self.args = args
 
     def request_struct(self):
-        ssid_bytes = self.args.ssid.encode("utf-8") + b"\x00"
-        psk_bytes = self.args.psk.encode("utf-8") + b"\x00"
-        chan_bytes = self.args.band.to_bytes(1, "little") + self.args.channel.to_bytes(1, "little")
+        if self.args.delete:
+            ssid_struct = kv_write.kv_store_value_factory(20, b"")
+            psk_struct = kv_write.kv_store_value_factory(21, b"")
+            chan_struct = kv_write.kv_store_value_factory(22, b"")
+        else:
+            ssid_bytes = self.args.ssid.encode("utf-8") + b"\x00"
+            psk_bytes = self.args.psk.encode("utf-8") + b"\x00"
+            chan_bytes = self.args.band.to_bytes(1, "little") + self.args.channel.to_bytes(1, "little")
 
-        ssid_struct = kv_write.kv_store_value_factory(20, len(ssid_bytes).to_bytes(1, "little") + ssid_bytes)
-        psk_struct = kv_write.kv_store_value_factory(21, len(psk_bytes).to_bytes(1, "little") + psk_bytes)
-        chan_struct = kv_write.kv_store_value_factory(22, chan_bytes)
+            ssid_struct = kv_write.kv_store_value_factory(20, len(ssid_bytes).to_bytes(1, "little") + ssid_bytes)
+            psk_struct = kv_write.kv_store_value_factory(21, len(psk_bytes).to_bytes(1, "little") + psk_bytes)
+            chan_struct = kv_write.kv_store_value_factory(22, chan_bytes)
 
         request_bytes = bytes(ssid_struct) + bytes(psk_struct) + bytes(chan_struct)
         return bytes(self.request(3)) + request_bytes
@@ -82,12 +88,20 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
             return
 
         def print_status(name, rc):
-            if rc < 0:
-                print(f"{name} failed to write")
-            elif rc == 0:
-                print(f"{name} already matched")
+            if self.args.delete:
+                if rc == 0:
+                    print(f"{name} deleted")
+                elif rc == -errno.ENOENT:
+                    print(f"{name} did not exist")
+                else:
+                    print(f"{name} failed to delete ({errno(-rc).name})")
             else:
-                print(f"{name} updated")
+                if rc < 0:
+                    print(f"{name} failed to write")
+                elif rc == 0:
+                    print(f"{name} already matched")
+                else:
+                    print(f"{name} updated")
 
         print_status("SSID", response.rc[0])
         print_status("PSK", response.rc[1])
