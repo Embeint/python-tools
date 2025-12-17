@@ -8,6 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import ctypes
 import sys
 from http import HTTPStatus
+from uuid import UUID
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.board import get_board_by_id, get_boards
@@ -66,8 +67,14 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._vendor = args.vendor
         self._snr = args.snr
-        self._board = args.board
-        self._org = args.organisation
+        try:
+            self._board = UUID(args.board) if args.board else None
+        except ValueError:
+            sys.exit(f"Board ID: '{args.board}' is not a valid UUID")
+        try:
+            self._org = UUID(args.organisation) if args.organisation else None
+        except ValueError:
+            sys.exit(f"Organisation ID: '{args.organisation}' is not a valid UUID")
         self._id = args.id
         self._dry_run = args.dry_run
         self._metadata = {}
