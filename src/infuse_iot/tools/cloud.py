@@ -56,10 +56,10 @@ class Organisations(CloudSubCommand):
 
         tool_parser = parser_orgs.add_subparsers(title="commands", metavar="<command>", required=True)
 
-        list_parser = tool_parser.add_parser("list")
+        list_parser = tool_parser.add_parser("list", help="List all organisations")
         list_parser.set_defaults(command_fn=cls.list)
 
-        create_parser = tool_parser.add_parser("create")
+        create_parser = tool_parser.add_parser("create", help="Create new organisation")
         create_parser.add_argument("--name", "-n", type=str, required=True)
         create_parser.set_defaults(command_fn=cls.create)
 
@@ -105,10 +105,10 @@ class Boards(CloudSubCommand):
 
         tool_parser = parser_boards.add_subparsers(title="commands", metavar="<command>", required=True)
 
-        list_parser = tool_parser.add_parser("list")
+        list_parser = tool_parser.add_parser("list", help="List all hardware platforms")
         list_parser.set_defaults(command_fn=cls.list)
 
-        create_parser = tool_parser.add_parser("create")
+        create_parser = tool_parser.add_parser("create", help="Create new hardware platform")
         create_parser.add_argument("--name", "-n", type=str, required=True, help="New board name")
         create_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
         create_parser.add_argument("--soc", "-s", type=str, required=True, help="Board system on chip")
@@ -166,12 +166,12 @@ class Device(CloudSubCommand):
 
         tool_parser = parser_boards.add_subparsers(title="commands", metavar="<command>", required=True)
 
-        info_parser = tool_parser.add_parser("info")
+        info_parser = tool_parser.add_parser("info", help="General device information")
         info_parser.set_defaults(command_fn=cls.info)
-        info_parser.add_argument("--id", type=str, help="Infuse-IoT device ID")
-        info_parser = tool_parser.add_parser("kv_state")
+        info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        info_parser = tool_parser.add_parser("kv_state", help="Key-Value device state")
         info_parser.set_defaults(command_fn=cls.kv_state)
-        info_parser.add_argument("--id", type=str, help="Infuse-IoT device ID")
+        info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
 
     def run(self):
         with self.client() as client:
@@ -261,7 +261,7 @@ class Coap(CloudSubCommand):
 
         tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
 
-        list_parser = tool_parser.add_parser("list")
+        list_parser = tool_parser.add_parser("list", help="List all CoAP files")
         list_parser.set_defaults(command_fn=cls.list)
 
     def run(self):
