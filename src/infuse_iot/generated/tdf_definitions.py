@@ -444,6 +444,26 @@ class readings:
             "flags": "0x{:02x}",
         }
 
+    class soc_temperature(TdfReadingBase):
+        """SoC die temperature"""
+
+        ID = 8
+        NAME = "SOC_TEMPERATURE"
+        _fields_ = [
+            ("_temperature", ctypes.c_int16),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "temperature": "deg",
+        }
+        _display_fmt_ = {
+            "temperature": "{:.2f}",
+        }
+
+        @property
+        def temperature(self):
+            return self._temperature * 0.01
+
     class acc_2g(TdfReadingBase):
         """Accelerometer +-2G"""
 
@@ -1683,6 +1703,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.time_sync.ID: readings.time_sync,
     readings.reboot_info.ID: readings.reboot_info,
     readings.announce_v2.ID: readings.announce_v2,
+    readings.soc_temperature.ID: readings.soc_temperature,
     readings.acc_2g.ID: readings.acc_2g,
     readings.acc_4g.ID: readings.acc_4g,
     readings.acc_8g.ID: readings.acc_8g,
