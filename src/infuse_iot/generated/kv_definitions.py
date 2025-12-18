@@ -106,6 +106,16 @@ class structs:
         ]
         _pack_ = 1
 
+    class kv_algorithm_movement_threshold_args_v2(VLACompatLittleEndianStruct):
+        """Arguments for 'Shot Triggered' algorithm"""
+
+        _fields_ = [
+            ("moving_for", ctypes.c_uint32),
+            ("initial_threshold_ug", ctypes.c_uint32),
+            ("continue_threshold_ug", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
 
 class slots:
     class reboots(VLACompatLittleEndianStruct):
@@ -479,6 +489,18 @@ class slots:
         ]
         _pack_ = 1
 
+    class alg_movement_threshold_args_v2(VLACompatLittleEndianStruct):
+        """Configuration for the 'Movement Threshold' algorithm"""
+
+        NAME = "ALG_MOVEMENT_THRESHOLD_ARGS_V2"
+        BASE_ID = 203
+        RANGE = 1
+        _fields_ = [
+            ("logging", structs.kv_algorithm_logging),
+            ("args", structs.kv_algorithm_movement_threshold_args_v2),
+        ]
+        _pack_ = 1
+
     class task_schedules_default_id(VLACompatLittleEndianStruct):
         """Unique identifier for default schedule set"""
 
@@ -569,6 +591,7 @@ class slots:
         200: alg_stationary_windowed_args,
         201: alg_tilt_args,
         202: alg_movement_threshold_args,
+        203: alg_movement_threshold_args_v2,
         1000: task_schedules_default_id,
         1001: task_schedules,
         1002: task_schedules,
