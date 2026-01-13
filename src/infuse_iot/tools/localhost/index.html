@@ -15,6 +15,17 @@
         font-family: monospace;
     }
 
+    .sidebar {
+        height: 100%; /* 100% Full-height */
+        width: 0; /* 0 width - change this with JavaScript */
+        position: fixed; /* Stay in place */
+        z-index: 1; /* Stay on top */
+        top: 0;
+        right: 0;
+        background-color: #ffffff; /* White */
+        overflow-x: hidden; /* Disable horizontal scroll */
+    }
+
     #tdf-show {
         vertical-align: top;
     }
@@ -26,20 +37,38 @@
 
 <body>
     <h1>Infuse-IoT TDF Viewer</h1>
-    <p>
+
+    <div id="filteringSidebar" class="sidebar">
+        <span id="tdf-show"></span>
+        <span id="app-show"></span>
+    </div>
+    <div>
+        <b>
+        Filtering:
+        <button class="openbtn" onclick="openFiltering()">&#9776; Options</button>
+        </b>
+
+        <b>
+        <label for="update_pause">Pause updating: </label>
+        <input type="checkbox" id="update_pause" name="update_pause" value="pause">
+        </b>
+    </div>
     <div id="data-table"></div>
-    </p>
-    <p>
-    <h2>Table Control
-    <label for="update_pause"> (Pause updating</label>
-    <input type="checkbox" id="update_pause" name="update_pause" value="pause">
-    )
-    </h2>
-    <span id="tdf-show"></span>
-    <span id="app-show"></span>
-    </p>
 
     <script>
+        // Filtering controls visible or not
+        function openFiltering() {
+            let elem = document.getElementById("filteringSidebar");
+            let open_width = "275px";
+
+            // Toggle sidebar with filtering options
+            if (elem.style.width == open_width) {
+                elem.style.width = "0px";
+            } else {
+                elem.style.width = open_width;
+            }
+        }
+
         let filtering_update = false;
         // Initialize the Tabulator table
         const dataTable = new Tabulator("#data-table", {
