@@ -123,7 +123,7 @@ class SubCommand(InfuseCommand):
                 message = {
                     "columns": columns,
                     "rows": [self._data[d] for d in devices],
-                    "tdfs": list(self._columns.keys()),
+                    "tdfs": sorted(list(self._columns.keys())),
                 }
                 self._data_lock.release()
 
