@@ -33,6 +33,10 @@
     #app-show {
         vertical-align: top;
     }
+
+    #data-table {
+        width: 100%;
+    };
 </style>
 
 <body>
@@ -73,10 +77,10 @@
         // Initialize the Tabulator table
         const dataTable = new Tabulator("#data-table", {
             layout: "fitDataTable",
-            pagination:"local",
-            paginationSize:25,
-            paginationSizeSelector:[10, 25, 50, 100],
-            paginationCounter:"rows",
+            pagination: "local",
+            paginationSize: 25,
+            paginationSizeSelector: [10, 25, 50, 100],
+            paginationCounter: "rows",
         });
         const shownTdfTable = new Tabulator("#tdf-show", {
             layout: "fitDataTable",
