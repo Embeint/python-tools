@@ -65,7 +65,7 @@ class zperf_upload(InfuseRpcCommand, defs.zperf_upload):
         parser.add_argument("--encrypt", action="store_true", help="Encrypt payloads before transmission")
         parser.add_argument("--duration", type=int, default=5000, help="Duration to run test over in milliseconds")
         parser.add_argument("--rate-kbps", type=int, default=0, help="Desired upload rate in kbps")
-        parser.add_argument("--payload-size", type=int, default=512, help="Payload size")
+        parser.add_argument("--payload-size", type=int, default=508, help="Payload size")
 
     def __init__(self, args):
         self.peer_addr = ipaddress.ip_address(args.address)
