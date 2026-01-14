@@ -211,6 +211,17 @@ class rpc_struct_heap_info(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_data_logger_chunk(VLACompatLittleEndianStruct):
+    """Data logger chunk description"""
+
+    _fields_ = [
+        ("start_block", ctypes.c_uint32),
+        ("start_offset", ctypes.c_uint16),
+        ("num_bytes", ctypes.c_uint32),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -820,6 +831,32 @@ class data_logger_state_v2(RPCDefinitionBase):
         _pack_ = 1
 
 
+class data_logger_read_chunks(RPCDefinitionBase):
+    """Read a number of arbitrary chunks from a data logger"""
+
+    NAME = "data_logger_read_chunks"
+    HELP = "Read a number of arbitrary chunks from a data logger"
+    DESCRIPTION = "Read a number of arbitrary chunks from a data logger"
+    COMMAND_ID = 25
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("logger", ctypes.c_uint8),
+            ("num_chunks", ctypes.c_uint8),
+        ]
+        vla_field = ("chunks", 0 * rpc_struct_data_logger_chunk)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("sent_len", ctypes.c_uint32),
+            ("sent_crc", ctypes.c_uint32),
+            ("current_block", ctypes.c_uint32),
+            ("block_size", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+
 class coap_download(RPCDefinitionBase):
     """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
 
@@ -1257,6 +1294,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     data_logger_read_available.COMMAND_ID: data_logger_read_available,
     lte_state_v2.COMMAND_ID: lte_state_v2,
     data_logger_state_v2.COMMAND_ID: data_logger_state_v2,
+    data_logger_read_chunks.COMMAND_ID: data_logger_read_chunks,
     coap_download.COMMAND_ID: coap_download,
     zperf_upload.COMMAND_ID: zperf_upload,
     coap_download_v2.COMMAND_ID: coap_download_v2,
@@ -1293,6 +1331,7 @@ __all__ = [
     "rpc_struct_infuse_state",
     "rpc_struct_sockaddr",
     "rpc_struct_heap_info",
+    "rpc_struct_data_logger_chunk",
     "rpc_enum_bt_le_addr_type",
     "rpc_enum_file_action",
     "rpc_enum_infuse_bt_characteristic",
@@ -1325,6 +1364,7 @@ __all__ = [
     "data_logger_read_available",
     "lte_state_v2",
     "data_logger_state_v2",
+    "data_logger_read_chunks",
     "coap_download",
     "zperf_upload",
     "coap_download_v2",
