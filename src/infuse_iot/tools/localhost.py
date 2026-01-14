@@ -16,6 +16,7 @@ from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
 import infuse_iot.epacket.interface as interface
+import infuse_iot.epacket.packet as packet
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
 from infuse_iot.definitions.tdf import structs
@@ -79,6 +80,11 @@ class SubCommand(InfuseCommand):
                             {
                                 "title": "App ID",
                                 "field": "application",
+                                "headerHozAlign": "center",
+                            },
+                            {
+                                "title": "Network",
+                                "field": "network_id",
                                 "headerHozAlign": "center",
                             },
                             {
@@ -202,6 +208,9 @@ class SubCommand(InfuseCommand):
             addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
             self._data[source.infuse_id]["bt_addr"] = addr_str
             self._data[source.infuse_id]["bt_rssi"] = source.rssi
+
+        if source.auth == packet.Auth.NETWORK:
+            self._data[source.infuse_id]["network_id"] = f"0x{source.key_identifier:06x}"
 
         for tdf in self._decoder.decode(msg.epacket.payload):
             t = tdf.data[-1]
