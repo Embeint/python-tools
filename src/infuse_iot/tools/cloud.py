@@ -169,9 +169,10 @@ class Device(CloudSubCommand):
         info_parser = tool_parser.add_parser("info", help="General device information")
         info_parser.set_defaults(command_fn=cls.info)
         info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
-        info_parser = tool_parser.add_parser("kv_state", help="Key-Value device state")
-        info_parser.set_defaults(command_fn=cls.kv_state)
-        info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        kv_parser = tool_parser.add_parser("kv_state", help="Key-Value device state")
+        kv_parser.set_defaults(command_fn=cls.kv_state)
+        kv_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
 
     def run(self):
         with self.client() as client:
@@ -241,6 +242,10 @@ class Device(CloudSubCommand):
         table: list[tuple[str, Any]] = []
         for element in kv_state:
             key = element.key_name if isinstance(element.key_name, str) else str(element.key_id)
+
+            # Don't display task schedules unless requested
+            if key == "TASK_SCHEDULES" and not self.args.schedules:
+                continue
 
             if isinstance(element.data, Unset):
                 table.append((key, "Not set"))
