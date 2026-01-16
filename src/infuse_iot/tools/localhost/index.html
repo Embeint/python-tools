@@ -127,7 +127,7 @@
             a.every((element, index) => element === b[index]);
 
         ws.onmessage = function (event) {
-            const { columns, rows, tdfs } = JSON.parse(event.data);
+            const { columns, rows, tdfs, apps } = JSON.parse(event.data);
 
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
@@ -150,13 +150,18 @@
                 disableData.map(row => [row.name, row.checked])
             );
 
-            const uniqueApplications = [
-                ...new Set(rows.map(obj => obj.application).filter(app => app !== undefined).sort())
-            ];
-            if (!arraysEqual(currentApps, uniqueApplications)) {
-                versions = uniqueApplications.map((v, idx) => { return { id: `row-${idx}`, name: v, checked: true }; })
-                shownAppTable.replaceData(versions);
-                currentApps = uniqueApplications
+            if (!arraysEqual(currentApps, apps)) {
+                // Merge new data with the existing table data
+                const currentRows = shownAppTable.getData();
+                const updatedData = apps.map((str, index) => {
+                    const existingRow = currentRows.find(row => row.name === str);
+                    console.log(str, existingRow);
+                    return existingRow
+                        ? existingRow // Preserve the existing row if found
+                        : { id: `row-${index}`, name: str, checked: true };
+                });
+                shownAppTable.replaceData(updatedData);
+                currentApps = apps
                 filtering_update = true;
             }
 
