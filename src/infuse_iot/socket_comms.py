@@ -47,7 +47,7 @@ class ClientNotification:
             return cast(Self, ClientNotificationConnectionDropped.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, ClientNotificationObservedDevices.from_json(values))
-        raise NotImplementedError
+        raise NotImplementedError(f"Unknown notification: {values}")
 
 
 class ClientNotificationEpacketReceived(ClientNotification):
@@ -147,7 +147,7 @@ class GatewayRequest:
             return cast(Self, GatewayRequestConnectionRelease.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, GatewayRequestObservedDevices.from_json(values))
-        raise NotImplementedError
+        raise NotImplementedError(f"Unknown request: {values}")
 
 
 class GatewayRequestEpacketSend(GatewayRequest):
