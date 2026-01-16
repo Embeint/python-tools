@@ -44,6 +44,7 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._data_lock = threading.Lock()
         self._columns: dict[str, dict] = {}
+        self._apps: set[str] = set()
         self._data: dict[int, dict] = {}
         self._port: int = args.port
 
@@ -130,6 +131,7 @@ class SubCommand(InfuseCommand):
                     "columns": columns,
                     "rows": [self._data[d] for d in devices],
                     "tdfs": sorted(list(self._columns.keys())),
+                    "apps": sorted(list(self._apps)),
                 }
                 self._data_lock.release()
 
@@ -219,7 +221,9 @@ class SubCommand(InfuseCommand):
             if t.NAME not in self._data[source.infuse_id]:
                 self._data[source.infuse_id][t.NAME] = {}
             if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
-                self._data[source.infuse_id]["application"] = f"0x{t.application:08x}"
+                app_str = f"0x{t.application:08x}"
+                self._data[source.infuse_id]["application"] = app_str
+                self._apps.add(app_str)
 
             for field in t.iter_fields(nested_iter=False):
                 if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
