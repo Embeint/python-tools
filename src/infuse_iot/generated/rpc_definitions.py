@@ -272,6 +272,7 @@ class rpc_enum_key_id(enum.IntEnum):
 
     NETWORK_KEY = 0
     SECONDARY_NETWORK_KEY = 1
+    SECONDARY_REMOTE_PUBLIC_KEY = 2
 
 
 class rpc_enum_key_action(enum.IntEnum):
