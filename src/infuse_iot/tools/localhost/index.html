@@ -155,7 +155,6 @@
                 const currentRows = shownAppTable.getData();
                 const updatedData = apps.map((str, index) => {
                     const existingRow = currentRows.find(row => row.name === str);
-                    console.log(str, existingRow);
                     return existingRow
                         ? existingRow // Preserve the existing row if found
                         : { id: `row-${index}`, name: str, checked: true };
