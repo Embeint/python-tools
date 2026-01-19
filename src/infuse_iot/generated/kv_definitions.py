@@ -206,6 +206,17 @@ class slots:
         vla_field = ("board_target", structs.kv_string)
         _pack_ = 1
 
+    class secondary_remote_public_key(VLACompatLittleEndianStruct):
+        """Storage of secondary remote public key"""
+
+        NAME = "SECONDARY_REMOTE_PUBLIC_KEY"
+        BASE_ID = 8
+        RANGE = 1
+        _fields_ = [
+            ("public_key", 32 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
 
@@ -551,6 +562,7 @@ class slots:
         5: infuse_application_id,
         6: application_active,
         7: board_target,
+        8: secondary_remote_public_key,
         10: fixed_location,
         20: wifi_ssid,
         21: wifi_psk,
