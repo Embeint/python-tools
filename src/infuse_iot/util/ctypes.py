@@ -52,8 +52,8 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
 
         if issubclass(vla_field_type, ctypes.Array):
             array_base: ctypes._PyCSimpleType = vla_field_type._type_  # type: ignore
-            if hasattr(array_base, "vla_counted_by"):
-                # This is an array of VLA arrays where the sub-arrys define their own length
+            if hasattr(array_base, "vla_counted_by") and array_base.vla_counted_by:
+                # This is an array of VLA arrays where the sub-arrays define their own length
                 vla_val = []
                 # Consume all remaining buffer bytes
                 while len(remainder) > 0:
