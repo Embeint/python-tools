@@ -222,6 +222,16 @@ class rpc_struct_data_logger_chunk(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_public_key_info_256bit(VLACompatLittleEndianStruct):
+    """256 bit public key and identifier"""
+
+    _fields_ = [
+        ("id", ctypes.c_uint8),
+        ("key", 32 * ctypes.c_uint8),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -273,6 +283,8 @@ class rpc_enum_key_id(enum.IntEnum):
     NETWORK_KEY = 0
     SECONDARY_NETWORK_KEY = 1
     SECONDARY_REMOTE_PUBLIC_KEY = 2
+    DEVICE_PUBLIC_KEY = 3
+    CLOUD_PUBLIC_KEY = 4
 
 
 class rpc_enum_key_action(enum.IntEnum):
@@ -1212,6 +1224,30 @@ class security_key_update(RPCDefinitionBase):
         _pack_ = 1
 
 
+class security_public_keys(RPCDefinitionBase):
+    """Query device public keys"""
+
+    NAME = "security_public_keys"
+    HELP = "Query device public keys"
+    DESCRIPTION = "Query device public keys"
+    COMMAND_ID = 30002
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("skip", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("keys_total", ctypes.c_uint8),
+            ("keys_included", ctypes.c_uint8),
+        ]
+        vla_field = ("public_keys", 0 * rpc_struct_public_key_info_256bit)
+        vla_counted_by = "keys_included"
+        _pack_ = 1
+
+
 class data_sender(RPCDefinitionBase):
     """Send multiple INFUSE_RPC_DATA packets"""
 
@@ -1310,6 +1346,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     ubx_assist_now_ztp_creds.COMMAND_ID: ubx_assist_now_ztp_creds,
     security_state.COMMAND_ID: security_state,
     security_key_update.COMMAND_ID: security_key_update,
+    security_public_keys.COMMAND_ID: security_public_keys,
     data_sender.COMMAND_ID: data_sender,
     data_receiver.COMMAND_ID: data_receiver,
     echo.COMMAND_ID: echo,
@@ -1333,6 +1370,7 @@ __all__ = [
     "rpc_struct_sockaddr",
     "rpc_struct_heap_info",
     "rpc_struct_data_logger_chunk",
+    "rpc_struct_public_key_info_256bit",
     "rpc_enum_bt_le_addr_type",
     "rpc_enum_file_action",
     "rpc_enum_infuse_bt_characteristic",
@@ -1380,6 +1418,7 @@ __all__ = [
     "ubx_assist_now_ztp_creds",
     "security_state",
     "security_key_update",
+    "security_public_keys",
     "data_sender",
     "data_receiver",
     "echo",
