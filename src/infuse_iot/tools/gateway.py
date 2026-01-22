@@ -456,6 +456,7 @@ class SubCommand(InfuseCommand):
             help="Save serial output to file",
         )
         parser.add_argument("--baud", type=int, default=115200, help="Baudrate for serial port")
+        parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
 
     def __init__(self, args: argparse.Namespace):
         self.port: SerialLike
@@ -467,7 +468,7 @@ class SubCommand(InfuseCommand):
             self.port = RttPort(args.rtt)
         elif args.pyocd is not None:
             self.port = PyOcdPort(args.pyocd)
-        self.ddb = DeviceDatabase()
+        self.ddb = DeviceDatabase(args.root)
         if args.display_only:
             self.server = None
         else:
