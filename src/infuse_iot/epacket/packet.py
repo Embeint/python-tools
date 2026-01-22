@@ -258,7 +258,7 @@ class PacketOutputRouted(Serializable):
             key = database.serial_network_key(serial.infuse_id, gps_time)
         else:
             flags = Flags.ENCR_DEVICE
-            key_metadata = database.devices[serial.infuse_id].device_id
+            key_metadata = database.devices[serial.infuse_id].device_key_id
             key = database.serial_device_key(serial.infuse_id, gps_time)
 
         # Validation
@@ -420,7 +420,7 @@ class CtypeSerialFrame(CtypeV0VersionedFrame):
     def decrypt(cls, database: DeviceDatabase, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            database.observe_device(header.device_id, device_id=header.key_metadata)
+            database.observe_device(header.device_id, device_key_id=header.key_metadata)
             key = database.serial_device_key(header.device_id, header.gps_time)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)
@@ -463,7 +463,7 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         flags = 0
 
         if auth == Auth.DEVICE:
-            key_meta = dev_state.device_id
+            key_meta = dev_state.device_key_id
             key = database.bt_gatt_device_key(infuse_id, gps_time)
             flags |= Flags.ENCR_DEVICE
         else:
@@ -493,7 +493,7 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
     def decrypt(cls, database: DeviceDatabase, bt_addr: Address.BluetoothLeAddr | None, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            database.observe_device(header.device_id, device_id=header.key_metadata, bt_addr=bt_addr)
+            database.observe_device(header.device_id, device_key_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_gatt_device_key(header.device_id, header.gps_time)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata, bt_addr=bt_addr)
@@ -508,7 +508,7 @@ class CtypeUdpFrame(CtypeV0UnversionedFrame):
     def decrypt(cls, database: DeviceDatabase, frame: bytes):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
-            database.observe_device(header.device_id, device_id=header.key_metadata)
+            database.observe_device(header.device_id, device_key_id=header.key_metadata)
             key = database.udp_device_key(header.device_id, header.gps_time)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)

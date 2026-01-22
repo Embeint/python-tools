@@ -401,8 +401,8 @@ class SerialTxThread(SignaledThread):
             info = {}
             if state.network_id is not None:
                 info["network_id"] = state.network_id
-            if state.device_id is not None:
-                info["device_id"] = state.device_id
+            if state.device_key_id is not None:
+                info["device_key_id"] = state.device_key_id
             if self._common.ddb.gateway == device:
                 info["gateway"] = True
             observed_devices[device] = info
