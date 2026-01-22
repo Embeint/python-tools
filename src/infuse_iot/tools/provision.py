@@ -65,8 +65,8 @@ class SubCommand(InfuseCommand):
         )
 
     def __init__(self, args):
-        self._vendor = args.vendor
-        self._snr = args.snr
+        self._vendor: str = args.vendor
+        self._snr: int | None = args.snr
         try:
             self._board = UUID(args.board) if args.board else None
         except ValueError:
@@ -75,8 +75,8 @@ class SubCommand(InfuseCommand):
             self._org = UUID(args.organisation) if args.organisation else None
         except ValueError:
             sys.exit(f"Organisation ID: '{args.organisation}' is not a valid UUID")
-        self._id = args.id
-        self._dry_run = args.dry_run
+        self._id: int | None = args.id
+        self._dry_run: bool | None = args.dry_run
         self._metadata = {}
         if args.metadata:
             for meta in args.metadata:
@@ -146,8 +146,15 @@ class SubCommand(InfuseCommand):
             if response.status_code == HTTPStatus.OK:
                 # Device found, fall through
                 assert isinstance(response.parsed, Device)
+                assert isinstance(response.parsed.device_id, str)
                 self._org = response.parsed.organisation_id
                 self._board = response.parsed.board_id
+                cloud_id = int(response.parsed.device_id, 16)
+                if self._id and (self._id != cloud_id):
+                    # ID provided on the command line but device already provisioned as another ID
+                    err = f"HW ID 0x{hardware_id:016x} provisioned as 0x{cloud_id:016x} on the cloud"
+                    err += f" but CLI requested 0x{self._id:016x}"
+                    sys.exit(err)
                 pass
             elif response.status_code == HTTPStatus.NOT_FOUND:
                 # Create new device here
