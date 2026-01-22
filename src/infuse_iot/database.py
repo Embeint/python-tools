@@ -2,6 +2,12 @@
 
 import base64
 import binascii
+import pathlib
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.types import (
+    PrivateKeyTypes,
+)
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.key import get_shared_secret
@@ -59,10 +65,18 @@ class DeviceDatabase:
             self._tx_gatt_seq += 1
             return self._tx_gatt_seq
 
-    def __init__(self) -> None:
+    def __init__(self, local_root: pathlib.Path | None) -> None:
         self.gateway: int | None = None
         self.devices: dict[int, DeviceDatabase.DeviceState] = {}
         self.bt_addr: dict[InterfaceAddress.BluetoothLeAddr, int] = {}
+        self._local_root: PrivateKeyTypes | None = None
+        if local_root:
+            with local_root.open() as f:
+                self._local_root = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
+
+    @property
+    def has_local_root(self) -> bool:
+        return self._local_root is not None
 
     def observe_device(
         self,
