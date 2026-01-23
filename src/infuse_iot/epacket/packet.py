@@ -258,8 +258,7 @@ class PacketOutputRouted(Serializable):
             key = database.serial_network_key(serial.infuse_id, gps_time)
         else:
             flags = Flags.ENCR_DEVICE
-            key_metadata = database.devices[serial.infuse_id].device_key_id
-            key = database.serial_device_key(serial.infuse_id, gps_time)
+            key_metadata, key = database.serial_device_key(serial.infuse_id, gps_time)
 
         # Validation
         assert key_metadata is not None
@@ -421,7 +420,7 @@ class CtypeSerialFrame(CtypeV0VersionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata)
-            key = database.serial_device_key(header.device_id, header.gps_time, header.key_metadata)
+            _, key = database.serial_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.serial_network_key(header.device_id, header.gps_time)
@@ -460,11 +459,11 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
     ) -> bytes:
         dev_state = database.devices[infuse_id]
         gps_time = InfuseTime.gps_seconds_from_unix(int(time.time()))
+        key_meta: int | None
         flags = 0
 
         if auth == Auth.DEVICE:
-            key_meta = dev_state.device_key_id
-            key = database.bt_gatt_device_key(infuse_id, gps_time)
+            key_meta, key = database.bt_gatt_device_key(infuse_id, gps_time)
             flags |= Flags.ENCR_DEVICE
         else:
             key_meta = dev_state.network_id
@@ -494,7 +493,7 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata, bt_addr=bt_addr)
-            key = database.bt_gatt_device_key(header.device_id, header.gps_time, header.key_metadata)
+            _, key = database.bt_gatt_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_gatt_network_key(header.device_id, header.gps_time)
@@ -509,7 +508,7 @@ class CtypeUdpFrame(CtypeV0UnversionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata)
-            key = database.udp_device_key(header.device_id, header.gps_time, header.key_metadata)
+            _, key = database.udp_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.udp_network_key(header.device_id, header.gps_time)
