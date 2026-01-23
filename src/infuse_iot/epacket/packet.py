@@ -233,7 +233,7 @@ class PacketOutputRouted(Serializable):
             assert bt_addr is not None
 
             # Forwarded payload
-            forward_payload = CtypeBtGattFrame.encrypt(database, final.infuse_id, self.ptype, Auth.DEVICE, self.payload)
+            forward_payload = CtypeBtGattFrame.encrypt(database, final.infuse_id, self.ptype, final.auth, self.payload)
 
             # Forwarding header
             forward_hdr = CtypeForwardHeaderBtGatt(
