@@ -187,11 +187,19 @@ class DeviceDatabase:
         if infuse_id not in self.devices:
             raise DeviceUnknownDeviceKey
         d = self.devices[infuse_id]
-        if key_id is None or key_id == d.device_key_id:
-            base = self.devices[infuse_id].shared_key
+        if key_id is None:
+            if d.secondary_device_key_id:
+                key_id = d.secondary_device_key_id
+                base = d.local_shared_key
+            else:
+                key_id = d.device_key_id
+                base = d.shared_key
+        elif key_id == d.device_key_id:
+            base = d.shared_key
+        elif key_id == d.secondary_device_key_id:
+            base = d.local_shared_key
         else:
             raise DeviceUnknownDeviceKey
-        base = self.devices[infuse_id].shared_key
         if base is None:
             raise DeviceUnknownDeviceKey
         time_idx = gps_time // (60 * 60 * 24)
