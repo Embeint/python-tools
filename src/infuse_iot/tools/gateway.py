@@ -65,7 +65,7 @@ class LocalRpcServer:
         self._ddb = database
         self._queued: dict[int, Callable | None] = {}
 
-    def generate(self, command: int, args: bytes, auth: Auth, cb: Callable | None):
+    def generate(self, command: int, args: bytes, auth: Auth, cb: Callable | None) -> PacketOutputRouted:
         """Generate RPC packet from arguments"""
         cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
         cmd_pkt = PacketOutputRouted(
@@ -78,6 +78,23 @@ class LocalRpcServer:
         self._queued[self._cnt] = cb
         self._cnt += 1
         return cmd_pkt
+
+    def generate_remote_bt(
+        self, remote: int, command: int, args: bytes, auth: Auth, cb: Callable | None
+    ) -> PacketOutputRouted:
+        """Generate RPC packet for Bluetooth remote from arguments"""
+        cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
+
+        assert self._ddb.gateway is not None
+        serial = HopOutput(self._ddb.gateway, interface.ID.SERIAL, Auth.DEVICE)
+        bt = HopOutput(remote, interface.ID.BT_CENTRAL, auth)
+        self._queued[self._cnt] = cb
+        self._cnt += 1
+        return PacketOutputRouted(
+            [serial, bt],
+            InfuseType.RPC_CMD,
+            cmd_bytes,
+        )
 
     def handle(self, pkt: PacketReceived):
         """Handle received packets"""
@@ -149,7 +166,7 @@ class CommonThreadState:
                     infuse_id = pkt.route[0].infuse_id
                     self.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
 
-        def run_cmd_pkt(cmd: PacketOutputRouted):
+        def run_cmd_pkt(cmd_pkt: PacketOutputRouted):
             encrypted = cmd_pkt.to_serial(self.ddb)
             # Write to serial port
             Console.log_tx(cmd_pkt.ptype, len(encrypted))
@@ -327,6 +344,21 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(routed.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
+    def _connected_notification(self, infuse_id: int):
+        rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
+        self._common.notification_broadcast(rsp)
+
+    def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes):
+        infuse_id = pkt.route[0].infuse_id
+        if rc == 0:
+            decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
+            for key in decoded.public_keys:
+                if key.id == defs.rpc_enum_key_id.SECONDARY_REMOTE_PUBLIC_KEY:
+                    self._common.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
+
+        # Notify connection success
+        self._connected_notification(infuse_id)
+
     def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes):
         resp = defs.bt_connect_infuse.response.from_buffer_copy(pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :])
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
@@ -335,16 +367,28 @@ class SerialTxThread(SignaledThread):
         assert infuse_id is not None, "ID was required to initiate connection?"
         assert self._common.server is not None
 
-        rsp: ClientNotification
         if rc < 0:
             rsp = ClientNotificationConnectionFailed(infuse_id)
+            self._common.notification_broadcast(rsp)
+            return
+
+        if infuse_id in self._connected:
+            self._connected[infuse_id] += 1
         else:
-            if infuse_id in self._connected:
-                self._connected[infuse_id] += 1
-            else:
-                self._connected[infuse_id] = 1
-            rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
-        self._common.notification_broadcast(rsp)
+            self._connected[infuse_id] = 1
+
+        if self._common.ddb.has_local_root:
+            # Query public keys before running callback
+            cmd = self._common.rpc.generate_remote_bt(
+                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, self._pub_keys_cb
+            )
+            encrypted = cmd.to_serial(self._common.ddb)
+            Console.log_tx(cmd.ptype, len(encrypted))
+            self._common.port.write(encrypted)
+            return
+
+        # Notify connection success
+        self._connected_notification(infuse_id)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
         assert self._common.server is not None
