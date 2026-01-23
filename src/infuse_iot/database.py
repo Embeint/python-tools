@@ -183,7 +183,9 @@ class DeviceDatabase:
             raise DeviceUnknownNetworkKey
         return self._network_key(network_id, name, gps_time)
 
-    def _get_device_key(self, infuse_id: int, name: bytes, gps_time: int, key_id: int | None = None) -> bytes:
+    def _get_device_key(
+        self, infuse_id: int, name: bytes, gps_time: int, key_id: int | None = None
+    ) -> tuple[int, bytes]:
         if infuse_id not in self.devices:
             raise DeviceUnknownDeviceKey
         d = self.devices[infuse_id]
@@ -202,14 +204,15 @@ class DeviceDatabase:
             raise DeviceUnknownDeviceKey
         if base is None:
             raise DeviceUnknownDeviceKey
+        assert key_id is not None
         time_idx = gps_time // (60 * 60 * 24)
-        return hkdf_derive(base, time_idx.to_bytes(4, "little"), name)
+        return key_id, hkdf_derive(base, time_idx.to_bytes(4, "little"), name)
 
     def serial_network_key(self, infuse_id: int, gps_time: int) -> bytes:
         """Network key for serial interface"""
         return self._get_network_key(infuse_id, b"serial", gps_time)
 
-    def serial_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> bytes:
+    def serial_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> tuple[int, bytes]:
         """Device key for serial interface"""
         return self._get_device_key(infuse_id, b"serial", gps_time, key_id)
 
@@ -217,7 +220,7 @@ class DeviceDatabase:
         """Network key for Bluetooth advertising interface"""
         return self._get_network_key(infuse_id, b"bt_adv", gps_time)
 
-    def bt_adv_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> bytes:
+    def bt_adv_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> tuple[int, bytes]:
         """Device key for Bluetooth advertising interface"""
         return self._get_device_key(infuse_id, b"bt_adv", gps_time, key_id)
 
@@ -225,7 +228,7 @@ class DeviceDatabase:
         """Network key for Bluetooth advertising interface"""
         return self._get_network_key(infuse_id, b"bt_gatt", gps_time)
 
-    def bt_gatt_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> bytes:
+    def bt_gatt_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> tuple[int, bytes]:
         """Device key for Bluetooth advertising interface"""
         return self._get_device_key(infuse_id, b"bt_gatt", gps_time, key_id)
 
@@ -233,6 +236,6 @@ class DeviceDatabase:
         """Network key for UDP interface"""
         return self._get_network_key(infuse_id, b"udp", gps_time)
 
-    def udp_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> bytes:
+    def udp_device_key(self, infuse_id: int, gps_time: int, key_id: int | None = None) -> tuple[int, bytes]:
         """Device key for UDP interface"""
         return self._get_device_key(infuse_id, b"udp", gps_time, key_id)
