@@ -5,9 +5,7 @@ import binascii
 import pathlib
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.types import (
-    PrivateKeyTypes,
-)
+from cryptography.hazmat.primitives.asymmetric import x25519
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.key import get_shared_secret
@@ -58,6 +56,8 @@ class DeviceDatabase:
             self.bt_addr: InterfaceAddress.BluetoothLeAddr | None = None
             self.device_public_key: bytes | None = None
             self.shared_key: bytes | None = None
+            self.secondary_device_key_id: int | None = None
+            self.local_shared_key: bytes | None = None
             self._tx_gatt_seq = 0
 
         def gatt_sequence_num(self):
@@ -69,14 +69,21 @@ class DeviceDatabase:
         self.gateway: int | None = None
         self.devices: dict[int, DeviceDatabase.DeviceState] = {}
         self.bt_addr: dict[InterfaceAddress.BluetoothLeAddr, int] = {}
-        self._local_root: PrivateKeyTypes | None = None
+        self._local_root: x25519.X25519PrivateKey | None = None
+        self._local_root_public: bytes | None = None
         if local_root:
             with local_root.open() as f:
-                self._local_root = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
+                private_key = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
+                assert isinstance(private_key, x25519.X25519PrivateKey)
+                self._local_root = private_key
+                self._local_root_public = self._local_root.public_key().public_bytes_raw()
 
     @property
     def has_local_root(self) -> bool:
         return self._local_root is not None
+
+    def is_local_root(self, public_key: bytes) -> bool:
+        return public_key == self._local_root_public
 
     def observe_device(
         self,
@@ -102,6 +109,19 @@ class DeviceDatabase:
         if bt_addr is not None:
             self.bt_addr[bt_addr] = infuse_id
             self.devices[infuse_id].bt_addr = bt_addr
+
+    def observe_secondary_remote_public_key(self, infuse_id: int, secondary_pub_key: bytes):
+        if not self.is_local_root(secondary_pub_key):
+            return
+        if infuse_id not in self.devices:
+            return
+        dev = self.devices[infuse_id]
+        assert self._local_root is not None
+        assert self._local_root_public is not None
+        assert dev.device_public_key is not None
+        device_public_key = x25519.X25519PublicKey.from_public_bytes(dev.device_public_key)
+        dev.secondary_device_key_id = binascii.crc32(self._local_root_public + dev.device_public_key) & 0xFFFFFF
+        dev.local_shared_key = self._local_root.exchange(device_public_key)
 
     def observe_security_state(
         self, infuse_id: int, cloud_pub_key: bytes, device_pub_key: bytes, network_id: int

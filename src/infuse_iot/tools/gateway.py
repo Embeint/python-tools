@@ -140,15 +140,34 @@ class CommonThreadState:
             if cb_event is not None:
                 cb_event.set()
 
-        # Generate security_state RPC
-        cmd_pkt = self.rpc.generate(30000, random.randbytes(16), Auth.NETWORK, security_state_done)
-        encrypted = cmd_pkt.to_serial(self.ddb)
-        # Write to serial port
-        Console.log_tx(cmd_pkt.ptype, len(encrypted))
-        self.port.write(encrypted)
-        if cb_event is not None:
-            # Wait for the response
-            cb_event.wait(1.0)
+        def public_keys_done(pkt: PacketReceived, rc: int, response: bytes):
+            if rc != 0:
+                return
+            decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
+            for key in decoded.public_keys:
+                if key.id == defs.rpc_enum_key_id.SECONDARY_REMOTE_PUBLIC_KEY:
+                    infuse_id = pkt.route[0].infuse_id
+                    self.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
+
+        def run_cmd_pkt(cmd: PacketOutputRouted):
+            encrypted = cmd_pkt.to_serial(self.ddb)
+            # Write to serial port
+            Console.log_tx(cmd_pkt.ptype, len(encrypted))
+            self.port.write(encrypted)
+            if cb_event is not None:
+                # Wait for the response
+                cb_event.wait(1.0)
+
+        # Run security_state RPC
+        cmd_pkt = self.rpc.generate(
+            defs.security_state.COMMAND_ID, random.randbytes(16), Auth.NETWORK, security_state_done
+        )
+        run_cmd_pkt(cmd_pkt)
+
+        if self.ddb.has_local_root:
+            # Query other public keys from the device
+            cmd_pkt = self.rpc.generate(defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done)
+            run_cmd_pkt(cmd_pkt)
 
 
 class SerialRxThread(SignaledThread):
