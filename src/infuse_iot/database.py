@@ -97,18 +97,19 @@ class DeviceDatabase:
             self.gateway = infuse_id
         if infuse_id not in self.devices:
             self.devices[infuse_id] = self.DeviceState(infuse_id)
+        dev = self.devices[infuse_id]
         if network_id is not None:
-            self.devices[infuse_id].network_id = network_id
+            dev.network_id = network_id
         if device_key_id is not None:
-            if (
-                self.devices[infuse_id].device_key_id is not None
-                and self.devices[infuse_id].device_key_id != device_key_id
-            ):
+            if device_key_id == dev.secondary_device_key_id:
+                pass
+            elif dev.device_key_id is not None and dev.device_key_id != device_key_id:
                 raise DeviceKeyChangedError(f"Device key for {infuse_id:016x} has changed")
-            self.devices[infuse_id].device_key_id = device_key_id
+            else:
+                dev.device_key_id = device_key_id
         if bt_addr is not None:
             self.bt_addr[bt_addr] = infuse_id
-            self.devices[infuse_id].bt_addr = bt_addr
+            dev.bt_addr = bt_addr
 
     def observe_secondary_remote_public_key(self, infuse_id: int, secondary_pub_key: bytes):
         if not self.is_local_root(secondary_pub_key):
