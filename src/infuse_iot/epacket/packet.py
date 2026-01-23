@@ -421,7 +421,7 @@ class CtypeSerialFrame(CtypeV0VersionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata)
-            key = database.serial_device_key(header.device_id, header.gps_time)
+            key = database.serial_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.serial_network_key(header.device_id, header.gps_time)
@@ -494,7 +494,7 @@ class CtypeBtGattFrame(CtypeV0VersionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata, bt_addr=bt_addr)
-            key = database.bt_gatt_device_key(header.device_id, header.gps_time)
+            key = database.bt_gatt_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata, bt_addr=bt_addr)
             key = database.bt_gatt_network_key(header.device_id, header.gps_time)
@@ -509,7 +509,7 @@ class CtypeUdpFrame(CtypeV0UnversionedFrame):
         header = cls.from_buffer_copy(frame)
         if header.flags & Flags.ENCR_DEVICE:
             database.observe_device(header.device_id, device_key_id=header.key_metadata)
-            key = database.udp_device_key(header.device_id, header.gps_time)
+            key = database.udp_device_key(header.device_id, header.gps_time, header.key_metadata)
         else:
             database.observe_device(header.device_id, network_id=header.key_metadata)
             key = database.udp_network_key(header.device_id, header.gps_time)
