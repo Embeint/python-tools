@@ -1330,7 +1330,7 @@ class readings:
             "rssi": "dBm",
         }
         _display_fmt_ = {
-            "infuse_id": "{}",
+            "infuse_id": "0x{:016x}",
             "rssi": "{}",
         }
 
