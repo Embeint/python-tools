@@ -26,9 +26,14 @@ class SubCommand(InfuseCommand):
     HELP = "Display received TDFs in a list"
     DESCRIPTION = "Display received TDFs in a list"
 
-    def __init__(self, _):
+    @classmethod
+    def add_parser(cls, parser):
+        parser.add_argument("--array-all", action="store_true", help="Display all array values, not just the last")
+
+    def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
+        self._array_all = args.array_all
 
     def append_tdf(
         self,
@@ -65,27 +70,31 @@ class SubCommand(InfuseCommand):
                 time = None
 
     def append_readings(self, table: list[tuple[str | None, str | None, str, str, str]], tdf: TDF.Reading):
-        t = tdf.data[-1]
         num = len(tdf.data)
-        tdf_name: None | str = None
-        time_str: None | str = None
-        if num > 1:
-            tdf_name = f"{t.NAME}[{num - 1}]"
-        else:
-            tdf_name = t.NAME
-        if tdf.time is not None:
-            if tdf.period is None:
-                time_str = InfuseTime.utc_time_string(tdf.time)
-            else:
-                offset = (len(tdf.data) - 1) * tdf.period
-                time_str = InfuseTime.utc_time_string(tdf.time + offset)
-        else:
-            if tdf.base_idx is not None:
-                time_str = f"IDX {tdf.base_idx}"
-            else:
-                time_str = InfuseTime.utc_time_string(time.time())
+        iter_start = 0 if self._array_all else -1
 
-        self.append_tdf(table, tdf_name, time_str, t)
+        for idx, t in enumerate(tdf.data[iter_start:]):
+            tdf_name: None | str = None
+            time_str: None | str = None
+            tdf_offset = idx if self._array_all else num - 1
+
+            if num > 1:
+                tdf_name = f"{t.NAME}[{tdf_offset}]"
+            else:
+                tdf_name = t.NAME
+            if tdf.time is not None:
+                if tdf.period is None:
+                    time_str = InfuseTime.utc_time_string(tdf.time)
+                else:
+                    time_offset = tdf_offset * tdf.period
+                    time_str = InfuseTime.utc_time_string(tdf.time + time_offset)
+            else:
+                if tdf.base_idx is not None:
+                    time_str = f"IDX {tdf.base_idx}"
+                else:
+                    time_str = InfuseTime.utc_time_string(time.time())
+
+            self.append_tdf(table, tdf_name, time_str, t)
 
     def run(self) -> None:
         while True:
