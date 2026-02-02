@@ -11,7 +11,7 @@ import tabulate
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
-from infuse_iot.generated.tdf_base import TdfStructBase
+from infuse_iot.generated.tdf_base import TdfReadingBase, TdfStructBase
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
@@ -30,6 +30,63 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
 
+    def append_tdf(
+        self,
+        table: list[tuple[str | None, str | None, str, str, str]],
+        name: str | None,
+        time: str | None,
+        tdf: TdfReadingBase,
+    ):
+        for field in tdf.iter_fields():
+            if isinstance(field.val, list):
+                # Trailing VLA handling
+                if len(field.val) > 0 and isinstance(field.val[0], TdfStructBase):
+                    for idx, val in enumerate(field.val):
+                        for subfield in val.iter_fields(f"{field.name}[{idx}]"):
+                            table.append(
+                                (
+                                    time,
+                                    name,
+                                    subfield.name,
+                                    subfield.val_fmt(),
+                                    subfield.postfix,
+                                )
+                            )
+                            name = None
+                            time = None
+                else:
+                    table.append((time, name, f"{field.name}", field.val_fmt(), field.postfix))
+                    name = None
+                    time = None
+            else:
+                # Standard structs and sub-structs
+                table.append((time, name, field.name, field.val_fmt(), field.postfix))
+                name = None
+                time = None
+
+    def append_readings(self, table: list[tuple[str | None, str | None, str, str, str]], tdf: TDF.Reading):
+        t = tdf.data[-1]
+        num = len(tdf.data)
+        tdf_name: None | str = None
+        time_str: None | str = None
+        if num > 1:
+            tdf_name = f"{t.NAME}[{num - 1}]"
+        else:
+            tdf_name = t.NAME
+        if tdf.time is not None:
+            if tdf.period is None:
+                time_str = InfuseTime.utc_time_string(tdf.time)
+            else:
+                offset = (len(tdf.data) - 1) * tdf.period
+                time_str = InfuseTime.utc_time_string(tdf.time + offset)
+        else:
+            if tdf.base_idx is not None:
+                time_str = f"IDX {tdf.base_idx}"
+            else:
+                time_str = InfuseTime.utc_time_string(time.time())
+
+        self.append_tdf(table, tdf_name, time_str, t)
+
     def run(self) -> None:
         while True:
             msg = self._client.receive()
@@ -43,53 +100,9 @@ class SubCommand(InfuseCommand):
 
             table: list[tuple[str | None, str | None, str, str, str]] = []
 
+            tdf: TDF.Reading
             for tdf in self._decoder.decode(msg.epacket.payload):
-                t = tdf.data[-1]
-                num = len(tdf.data)
-                tdf_name: None | str = None
-                time_str: None | str = None
-                if num > 1:
-                    tdf_name = f"{t.NAME}[{num - 1}]"
-                else:
-                    tdf_name = t.NAME
-                if tdf.time is not None:
-                    if tdf.period is None:
-                        time_str = InfuseTime.utc_time_string(tdf.time)
-                    else:
-                        offset = (len(tdf.data) - 1) * tdf.period
-                        time_str = InfuseTime.utc_time_string(tdf.time + offset)
-                else:
-                    if tdf.base_idx is not None:
-                        time_str = f"IDX {tdf.base_idx}"
-                    else:
-                        time_str = InfuseTime.utc_time_string(time.time())
-
-                for field in t.iter_fields():
-                    if isinstance(field.val, list):
-                        # Trailing VLA handling
-                        if len(field.val) > 0 and isinstance(field.val[0], TdfStructBase):
-                            for idx, val in enumerate(field.val):
-                                for subfield in val.iter_fields(f"{field.name}[{idx}]"):
-                                    table.append(
-                                        (
-                                            time_str,
-                                            tdf_name,
-                                            subfield.name,
-                                            subfield.val_fmt(),
-                                            subfield.postfix,
-                                        )
-                                    )
-                                    tdf_name = None
-                                    time_str = None
-                        else:
-                            table.append((time_str, tdf_name, f"{field.name}", field.val_fmt(), field.postfix))
-                            tdf_name = None
-                            time_str = None
-                    else:
-                        # Standard structs and sub-structs
-                        table.append((time_str, tdf_name, field.name, field.val_fmt(), field.postfix))
-                        tdf_name = None
-                        time_str = None
+                self.append_readings(table, tdf)
 
             print(f"Infuse ID: {source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")
