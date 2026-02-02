@@ -7,19 +7,10 @@ import tabulate
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.definitions import rpc as rpc_defs
 from infuse_iot.definitions import tdf as tdf_defs
-from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
 
 
 class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
-    class response(VLACompatLittleEndianStruct):
-        _fields_ = [
-            ("pub_timestamp", ctypes.c_uint64),
-            ("pub_count", ctypes.c_uint32),
-            ("pub_period_ms", ctypes.c_uint32),
-        ]
-        vla_field = ("data", 0 * ctypes.c_byte)
-
     class BatteryChannel:
         id = 0x43210000
         data = tdf_defs.readings.battery_state
@@ -117,12 +108,12 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
 
         from infuse_iot.time import InfuseTime
 
-        pub_time = InfuseTime.unix_time_from_epoch(response.pub_timestamp)
+        pub_time = InfuseTime.unix_time_from_epoch(response.publish_timestamp)
         data_bytes = bytes(response.data)
 
         print(f"\t  Publish time: {InfuseTime.utc_time_string(pub_time)}")
-        print(f"\t Publish count: {response.pub_count}")
-        print(f"\tPublish period: {response.pub_period_ms} ms")
+        print(f"\t Publish count: {response.publish_count}")
+        print(f"\tPublish period: {response.publish_period_avg_ms} ms")
         try:
             if self._channel.data is None:
                 print(f"\t          Data: {data_bytes.hex()}")
