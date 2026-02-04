@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import sys
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
@@ -41,6 +42,9 @@ class SubCommand(InfuseCommand):
         )
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         try:
             types = GatewayRequestConnectionRequest.DataType.LOGGING
             if self._data:

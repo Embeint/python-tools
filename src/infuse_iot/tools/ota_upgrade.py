@@ -199,6 +199,9 @@ class SubCommand(InfuseCommand):
             self._pending[source.infuse_id] = time.time() + 60
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         if self._single_diff:
             self.gateway_diff_load()
 

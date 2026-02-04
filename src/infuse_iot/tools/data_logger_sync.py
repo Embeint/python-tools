@@ -9,6 +9,7 @@ import binascii
 import glob
 import os
 import pathlib
+import sys
 
 from rich.live import Live
 from rich.progress import (
@@ -176,6 +177,9 @@ class SubCommand(InfuseCommand):
             self.state_update(live, "Scanning")
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
                 self.state_update(live, "Scanning")

@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import random
+import sys
 import time
 
 from infuse_iot.commands import InfuseCommand
@@ -81,6 +82,9 @@ class SubCommand(InfuseCommand):
         print(msg)
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         # No queuing
         print(f"Averaged across {self._iterations} packets with no queuing:")
         self.run_send_test(self._iterations, 4, 1)

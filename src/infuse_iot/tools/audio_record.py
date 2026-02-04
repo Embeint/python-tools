@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import sys
 import time
 import wave
 from contextlib import ExitStack
@@ -107,6 +108,9 @@ class SubCommand(InfuseCommand):
                         self.handle_channel("right", stack, tdf)
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         try:
             types = GatewayRequestConnectionRequest.DataType.DATA
             Console.log_info(f"Connecting to 0x{self._id:016x}")

@@ -9,6 +9,7 @@ import argparse
 import importlib
 import pkgutil
 import random
+import sys
 
 import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
@@ -74,6 +75,9 @@ class SubCommand(InfuseCommand):
             print(pkt.epacket.payload.decode("utf-8"), end="")
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         try:
             types = GatewayRequestConnectionRequest.DataType.COMMAND
             if self._args.conn_log:

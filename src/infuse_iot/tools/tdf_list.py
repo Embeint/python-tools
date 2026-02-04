@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import sys
 import time
 
 import tabulate
@@ -97,6 +98,9 @@ class SubCommand(InfuseCommand):
             self.append_tdf(table, tdf_name, time_str, t)
 
     def run(self) -> None:
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         while True:
             msg = self._client.receive()
             if msg is None:
