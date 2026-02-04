@@ -5,6 +5,7 @@ import json
 import socket
 import struct
 import sys
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import cast
@@ -28,6 +29,7 @@ class ClientNotification:
         CONNECTION_CREATED = 2
         CONNECTION_DROPPED = 3
         KNOWN_DEVICES = 4
+        COMMS_CHECK = 5
 
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
@@ -47,6 +49,8 @@ class ClientNotification:
             return cast(Self, ClientNotificationConnectionDropped.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, ClientNotificationObservedDevices.from_json(values))
+        elif values["type"] == cls.Type.COMMS_CHECK:
+            return cast(Self, ClientNotificationCommsCheck.from_json(values))
         raise NotImplementedError(f"Unknown notification: {values}")
 
 
@@ -80,6 +84,21 @@ class ClientNotificationObservedDevices(ClientNotification):
         raw = json.loads(values["devices"])
         decoded = {int(k): v for k, v in raw.items()}
         return cls(decoded)
+
+
+class ClientNotificationCommsCheck(ClientNotification):
+    TYPE = ClientNotification.Type.COMMS_CHECK
+
+    def __init__(self):
+        pass
+
+    def to_json(self) -> dict:
+        """Convert class to json dictionary"""
+        return {"type": int(self.TYPE)}
+
+    @classmethod
+    def from_json(cls, _values: dict) -> Self:
+        return cls()
 
 
 class ClientNotificationConnection(ClientNotification):
@@ -131,6 +150,7 @@ class GatewayRequest:
         CONNECTION_REQUEST = 1
         CONNECTION_RELEASE = 2
         KNOWN_DEVICES = 3
+        COMMS_CHECK = 4
 
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
@@ -147,6 +167,8 @@ class GatewayRequest:
             return cast(Self, GatewayRequestConnectionRelease.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, GatewayRequestObservedDevices.from_json(values))
+        elif values["type"] == cls.Type.COMMS_CHECK:
+            return cast(Self, GatewayRequestCommsCheck.from_json(values))
         raise NotImplementedError(f"Unknown request: {values}")
 
 
@@ -179,6 +201,22 @@ class GatewayRequestObservedDevices(GatewayRequest):
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
+        return cls()
+
+
+class GatewayRequestCommsCheck(GatewayRequest):
+    """Request packet to be forwarded to device"""
+
+    TYPE = GatewayRequest.Type.COMMS_CHECK
+
+    def __init__(self):
+        pass
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE)}
+
+    @classmethod
+    def from_json(cls, _values: dict) -> Self:
         return cls()
 
 
@@ -288,6 +326,18 @@ class LocalClient:
         except TimeoutError:
             return None
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
+
+    def comms_check(self, timeout: float = 0.5) -> bool:
+        expiry = time.time() + timeout
+        self.send(GatewayRequestCommsCheck())
+        while time.time() < expiry:
+            rsp = self.receive()
+            if rsp is None:
+                continue
+            if not isinstance(rsp, ClientNotificationCommsCheck):
+                continue
+            return True
+        return False
 
     def connection_create(
         self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int

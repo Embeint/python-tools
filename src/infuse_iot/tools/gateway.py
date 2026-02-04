@@ -39,11 +39,13 @@ from infuse_iot.epacket.packet import (
 from infuse_iot.serial_comms import PyOcdPort, RttPort, SerialFrame, SerialLike, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
+    ClientNotificationCommsCheck,
     ClientNotificationConnectionCreated,
     ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
     ClientNotificationObservedDevices,
+    GatewayRequestCommsCheck,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
@@ -471,6 +473,11 @@ class SerialTxThread(SignaledThread):
             observed_devices[device] = info
         self._common.notification_broadcast(ClientNotificationObservedDevices(observed_devices))
 
+    def _handle_comms_check(self):
+        if self._common.server is None:
+            raise RuntimeError
+        self._common.notification_broadcast(ClientNotificationCommsCheck())
+
     def _iter(self) -> None:
         if self._common.server is None:
             time.sleep(1.0)
@@ -486,6 +493,8 @@ class SerialTxThread(SignaledThread):
                 self._handle_conn_release(req)
             elif isinstance(req, GatewayRequestObservedDevices):
                 self._handle_observed_devices()
+            elif isinstance(req, GatewayRequestCommsCheck):
+                self._handle_comms_check()
             else:
                 Console.log_error(f"Unhandled request {type(req)}")
 

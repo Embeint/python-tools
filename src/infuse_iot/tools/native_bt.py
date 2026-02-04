@@ -31,10 +31,12 @@ from infuse_iot.epacket.packet import (
 )
 from infuse_iot.socket_comms import (
     ClientNotification,
+    ClientNotificationCommsCheck,
     ClientNotificationConnectionCreated,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
     GatewayRequest,
+    GatewayRequestCommsCheck,
     GatewayRequestConnection,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
@@ -165,6 +167,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
         request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+
+        if isinstance(request, GatewayRequestCommsCheck):
+            self.wrapped_broadcast(ClientNotificationCommsCheck())
+            return
 
         # If not a connection request, attempt to forward to connection context
         if not isinstance(request, GatewayRequestConnectionRequest):
