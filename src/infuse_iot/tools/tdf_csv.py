@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import os
+import sys
 import time
 
 from infuse_iot.commands import InfuseCommand
@@ -38,6 +39,9 @@ class SubCommand(InfuseCommand):
         self.args = args
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         files = {}
 
         while True:

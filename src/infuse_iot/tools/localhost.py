@@ -7,6 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import asyncio
 import pathlib
+import sys
 import threading
 import time
 from typing import Any
@@ -240,6 +241,9 @@ class SubCommand(InfuseCommand):
         self._data_lock.release()
 
     def run(self):
+        if not self._client.comms_check():
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
         Console.init()
         app = web.Application()
         # Route for serving the HTML file
