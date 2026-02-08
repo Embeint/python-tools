@@ -52,14 +52,14 @@ class security_state(InfuseRpcCommand, defs.security_state):
         parser.add_argument("--pem", type=ValidFile, help="Cloud .pem file for identity validation")
 
     def __init__(self, args):
-        self.challenge = bytes_to_uint8(random.randbytes(16))
+        self.challenge = random.randbytes(16)
         self.pem = args.pem
 
     def auth_level(self):
         return Auth.NETWORK
 
     def request_struct(self):
-        return self.request(self.challenge)
+        return self.request(bytes_to_uint8(self.challenge))
 
     def _decrypt_response(self, response):
         rsp = response.response
@@ -87,6 +87,9 @@ class security_state(InfuseRpcCommand, defs.security_state):
             print(f"Failed to query current time ({errno.strerror(-return_code)})")
             return
 
+        print("Challenge:")
+        print(f"\t  Challenge Bytes: {bytes(self.challenge).hex()}")
+
         # Decrypt identity information
         print("Security State:")
         print(f"\tDevice Public Key: {bytes(response.device_public_key).hex()}")
@@ -94,6 +97,7 @@ class security_state(InfuseRpcCommand, defs.security_state):
         print(f"\t          Network: 0x{response.network_id:06x}")
         if self.pem is None:
             print("\t         Identity: Cannot validate")
+            print(f"\t              Raw: {bytes(response.challenge_response).hex()}")
         else:
             challenge_rsp = self._decrypt_response(response)
 
