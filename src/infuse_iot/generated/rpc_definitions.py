@@ -232,6 +232,18 @@ class rpc_struct_public_key_info_256bit(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_thread_stats(VLACompatLittleEndianStruct):
+    """IPv6 address"""
+
+    _fields_ = [
+        ("stack_size", ctypes.c_uint32),
+        ("stack_used", ctypes.c_uint32),
+        ("utilization", ctypes.c_uint8),
+    ]
+    vla_field = ("name", 0 * ctypes.c_char)
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -872,6 +884,25 @@ class data_logger_read_chunks(RPCDefinitionBase):
         _pack_ = 1
 
 
+class thread_stats(RPCDefinitionBase):
+    """Query runtime thread statistics"""
+
+    NAME = "thread_stats"
+    HELP = "Query runtime thread statistics"
+    DESCRIPTION = "Query runtime thread statistics"
+    COMMAND_ID = 26
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("num_threads", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
+
 class coap_download(RPCDefinitionBase):
     """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
 
@@ -1334,6 +1365,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     lte_state_v2.COMMAND_ID: lte_state_v2,
     data_logger_state_v2.COMMAND_ID: data_logger_state_v2,
     data_logger_read_chunks.COMMAND_ID: data_logger_read_chunks,
+    thread_stats.COMMAND_ID: thread_stats,
     coap_download.COMMAND_ID: coap_download,
     zperf_upload.COMMAND_ID: zperf_upload,
     coap_download_v2.COMMAND_ID: coap_download_v2,
@@ -1373,6 +1405,7 @@ __all__ = [
     "rpc_struct_heap_info",
     "rpc_struct_data_logger_chunk",
     "rpc_struct_public_key_info_256bit",
+    "rpc_struct_thread_stats",
     "rpc_enum_bt_le_addr_type",
     "rpc_enum_file_action",
     "rpc_enum_infuse_bt_characteristic",
@@ -1406,6 +1439,7 @@ __all__ = [
     "lte_state_v2",
     "data_logger_state_v2",
     "data_logger_read_chunks",
+    "thread_stats",
     "coap_download",
     "zperf_upload",
     "coap_download_v2",
