@@ -16,11 +16,12 @@ from uuid import UUID
 import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.rpc import get_rpc_by_id, send_rpc
-from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RpcRsp
+from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
+from infuse_iot.util.ctypes import UINT32_MAX
 
 
 class SubCommand(InfuseCommand):
@@ -76,6 +77,10 @@ class SubCommand(InfuseCommand):
             struct_bytes = bytes(command.request_struct())
             params_encoded = base64.b64encode(struct_bytes).decode("utf-8")
             rpc_req = NewRPCReq(command_id=command.COMMAND_ID, params_encoded=params_encoded)
+
+        if command.RPC_DATA_RECEIVE:
+            # Generic "unknown" data volume
+            rpc_req.data_header = RPCReqDataHeader(UINT32_MAX, 0)
 
         rpc_msg = NewRPCMessage(infuse_id, rpc_req, timeout_ms)
         rsp = send_rpc.sync(client=client, body=rpc_msg)
