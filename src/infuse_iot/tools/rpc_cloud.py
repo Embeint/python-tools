@@ -84,8 +84,13 @@ class SubCommand(InfuseCommand):
 
         rpc_msg = NewRPCMessage(infuse_id, rpc_req, timeout_ms)
         rsp = send_rpc.sync(client=client, body=rpc_msg)
-        if isinstance(rsp, Error) or rsp is None:
-            sys.exit(f"Failed to queue RPC ({rsp})")
+        if rsp is None:
+            sys.exit("Failed to queue RPC (No response)")
+        elif isinstance(rsp, Error) or rsp is None:
+            msg = "Failed to queue RPC\n"
+            msg += f"\t Code: {rsp.code}\n"
+            msg += f"\t  Msg: '{rsp.message}'"
+            sys.exit(msg)
         print("Query RPC state with:")
         print(f"\tinfuse rpc_cloud query --id {rsp.id}")
 
