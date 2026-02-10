@@ -38,7 +38,7 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         return self.request(self.logger, self.start, self.last)
 
     def request_json(self):
-        return {"logger": self.logger.name, "start_block": self.start, "last_block": self.last}
+        return {"logger": self.logger.name, "start_block": str(self.start), "last_block": str(self.last)}
 
     def data_recv_cb(self, offset: int, data: bytes) -> None:
         if self.expected_offset == 0:
