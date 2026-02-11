@@ -2,6 +2,7 @@
 
 import ctypes
 import random
+import time
 from collections.abc import Callable
 
 from infuse_iot import rpc
@@ -25,10 +26,14 @@ class RpcClient:
         rx_cb: Callable[[ClientNotification], None] | None = None,
     ):
         self._request_id = random.randint(0, 2**31 - 1)
+        self._timeout = 10.0
         self._client = client
         self._id = infuse_id
         self._max_payload = max_payload
         self._rx_cb = rx_cb
+
+    def set_timeout(self, timeout: float):
+        self._timeout = timeout
 
     def _finalise_command(
         self, rpc_rsp: PacketReceived, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
@@ -48,8 +53,9 @@ class RpcClient:
             self._rx_cb(rsp)
         return rsp
 
-    def _wait_data_ack(self) -> PacketReceived:
-        while True:
+    def _wait_data_ack(self) -> PacketReceived | None:
+        timeout = time.time() + self._timeout
+        while time.time() < timeout:
             rsp = self._client_recv()
             if rsp is None:
                 continue
@@ -66,10 +72,12 @@ class RpcClient:
             if data_ack.request_id != self._request_id:
                 continue
             return rsp.epacket
+        return None
 
-    def _wait_rpc_rsp(self) -> PacketReceived:
+    def _wait_rpc_rsp(self) -> PacketReceived | None:
+        timeout = time.time() + self._timeout
         # Wait for responses
-        while True:
+        while time.time() < timeout:
             rsp = self._client_recv()
             if rsp is None:
                 continue
@@ -83,6 +91,7 @@ class RpcClient:
             if rsp_header.request_id != self._request_id:
                 continue
             return rsp.epacket
+        return None
 
     def _run_data_send_core(
         self,
@@ -94,7 +103,7 @@ class RpcClient:
         packet_idx: bool,
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         ack_period = 2
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
@@ -112,6 +121,8 @@ class RpcClient:
 
         # Wait for initial ACK
         recv = self._wait_data_ack()
+        if recv is None:
+            return None, None
         if recv.ptype == InfuseType.RPC_RSP:
             return self._finalise_command(recv, rsp_decoder)
 
@@ -133,6 +144,8 @@ class RpcClient:
             # Wait for ACKs at the period
             if ack_cnt == ack_period:
                 recv = self._wait_data_ack()
+                if recv is None:
+                    return None, None
                 if recv.ptype == InfuseType.RPC_RSP:
                     return self._finalise_command(recv, rsp_decoder)
                 ack_cnt = 0
@@ -142,6 +155,9 @@ class RpcClient:
                 progress_cb(chunk_id + 1 if packet_idx else offset)
 
         recv = self._wait_rpc_rsp()
+        if recv is None:
+            return None, None
+
         return self._finalise_command(recv, rsp_decoder)
 
     def run_data_send_cmd(
@@ -152,7 +168,7 @@ class RpcClient:
         data: bytes,
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
         # Maxmimum payload size of interface
         size = self._max_payload - ctypes.sizeof(rpc.DataHeader)
         # Round payload down to multiple of 4 bytes
@@ -170,7 +186,7 @@ class RpcClient:
         data: list[bytes],
         progress_cb: Callable[[int], None] | None,
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
         return self._run_data_send_core(cmd_id, auth, params, data, len(data), True, progress_cb, rsp_decoder)
 
     def run_data_recv_cmd(
@@ -225,7 +241,7 @@ class RpcClient:
 
     def run_standard_cmd(
         self, cmd_id: int, auth: Auth, params: bytes, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
 
@@ -239,4 +255,6 @@ class RpcClient:
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
         recv = self._wait_rpc_rsp()
+        if recv is None:
+            return None, None
         return self._finalise_command(recv, rsp_decoder)

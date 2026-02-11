@@ -126,8 +126,9 @@ class SubCommand(InfuseCommand):
                         params,
                         decode_fn,
                     )
+                return_code = hdr.return_code if hdr else -1
                 # Handle response
-                self._command.handle_response(hdr.return_code, rsp)
+                self._command.handle_response(return_code, rsp)
 
                 if self._args.conn_log:
                     while True:

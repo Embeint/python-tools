@@ -153,8 +153,9 @@ class SubCommand(InfuseCommand):
                 None,
                 file_write_basic.response.from_buffer_copy,
             )
-            if hdr.return_code != 0:
-                sys.exit(f"Failed to save diff file to gateway (({errno.strerror(-hdr.return_code)}))")
+            return_code = hdr.return_code if hdr else -1
+            if return_code != 0:
+                sys.exit(f"Failed to save diff file to gateway (({errno.strerror(-return_code)}))")
             print(f"'{self._single_diff}' written to gateway")
 
     def run_file_upload(self, live: Live, mtu: int, source: HopReceived):
@@ -172,7 +173,9 @@ class SubCommand(InfuseCommand):
             file_write_basic.response.from_buffer_copy,
         )
 
-        if hdr.return_code == 0:
+        if hdr is None:
+            self._failed += 1
+        elif hdr.return_code == 0:
             self._pending[source.infuse_id] = time.time() + 60
 
     def run_file_copy(self, live: Live, mtu: int, source: HopReceived):
@@ -195,7 +198,9 @@ class SubCommand(InfuseCommand):
             bytes(params),
             bt_file_copy_basic.response.from_buffer_copy,
         )
-        if hdr.return_code == 0:
+        if hdr is None:
+            self._failed += 1
+        elif hdr.return_code == 0:
             self._pending[source.infuse_id] = time.time() + 60
 
     def run(self):

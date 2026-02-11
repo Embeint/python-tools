@@ -78,6 +78,8 @@ class APNSetter:
                 hdr, rsp = rpc_client.run_standard_cmd(
                     rpc.kv_write.COMMAND_ID, Auth.DEVICE, params, self.response.vla_from_buffer_copy
                 )
+                if hdr is None:
+                    return
                 if hdr.return_code == 0:
                     assert rsp is not None and hasattr(rsp, "rc")
                     if rsp.rc[0] == 0:
