@@ -114,7 +114,7 @@ class LocalRpcServer:
             infuse_id = self._ddb.infuse_id_from_bluetooth(if_addr)
             if infuse_id is None:
                 Console.log_error(f"Infuse ID of {if_addr} not known")
-            else:
+            elif header.return_code == 0:
                 self._ddb.observe_security_state(
                     infuse_id,
                     bytes(resp.cloud_public_key),
@@ -369,7 +369,7 @@ class SerialTxThread(SignaledThread):
         assert infuse_id is not None, "ID was required to initiate connection?"
         assert self._common.server is not None
 
-        if rc < 0:
+        if rc != 0:
             rsp = ClientNotificationConnectionFailed(infuse_id)
             self._common.notification_broadcast(rsp)
             return
