@@ -67,6 +67,8 @@ class RebootCountResetter:
                 hdr, _ = rpc_client.run_standard_cmd(
                     rpc.kv_write.COMMAND_ID, Auth.DEVICE, params, rpc.kv_write.response.from_buffer_copy
                 )
+                if hdr is None:
+                    return
                 if hdr.return_code == 0:
                     self.updated.append(infuse_id)
 
