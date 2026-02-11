@@ -35,7 +35,7 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to receive logs for")
+        parser.add_argument("--id", type=lambda x: int(x, 0), required=True, help="Infuse ID to receive logs for")
         parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
