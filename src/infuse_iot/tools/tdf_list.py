@@ -33,12 +33,14 @@ class SubCommand(InfuseCommand):
         parser.add_argument(
             "--id", type=lambda x: int(x, 0), action="append", default=[], help="Limit displayed TDFs by device ID"
         )
+        parser.add_argument("--min-rssi", type=int, help="Minimum RSSI to display TDF")
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
         self._array_all = args.array_all
         self._ids = args.id
+        self._min_rssi = args.min_rssi
 
     def append_tdf(
         self,
@@ -116,6 +118,8 @@ class SubCommand(InfuseCommand):
             source = msg.epacket.route[0]
 
             if len(self._ids) > 0 and source.infuse_id not in self._ids:
+                continue
+            if self._min_rssi is not None and source.rssi < self._min_rssi:
                 continue
 
             table: list[tuple[str | None, str | None, str, str, str]] = []
