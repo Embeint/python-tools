@@ -251,6 +251,7 @@ class SubCommand(InfuseCommand):
             return
         except InvalidTag as _e:
             Console.log_info(f"Failed to decrypt packet from {device}")
+            return
         self.bleak_mapping[hdr.device_id] = device
 
         hop = HopReceived(
