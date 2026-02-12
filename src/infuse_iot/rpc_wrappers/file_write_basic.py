@@ -89,12 +89,13 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
 
         with open(self.file, "rb") as f:
             self.payload = f.read()
+        self._expected_crc = binascii.crc32(self.payload)
 
     def auth_level(self):
         return Auth.NETWORK
 
     def request_struct(self):
-        return self.request(self.action, binascii.crc32(self.payload))
+        return self.request(self.action, self._expected_crc)
 
     def data_payload(self):
         print("Preparing for file upload...")
@@ -112,6 +113,11 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
         if return_code != 0:
             print(f"Failed to write file ({errno.strerror(-return_code)})")
             return
-        print("File written")
-        print(f"\tLength: {response.recv_len}")
-        print(f"\t   CRC: 0x{response.recv_crc:08x}")
+        if (response.recv_len != len(self.payload)) or (response.recv_crc != self._expected_crc):
+            print("Unexpected write contents")
+            print(f"\tLength: {response.recv_len} (Expected {len(self.payload)})")
+            print(f"\t   CRC: 0x{response.recv_crc:08x} (Expected 0x{self._expected_crc:08x})")
+        else:
+            print("File written")
+            print(f"\tLength: {response.recv_len}")
+            print(f"\t   CRC: 0x{response.recv_crc:08x}")
