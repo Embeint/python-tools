@@ -30,11 +30,15 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--array-all", action="store_true", help="Display all array values, not just the last")
+        parser.add_argument(
+            "--id", type=lambda x: int(x, 0), action="append", default=[], help="Limit displayed TDFs by device ID"
+        )
 
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._decoder = TDF()
         self._array_all = args.array_all
+        self._ids = args.id
 
     def append_tdf(
         self,
@@ -111,13 +115,16 @@ class SubCommand(InfuseCommand):
                 continue
             source = msg.epacket.route[0]
 
+            if len(self._ids) > 0 and source.infuse_id not in self._ids:
+                continue
+
             table: list[tuple[str | None, str | None, str, str, str]] = []
 
             tdf: TDF.Reading
             for tdf in self._decoder.decode(msg.epacket.payload):
                 self.append_readings(table, tdf)
 
-            print(f"Infuse ID: {source.infuse_id:016x}")
+            print(f"Infuse ID: 0x{source.infuse_id:016x}")
             print(f"Interface: {source.interface.name}")
             print(f"  Address: {source.interface_address}")
             print(f"     RSSI: {source.rssi} dBm")
