@@ -15,6 +15,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+from cryptography.exceptions import InvalidTag
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
@@ -248,6 +249,8 @@ class SubCommand(InfuseCommand):
                 self.unknown_networks.add(network_id)
                 Console.log_info(f"Unknown network 0x{network_id:06x}")
             return
+        except InvalidTag as _e:
+            Console.log_info(f"Failed to decrypt packet from {device}")
         self.bleak_mapping[hdr.device_id] = device
 
         hop = HopReceived(
