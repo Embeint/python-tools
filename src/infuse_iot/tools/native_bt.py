@@ -15,6 +15,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+from bleak.exc import BleakError
 from cryptography.exceptions import InvalidTag
 
 from infuse_iot.commands import InfuseCommand
@@ -162,8 +163,12 @@ class MulticastHandler(asyncio.DatagramProtocol):
     async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
         try:
             await self.create_connection_internal(request, dev, queue)
+        except BleakError as e:
+            Console.log_info(f"Bleak Error: {str(e)}")
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
         except TimeoutError as e:
             Console.log_info(f"Timeout: {str(e)}")
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
