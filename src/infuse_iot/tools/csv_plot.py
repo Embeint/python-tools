@@ -16,11 +16,19 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--file", "-f", required=True, type=ValidFile)
+        parser.add_argument(
+            "--files",
+            "-f",
+            required=True,
+            type=ValidFile,
+            nargs="+",
+        )
         parser.add_argument("--start", type=str, default="2024-01-01", help="Display data after")
+        parser.add_argument("--field", type=str, help="Single column to plot")
 
     def __init__(self, args):
-        self.file = args.file
+        self.files = args.files
+        self.field = args.field
         self.start = args.start
 
     def run(self):
@@ -28,19 +36,27 @@ class SubCommand(InfuseCommand):
         import plotly.express as px
         from dash import Dash, dcc, html
 
-        df = pd.read_csv(self.file)
+        figures = []
+        for file in self.files:
+            df = pd.read_csv(file)
 
-        mask = df["time"] >= self.start
-        filtered_df = df.loc[mask]
+            mask = df["time"] >= self.start
+            filtered_df = df.loc[mask]
 
-        fig = px.line(
-            filtered_df,
-            x="time",
-            y=filtered_df.columns.values[1:],
-            title=str(self.file),
-        )
+            if self.field:
+                y_data = filtered_df[self.field]
+            else:
+                y_data = filtered_df.columns.values[1:]
+
+            fig = px.line(
+                filtered_df,
+                x="time",
+                y=y_data,
+                title=str(file),
+            )
+            figures.append(dcc.Graph(figure=fig))
 
         app = Dash()
-        app.layout = html.Div([dcc.Graph(figure=fig)])
+        app.layout = html.Div(figures)
 
         app.run(debug=True)
