@@ -127,7 +127,7 @@ class RpcClient:
             return self._finalise_command(recv, rsp_decoder)
 
         # Send data payloads chunked as requested
-        ack_cnt = -ack_period
+        ack_cnt = 0
         offset = 0
         for chunk_id, chunk in enumerate(data):
             hdr = rpc.DataHeader(self._request_id, chunk_id if packet_idx else offset)
