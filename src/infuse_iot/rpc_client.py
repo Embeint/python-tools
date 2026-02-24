@@ -31,6 +31,8 @@ class RpcClient:
         self._id = infuse_id
         self._max_payload = max_payload
         self._rx_cb = rx_cb
+        self.ack_period = 2
+        self.no_ack_sleep = 0.01
 
     def set_timeout(self, timeout: float):
         self._timeout = timeout
@@ -105,9 +107,8 @@ class RpcClient:
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
     ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
-        ack_period = 2
         header = rpc.RequestHeader(self._request_id, cmd_id)  # type: ignore
-        data_hdr = rpc.RequestDataHeader(total_size, ack_period)
+        data_hdr = rpc.RequestDataHeader(total_size, self.ack_period)
 
         request_packet = bytes(header) + bytes(data_hdr) + params
         pkt = PacketOutput(
@@ -139,16 +140,20 @@ class RpcClient:
                 pkt_bytes,
             )
             self._client.send(GatewayRequestEpacketSend(pkt))
-            ack_cnt += 1
 
-            # Wait for ACKs at the period
-            if ack_cnt == ack_period:
-                recv = self._wait_data_ack()
-                if recv is None:
-                    return None, None
-                if recv.ptype == InfuseType.RPC_RSP:
-                    return self._finalise_command(recv, rsp_decoder)
-                ack_cnt = 0
+            if self.ack_period:
+                ack_cnt += 1
+                # Wait for ACKs at the period
+                if ack_cnt == self.ack_period:
+                    recv = self._wait_data_ack()
+                    if recv is None:
+                        return None, None
+                    if recv.ptype == InfuseType.RPC_RSP:
+                        return self._finalise_command(recv, rsp_decoder)
+                    ack_cnt = 0
+            else:
+                # Limit throughput to avoid blasting the entire file
+                time.sleep(self.no_ack_sleep)
 
             offset += len(chunk)
             if progress_cb:
