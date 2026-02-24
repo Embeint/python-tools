@@ -194,7 +194,7 @@ class structs:
 
         @property
         def val(self):
-            return int.from_bytes(self._val, byteorder="little")
+            return int.from_bytes(self._val, byteorder="big")
 
     class tdf_struct_wifi_network_params(TdfStructBase):
         """WiFi network parameters"""

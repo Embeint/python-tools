@@ -439,6 +439,18 @@ class slots:
         ]
         _pack_ = 1
 
+    class gateway_bluetooth_forward_options(VLACompatLittleEndianStruct):
+        """Forwarding configuration for Bluetooth advertising packets"""
+
+        NAME = "GATEWAY_BLUETOOTH_FORWARD_OPTIONS"
+        BASE_ID = 55
+        RANGE = 1
+        _fields_ = [
+            ("flags", ctypes.c_uint8),
+            ("percent", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
 
@@ -583,6 +595,7 @@ class slots:
         52: bluetooth_throughput_limit,
         53: led_disable_daily_time_range,
         54: memfault_disable,
+        55: gateway_bluetooth_forward_options,
         60: gravity_reference,
         100: geofence,
         101: geofence,
