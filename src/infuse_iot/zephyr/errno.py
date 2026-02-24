@@ -104,4 +104,7 @@ class errno(enum.IntEnum):
 
     @classmethod
     def strerror(cls, int) -> str:
-        return cls(int).description
+        try:
+            return cls(int).description
+        except ValueError:
+            return f"Unknown errno ({int})"
