@@ -46,6 +46,7 @@ class SubCommand(InfuseCommand):
         self._data_lock = threading.Lock()
         self._columns: dict[str, dict] = {}
         self._apps: set[str] = set()
+        self._networks: set[str] = set()
         self._data: dict[int, dict] = {}
         self._port: int = args.port
 
@@ -133,6 +134,7 @@ class SubCommand(InfuseCommand):
                     "rows": [self._data[d] for d in devices],
                     "tdfs": sorted(list(self._columns.keys())),
                     "apps": sorted(list(self._apps)),
+                    "networks": sorted(list(self._networks)),
                 }
                 self._data_lock.release()
 
@@ -213,7 +215,9 @@ class SubCommand(InfuseCommand):
             self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
         if source.auth == packet.Auth.NETWORK:
-            self._data[source.infuse_id]["network_id"] = f"0x{source.key_identifier:06x}"
+            key_id_str = f"0x{source.key_identifier:06x}"
+            self._data[source.infuse_id]["network_id"] = key_id_str
+            self._networks.add(key_id_str)
 
         for tdf in self._decoder.decode(msg.epacket.payload):
             t = tdf.data[-1]

@@ -34,6 +34,10 @@
         vertical-align: top;
     }
 
+    #network-show {
+        vertical-align: top;
+    }
+
     #data-table {
         width: 100%;
     };
@@ -45,6 +49,7 @@
     <div id="filteringSidebar" class="sidebar">
         <span id="tdf-show"></span>
         <span id="app-show"></span>
+        <span id="network-show"></span>
     </div>
     <div>
         <b>
@@ -114,6 +119,22 @@
                 },
             ]
         });
+        const shownNetworkTable = new Tabulator("#network-show", {
+            layout: "fitDataTable",
+            columns: [
+                { title: "Network ID", field: "name", width: 200 },
+                {
+                    title: "Show",
+                    field: "checked",
+                    hozAlign: "center",
+                    formatter: "tickCross",
+                    cellClick: function (ev, cell) {
+                        filtering_update = true;
+                        cell.setValue(!cell.getValue());
+                    },
+                },
+            ]
+        });
 
         // Connect to the WebSocket server
         const ws = new WebSocket("ws://localhost:" + location.port + "/ws");
@@ -121,13 +142,16 @@
         let currentTDFs = [];
         let current_num_columns = 0;
         let currentApps = [];
+        let currentNetworks = []
 
         const arraysEqual = (a, b) =>
             a.length === b.length &&
             a.every((element, index) => element === b[index]);
 
         ws.onmessage = function (event) {
-            const { columns, rows, tdfs, apps } = JSON.parse(event.data);
+            const { columns, rows, tdfs, apps, networks } = JSON.parse(event.data);
+
+            console.log(networks);
 
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
@@ -164,6 +188,20 @@
                 filtering_update = true;
             }
 
+            if (!arraysEqual(currentNetworks, networks)) {
+                // Merge new data with the existing table data
+                const currentRows = shownAppTable.getData();
+                const updatedData = networks.map((str, index) => {
+                    const existingRow = currentRows.find(row => row.name === str);
+                    return existingRow
+                        ? existingRow // Preserve the existing row if found
+                        : { id: `row-${index}`, name: str, checked: true };
+                });
+                shownNetworkTable.replaceData(updatedData);
+                currentNetworks = networks
+                filtering_update = true;
+            }
+
             // Update column definitions if new TDFs have appeared
             if (columns.length != current_num_columns) {
                 dataTable.setColumns(columns);
@@ -190,14 +228,21 @@
                     }
                 });
 
-                // Filter applications as requested
+                // Filter applications and networks as requested
                 appShow = Object.fromEntries(
                     shownAppTable.getData().map(row => [row.name, row.checked])
                 );
+                networkShow = Object.fromEntries(
+                    shownNetworkTable.getData().map(row => [row.name, row.checked])
+                );
                 enabledApps = currentApps.filter(a => appShow[a]);
+                enabledNetworks = currentNetworks.filter(a => networkShow[a]);
+
+                console.log(enabledApps, enabledNetworks);
 
                 dataTable.clearFilter();
                 dataTable.setFilter("application", "in", enabledApps);
+                dataTable.setFilter("network_id", "in", enabledNetworks);
 
                 filtering_update = false;
             }
