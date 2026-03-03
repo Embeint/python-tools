@@ -151,8 +151,6 @@
         ws.onmessage = function (event) {
             const { columns, rows, tdfs, apps, networks } = JSON.parse(event.data);
 
-            console.log(networks);
-
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
                 const currentRows = shownTdfTable.getData();
@@ -238,11 +236,11 @@
                 enabledApps = currentApps.filter(a => appShow[a]);
                 enabledNetworks = currentNetworks.filter(a => networkShow[a]);
 
-                console.log(enabledApps, enabledNetworks);
-
+                function customFilter(data, filterParams) {
+                    return filterParams['apps'].includes(data.application) && filterParams["networks"].includes(data.network_id);
+                }
                 dataTable.clearFilter();
-                dataTable.setFilter("application", "in", enabledApps);
-                dataTable.setFilter("network_id", "in", enabledNetworks);
+                dataTable.setFilter(customFilter, {apps: enabledApps, networks: enabledNetworks});
 
                 filtering_update = false;
             }
