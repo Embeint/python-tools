@@ -15,6 +15,7 @@ from typing import Any
 from aiohttp import web
 from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
+from aiohttp.client_exceptions import WSMessageTypeError
 
 import infuse_iot.epacket.interface as interface
 import infuse_iot.epacket.packet as packet
@@ -67,6 +68,9 @@ class SubCommand(InfuseCommand):
 
         try:
             while True:
+                # Wait for request from browser (contents don't matter)
+                _ = await ws.receive_str()
+
                 # Example data sent to the client
                 self._data_lock.acquire(blocking=True)
                 columns = [
@@ -139,8 +143,8 @@ class SubCommand(InfuseCommand):
                 self._data_lock.release()
 
                 await ws.send_json(message)
-                await asyncio.sleep(1)
-        except (asyncio.CancelledError, ConnectionResetError):
+
+        except (asyncio.CancelledError, ConnectionResetError, WSMessageTypeError):
             pass
         finally:
             await ws.close()
