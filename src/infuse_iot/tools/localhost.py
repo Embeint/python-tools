@@ -13,9 +13,9 @@ import time
 from typing import Any
 
 from aiohttp import web
+from aiohttp.client_exceptions import WSMessageTypeError
 from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
-from aiohttp.client_exceptions import WSMessageTypeError
 
 import infuse_iot.epacket.interface as interface
 import infuse_iot.epacket.packet as packet
@@ -60,6 +60,78 @@ class SubCommand(InfuseCommand):
 
         return web.FileResponse(this_folder / "localhost" / "index.html")
 
+    def websocket_message(self) -> dict:
+        self._data_lock.acquire(blocking=True)
+        columns = [
+            {
+                "title": "Metadata",
+                "headerHozAlign": "center",
+                "frozen": True,
+                "columns": [
+                    {
+                        "title": "Device",
+                        "field": "infuse_id",
+                        "headerHozAlign": "center",
+                    },
+                    {
+                        "title": "App ID",
+                        "field": "application",
+                        "headerHozAlign": "center",
+                    },
+                    {
+                        "title": "Network",
+                        "field": "network_id",
+                        "headerHozAlign": "center",
+                    },
+                    {
+                        "title": "Last Heard",
+                        "field": "time",
+                        "headerHozAlign": "center",
+                    },
+                    {
+                        "title": "Bluetooth",
+                        "headerHozAlign": "center",
+                        "columns": [
+                            {
+                                "title": "Address",
+                                "field": "bt_addr",
+                                "headerHozAlign": "center",
+                            },
+                            {
+                                "title": "RSSI (dBm)",
+                                "field": "bt_rssi",
+                                "headerVertical": "flip",
+                                "hozAlign": "right",
+                            },
+                        ],
+                    },
+                ],
+            }
+        ]
+        # Put the announce TDFs first for clarity
+        priorities = {"ANNOUNCE_V2": 0, "ANNOUNCE": 1}
+        sorted_tdfs = sorted(self._columns, key=lambda x: priorities.get(x, 2))
+
+        for tdf_name in sorted_tdfs:
+            columns.append(
+                {
+                    "title": tdf_name,
+                    "field": tdf_name,
+                    "columns": self._columns[tdf_name],
+                    "headerHozAlign": "center",
+                }
+            )
+        devices = sorted(self._data.keys())
+        message = {
+            "columns": columns,
+            "rows": [self._data[d] for d in devices],
+            "tdfs": sorted(list(self._columns.keys())),
+            "apps": sorted(list(self._apps)),
+            "networks": sorted(list(self._networks)),
+        }
+        self._data_lock.release()
+        return message
+
     async def websocket_handler(self, request: BaseRequest):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -71,76 +143,8 @@ class SubCommand(InfuseCommand):
                 # Wait for request from browser (contents don't matter)
                 _ = await ws.receive_str()
 
-                # Example data sent to the client
-                self._data_lock.acquire(blocking=True)
-                columns = [
-                    {
-                        "title": "Metadata",
-                        "headerHozAlign": "center",
-                        "frozen": True,
-                        "columns": [
-                            {
-                                "title": "Device",
-                                "field": "infuse_id",
-                                "headerHozAlign": "center",
-                            },
-                            {
-                                "title": "App ID",
-                                "field": "application",
-                                "headerHozAlign": "center",
-                            },
-                            {
-                                "title": "Network",
-                                "field": "network_id",
-                                "headerHozAlign": "center",
-                            },
-                            {
-                                "title": "Last Heard",
-                                "field": "time",
-                                "headerHozAlign": "center",
-                            },
-                            {
-                                "title": "Bluetooth",
-                                "headerHozAlign": "center",
-                                "columns": [
-                                    {
-                                        "title": "Address",
-                                        "field": "bt_addr",
-                                        "headerHozAlign": "center",
-                                    },
-                                    {
-                                        "title": "RSSI (dBm)",
-                                        "field": "bt_rssi",
-                                        "headerVertical": "flip",
-                                        "hozAlign": "right",
-                                    },
-                                ],
-                            },
-                        ],
-                    }
-                ]
-                # Put the announce TDFs first for clarity
-                priorities = {"ANNOUNCE_V2": 0, "ANNOUNCE": 1}
-                sorted_tdfs = sorted(self._columns, key=lambda x: priorities.get(x, 2))
-
-                for tdf_name in sorted_tdfs:
-                    columns.append(
-                        {
-                            "title": tdf_name,
-                            "field": tdf_name,
-                            "columns": self._columns[tdf_name],
-                            "headerHozAlign": "center",
-                        }
-                    )
-                devices = sorted(self._data.keys())
-                message = {
-                    "columns": columns,
-                    "rows": [self._data[d] for d in devices],
-                    "tdfs": sorted(list(self._columns.keys())),
-                    "apps": sorted(list(self._apps)),
-                    "networks": sorted(list(self._networks)),
-                }
-                self._data_lock.release()
+                # Data sent to the client
+                message = self.websocket_message()
 
                 await ws.send_json(message)
 
