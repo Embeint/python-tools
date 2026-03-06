@@ -143,6 +143,7 @@
         let current_num_columns = 0;
         let currentApps = [];
         let currentNetworks = []
+        let dataRequestId = 0;
 
         const arraysEqual = (a, b) =>
             a.length === b.length &&
@@ -246,12 +247,22 @@
             }
         };
 
+        function dataUpdateRequest() {
+            ws.send("dataUpdateRequest");
+        }
+
         ws.onopen = function () {
             console.log("WebSocket connected");
+            // Initial data request
+            dataUpdateRequest();
+            // Setup data request interval
+            dataRequestId = setInterval(dataUpdateRequest, 1000);
         };
 
         ws.onerror = function (error) {
             console.error("WebSocket error:", error);
+            // Cancel data requests
+            clearInterval(dataRequestId);
         };
     </script>
 </body>
