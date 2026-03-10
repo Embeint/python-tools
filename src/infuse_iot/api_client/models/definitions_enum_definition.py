@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -17,12 +19,12 @@ class DefinitionsEnumDefinition:
     Attributes:
         description (str):
         type_ (str):
-        values (list['DefinitionsEnumValue']):
+        values (list[DefinitionsEnumValue]):
     """
 
     description: str
     type_: str
-    values: list["DefinitionsEnumValue"]
+    values: list[DefinitionsEnumValue]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

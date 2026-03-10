@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -18,21 +20,21 @@ T = TypeVar("T", bound="NewRPCReq")
 class NewRPCReq:
     """
     Attributes:
-        command_id (Union[Unset, int]): ID of RPC command (must provide either commandId or commandName) Example: 3.
-        command_name (Union[Unset, str]): Name of RPC command (must provide either commandId or commandName) Example:
+        command_id (int | Unset): ID of RPC command (must provide either commandId or commandName) Example: 3.
+        command_name (str | Unset): Name of RPC command (must provide either commandId or commandName) Example:
             time_get.
-        params (Union[Unset, RPCParams]): RPC request or response params (must be a JSON object with string or embedded
-            json values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
+        params (RPCParams | Unset): RPC request or response params (must be a JSON object with string or embedded json
+            values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
             'value'}}.
-        params_encoded (Union[Unset, str]): Base64 encoded params (if provided, will be used instead of params)
-        data_header (Union[Unset, RPCReqDataHeader]):
+        params_encoded (str | Unset): Base64 encoded params (if provided, will be used instead of params)
+        data_header (RPCReqDataHeader | Unset):
     """
 
-    command_id: Unset | int = UNSET
-    command_name: Unset | str = UNSET
-    params: Union[Unset, "RPCParams"] = UNSET
-    params_encoded: Unset | str = UNSET
-    data_header: Union[Unset, "RPCReqDataHeader"] = UNSET
+    command_id: int | Unset = UNSET
+    command_name: str | Unset = UNSET
+    params: RPCParams | Unset = UNSET
+    params_encoded: str | Unset = UNSET
+    data_header: RPCReqDataHeader | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -40,13 +42,13 @@ class NewRPCReq:
 
         command_name = self.command_name
 
-        params: Unset | dict[str, Any] = UNSET
+        params: dict[str, Any] | Unset = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
         params_encoded = self.params_encoded
 
-        data_header: Unset | dict[str, Any] = UNSET
+        data_header: dict[str, Any] | Unset = UNSET
         if not isinstance(self.data_header, Unset):
             data_header = self.data_header.to_dict()
 
@@ -77,7 +79,7 @@ class NewRPCReq:
         command_name = d.pop("commandName", UNSET)
 
         _params = d.pop("params", UNSET)
-        params: Unset | RPCParams
+        params: RPCParams | Unset
         if isinstance(_params, Unset):
             params = UNSET
         else:
@@ -86,7 +88,7 @@ class NewRPCReq:
         params_encoded = d.pop("paramsEncoded", UNSET)
 
         _data_header = d.pop("dataHeader", UNSET)
-        data_header: Unset | RPCReqDataHeader
+        data_header: RPCReqDataHeader | Unset
         if isinstance(_data_header, Unset):
             data_header = UNSET
         else:

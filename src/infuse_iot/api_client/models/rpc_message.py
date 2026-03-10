@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -30,8 +32,8 @@ class RpcMessage:
     created_at: datetime.datetime
     id: UUID
     downlink_message_id: UUID
-    device: "Device"
-    downlink_message: "DownlinkMessage"
+    device: Device
+    downlink_message: DownlinkMessage
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

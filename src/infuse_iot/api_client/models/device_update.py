@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -17,14 +19,14 @@ T = TypeVar("T", bound="DeviceUpdate")
 class DeviceUpdate:
     """
     Attributes:
-        metadata (Union[Unset, DeviceMetadataUpdate]): Metadata update
+        metadata (DeviceMetadataUpdate | Unset): Metadata update
     """
 
-    metadata: Union[Unset, "DeviceMetadataUpdate"] = UNSET
+    metadata: DeviceMetadataUpdate | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        metadata: Unset | dict[str, Any] = UNSET
+        metadata: dict[str, Any] | Unset = UNSET
         if not isinstance(self.metadata, Unset):
             metadata = self.metadata.to_dict()
 
@@ -42,7 +44,7 @@ class DeviceUpdate:
 
         d = dict(src_dict)
         _metadata = d.pop("metadata", UNSET)
-        metadata: Unset | DeviceMetadataUpdate
+        metadata: DeviceMetadataUpdate | Unset
         if isinstance(_metadata, Unset):
             metadata = UNSET
         else:

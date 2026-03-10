@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -13,11 +15,11 @@ T = TypeVar("T", bound="DeviceIdField")
 class DeviceIdField:
     """
     Attributes:
-        device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
+        device_id (str | Unset): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
     """
 
-    device_id: Unset | str = UNSET
+    device_id: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

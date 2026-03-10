@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -19,13 +21,13 @@ class NewRPCMessage:
     Attributes:
         device_id (str): The ID of the device to send the RPC to as a hex string Example: d291d4d66bf0a955.
         rpc (NewRPCReq):
-        send_wait_timeout_ms (Union[Unset, int]): Maximum time to wait (in milliseconds) for the device to send a
-            packet. If 0 or not set, the RPC is sent immediately using the device's last route. Default: 60000.
+        send_wait_timeout_ms (int | Unset): Maximum time to wait (in milliseconds) for the device to send a packet. If 0
+            or not set, the RPC is sent immediately using the device's last route. Default: 60000.
     """
 
     device_id: str
-    rpc: "NewRPCReq"
-    send_wait_timeout_ms: Unset | int = 60000
+    rpc: NewRPCReq
+    send_wait_timeout_ms: int | Unset = 60000
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

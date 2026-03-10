@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,17 +22,16 @@ class RpcRsp:
     Attributes:
         route (UplinkRoute):
         return_code (int): Return code of RPC
-        params (Union[Unset, RPCParams]): RPC request or response params (must be a JSON object with string or embedded
-            json values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
+        params (RPCParams | Unset): RPC request or response params (must be a JSON object with string or embedded json
+            values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
             'value'}}.
-        params_encoded (Union[Unset, str]): Base64 encoded params (provided if there was an issue decoding the RPC
-            params)
+        params_encoded (str | Unset): Base64 encoded params (provided if there was an issue decoding the RPC params)
     """
 
-    route: "UplinkRoute"
+    route: UplinkRoute
     return_code: int
-    params: Union[Unset, "RPCParams"] = UNSET
-    params_encoded: Unset | str = UNSET
+    params: RPCParams | Unset = UNSET
+    params_encoded: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -38,7 +39,7 @@ class RpcRsp:
 
         return_code = self.return_code
 
-        params: Unset | dict[str, Any] = UNSET
+        params: dict[str, Any] | Unset = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
@@ -70,7 +71,7 @@ class RpcRsp:
         return_code = d.pop("returnCode")
 
         _params = d.pop("params", UNSET)
-        params: Unset | RPCParams
+        params: RPCParams | Unset
         if isinstance(_params, Unset):
             params = UNSET
         else:

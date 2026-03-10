@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -23,18 +25,18 @@ class DeviceKVEntry:
         crc (int): CRC32 of entry value
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
-        key_name (Union[Unset, str]): Key name - if definition known
-        data (Union[Unset, str]): Raw entry data as a base64 encoded string - if not write_only
-        decoded (Union[Unset, DeviceKVEntryDecoded]): Decoded entry value - if not write_only and definition known
+        key_name (str | Unset): Key name - if definition known
+        data (str | Unset): Raw entry data as a base64 encoded string - if not write_only
+        decoded (DeviceKVEntryDecoded | Unset): Decoded entry value - if not write_only and definition known
     """
 
     key_id: int
     crc: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    key_name: Unset | str = UNSET
-    data: Unset | str = UNSET
-    decoded: Union[Unset, "DeviceKVEntryDecoded"] = UNSET
+    key_name: str | Unset = UNSET
+    data: str | Unset = UNSET
+    decoded: DeviceKVEntryDecoded | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -50,7 +52,7 @@ class DeviceKVEntry:
 
         data = self.data
 
-        decoded: Unset | dict[str, Any] = UNSET
+        decoded: dict[str, Any] | Unset = UNSET
         if not isinstance(self.decoded, Unset):
             decoded = self.decoded.to_dict()
 
@@ -91,7 +93,7 @@ class DeviceKVEntry:
         data = d.pop("data", UNSET)
 
         _decoded = d.pop("decoded", UNSET)
-        decoded: Unset | DeviceKVEntryDecoded
+        decoded: DeviceKVEntryDecoded | Unset
         if isinstance(_decoded, Unset):
             decoded = UNSET
         else:

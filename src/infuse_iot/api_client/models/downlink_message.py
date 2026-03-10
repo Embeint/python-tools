@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -30,12 +32,12 @@ class DownlinkMessage:
         auth (int): The auth level of the message
         rpc_req (RpcReq):
         status (DownlinkMessageStatus): Status of downlink message
-        rpc_rsp (Union[Unset, RpcRsp]):
-        send_wait_timeout_ms (Union[Unset, int]): Maximum time to wait (in milliseconds) for the device to send a packet
+        rpc_rsp (RpcRsp | Unset):
+        send_wait_timeout_ms (int | Unset): Maximum time to wait (in milliseconds) for the device to send a packet
             before expiring. If 0 or not set, the RPC was sent immediately using the device's last route.
-        sent_at (Union[Unset, datetime.datetime]): The time the downlink message was sent
-        expires_at (Union[Unset, datetime.datetime]): The time the downlink message expires
-        completed_at (Union[Unset, datetime.datetime]): The time the downlink message was completed
+        sent_at (datetime.datetime | Unset): The time the downlink message was sent
+        expires_at (datetime.datetime | Unset): The time the downlink message expires
+        completed_at (datetime.datetime | Unset): The time the downlink message was completed
     """
 
     id: UUID
@@ -44,13 +46,13 @@ class DownlinkMessage:
     device_id: UUID
     payload_type: int
     auth: int
-    rpc_req: "RpcReq"
+    rpc_req: RpcReq
     status: DownlinkMessageStatus
-    rpc_rsp: Union[Unset, "RpcRsp"] = UNSET
-    send_wait_timeout_ms: Unset | int = UNSET
-    sent_at: Unset | datetime.datetime = UNSET
-    expires_at: Unset | datetime.datetime = UNSET
-    completed_at: Unset | datetime.datetime = UNSET
+    rpc_rsp: RpcRsp | Unset = UNSET
+    send_wait_timeout_ms: int | Unset = UNSET
+    sent_at: datetime.datetime | Unset = UNSET
+    expires_at: datetime.datetime | Unset = UNSET
+    completed_at: datetime.datetime | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,21 +72,21 @@ class DownlinkMessage:
 
         status = self.status.value
 
-        rpc_rsp: Unset | dict[str, Any] = UNSET
+        rpc_rsp: dict[str, Any] | Unset = UNSET
         if not isinstance(self.rpc_rsp, Unset):
             rpc_rsp = self.rpc_rsp.to_dict()
 
         send_wait_timeout_ms = self.send_wait_timeout_ms
 
-        sent_at: Unset | str = UNSET
+        sent_at: str | Unset = UNSET
         if not isinstance(self.sent_at, Unset):
             sent_at = self.sent_at.isoformat()
 
-        expires_at: Unset | str = UNSET
+        expires_at: str | Unset = UNSET
         if not isinstance(self.expires_at, Unset):
             expires_at = self.expires_at.isoformat()
 
-        completed_at: Unset | str = UNSET
+        completed_at: str | Unset = UNSET
         if not isinstance(self.completed_at, Unset):
             completed_at = self.completed_at.isoformat()
 
@@ -138,7 +140,7 @@ class DownlinkMessage:
         status = DownlinkMessageStatus(d.pop("status"))
 
         _rpc_rsp = d.pop("rpcRsp", UNSET)
-        rpc_rsp: Unset | RpcRsp
+        rpc_rsp: RpcRsp | Unset
         if isinstance(_rpc_rsp, Unset):
             rpc_rsp = UNSET
         else:
@@ -147,21 +149,21 @@ class DownlinkMessage:
         send_wait_timeout_ms = d.pop("sendWaitTimeoutMs", UNSET)
 
         _sent_at = d.pop("sentAt", UNSET)
-        sent_at: Unset | datetime.datetime
+        sent_at: datetime.datetime | Unset
         if isinstance(_sent_at, Unset):
             sent_at = UNSET
         else:
             sent_at = isoparse(_sent_at)
 
         _expires_at = d.pop("expiresAt", UNSET)
-        expires_at: Unset | datetime.datetime
+        expires_at: datetime.datetime | Unset
         if isinstance(_expires_at, Unset):
             expires_at = UNSET
         else:
             expires_at = isoparse(_expires_at)
 
         _completed_at = d.pop("completedAt", UNSET)
-        completed_at: Unset | datetime.datetime
+        completed_at: datetime.datetime | Unset
         if isinstance(_completed_at, Unset):
             completed_at = UNSET
         else:

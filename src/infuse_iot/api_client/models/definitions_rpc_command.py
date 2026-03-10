@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -21,21 +23,21 @@ class DefinitionsRPCCommand:
         name (str):
         description (str):
         default_auth (DefinitionsRPCCommandDefaultAuth):
-        request_params (list['DefinitionsFieldDefinition']):
-        response_params (list['DefinitionsFieldDefinition']):
-        depends_on (Union[Unset, str]):
-        default (Union[Unset, str]):
-        rpc_data (Union[Unset, bool]): Whether the command is an RPC data command
+        request_params (list[DefinitionsFieldDefinition]):
+        response_params (list[DefinitionsFieldDefinition]):
+        depends_on (str | Unset):
+        default (str | Unset):
+        rpc_data (bool | Unset): Whether the command is an RPC data command
     """
 
     name: str
     description: str
     default_auth: DefinitionsRPCCommandDefaultAuth
-    request_params: list["DefinitionsFieldDefinition"]
-    response_params: list["DefinitionsFieldDefinition"]
-    depends_on: Unset | str = UNSET
-    default: Unset | str = UNSET
-    rpc_data: Unset | bool = UNSET
+    request_params: list[DefinitionsFieldDefinition]
+    response_params: list[DefinitionsFieldDefinition]
+    depends_on: str | Unset = UNSET
+    default: str | Unset = UNSET
+    rpc_data: bool | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

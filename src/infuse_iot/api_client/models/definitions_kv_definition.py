@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -19,24 +21,24 @@ class DefinitionsKVDefinition:
     Attributes:
         name (str):
         description (str):
-        fields (list['DefinitionsFieldDefinition']):
-        reflect (Union[Unset, bool]):
-        read_only (Union[Unset, bool]):
-        write_only (Union[Unset, bool]):
-        default (Union[Unset, str]):
-        depends_on (Union[Unset, str]):
-        range_ (Union[Unset, int]):
+        fields (list[DefinitionsFieldDefinition]):
+        reflect (bool | Unset):
+        read_only (bool | Unset):
+        write_only (bool | Unset):
+        default (str | Unset):
+        depends_on (str | Unset):
+        range_ (int | Unset):
     """
 
     name: str
     description: str
-    fields: list["DefinitionsFieldDefinition"]
-    reflect: Unset | bool = UNSET
-    read_only: Unset | bool = UNSET
-    write_only: Unset | bool = UNSET
-    default: Unset | str = UNSET
-    depends_on: Unset | str = UNSET
-    range_: Unset | int = UNSET
+    fields: list[DefinitionsFieldDefinition]
+    reflect: bool | Unset = UNSET
+    read_only: bool | Unset = UNSET
+    write_only: bool | Unset = UNSET
+    default: str | Unset = UNSET
+    depends_on: str | Unset = UNSET
+    range_: int | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

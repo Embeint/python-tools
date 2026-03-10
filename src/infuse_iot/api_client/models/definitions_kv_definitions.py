@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -15,7 +17,7 @@ T = TypeVar("T", bound="DefinitionsKVDefinitions")
 class DefinitionsKVDefinitions:
     """ """
 
-    additional_properties: dict[str, "DefinitionsKVDefinition"] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, DefinitionsKVDefinition] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         field_dict: dict[str, Any] = {}
@@ -44,10 +46,10 @@ class DefinitionsKVDefinitions:
     def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
-    def __getitem__(self, key: str) -> "DefinitionsKVDefinition":
+    def __getitem__(self, key: str) -> DefinitionsKVDefinition:
         return self.additional_properties[key]
 
-    def __setitem__(self, key: str, value: "DefinitionsKVDefinition") -> None:
+    def __setitem__(self, key: str, value: DefinitionsKVDefinition) -> None:
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:

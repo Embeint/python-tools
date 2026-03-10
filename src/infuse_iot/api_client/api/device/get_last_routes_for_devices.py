@@ -21,9 +21,8 @@ def _get_kwargs(
         "url": "/device/lastRoute",
     }
 
-    _body = body.to_dict()
+    _kwargs["json"] = body.to_dict()
 
-    _kwargs["json"] = _body
     headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
@@ -32,7 +31,7 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> list["UplinkRouteAndDeviceId"] | None:
+) -> list[UplinkRouteAndDeviceId] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -42,6 +41,7 @@ def _parse_response(
             response_200.append(response_200_item)
 
         return response_200
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -50,7 +50,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[list["UplinkRouteAndDeviceId"]]:
+) -> Response[list[UplinkRouteAndDeviceId]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -63,7 +63,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: GetLastRoutesForDevicesBody,
-) -> Response[list["UplinkRouteAndDeviceId"]]:
+) -> Response[list[UplinkRouteAndDeviceId]]:
     """Get last routes for a group of devices
 
     Args:
@@ -74,7 +74,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[list['UplinkRouteAndDeviceId']]
+        Response[list[UplinkRouteAndDeviceId]]
     """
 
     kwargs = _get_kwargs(
@@ -92,7 +92,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: GetLastRoutesForDevicesBody,
-) -> list["UplinkRouteAndDeviceId"] | None:
+) -> list[UplinkRouteAndDeviceId] | None:
     """Get last routes for a group of devices
 
     Args:
@@ -103,7 +103,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        list['UplinkRouteAndDeviceId']
+        list[UplinkRouteAndDeviceId]
     """
 
     return sync_detailed(
@@ -116,7 +116,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: GetLastRoutesForDevicesBody,
-) -> Response[list["UplinkRouteAndDeviceId"]]:
+) -> Response[list[UplinkRouteAndDeviceId]]:
     """Get last routes for a group of devices
 
     Args:
@@ -127,7 +127,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[list['UplinkRouteAndDeviceId']]
+        Response[list[UplinkRouteAndDeviceId]]
     """
 
     kwargs = _get_kwargs(
@@ -143,7 +143,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: GetLastRoutesForDevicesBody,
-) -> list["UplinkRouteAndDeviceId"] | None:
+) -> list[UplinkRouteAndDeviceId] | None:
     """Get last routes for a group of devices
 
     Args:
@@ -154,7 +154,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        list['UplinkRouteAndDeviceId']
+        list[UplinkRouteAndDeviceId]
     """
 
     return (

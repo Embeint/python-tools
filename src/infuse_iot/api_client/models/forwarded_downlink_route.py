@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -21,7 +23,7 @@ class ForwardedDownlinkRoute:
     """
 
     device_id: str
-    route: "DownlinkRoute"
+    route: DownlinkRoute
     auth: int
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 

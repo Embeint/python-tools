@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -13,10 +15,10 @@ T = TypeVar("T", bound="InterfaceData")
 class InterfaceData:
     """
     Attributes:
-        sequence (Union[Unset, int]): Sequence number of packet
+        sequence (int | Unset): Sequence number of packet
     """
 
-    sequence: Unset | int = UNSET
+    sequence: int | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
 from typing import Any, TypeVar
@@ -15,24 +17,28 @@ T = TypeVar("T", bound="DeviceLoggerState")
 class DeviceLoggerState:
     """
     Attributes:
-        last_reported_block (Union[Unset, int]): Last reported block number
-        last_reported_time (Union[Unset, datetime.datetime]): Last time logger state was reported
-        last_downloaded_block (Union[Unset, int]): Last downloaded block number
-        last_downloaded_wrap_count (Union[Unset, int]): Last downloaded block wrap count
-        last_downloaded_time (Union[Unset, datetime.datetime]): Last time logger state was downloaded
+        download_enabled (bool): Whether logger download is enabled
+        last_reported_block (int | Unset): Last reported block number
+        last_reported_time (datetime.datetime | Unset): Last time logger state was reported
+        last_downloaded_block (int | Unset): Last downloaded block number
+        last_downloaded_wrap_count (int | Unset): Last downloaded block wrap count
+        last_downloaded_time (datetime.datetime | Unset): Last time logger state was downloaded
     """
 
-    last_reported_block: Unset | int = UNSET
-    last_reported_time: Unset | datetime.datetime = UNSET
-    last_downloaded_block: Unset | int = UNSET
-    last_downloaded_wrap_count: Unset | int = UNSET
-    last_downloaded_time: Unset | datetime.datetime = UNSET
+    download_enabled: bool
+    last_reported_block: int | Unset = UNSET
+    last_reported_time: datetime.datetime | Unset = UNSET
+    last_downloaded_block: int | Unset = UNSET
+    last_downloaded_wrap_count: int | Unset = UNSET
+    last_downloaded_time: datetime.datetime | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        download_enabled = self.download_enabled
+
         last_reported_block = self.last_reported_block
 
-        last_reported_time: Unset | str = UNSET
+        last_reported_time: str | Unset = UNSET
         if not isinstance(self.last_reported_time, Unset):
             last_reported_time = self.last_reported_time.isoformat()
 
@@ -40,13 +46,17 @@ class DeviceLoggerState:
 
         last_downloaded_wrap_count = self.last_downloaded_wrap_count
 
-        last_downloaded_time: Unset | str = UNSET
+        last_downloaded_time: str | Unset = UNSET
         if not isinstance(self.last_downloaded_time, Unset):
             last_downloaded_time = self.last_downloaded_time.isoformat()
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
-        field_dict.update({})
+        field_dict.update(
+            {
+                "downloadEnabled": download_enabled,
+            }
+        )
         if last_reported_block is not UNSET:
             field_dict["lastReportedBlock"] = last_reported_block
         if last_reported_time is not UNSET:
@@ -63,10 +73,12 @@ class DeviceLoggerState:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        download_enabled = d.pop("downloadEnabled")
+
         last_reported_block = d.pop("lastReportedBlock", UNSET)
 
         _last_reported_time = d.pop("lastReportedTime", UNSET)
-        last_reported_time: Unset | datetime.datetime
+        last_reported_time: datetime.datetime | Unset
         if isinstance(_last_reported_time, Unset):
             last_reported_time = UNSET
         else:
@@ -77,13 +89,14 @@ class DeviceLoggerState:
         last_downloaded_wrap_count = d.pop("lastDownloadedWrapCount", UNSET)
 
         _last_downloaded_time = d.pop("lastDownloadedTime", UNSET)
-        last_downloaded_time: Unset | datetime.datetime
+        last_downloaded_time: datetime.datetime | Unset
         if isinstance(_last_downloaded_time, Unset):
             last_downloaded_time = UNSET
         else:
             last_downloaded_time = isoparse(_last_downloaded_time)
 
         device_logger_state = cls(
+            download_enabled=download_enabled,
             last_reported_block=last_reported_block,
             last_reported_time=last_reported_time,
             last_downloaded_block=last_downloaded_block,

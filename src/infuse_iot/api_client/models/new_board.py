@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
@@ -22,15 +24,15 @@ class NewBoard:
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
         organisation_id (UUID): ID of organisation for board to exist in
-        metadata_fields (Union[Unset, list['MetadataField']]): Metadata fields for board Example: [{'name': 'Field
-            Name', 'required': True, 'unique': False}].
+        metadata_fields (list[MetadataField] | Unset): Metadata fields for board Example: [{'name': 'Field Name',
+            'required': True, 'unique': False}].
     """
 
     name: str
     description: str
     soc: str
     organisation_id: UUID
-    metadata_fields: Unset | list["MetadataField"] = UNSET
+    metadata_fields: list[MetadataField] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -42,7 +44,7 @@ class NewBoard:
 
         organisation_id = str(self.organisation_id)
 
-        metadata_fields: Unset | list[dict[str, Any]] = UNSET
+        metadata_fields: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.metadata_fields, Unset):
             metadata_fields = []
             for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:
@@ -79,14 +81,16 @@ class NewBoard:
 
         organisation_id = UUID(d.pop("organisationId"))
 
-        metadata_fields = []
         _metadata_fields = d.pop("metadataFields", UNSET)
-        for componentsschemas_board_metadata_fields_item_data in _metadata_fields or []:
-            componentsschemas_board_metadata_fields_item = MetadataField.from_dict(
-                componentsschemas_board_metadata_fields_item_data
-            )
+        metadata_fields: list[MetadataField] | Unset = UNSET
+        if _metadata_fields is not UNSET:
+            metadata_fields = []
+            for componentsschemas_board_metadata_fields_item_data in _metadata_fields:
+                componentsschemas_board_metadata_fields_item = MetadataField.from_dict(
+                    componentsschemas_board_metadata_fields_item_data
+                )
 
-            metadata_fields.append(componentsschemas_board_metadata_fields_item)
+                metadata_fields.append(componentsschemas_board_metadata_fields_item)
 
         new_board = cls(
             name=name,

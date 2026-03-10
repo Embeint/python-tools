@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -20,12 +21,13 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "put",
-        "url": f"/device/id/{id}/state",
+        "url": "/device/id/{id}/state".format(
+            id=quote(str(id), safe=""),
+        ),
     }
 
-    _body = body.to_dict()
+    _kwargs["json"] = body.to_dict()
 
-    _kwargs["json"] = _body
     headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
@@ -37,9 +39,11 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_200 = DeviceState.from_dict(response.json())
 
         return response_200
+
     if response.status_code == 404:
         response_404 = cast(Any, None)
         return response_404
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -72,7 +76,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceState]]
+        Response[Any | DeviceState]
     """
 
     kwargs = _get_kwargs(
@@ -104,7 +108,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceState]
+        Any | DeviceState
     """
 
     return sync_detailed(
@@ -131,7 +135,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceState]]
+        Response[Any | DeviceState]
     """
 
     kwargs = _get_kwargs(
@@ -161,7 +165,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceState]
+        Any | DeviceState
     """
 
     return (
