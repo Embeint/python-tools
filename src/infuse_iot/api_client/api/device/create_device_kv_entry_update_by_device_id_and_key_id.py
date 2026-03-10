@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 
@@ -21,12 +22,14 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": f"/device/deviceId/{device_id}/kv/entries/{key_id}/updates",
+        "url": "/device/deviceId/{device_id}/kv/entries/{key_id}/updates".format(
+            device_id=quote(str(device_id), safe=""),
+            key_id=quote(str(key_id), safe=""),
+        ),
     }
 
-    _body = body.to_dict()
+    _kwargs["json"] = body.to_dict()
 
-    _kwargs["json"] = _body
     headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
@@ -40,22 +43,28 @@ def _parse_response(
         response_200 = DeviceKVEntry.from_dict(response.json())
 
         return response_200
+
     if response.status_code == 201:
         response_201 = DeviceKVEntryUpdate.from_dict(response.json())
 
         return response_201
+
     if response.status_code == 400:
         response_400 = cast(Any, None)
         return response_400
+
     if response.status_code == 403:
         response_403 = cast(Any, None)
         return response_403
+
     if response.status_code == 404:
         response_404 = cast(Any, None)
         return response_404
+
     if response.status_code == 409:
         response_409 = cast(Any, None)
         return response_409
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -92,7 +101,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceKVEntry, DeviceKVEntryUpdate]]
+        Response[Any | DeviceKVEntry | DeviceKVEntryUpdate]
     """
 
     kwargs = _get_kwargs(
@@ -127,7 +136,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceKVEntry, DeviceKVEntryUpdate]
+        Any | DeviceKVEntry | DeviceKVEntryUpdate
     """
 
     return sync_detailed(
@@ -157,7 +166,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceKVEntry, DeviceKVEntryUpdate]]
+        Response[Any | DeviceKVEntry | DeviceKVEntryUpdate]
     """
 
     kwargs = _get_kwargs(
@@ -190,7 +199,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceKVEntry, DeviceKVEntryUpdate]
+        Any | DeviceKVEntry | DeviceKVEntryUpdate
     """
 
     return (

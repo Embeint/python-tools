@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -6,8 +8,6 @@ from uuid import UUID
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 from dateutil.parser import isoparse
-
-from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.metadata_field import MetadataField
@@ -27,8 +27,8 @@ class Board:
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
         organisation_id (UUID): ID of organisation for board to exist in
-        metadata_fields (Union[Unset, list['MetadataField']]): Metadata fields for board Example: [{'name': 'Field
-            Name', 'required': True, 'unique': False}].
+        metadata_fields (list[MetadataField]): Metadata fields for board Example: [{'name': 'Field Name', 'required':
+            True, 'unique': False}].
     """
 
     id: UUID
@@ -38,7 +38,7 @@ class Board:
     description: str
     soc: str
     organisation_id: UUID
-    metadata_fields: Unset | list["MetadataField"] = UNSET
+    metadata_fields: list[MetadataField]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,14 +56,10 @@ class Board:
 
         organisation_id = str(self.organisation_id)
 
-        metadata_fields: Unset | list[dict[str, Any]] = UNSET
-        if not isinstance(self.metadata_fields, Unset):
-            metadata_fields = []
-            for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:
-                componentsschemas_board_metadata_fields_item = (
-                    componentsschemas_board_metadata_fields_item_data.to_dict()
-                )
-                metadata_fields.append(componentsschemas_board_metadata_fields_item)
+        metadata_fields = []
+        for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:
+            componentsschemas_board_metadata_fields_item = componentsschemas_board_metadata_fields_item_data.to_dict()
+            metadata_fields.append(componentsschemas_board_metadata_fields_item)
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -76,10 +72,9 @@ class Board:
                 "description": description,
                 "soc": soc,
                 "organisationId": organisation_id,
+                "metadataFields": metadata_fields,
             }
         )
-        if metadata_fields is not UNSET:
-            field_dict["metadataFields"] = metadata_fields
 
         return field_dict
 
@@ -103,8 +98,8 @@ class Board:
         organisation_id = UUID(d.pop("organisationId"))
 
         metadata_fields = []
-        _metadata_fields = d.pop("metadataFields", UNSET)
-        for componentsschemas_board_metadata_fields_item_data in _metadata_fields or []:
+        _metadata_fields = d.pop("metadataFields")
+        for componentsschemas_board_metadata_fields_item_data in _metadata_fields:
             componentsschemas_board_metadata_fields_item = MetadataField.from_dict(
                 componentsschemas_board_metadata_fields_item_data
             )

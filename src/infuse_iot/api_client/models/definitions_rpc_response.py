@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -24,7 +26,7 @@ class DefinitionsRPCResponse:
 
     created_at: datetime.datetime
     version: int
-    definitions: "DefinitionsRPC"
+    definitions: DefinitionsRPC
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

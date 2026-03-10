@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 
@@ -14,7 +15,9 @@ def _get_kwargs(
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/device/deviceId/{device_id}/kv/entries",
+        "url": "/device/deviceId/{device_id}/kv/entries".format(
+            device_id=quote(str(device_id), safe=""),
+        ),
     }
 
     return _kwargs
@@ -22,7 +25,7 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | list["DeviceKVEntry"] | None:
+) -> Any | list[DeviceKVEntry] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -32,9 +35,11 @@ def _parse_response(
             response_200.append(response_200_item)
 
         return response_200
+
     if response.status_code == 404:
         response_404 = cast(Any, None)
         return response_404
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -43,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | list["DeviceKVEntry"]]:
+) -> Response[Any | list[DeviceKVEntry]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -56,7 +61,7 @@ def sync_detailed(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | list["DeviceKVEntry"]]:
+) -> Response[Any | list[DeviceKVEntry]]:
     """Get KV entries by DeviceID
 
     Args:
@@ -67,7 +72,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, list['DeviceKVEntry']]]
+        Response[Any | list[DeviceKVEntry]]
     """
 
     kwargs = _get_kwargs(
@@ -85,7 +90,7 @@ def sync(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | list["DeviceKVEntry"] | None:
+) -> Any | list[DeviceKVEntry] | None:
     """Get KV entries by DeviceID
 
     Args:
@@ -96,7 +101,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, list['DeviceKVEntry']]
+        Any | list[DeviceKVEntry]
     """
 
     return sync_detailed(
@@ -109,7 +114,7 @@ async def asyncio_detailed(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | list["DeviceKVEntry"]]:
+) -> Response[Any | list[DeviceKVEntry]]:
     """Get KV entries by DeviceID
 
     Args:
@@ -120,7 +125,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, list['DeviceKVEntry']]]
+        Response[Any | list[DeviceKVEntry]]
     """
 
     kwargs = _get_kwargs(
@@ -136,7 +141,7 @@ async def asyncio(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | list["DeviceKVEntry"] | None:
+) -> Any | list[DeviceKVEntry] | None:
     """Get KV entries by DeviceID
 
     Args:
@@ -147,7 +152,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, list['DeviceKVEntry']]
+        Any | list[DeviceKVEntry]
     """
 
     return (

@@ -12,7 +12,7 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    regex: Unset | str = UNSET,
+    regex: str | Unset = UNSET,
 ) -> dict[str, Any]:
     params: dict[str, Any] = {}
 
@@ -34,14 +34,17 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_200 = COAPFilesList.from_dict(response.json())
 
         return response_200
+
     if response.status_code == 400:
         response_400 = Error.from_dict(response.json())
 
         return response_400
+
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
 
         return response_500
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -62,19 +65,19 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    regex: Unset | str = UNSET,
+    regex: str | Unset = UNSET,
 ) -> Response[COAPFilesList | Error]:
     """Get a list of files on the COAP server
 
     Args:
-        regex (Union[Unset, str]):
+        regex (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[COAPFilesList, Error]]
+        Response[COAPFilesList | Error]
     """
 
     kwargs = _get_kwargs(
@@ -91,19 +94,19 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    regex: Unset | str = UNSET,
+    regex: str | Unset = UNSET,
 ) -> COAPFilesList | Error | None:
     """Get a list of files on the COAP server
 
     Args:
-        regex (Union[Unset, str]):
+        regex (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[COAPFilesList, Error]
+        COAPFilesList | Error
     """
 
     return sync_detailed(
@@ -115,19 +118,19 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    regex: Unset | str = UNSET,
+    regex: str | Unset = UNSET,
 ) -> Response[COAPFilesList | Error]:
     """Get a list of files on the COAP server
 
     Args:
-        regex (Union[Unset, str]):
+        regex (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[COAPFilesList, Error]]
+        Response[COAPFilesList | Error]
     """
 
     kwargs = _get_kwargs(
@@ -142,19 +145,19 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    regex: Unset | str = UNSET,
+    regex: str | Unset = UNSET,
 ) -> COAPFilesList | Error | None:
     """Get a list of files on the COAP server
 
     Args:
-        regex (Union[Unset, str]):
+        regex (str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[COAPFilesList, Error]
+        COAPFilesList | Error
     """
 
     return (

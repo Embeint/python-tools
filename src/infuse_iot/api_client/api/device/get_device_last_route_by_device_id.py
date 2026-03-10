@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 
@@ -14,7 +15,9 @@ def _get_kwargs(
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/device/deviceId/{device_id}/lastRoute",
+        "url": "/device/deviceId/{device_id}/lastRoute".format(
+            device_id=quote(str(device_id), safe=""),
+        ),
     }
 
     return _kwargs
@@ -25,9 +28,11 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         response_200 = UplinkRoute.from_dict(response.json())
 
         return response_200
+
     if response.status_code == 404:
         response_404 = cast(Any, None)
         return response_404
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -58,7 +63,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, UplinkRoute]]
+        Response[Any | UplinkRoute]
     """
 
     kwargs = _get_kwargs(
@@ -87,7 +92,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, UplinkRoute]
+        Any | UplinkRoute
     """
 
     return sync_detailed(
@@ -111,7 +116,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, UplinkRoute]]
+        Response[Any | UplinkRoute]
     """
 
     kwargs = _get_kwargs(
@@ -138,7 +143,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, UplinkRoute]
+        Any | UplinkRoute
     """
 
     return (

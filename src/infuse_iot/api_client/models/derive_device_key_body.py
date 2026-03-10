@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,12 +22,12 @@ class DeriveDeviceKeyBody:
     Attributes:
         device_id (str): The ID of the device to send the RPC to as a hex string Example: d291d4d66bf0a955.
         interface (KeyInterface):
-        security_state (Union[Unset, SecurityState]):
+        security_state (SecurityState | Unset):
     """
 
     device_id: str
     interface: KeyInterface
-    security_state: Union[Unset, "SecurityState"] = UNSET
+    security_state: SecurityState | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -33,7 +35,7 @@ class DeriveDeviceKeyBody:
 
         interface = self.interface.value
 
-        security_state: Unset | dict[str, Any] = UNSET
+        security_state: dict[str, Any] | Unset = UNSET
         if not isinstance(self.security_state, Unset):
             security_state = self.security_state.to_dict()
 
@@ -60,7 +62,7 @@ class DeriveDeviceKeyBody:
         interface = KeyInterface(d.pop("interface"))
 
         _security_state = d.pop("securityState", UNSET)
-        security_state: Unset | SecurityState
+        security_state: SecurityState | Unset
         if isinstance(_security_state, Unset):
             security_state = UNSET
         else:

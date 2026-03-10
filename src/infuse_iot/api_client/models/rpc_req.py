@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -21,20 +23,20 @@ class RpcReq:
     Attributes:
         request_id (int): The unique ID of the RPC request
         command_id (int): ID of RPC command
-        params (Union[Unset, RPCParams]): RPC request or response params (must be a JSON object with string or embedded
-            json values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
+        params (RPCParams | Unset): RPC request or response params (must be a JSON object with string or embedded json
+            values - numbers sent as decimal strings) Example: {'primitive_vaue': '1000', 'struct_value': {'field':
             'value'}}.
-        params_encoded (Union[Unset, str]): Base64 encoded params (if provided, will be used instead of params)
-        data_header (Union[Unset, RPCReqDataHeader]):
-        route (Union[Unset, DownlinkRoute]):
+        params_encoded (str | Unset): Base64 encoded params (if provided, will be used instead of params)
+        data_header (RPCReqDataHeader | Unset):
+        route (DownlinkRoute | Unset):
     """
 
     request_id: int
     command_id: int
-    params: Union[Unset, "RPCParams"] = UNSET
-    params_encoded: Unset | str = UNSET
-    data_header: Union[Unset, "RPCReqDataHeader"] = UNSET
-    route: Union[Unset, "DownlinkRoute"] = UNSET
+    params: RPCParams | Unset = UNSET
+    params_encoded: str | Unset = UNSET
+    data_header: RPCReqDataHeader | Unset = UNSET
+    route: DownlinkRoute | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -42,17 +44,17 @@ class RpcReq:
 
         command_id = self.command_id
 
-        params: Unset | dict[str, Any] = UNSET
+        params: dict[str, Any] | Unset = UNSET
         if not isinstance(self.params, Unset):
             params = self.params.to_dict()
 
         params_encoded = self.params_encoded
 
-        data_header: Unset | dict[str, Any] = UNSET
+        data_header: dict[str, Any] | Unset = UNSET
         if not isinstance(self.data_header, Unset):
             data_header = self.data_header.to_dict()
 
-        route: Unset | dict[str, Any] = UNSET
+        route: dict[str, Any] | Unset = UNSET
         if not isinstance(self.route, Unset):
             route = self.route.to_dict()
 
@@ -87,7 +89,7 @@ class RpcReq:
         command_id = d.pop("commandId")
 
         _params = d.pop("params", UNSET)
-        params: Unset | RPCParams
+        params: RPCParams | Unset
         if isinstance(_params, Unset):
             params = UNSET
         else:
@@ -96,14 +98,14 @@ class RpcReq:
         params_encoded = d.pop("paramsEncoded", UNSET)
 
         _data_header = d.pop("dataHeader", UNSET)
-        data_header: Unset | RPCReqDataHeader
+        data_header: RPCReqDataHeader | Unset
         if isinstance(_data_header, Unset):
             data_header = UNSET
         else:
             data_header = RPCReqDataHeader.from_dict(_data_header)
 
         _route = d.pop("route", UNSET)
-        route: Unset | DownlinkRoute
+        route: DownlinkRoute | Unset
         if isinstance(_route, Unset):
             route = UNSET
         else:

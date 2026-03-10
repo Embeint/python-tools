@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -15,14 +17,14 @@ class DefinitionsFieldConversion:
     """Conversion formula for a field (m * <value> + c)
 
     Attributes:
-        m (Union[Unset, float]):
-        c (Union[Unset, float]):
-        int_ (Union[Unset, DefinitionsFieldConversionInt]): Byte array value should be treated  as an integer
+        m (float | Unset):
+        c (float | Unset):
+        int_ (DefinitionsFieldConversionInt | Unset): Byte array value should be treated  as an integer
     """
 
-    m: Unset | float = UNSET
-    c: Unset | float = UNSET
-    int_: Unset | DefinitionsFieldConversionInt = UNSET
+    m: float | Unset = UNSET
+    c: float | Unset = UNSET
+    int_: DefinitionsFieldConversionInt | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -30,7 +32,7 @@ class DefinitionsFieldConversion:
 
         c = self.c
 
-        int_: Unset | str = UNSET
+        int_: str | Unset = UNSET
         if not isinstance(self.int_, Unset):
             int_ = self.int_.value
 
@@ -54,7 +56,7 @@ class DefinitionsFieldConversion:
         c = d.pop("c", UNSET)
 
         _int_ = d.pop("int", UNSET)
-        int_: Unset | DefinitionsFieldConversionInt
+        int_: DefinitionsFieldConversionInt | Unset
         if isinstance(_int_, Unset):
             int_ = UNSET
         else:

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -23,20 +25,20 @@ class DeviceState:
     Attributes:
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
-        application_id (Union[Unset, int]): Last announced application ID
-        application_version (Union[Unset, ApplicationVersion]): Application version
-        algorithms (Union[Unset, list['Algorithm']]): Last announced algorithms
-        last_route_interface (Union[Unset, RouteType]): Interface of route
-        last_route_udp_address (Union[Unset, str]): UDP address of last packet sent by device
+        application_id (int | Unset): Last announced application ID
+        application_version (ApplicationVersion | Unset): Application version
+        algorithms (list[Algorithm] | Unset): Last announced algorithms
+        last_route_interface (RouteType | Unset): Interface of route
+        last_route_udp_address (str | Unset): UDP address of last packet sent by device
     """
 
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    application_id: Unset | int = UNSET
-    application_version: Union[Unset, "ApplicationVersion"] = UNSET
-    algorithms: Unset | list["Algorithm"] = UNSET
-    last_route_interface: Unset | RouteType = UNSET
-    last_route_udp_address: Unset | str = UNSET
+    application_id: int | Unset = UNSET
+    application_version: ApplicationVersion | Unset = UNSET
+    algorithms: list[Algorithm] | Unset = UNSET
+    last_route_interface: RouteType | Unset = UNSET
+    last_route_udp_address: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,18 +48,18 @@ class DeviceState:
 
         application_id = self.application_id
 
-        application_version: Unset | dict[str, Any] = UNSET
+        application_version: dict[str, Any] | Unset = UNSET
         if not isinstance(self.application_version, Unset):
             application_version = self.application_version.to_dict()
 
-        algorithms: Unset | list[dict[str, Any]] = UNSET
+        algorithms: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.algorithms, Unset):
             algorithms = []
             for algorithms_item_data in self.algorithms:
                 algorithms_item = algorithms_item_data.to_dict()
                 algorithms.append(algorithms_item)
 
-        last_route_interface: Unset | str = UNSET
+        last_route_interface: str | Unset = UNSET
         if not isinstance(self.last_route_interface, Unset):
             last_route_interface = self.last_route_interface.value
 
@@ -97,21 +99,23 @@ class DeviceState:
         application_id = d.pop("applicationId", UNSET)
 
         _application_version = d.pop("applicationVersion", UNSET)
-        application_version: Unset | ApplicationVersion
+        application_version: ApplicationVersion | Unset
         if isinstance(_application_version, Unset):
             application_version = UNSET
         else:
             application_version = ApplicationVersion.from_dict(_application_version)
 
-        algorithms = []
         _algorithms = d.pop("algorithms", UNSET)
-        for algorithms_item_data in _algorithms or []:
-            algorithms_item = Algorithm.from_dict(algorithms_item_data)
+        algorithms: list[Algorithm] | Unset = UNSET
+        if _algorithms is not UNSET:
+            algorithms = []
+            for algorithms_item_data in _algorithms:
+                algorithms_item = Algorithm.from_dict(algorithms_item_data)
 
-            algorithms.append(algorithms_item)
+                algorithms.append(algorithms_item)
 
         _last_route_interface = d.pop("lastRouteInterface", UNSET)
-        last_route_interface: Unset | RouteType
+        last_route_interface: RouteType | Unset
         if isinstance(_last_route_interface, Unset):
             last_route_interface = UNSET
         else:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -15,7 +17,7 @@ T = TypeVar("T", bound="DefinitionsRPCEnums")
 class DefinitionsRPCEnums:
     """ """
 
-    additional_properties: dict[str, "DefinitionsEnumDefinition"] = _attrs_field(init=False, factory=dict)
+    additional_properties: dict[str, DefinitionsEnumDefinition] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         field_dict: dict[str, Any] = {}
@@ -44,10 +46,10 @@ class DefinitionsRPCEnums:
     def additional_keys(self) -> list[str]:
         return list(self.additional_properties.keys())
 
-    def __getitem__(self, key: str) -> "DefinitionsEnumDefinition":
+    def __getitem__(self, key: str) -> DefinitionsEnumDefinition:
         return self.additional_properties[key]
 
-    def __setitem__(self, key: str, value: "DefinitionsEnumDefinition") -> None:
+    def __setitem__(self, key: str, value: DefinitionsEnumDefinition) -> None:
         self.additional_properties[key] = value
 
     def __delitem__(self, key: str) -> None:

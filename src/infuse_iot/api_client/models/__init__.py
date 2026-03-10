@@ -48,6 +48,8 @@ from .device_kv_entry import DeviceKVEntry
 from .device_kv_entry_decoded import DeviceKVEntryDecoded
 from .device_kv_entry_update import DeviceKVEntryUpdate
 from .device_logger_state import DeviceLoggerState
+from .device_logger_state_update import DeviceLoggerStateUpdate
+from .device_logger_state_with_index import DeviceLoggerStateWithIndex
 from .device_metadata import DeviceMetadata
 from .device_metadata_update import DeviceMetadataUpdate
 from .device_metadata_update_operation import DeviceMetadataUpdateOperation
@@ -70,11 +72,13 @@ from .interface_data import InterfaceData
 from .key import Key
 from .key_interface import KeyInterface
 from .metadata_field import MetadataField
+from .network import Network
 from .new_board import NewBoard
 from .new_device import NewDevice
 from .new_device_kv_entry_update import NewDeviceKVEntryUpdate
 from .new_device_kv_entry_update_decoded import NewDeviceKVEntryUpdateDecoded
 from .new_device_state import NewDeviceState
+from .new_network import NewNetwork
 from .new_organisation import NewOrganisation
 from .new_rpc_message import NewRPCMessage
 from .new_rpc_req import NewRPCReq
@@ -140,6 +144,8 @@ __all__ = (
     "DeviceKVEntryDecoded",
     "DeviceKVEntryUpdate",
     "DeviceLoggerState",
+    "DeviceLoggerStateUpdate",
+    "DeviceLoggerStateWithIndex",
     "DeviceMetadata",
     "DeviceMetadataUpdate",
     "DeviceMetadataUpdateOperation",
@@ -162,11 +168,13 @@ __all__ = (
     "Key",
     "KeyInterface",
     "MetadataField",
+    "Network",
     "NewBoard",
     "NewDevice",
     "NewDeviceKVEntryUpdate",
     "NewDeviceKVEntryUpdateDecoded",
     "NewDeviceState",
+    "NewNetwork",
     "NewOrganisation",
     "NewRPCMessage",
     "NewRPCReq",

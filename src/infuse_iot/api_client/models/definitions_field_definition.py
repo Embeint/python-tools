@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -20,21 +22,21 @@ class DefinitionsFieldDefinition:
     Attributes:
         name (str): Field name
         type_ (str): Field type
-        description (Union[Unset, str]): Field description
-        num (Union[Unset, int]): If field is array, the number of elements (0 for variable length)
-        counted_by (Union[Unset, str]): If field is array, the name of the field that contains the number of elements
+        description (str | Unset): Field description
+        num (int | Unset): If field is array, the number of elements (0 for variable length)
+        counted_by (str | Unset): If field is array, the name of the field that contains the number of elements
             (overrides num)
-        display (Union[Unset, DefinitionsFieldDisplay]): Display settings for a field
-        conversion (Union[Unset, DefinitionsFieldConversion]): Conversion formula for a field (m * <value> + c)
+        display (DefinitionsFieldDisplay | Unset): Display settings for a field
+        conversion (DefinitionsFieldConversion | Unset): Conversion formula for a field (m * <value> + c)
     """
 
     name: str
     type_: str
-    description: Unset | str = UNSET
-    num: Unset | int = UNSET
-    counted_by: Unset | str = UNSET
-    display: Union[Unset, "DefinitionsFieldDisplay"] = UNSET
-    conversion: Union[Unset, "DefinitionsFieldConversion"] = UNSET
+    description: str | Unset = UNSET
+    num: int | Unset = UNSET
+    counted_by: str | Unset = UNSET
+    display: DefinitionsFieldDisplay | Unset = UNSET
+    conversion: DefinitionsFieldConversion | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -48,11 +50,11 @@ class DefinitionsFieldDefinition:
 
         counted_by = self.counted_by
 
-        display: Unset | dict[str, Any] = UNSET
+        display: dict[str, Any] | Unset = UNSET
         if not isinstance(self.display, Unset):
             display = self.display.to_dict()
 
-        conversion: Unset | dict[str, Any] = UNSET
+        conversion: dict[str, Any] | Unset = UNSET
         if not isinstance(self.conversion, Unset):
             conversion = self.conversion.to_dict()
 
@@ -94,14 +96,14 @@ class DefinitionsFieldDefinition:
         counted_by = d.pop("counted_by", UNSET)
 
         _display = d.pop("display", UNSET)
-        display: Unset | DefinitionsFieldDisplay
+        display: DefinitionsFieldDisplay | Unset
         if isinstance(_display, Unset):
             display = UNSET
         else:
             display = DefinitionsFieldDisplay.from_dict(_display)
 
         _conversion = d.pop("conversion", UNSET)
-        conversion: Unset | DefinitionsFieldConversion
+        conversion: DefinitionsFieldConversion | Unset
         if isinstance(_conversion, Unset):
             conversion = UNSET
         else:

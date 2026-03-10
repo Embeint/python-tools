@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 
@@ -15,7 +16,10 @@ def _get_kwargs(
 ) -> dict[str, Any]:
     _kwargs: dict[str, Any] = {
         "method": "delete",
-        "url": f"/device/deviceId/{device_id}/kv/entries/{key_id}/updates",
+        "url": "/device/deviceId/{device_id}/kv/entries/{key_id}/updates".format(
+            device_id=quote(str(device_id), safe=""),
+            key_id=quote(str(key_id), safe=""),
+        ),
     }
 
     return _kwargs
@@ -28,9 +32,11 @@ def _parse_response(
         response_200 = DeviceKVEntryUpdate.from_dict(response.json())
 
         return response_200
+
     if response.status_code == 204:
         response_204 = cast(Any, None)
         return response_204
+
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
     else:
@@ -65,7 +71,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceKVEntryUpdate]]
+        Response[Any | DeviceKVEntryUpdate]
     """
 
     kwargs = _get_kwargs(
@@ -97,7 +103,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceKVEntryUpdate]
+        Any | DeviceKVEntryUpdate
     """
 
     return sync_detailed(
@@ -124,7 +130,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Union[Any, DeviceKVEntryUpdate]]
+        Response[Any | DeviceKVEntryUpdate]
     """
 
     kwargs = _get_kwargs(
@@ -154,7 +160,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Union[Any, DeviceKVEntryUpdate]
+        Any | DeviceKVEntryUpdate
     """
 
     return (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -15,18 +17,18 @@ class DefinitionsFieldDisplay:
     """Display settings for a field
 
     Attributes:
-        fmt (Union[Unset, DefinitionsFieldDisplayFmt]): Format string for field
-        digits (Union[Unset, int]):
-        postfix (Union[Unset, str]):
+        fmt (DefinitionsFieldDisplayFmt | Unset): Format string for field
+        digits (int | Unset):
+        postfix (str | Unset):
     """
 
-    fmt: Unset | DefinitionsFieldDisplayFmt = UNSET
-    digits: Unset | int = UNSET
-    postfix: Unset | str = UNSET
+    fmt: DefinitionsFieldDisplayFmt | Unset = UNSET
+    digits: int | Unset = UNSET
+    postfix: str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        fmt: Unset | str = UNSET
+        fmt: str | Unset = UNSET
         if not isinstance(self.fmt, Unset):
             fmt = self.fmt.value
 
@@ -50,7 +52,7 @@ class DefinitionsFieldDisplay:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         _fmt = d.pop("fmt", UNSET)
-        fmt: Unset | DefinitionsFieldDisplayFmt
+        fmt: DefinitionsFieldDisplayFmt | Unset
         if isinstance(_fmt, Unset):
             fmt = UNSET
         else:

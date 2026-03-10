@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import UUID
 
 from attrs import define as _attrs_define
@@ -28,11 +30,11 @@ class DeviceAndState:
         mcu_id (str): Device's MCU ID as a hex string Example: 0011223344556677.
         board_id (UUID): ID of board of device
         organisation_id (UUID): ID of organisation for board to exist in
-        state (DeviceState):
-        device_id (Union[Unset, str]): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
+        device_id (str): 8 byte DeviceID as a hex string (if not provided will be auto-generated) Example:
             d291d4d66bf0a955.
-        metadata (Union[Unset, DeviceMetadata]): Metadata fields for device Example: {'Field Name': 'Field Value'}.
-        initial_device_state (Union[Unset, NewDeviceState]):
+        metadata (DeviceMetadata): Metadata fields for device Example: {'Field Name': 'Field Value'}.
+        state (DeviceState):
+        initial_device_state (NewDeviceState | Unset):
     """
 
     id: UUID
@@ -41,10 +43,10 @@ class DeviceAndState:
     mcu_id: str
     board_id: UUID
     organisation_id: UUID
-    state: "DeviceState"
-    device_id: Unset | str = UNSET
-    metadata: Union[Unset, "DeviceMetadata"] = UNSET
-    initial_device_state: Union[Unset, "NewDeviceState"] = UNSET
+    device_id: str
+    metadata: DeviceMetadata
+    state: DeviceState
+    initial_device_state: NewDeviceState | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,15 +62,13 @@ class DeviceAndState:
 
         organisation_id = str(self.organisation_id)
 
-        state = self.state.to_dict()
-
         device_id = self.device_id
 
-        metadata: Unset | dict[str, Any] = UNSET
-        if not isinstance(self.metadata, Unset):
-            metadata = self.metadata.to_dict()
+        metadata = self.metadata.to_dict()
 
-        initial_device_state: Unset | dict[str, Any] = UNSET
+        state = self.state.to_dict()
+
+        initial_device_state: dict[str, Any] | Unset = UNSET
         if not isinstance(self.initial_device_state, Unset):
             initial_device_state = self.initial_device_state.to_dict()
 
@@ -82,13 +82,11 @@ class DeviceAndState:
                 "mcuId": mcu_id,
                 "boardId": board_id,
                 "organisationId": organisation_id,
+                "deviceId": device_id,
+                "metadata": metadata,
                 "state": state,
             }
         )
-        if device_id is not UNSET:
-            field_dict["deviceId"] = device_id
-        if metadata is not UNSET:
-            field_dict["metadata"] = metadata
         if initial_device_state is not UNSET:
             field_dict["initialDeviceState"] = initial_device_state
 
@@ -113,19 +111,14 @@ class DeviceAndState:
 
         organisation_id = UUID(d.pop("organisationId"))
 
+        device_id = d.pop("deviceId")
+
+        metadata = DeviceMetadata.from_dict(d.pop("metadata"))
+
         state = DeviceState.from_dict(d.pop("state"))
 
-        device_id = d.pop("deviceId", UNSET)
-
-        _metadata = d.pop("metadata", UNSET)
-        metadata: Unset | DeviceMetadata
-        if isinstance(_metadata, Unset):
-            metadata = UNSET
-        else:
-            metadata = DeviceMetadata.from_dict(_metadata)
-
         _initial_device_state = d.pop("initialDeviceState", UNSET)
-        initial_device_state: Unset | NewDeviceState
+        initial_device_state: NewDeviceState | Unset
         if isinstance(_initial_device_state, Unset):
             initial_device_state = UNSET
         else:
@@ -138,9 +131,9 @@ class DeviceAndState:
             mcu_id=mcu_id,
             board_id=board_id,
             organisation_id=organisation_id,
-            state=state,
             device_id=device_id,
             metadata=metadata,
+            state=state,
             initial_device_state=initial_device_state,
         )
 

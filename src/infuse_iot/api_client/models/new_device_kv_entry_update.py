@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
@@ -17,18 +19,18 @@ T = TypeVar("T", bound="NewDeviceKVEntryUpdate")
 class NewDeviceKVEntryUpdate:
     """
     Attributes:
-        data (Union[Unset, str]): Raw entry data as a base64 encoded string (must provide either data or decoded)
-        decoded (Union[Unset, NewDeviceKVEntryUpdateDecoded]): Decoded entry value (must provide either data or decoded)
+        data (str | Unset): Raw entry data as a base64 encoded string (must provide either data or decoded)
+        decoded (NewDeviceKVEntryUpdateDecoded | Unset): Decoded entry value (must provide either data or decoded)
     """
 
-    data: Unset | str = UNSET
-    decoded: Union[Unset, "NewDeviceKVEntryUpdateDecoded"] = UNSET
+    data: str | Unset = UNSET
+    decoded: NewDeviceKVEntryUpdateDecoded | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         data = self.data
 
-        decoded: Unset | dict[str, Any] = UNSET
+        decoded: dict[str, Any] | Unset = UNSET
         if not isinstance(self.decoded, Unset):
             decoded = self.decoded.to_dict()
 
@@ -50,7 +52,7 @@ class NewDeviceKVEntryUpdate:
         data = d.pop("data", UNSET)
 
         _decoded = d.pop("decoded", UNSET)
-        decoded: Unset | NewDeviceKVEntryUpdateDecoded
+        decoded: NewDeviceKVEntryUpdateDecoded | Unset
         if isinstance(_decoded, Unset):
             decoded = UNSET
         else:
