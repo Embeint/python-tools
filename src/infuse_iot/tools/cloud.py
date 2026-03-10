@@ -23,6 +23,7 @@ from infuse_iot.api_client.api.device import (
     get_device_by_device_id,
     get_device_kv_entries_by_device_id,
     get_device_last_route_by_device_id,
+    get_device_logger_states_by_device_id,
     get_device_state_by_id,
 )
 from infuse_iot.api_client.api.organisation import (
@@ -192,6 +193,7 @@ class Device(CloudSubCommand):
         board = get_board_by_id.sync(client=client, id=info.board_id)
         state = get_device_state_by_id.sync(client=client, id=info.id)
         route = get_device_last_route_by_device_id.sync(client=client, device_id=id_str)
+        logger_states = get_device_logger_states_by_device_id.sync(client=client, device_id=id_str)
 
         table: list[tuple[str, Any]] = [
             ("UUID", info.id),
@@ -220,6 +222,24 @@ class Device(CloudSubCommand):
             ]
             if route.bt_adv:
                 table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
+
+        if isinstance(logger_states, list) and len(logger_states) > 0:
+            logger_names = {
+                0: "Onboard",
+                1: "Removable",
+            }
+
+            for logger in logger_states:
+                name = logger_names.get(logger.index, str(logger.index))
+                table += [
+                    (f"~~~{name} Logger Sync~~~", ""),
+                    ("Last Report Time", logger.last_reported_time),
+                    ("Last Downloaded Time", logger.last_downloaded_time),
+                    ("Reported Block", logger.last_reported_block),
+                    ("Downloaded Block", logger.last_downloaded_block),
+                ]
+                if isinstance(logger.last_reported_block, int) and isinstance(logger.last_downloaded_block, int):
+                    table += [("Block Lag", logger.last_reported_block - logger.last_downloaded_block)]
 
         print(tabulate(table))
 
