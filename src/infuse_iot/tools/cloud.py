@@ -222,6 +222,8 @@ class Device(CloudSubCommand):
             ]
             if route.bt_adv:
                 table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
+            if route.udp:
+                table += [("IP Address", route.udp.address)]
 
         if isinstance(logger_states, list) and len(logger_states) > 0:
             logger_names = {
