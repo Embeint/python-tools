@@ -231,14 +231,20 @@ class Device(CloudSubCommand):
                 1: "Removable",
             }
 
+            def val_or_na(value) -> str:
+                if isinstance(value, Unset):
+                    return "N/A"
+                return str(value)
+
             for logger in logger_states:
                 name = logger_names.get(logger.index, str(logger.index))
                 table += [
                     (f"~~~{name} Logger Sync~~~", ""),
-                    ("Last Report Time", logger.last_reported_time),
-                    ("Last Downloaded Time", logger.last_downloaded_time),
-                    ("Reported Block", logger.last_reported_block),
-                    ("Downloaded Block", logger.last_downloaded_block),
+                    ("Enabled", logger.download_enabled),
+                    ("Last Report Time", val_or_na(logger.last_reported_time)),
+                    ("Last Downloaded Time", val_or_na(logger.last_downloaded_time)),
+                    ("Reported Block", val_or_na(logger.last_reported_block)),
+                    ("Downloaded Block", val_or_na(logger.last_downloaded_block)),
                 ]
                 if isinstance(logger.last_reported_block, int) and isinstance(logger.last_downloaded_block, int):
                     table += [("Block Lag", logger.last_reported_block - logger.last_downloaded_block)]
