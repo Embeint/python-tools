@@ -4,7 +4,7 @@
 
 import ctypes
 
-from infuse_iot.generated.tdf_base import TdfReadingBase, TdfStructBase
+from infuse_iot.generated.tdf_base import TdfReadingBase, TdfStructBase  # noqa F401
 
 
 class structs:
@@ -1694,6 +1694,25 @@ class readings:
             "right": "{}",
         }
 
+    class kvs_value_changed(TdfReadingBase):
+        """Record of key value store data updates"""
+
+        ID = 61
+        NAME = "KVS_VALUE_CHANGED"
+        _fields_ = [
+            ("key", ctypes.c_uint16),
+            ("value", 0 * ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "key": "",
+            "value": "",
+        }
+        _display_fmt_ = {
+            "key": "{}",
+            "value": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1755,6 +1774,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.pcm_16bit_chan_left.ID: readings.pcm_16bit_chan_left,
     readings.pcm_16bit_chan_right.ID: readings.pcm_16bit_chan_right,
     readings.pcm_16bit_chan_dual.ID: readings.pcm_16bit_chan_dual,
+    readings.kvs_value_changed.ID: readings.kvs_value_changed,
 }
 
 __all__ = [
