@@ -36,7 +36,7 @@ from infuse_iot.epacket.packet import (
     PacketOutputRouted,
     PacketReceived,
 )
-from infuse_iot.serial_comms import PyOcdPort, RttPort, SerialFrame, SerialLike, SerialPort
+from infuse_iot.serial_comms import PyOcdPort, RttPort, SerialBadNameException, SerialFrame, SerialLike, SerialPort
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
@@ -552,7 +552,12 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         # Open the serial port
-        self.port.open()
+        try:
+            self.port.open()
+        except SerialBadNameException as e:
+            tabbed_options = "\n".join(f"\t{o}" for o in e.options)
+            Console.log_error(f"Unknown name '{e.requested}', possible options:\n{tabbed_options}")
+            return
         Console.log_info(f"Port '{str(self.port)}' opened")
         # Ping the port to get the local device ID
         self.port.ping()

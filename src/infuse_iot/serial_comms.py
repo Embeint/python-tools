@@ -10,6 +10,12 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.debug.rtt import GenericRTTControlBlock
 
 
+class SerialBadNameException(Exception):
+    def __init__(self, requested: str, options: list[str]):
+        self.requested = requested
+        self.options = options
+
+
 class SerialFrame:
     """Serial frame reconstructor"""
 
@@ -119,7 +125,22 @@ class RttPort(SerialLike):
     def open(self, timeout: float | None = None):
         self._jlink.open(serial_no=self._serial_number)
         self._jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
-        self._jlink.connect(self._name, 4000)
+        try:
+            self._jlink.connect(self._name, 4000)
+        except pylink.errors.JLinkException as e:
+            if e.message != "Unsupported device selected.":
+                # Not a device name error
+                raise e
+
+            # Find valid options
+            name_lower = self._name.lower()
+            options = []
+            for i in range(self._jlink.num_supported_devices()):
+                info = self._jlink.supported_device(i)
+                if info.name.lower().startswith(name_lower):
+                    options.append(info.name)
+            raise SerialBadNameException(self._name, options) from e
+
         self._jlink.rtt_start()
 
         end_time = time.time() + timeout if timeout else None
