@@ -529,6 +529,7 @@ class SubCommand(InfuseCommand):
         )
         parser.add_argument("--baud", type=int, default=115200, help="Baudrate for serial port")
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
+        parser.add_argument("--server-port", type=int, help="Alternate multicast port to use")
 
     def __init__(self, args: argparse.Namespace):
         self.port: SerialLike
@@ -544,7 +545,8 @@ class SubCommand(InfuseCommand):
         if args.display_only:
             self.server = None
         else:
-            self.server = LocalServer(default_multicast_address())
+            addr = default_multicast_address(args.server_port) if args.server_port else default_multicast_address()
+            self.server = LocalServer(addr)
         self.rpc_server = LocalRpcServer(self.ddb)
         self._common = CommonThreadState(self.server, self.port, self.ddb, self.rpc_server)
         self.log = args.log

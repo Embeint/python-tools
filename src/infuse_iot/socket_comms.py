@@ -18,8 +18,8 @@ from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.tdf import TDF
 
 
-def default_multicast_address():
-    return ("224.1.1.1", 8751)
+def default_multicast_address(port: int = 8751) -> tuple[str, int]:
+    return ("224.1.1.1", port)
 
 
 class ClientNotification:
