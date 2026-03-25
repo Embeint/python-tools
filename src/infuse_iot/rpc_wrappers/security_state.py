@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import base64
 import ctypes
 import random
 
@@ -50,10 +51,12 @@ class security_state(InfuseRpcCommand, defs.security_state):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--pem", type=ValidFile, help="Cloud .pem file for identity validation")
+        parser.add_argument("--base64", action="store_true", help="Print results as base64")
 
     def __init__(self, args):
         self.challenge = random.randbytes(16)
         self.pem = args.pem
+        self.base64 = args.base64
 
     def auth_level(self):
         return Auth.NETWORK
@@ -87,17 +90,24 @@ class security_state(InfuseRpcCommand, defs.security_state):
             print(f"Failed to query current time ({errno.strerror(-return_code)})")
             return
 
+        def print_bytes(ctypes_array) -> str:
+            b = bytes(ctypes_array)
+            if self.base64:
+                return base64.b64encode(b).decode("utf-8")
+            return b.hex()
+
         print("Challenge:")
-        print(f"\t  Challenge Bytes: {bytes(self.challenge).hex()}")
+        print(f"\t  Challenge Bytes: {print_bytes(self.challenge)}")
 
         # Decrypt identity information
         print("Security State:")
-        print(f"\tDevice Public Key: {bytes(response.device_public_key).hex()}")
-        print(f"\t Cloud Public Key: {bytes(response.cloud_public_key).hex()}")
+        print(f"\tDevice Public Key: {print_bytes(response.device_public_key)}")
+        print(f"\t Cloud Public Key: {print_bytes(response.cloud_public_key)}")
         print(f"\t          Network: 0x{response.network_id:06x}")
         if self.pem is None:
             print("\t         Identity: Cannot validate")
-            print(f"\t              Raw: {bytes(response.challenge_response).hex()}")
+            print(f"\t             Type: {response.challenge_response_type}")
+            print(f"\t              Raw: {print_bytes(response.challenge_response)}")
         else:
             challenge_rsp = self._decrypt_response(response)
 
@@ -105,4 +115,4 @@ class security_state(InfuseRpcCommand, defs.security_state):
 
             print(f"\t         Response: {'Valid' if valid_response else 'Invalid'}")
             print(f"\t        Device ID: {challenge_rsp.device_id:016x}")
-            print(f"\t  Identity Secret: {bytes(challenge_rsp.identity).hex()}")
+            print(f"\t  Identity Secret: {print_bytes(challenge_rsp.identity)}")
