@@ -21,7 +21,7 @@ from infuse_iot.tdf import TDF
 
 class RebootCountResetter:
     def __init__(self, args: argparse.Namespace):
-        self.app_id = args.app
+        self.app_ids = args.app
         self.count = args.count
         self.client = LocalClient(default_multicast_address(), 1.0)
         self.decoder = TDF()
@@ -49,7 +49,7 @@ class RebootCountResetter:
         live.update(self.progress_table())
 
     def announce_observed(self, live: Live, infuse_id: int, pkt: readings.announce | readings.announce_v2):
-        if pkt.application != self.app_id:
+        if pkt.application not in self.app_ids:
             return
         if pkt.reboots == self.count:
             if (infuse_id not in self.already) and (infuse_id not in self.updated):
@@ -87,7 +87,7 @@ class RebootCountResetter:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Reset reboot counters to a common value")
     addr_group = parser.add_mutually_exclusive_group(required=True)
-    addr_group.add_argument("--app", type=lambda x: int(x, 0), help="Application ID to reset")
+    addr_group.add_argument("--app", type=lambda x: int(x, 0), action="append", help="Application ID to reset")
     parser.add_argument("--count", type=int, default=0, help="Value to reset count to")
 
     args = parser.parse_args()
