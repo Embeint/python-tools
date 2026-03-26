@@ -3,6 +3,7 @@
 import base64
 import binascii
 import pathlib
+import shelve
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
@@ -65,12 +66,17 @@ class DeviceDatabase:
             self._tx_gatt_seq += 1
             return self._tx_gatt_seq
 
-    def __init__(self, local_root: pathlib.Path | None) -> None:
+    def __init__(
+        self,
+        local_root: pathlib.Path | None,
+        cache_path: pathlib.Path | None = None,
+    ) -> None:
         self.gateway: int | None = None
         self.devices: dict[int, DeviceDatabase.DeviceState] = {}
         self.bt_addr: dict[InterfaceAddress.BluetoothLeAddr, int] = {}
         self._local_root: x25519.X25519PrivateKey | None = None
         self._local_root_public: bytes | None = None
+        self._cache_path = cache_path
         if local_root:
             with local_root.open() as f:
                 private_key = serialization.load_pem_private_key(f.read().encode("utf-8"), password=None)
@@ -124,6 +130,23 @@ class DeviceDatabase:
         dev.secondary_device_key_id = binascii.crc32(self._local_root_public + dev.device_public_key) & 0xFFFFFF
         dev.local_shared_key = self._local_root.exchange(device_public_key)
 
+    def _update_cache(self, infuse_id: int, device_pub_key: bytes, shared_key: bytes):
+        if self._cache_path is None:
+            return
+        infuse_id_str = f"{infuse_id:016x}"
+        with shelve.open(str(self._cache_path)) as cache:
+            cache[infuse_id_str] = {"public_key": device_pub_key, "shared_key": shared_key}
+
+    def _from_cache(self, infuse_id: int, device_pub_key: bytes) -> bytes | None:
+        if self._cache_path is None:
+            return None
+        infuse_id_str = f"{infuse_id:016x}"
+        with shelve.open(str(self._cache_path)) as cache:
+            state = cache.get(infuse_id_str, None)
+            if state is None or state["public_key"] != device_pub_key:
+                return None
+            return state["shared_key"]
+
     def observe_security_state(
         self, infuse_id: int, cloud_pub_key: bytes, device_pub_key: bytes, network_id: int
     ) -> None:
@@ -139,10 +162,17 @@ class DeviceDatabase:
 
         with client as client:
             body = Key(base64.b64encode(device_pub_key).decode("utf-8"))
-            response = get_shared_secret.sync(client=client, body=body)
-            if response is not None:
-                key = base64.b64decode(response.key)
-                self.devices[infuse_id].shared_key = key
+            try:
+                response = get_shared_secret.sync(client=client, body=body)
+                if response is not None:
+                    key = base64.b64decode(response.key)
+                    self.devices[infuse_id].shared_key = key
+                    self._update_cache(infuse_id, device_pub_key, key)
+            except Exception as e:
+                cache_key = self._from_cache(infuse_id, device_pub_key)
+                if cache_key is None:
+                    raise e
+                self.devices[infuse_id].shared_key = cache_key
 
     def _network_key(self, network_id: int, interface: bytes, gps_time: int) -> bytes:
         if network_id not in self._network_keys:
