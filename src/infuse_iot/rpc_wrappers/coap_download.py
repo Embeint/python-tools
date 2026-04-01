@@ -27,7 +27,9 @@ def coap_server_file_stats(server: str, resource: str) -> tuple[int, int]:
             response = get_coap_file_stats.sync_detailed(client=client, filename=api_filename)
             decoded = loads(response.content.decode("utf-8"))
             if response.status_code != HTTPStatus.OK:
-                sys.exit(f"<{response.status_code}>: {decoded['message']}")
+                print(f"Failed to query COAP server: <{response.status_code}>: {decoded['message']}")
+                print("Duplicate file detection disabled")
+                return (UINT32_MAX, UINT32_MAX)
             return (decoded["len"], decoded["crc"])
     else:
         # Unknown, let the COAP download automatically determine
