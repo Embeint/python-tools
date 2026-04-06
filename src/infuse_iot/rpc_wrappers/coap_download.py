@@ -57,6 +57,12 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
             help="COAP server port",
         )
         parser.add_argument(
+            "--block-timeout",
+            type=int,
+            default=2000,
+            help="Timeout in milliseconds for each COAP block query",
+        )
+        parser.add_argument(
             "--resource",
             "-r",
             type=str,
@@ -104,6 +110,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
         self.server = args.server.encode("utf-8")
         self.port = args.port
         self.resource = args.resource.encode("utf-8")
+        self.block_timeout = args.block_timeout
         self.action = args.action
         self.file_len, self.file_crc = coap_server_file_stats(args.server, args.resource)
 
@@ -123,7 +130,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
         return request(
             self.server,
             self.port,
-            2000,
+            self.block_timeout,
             self.action,
             self.file_len,
             self.file_crc,
@@ -134,7 +141,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
         return {
             "server_address": self.server.decode("utf-8"),
             "server_port": str(self.port),
-            "block_timeout_ms": "2000",
+            "block_timeout_ms": str(self.block_timeout),
             "action": self.action.name,
             "resource_len": str(self.file_len),
             "resource_crc": str(self.file_crc),
