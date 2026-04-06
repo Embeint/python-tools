@@ -42,8 +42,10 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
         v_parser = parser.add_mutually_exclusive_group(required=True)
         v_parser.add_argument("--value", "-v", type=str, help="KV value as hex string")
         v_parser.add_argument("--string", "-s", type=str, help="KV string")
+        v_parser.add_argument("--delete", "-d", action="store_true", help="Delete KV value")
 
     def __init__(self, args):
+        self.delete = args.delete
         self.key = args.key
         if args.value is not None:
             self.value = bytes.fromhex(args.value)
@@ -62,6 +64,8 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
 
             str_val = args.string.encode("utf-8") + b"\x00"
             self.value = len(str_val).to_bytes(1, "little") + str_val
+        elif args.delete:
+            self.value = b""
         else:
             raise NotImplementedError("Unimplmented value parsing")
 
@@ -77,9 +81,9 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
 
         def print_status(name, rc):
             if rc < 0:
-                print(f"{name} failed to write ({os.strerror(-rc)})")
+                print(f"{name} failed to {'delete' if self.delete else 'write'} ({os.strerror(-rc)})")
             elif rc == 0:
-                print(f"{name} already matched")
+                print(f"{name} {'deleted' if self.delete else 'already matched'}")
             else:
                 print(f"{name} updated")
 
