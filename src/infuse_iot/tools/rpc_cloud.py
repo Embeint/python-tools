@@ -7,6 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
 import base64
+import datetime
 import importlib
 import json
 import pkgutil
@@ -98,10 +99,22 @@ class SubCommand(InfuseCommand):
         rsp = get_rpc_by_id.sync(client=client, id=UUID(self._args.id))
         if isinstance(rsp, Error) or rsp is None:
             sys.exit(f"Failed to query RPC state ({rsp})")
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         downlink = rsp.downlink_message
-        print(f"RPC State: {downlink.status}")
+        rpc_req = downlink.rpc_req
+        try:
+            command_name = id_type_mapping[rpc_req.command_id].NAME
+        except KeyError:
+            command_name = "Unknown"
+        print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
+        print(f"       To: {rsp.device.device_id}")
+        # Manually detect downlink expiry, as the API doesn't do it
+        if downlink.status == DownlinkMessageStatus.WAITING and downlink.expires_at and now > downlink.expires_at:
+            print("    State: expired")
+        else:
+            print(f"    State: {downlink.status}")
         if downlink.status in [DownlinkMessageStatus.SENT, DownlinkMessageStatus.COMPLETED]:
-            route = downlink.rpc_req.route
+            route = rpc_req.route
             if downlink.sent_at:
                 print(f"       At: {downlink.sent_at}")
             if route:
@@ -110,14 +123,8 @@ class SubCommand(InfuseCommand):
                 else:
                     print(f"  Through: Direct ({route.interface.upper()})")
         if downlink.status == DownlinkMessageStatus.COMPLETED:
-            rpc_req = downlink.rpc_req
             rpc_rsp = downlink.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
-            try:
-                command_name = id_type_mapping[rpc_req.command_id].NAME
-            except KeyError:
-                command_name = "Unknown"
-            print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
             print(f"   Result: {rpc_rsp.return_code}")
             if rpc_rsp.params:
                 print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
