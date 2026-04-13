@@ -21,7 +21,7 @@ from rich.status import Status
 from rich.table import Table
 
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.definitions.rpc import data_logger_read, rpc_enum_data_logger
+from infuse_iot.definitions.rpc import data_logger_read, data_logger_state_v2, rpc_enum_data_logger
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
@@ -33,24 +33,30 @@ from infuse_iot.util.argparse import ValidDir, add_server_port_parser
 
 
 class DeviceState:
-    BLOCK_SIZE = 512
-
-    def __init__(self, path: pathlib.Path):
+    def __init__(self, path: pathlib.Path, block_size: int | None):
         self.path = path
-        self.on_disk: int = 0
+        self.on_disk: int | None = None
         self.on_device: int | None = None
         self.downloaded: int = 0
+        self.block_size = block_size
         if not self.path.exists():
             self.path.touch()
-        else:
-            self.on_disk = os.path.getsize(self.path) // self.BLOCK_SIZE
+        elif self.block_size:
+            self.on_disk = os.path.getsize(self.path) // self.block_size
+
+    def set_block_size(self, block_size: int):
+        assert self.block_size is None
+        self.block_size = block_size
+        self.on_disk = os.path.getsize(self.path) // self.block_size
 
     def observe(self, announce: readings.announce | readings.announce_v2):
         self.on_device = announce.blocks
 
     def append_data(self, data: bytes):
-        assert len(data) % self.BLOCK_SIZE == 0
-        new_blocks = len(data) // self.BLOCK_SIZE
+        assert self.block_size
+        assert self.on_disk
+        assert len(data) % self.block_size == 0
+        new_blocks = len(data) // self.block_size
 
         with self.path.open("+ba") as f:
             f.write(data)
@@ -68,6 +74,7 @@ class SubCommand(InfuseCommand):
         self._logger = args.logger
         self._device_state: dict[int, DeviceState] = {}
 
+        self.block_size: int | None = None
         self.bytes_to_read = 0
         self.pending_bytes = b""
         self.task = None
@@ -83,7 +90,7 @@ class SubCommand(InfuseCommand):
             name_parts = file_path.name.split("_")
             device_id = int(name_parts[0], 16)
 
-            self._device_state[device_id] = DeviceState(file_path)
+            self._device_state[device_id] = DeviceState(file_path, self.block_size)
 
     @classmethod
     def add_parser(cls, parser):
@@ -117,7 +124,10 @@ class SubCommand(InfuseCommand):
         table.add_column("Downloaded", justify="right")
         for device, state in self._device_state.items():
             on_device = str(state.on_device) if state.on_device is not None else "?"
-            percent = f"{100 * state.on_disk / state.on_device:.0f}" if state.on_device is not None else "?"
+            if state.on_device is not None and state.on_disk is not None:
+                percent = f"{100 * state.on_disk / state.on_device:.0f}"
+            else:
+                percent = "?"
             table.add_row(f"{device:016x}", f"{state.on_disk} ({percent:>3s}%)", on_device, str(state.downloaded))
 
         meta = Table(box=None)
@@ -139,6 +149,19 @@ class SubCommand(InfuseCommand):
         self.pending_bytes += payload
         self.progress.update(self.task, completed=offset)
 
+    def block_size_query(self, client: RpcClient) -> int | None:
+        params = data_logger_state_v2.request(self._logger)
+        hdr, rsp = client.run_standard_cmd(
+            data_logger_state_v2.COMMAND_ID,
+            Auth.DEVICE,
+            bytes(params),
+            data_logger_state_v2.response.from_buffer_copy,
+        )
+        if hdr and hdr.return_code == 0:
+            assert rsp is not None
+            return rsp.block_size
+        return None
+
     def handle_sync(self, live: Live, device_id: int, state: DeviceState):
         self.state_update(live, f"Connecting to {device_id:016X}")
         assert state.on_device is not None
@@ -146,10 +169,21 @@ class SubCommand(InfuseCommand):
             with self._client.connection(device_id, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
                 self.state_update(live, f"Downloading blocks from {device_id:016X}")
                 rpc_client = RpcClient(self._client, mtu, device_id)
+
+                if self.block_size is None:
+                    # Assume block size is constant for all application users
+                    self.block_size = self.block_size_query(rpc_client)
+                    if self.block_size is None:
+                        raise ConnectionAbortedError
+                    # Notify state objects of block size
+                    for s in self._device_state.values():
+                        s.set_block_size(self.block_size)
+
+                assert state.on_disk is not None
                 blocks_pending = state.on_device - state.on_disk
                 blocks_to_read = min(blocks_pending, self._blocks_max)
                 last_block = state.on_disk + blocks_to_read - 1
-                self.bytes_to_read = 512 * blocks_to_read
+                self.bytes_to_read = state.block_size * blocks_to_read
                 params = data_logger_read.request(self._logger, state.on_disk, last_block)
                 self.pending_bytes = b""
                 hdr, rsp = rpc_client.run_data_recv_cmd(
@@ -190,7 +224,7 @@ class SubCommand(InfuseCommand):
 
                 if source.infuse_id not in self._device_state:
                     output_file = self._out / f"{source.infuse_id:016x}_{self._logger}.bin"
-                    self._device_state[source.infuse_id] = DeviceState(output_file)
+                    self._device_state[source.infuse_id] = DeviceState(output_file, self.block_size)
                 state = self._device_state[source.infuse_id]
                 state.observe(announce)
 
@@ -199,5 +233,5 @@ class SubCommand(InfuseCommand):
                     continue
 
                 assert state.on_device is not None
-                if state.on_disk < state.on_device:
+                if not state.on_disk or state.on_disk < state.on_device:
                     self.handle_sync(live, source.infuse_id, state)
