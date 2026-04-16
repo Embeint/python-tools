@@ -58,7 +58,7 @@ class BtLeAddress:
         pattern = r"((([0-9a-fA-F]{2}):){5})([0-9a-fA-F]{2})"
 
         if re.match(pattern, string):
-            mac_cleaned = string.replace(":", "").replace("-", "")
+            mac_cleaned = string.replace(":", "")
             addr = int(mac_cleaned, 16)
         else:
             try:
