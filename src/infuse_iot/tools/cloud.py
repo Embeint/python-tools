@@ -276,7 +276,10 @@ class Device(CloudSubCommand):
                 continue
 
             if isinstance(element.data, Unset):
-                table.append((key, "Not set"))
+                if element.crc:
+                    table.append((key, f"Write-only (CRC: 0x{element.crc:08x})"))
+                else:
+                    table.append((key, "Not set"))
             else:
                 if isinstance(element.decoded, Unset):
                     table.append((key, element.data))
