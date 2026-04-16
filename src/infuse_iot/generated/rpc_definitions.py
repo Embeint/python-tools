@@ -244,6 +244,16 @@ class rpc_struct_thread_stats(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_data_logger_flushed(VLACompatLittleEndianStruct):
+    """IPv6 address"""
+
+    _fields_ = [
+        ("logger", ctypes.c_uint8),
+        ("num", ctypes.c_uint16),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -277,6 +287,17 @@ class rpc_enum_data_logger(enum.IntEnum):
     FLASH_ONBOARD = 1
     FLASH_REMOVABLE = 2
     UDP = 3
+
+
+class rpc_enum_tdf_data_logger(enum.IntEnum):
+    """TDF data Logger identifier"""
+
+    FLASH_ONBOARD = 1
+    FLASH_REMOVABLE = 2
+    SERIAL = 4
+    UDP = 8
+    BT_ADV = 16
+    BT_PERIPH = 32
 
 
 class rpc_enum_zperf_data_source(enum.IntEnum):
@@ -1039,6 +1060,29 @@ class annotate(RPCDefinitionBase):
         _pack_ = 1
 
 
+class tdf_data_logger_flush(RPCDefinitionBase):
+    """Write an annotation to the device"""
+
+    NAME = "tdf_data_logger_flush"
+    HELP = "Write an annotation to the device"
+    DESCRIPTION = "Write an annotation to the device"
+    COMMAND_ID = 42
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("loggers", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("num", ctypes.c_uint8),
+        ]
+        vla_field = ("flushed", 0 * rpc_struct_data_logger_flushed)
+        vla_counted_by = "num"
+        _pack_ = 1
+
+
 class bt_connect_infuse(RPCDefinitionBase):
     """Connect to an Infuse-IoT Bluetooth device"""
 
@@ -1371,6 +1415,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     coap_download_v2.COMMAND_ID: coap_download_v2,
     file_write_basic.COMMAND_ID: file_write_basic,
     annotate.COMMAND_ID: annotate,
+    tdf_data_logger_flush.COMMAND_ID: tdf_data_logger_flush,
     bt_connect_infuse.COMMAND_ID: bt_connect_infuse,
     bt_disconnect.COMMAND_ID: bt_disconnect,
     bt_file_copy_basic.COMMAND_ID: bt_file_copy_basic,
@@ -1406,10 +1451,12 @@ __all__ = [
     "rpc_struct_data_logger_chunk",
     "rpc_struct_public_key_info_256bit",
     "rpc_struct_thread_stats",
+    "rpc_struct_data_logger_flushed",
     "rpc_enum_bt_le_addr_type",
     "rpc_enum_file_action",
     "rpc_enum_infuse_bt_characteristic",
     "rpc_enum_data_logger",
+    "rpc_enum_tdf_data_logger",
     "rpc_enum_zperf_data_source",
     "rpc_enum_key_id",
     "rpc_enum_key_action",
@@ -1445,6 +1492,7 @@ __all__ = [
     "coap_download_v2",
     "file_write_basic",
     "annotate",
+    "tdf_data_logger_flush",
     "bt_connect_infuse",
     "bt_disconnect",
     "bt_file_copy_basic",
