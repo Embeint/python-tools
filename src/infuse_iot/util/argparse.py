@@ -12,12 +12,15 @@ from infuse_iot.util.ctypes import bytes_to_uint8
 
 
 class ValidFile:
-    """Filesystem path that exists"""
+    """Filesystem file that exists"""
 
     def __new__(cls, string) -> pathlib.Path:  # type: ignore
         p = pathlib.Path(string)
         if p.exists():
-            return p
+            if p.is_dir():
+                raise argparse.ArgumentTypeError(f"{string} is a directory")
+            else:
+                return p
         else:
             raise argparse.ArgumentTypeError(f"{string} does not exist")
 
