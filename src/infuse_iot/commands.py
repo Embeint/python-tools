@@ -60,7 +60,7 @@ class InfuseRpcCommand:
         """Authentication level to run command with"""
         return Auth.DEVICE
 
-    def request_struct(self) -> ctypes.LittleEndianStructure:
+    def request_struct(self) -> ctypes.LittleEndianStructure | bytes:
         """RPC_CMD request structure"""
         raise NotImplementedError
 
