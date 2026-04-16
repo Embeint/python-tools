@@ -228,6 +228,17 @@ class slots:
         ]
         _pack_ = 1
 
+    class broadcast_fixed_indoors(VLACompatLittleEndianStruct):
+        """Device is fixed indoors and should broadcast the fact"""
+
+        NAME = "BROADCAST_FIXED_INDOORS"
+        BASE_ID = 11
+        RANGE = 1
+        _fields_ = [
+            ("indoors", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
     class wifi_ssid(VLACompatLittleEndianStruct):
         """WiFi network name"""
 
@@ -576,6 +587,7 @@ class slots:
         7: board_target,
         8: secondary_remote_public_key,
         10: fixed_location,
+        11: broadcast_fixed_indoors,
         20: wifi_ssid,
         21: wifi_psk,
         22: wifi_channels,
