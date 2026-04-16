@@ -158,21 +158,20 @@ class DeviceDatabase:
         self.devices[infuse_id].network_id = network_id
         self.devices[infuse_id].device_public_key = device_pub_key
 
-        client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+        # Try the cache first
+        cache_key = self._from_cache(infuse_id, device_pub_key)
+        if cache_key is not None:
+            self.devices[infuse_id].shared_key = cache_key
+            return
 
+        client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
         with client as client:
             body = Key(base64.b64encode(device_pub_key).decode("utf-8"))
-            try:
-                response = get_shared_secret.sync(client=client, body=body)
-                if response is not None:
-                    key = base64.b64decode(response.key)
-                    self.devices[infuse_id].shared_key = key
-                    self._update_cache(infuse_id, device_pub_key, key)
-            except Exception as e:
-                cache_key = self._from_cache(infuse_id, device_pub_key)
-                if cache_key is None:
-                    raise e
-                self.devices[infuse_id].shared_key = cache_key
+            response = get_shared_secret.sync(client=client, body=body)
+            if response is not None:
+                key = base64.b64decode(response.key)
+                self.devices[infuse_id].shared_key = key
+                self._update_cache(infuse_id, device_pub_key, key)
 
     def _network_key(self, network_id: int, interface: bytes, gps_time: int) -> bytes:
         if network_id not in self._network_keys:
