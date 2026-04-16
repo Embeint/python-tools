@@ -23,6 +23,7 @@ from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
 from infuse_iot.util.ctypes import UINT32_MAX
+from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
@@ -125,7 +126,8 @@ class SubCommand(InfuseCommand):
         if downlink.status == DownlinkMessageStatus.COMPLETED:
             rpc_rsp = downlink.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
-            print(f"   Result: {rpc_rsp.return_code}")
+            extra = f" ({errno(-rpc_rsp.return_code).name})" if rpc_rsp.return_code < 0 else ""
+            print(f"   Result: {rpc_rsp.return_code}{extra}")
             if rpc_rsp.params:
                 print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
             elif rpc_rsp.params_encoded:
