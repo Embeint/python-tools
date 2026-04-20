@@ -113,7 +113,14 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
         if return_code != 0:
             print(f"Failed to write file ({errno.strerror(-return_code)})")
             return
-        if (response.recv_len != len(self.payload)) or (response.recv_crc != self._expected_crc):
+        len_match = response.recv_len == len(self.payload)
+        crc_match = response.recv_crc != self._expected_crc
+
+        if (response.recv_len == 0) and crc_match:
+            print("File already existed")
+            print(f"\tLength: {len(self.payload)}")
+            print(f"\t   CRC: 0x{response.recv_crc:08x}")
+        elif (not len_match) or (not crc_match):
             print("Unexpected write contents")
             print(f"\tLength: {response.recv_len} (Expected {len(self.payload)})")
             print(f"\t   CRC: 0x{response.recv_crc:08x} (Expected 0x{self._expected_crc:08x})")
