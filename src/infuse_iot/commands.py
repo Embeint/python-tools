@@ -60,6 +60,10 @@ class InfuseRpcCommand:
         """Authentication level to run command with"""
         return Auth.DEVICE
 
+    def command_timeout_ms(self) -> int:
+        """Duration to wait for the RPC response in milliseconds"""
+        return 10000
+
     def request_struct(self) -> ctypes.LittleEndianStructure | bytes:
         """RPC_CMD request structure"""
         raise NotImplementedError
