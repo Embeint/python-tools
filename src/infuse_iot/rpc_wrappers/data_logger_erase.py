@@ -16,9 +16,12 @@ class data_logger_erase(InfuseRpcCommand, defs.data_logger_erase):
             action="store_true",
             help="Erase entire address space, not just written blocks",
         )
+        # Erasing a complete flash chip can take a long time
+        parser.add_argument("--timeout", type=int, default=60000, help="Duration to wait for erase to complete")
 
     def __init__(self, args):
         self.infuse_id = args.id
+        self.timeout = args.timeout
         if args.onboard:
             self.logger = defs.rpc_enum_data_logger.FLASH_ONBOARD
         elif args.removable:
@@ -26,6 +29,9 @@ class data_logger_erase(InfuseRpcCommand, defs.data_logger_erase):
         else:
             raise NotImplementedError
         self.erase_all = 1 if args.erase_all else 0
+
+    def command_timeout_ms(self) -> int:
+        return self.timeout
 
     def request_struct(self):
         return self.request(self.logger, self.erase_all)
