@@ -34,6 +34,7 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
             response_bytes = bytes(response.rsp)
             if len(response_bytes):
                 decoded = bytes(response.rsp).decode("utf-8").strip()
+                print(f"> {self.args.cmd}")
                 print(decoded)
         # Notification that command failed
         if return_code != 0:
