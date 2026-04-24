@@ -114,7 +114,7 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
             print(f"Failed to write file ({errno.strerror(-return_code)})")
             return
         len_match = response.recv_len == len(self.payload)
-        crc_match = response.recv_crc != self._expected_crc
+        crc_match = response.recv_crc == self._expected_crc
 
         if (response.recv_len == 0) and crc_match:
             print("File already existed")
