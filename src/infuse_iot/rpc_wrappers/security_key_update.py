@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import yaml
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
@@ -18,13 +19,20 @@ class security_key_update(InfuseRpcCommand, defs.security_key_update):
         parser.add_argument("--delete", action="store_true", help="Delete instead of writing key")
         parser.add_argument("--delay", type=int, default=2, help="Reboot delay (seconds)")
         key_group = parser.add_mutually_exclusive_group(required=True)
+        key_group.add_argument("--network", type=ValidFile)
         key_group.add_argument("--secondary-root", type=ValidFile)
 
     def __init__(self, args):
         self._auth = Auth.NETWORK if args.network_auth else Auth.DEVICE
         self._key_action = defs.rpc_enum_key_action.KEY_DELETE if args.delete else defs.rpc_enum_key_action.KEY_WRITE
         self._delay = args.delay
-        if args.secondary_root:
+        if args.network:
+            self._key_id = defs.rpc_enum_key_id.NETWORK_KEY
+            with args.network.open("r") as f:
+                key_info = yaml.safe_load(f)
+                self._global_key_id = key_info["id"]
+                self._key_bytes = key_info["key"]
+        elif args.secondary_root:
             self._key_id = defs.rpc_enum_key_id.SECONDARY_REMOTE_PUBLIC_KEY
             self._global_key_id = 0
             with args.secondary_root.open("r") as f:
