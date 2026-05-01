@@ -19,7 +19,7 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--elf", type=ValidFile, help="ELF file to read symbol data from")
+        parser.add_argument("--elf", type=ValidFile, required=True, help="ELF file to read symbol data from")
         read_type = parser.add_mutually_exclusive_group(required=True)
         read_type.add_argument("--sym", type=str, help="Symbol name to read")
         read_type.add_argument("--addr", type=lambda x: int(x, 0), help="Address to read")
