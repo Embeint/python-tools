@@ -28,7 +28,8 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
         # Ignore context-manager warning since ELFFile requires the file to remain opened
         self.elf_file = open(args.elf, "rb")  # noqa: SIM115
         self.elf = ELFFile(self.elf_file)
-        self.symbol_die: DIE | None
+        self.symbol_die: DIE | None = None
+        self.symbol_info: elftools.dwarf_field | None = None
 
         if args.sym:
             symbols = elftools.symbols_from_name(self.elf, args.sym)
@@ -116,7 +117,8 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
         if self.symbol_die is not None:
             filename, linenum = elftools.dwarf_die_file_info(self.elf, self.symbol_die)
             print(f" Symbol: {self.symbol.name} ({filename}:{linenum})")
-
+        else:
+            print(f"   Name: {self.symbol.name}")
         address_base = self.symbol.entry["st_value"]
         print(f"Address: 0x{address_base:x}")
         print(f"   Size: {symbol_size} bytes")
@@ -124,6 +126,9 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
             print(f"    Raw: {self.output.hex()}")
         else:
             print(f"    Raw: {self.output[:32].hex()}...")
+
+        if self.symbol_info is None:
+            return
 
         def info_table(info, offset=0):
             table = [[f"{'  ' * offset}{info.name}", f"({info.tag}) ({info.ctype}) {info.offset}", ""]]
