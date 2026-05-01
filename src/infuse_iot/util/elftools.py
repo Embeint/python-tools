@@ -83,15 +83,21 @@ def symbol_from_address(elf: ELFFile, address: int) -> Symbol | None:
 def dwarf_die_from_symbol(elf: ELFFile, symbol: Symbol) -> DIE | None:
     """Get a Debug Information Entry associated with a symbol (Global variables only)"""
     dwarfinfo = elf.get_dwarf_info()
+    candidate_cu = None
+    candidate_die = None
 
     for CU in dwarfinfo.iter_CUs():
         for die in CU.iter_DIEs():
-            if die.tag == "DW_TAG_variable" and "DW_AT_name" in die.attributes and "DW_AT_location" in die.attributes:
-                die_name = die.attributes["DW_AT_name"].value.decode("utf-8")
+            if die.tag != "DW_TAG_variable" or "DW_AT_name" not in die.attributes:
+                continue
+            die_name = die.attributes["DW_AT_name"].value.decode("utf-8")
+            if die_name != symbol.name:
+                continue
+            # Store as fallback in case we can't find a matching address
+            candidate_cu = CU
+            candidate_die = die
+            if "DW_AT_location" in die.attributes:
                 die_location = die.attributes.get("DW_AT_location").value
-                # Not our symbol
-                if die_name != symbol.name:
-                    continue
                 # Constant addresses are in a list of form [0x03, addr_bytes]
                 if not isinstance(die_location, list):
                     continue
@@ -100,10 +106,24 @@ def dwarf_die_from_symbol(elf: ELFFile, symbol: Symbol) -> DIE | None:
                 address = int.from_bytes(die_location[1:], "little")
                 if address == symbol.entry["st_value"]:
                     return die
-    return None
+
+    if candidate_cu is None or candidate_die is None:
+        # No symbols with matching names found
+        return None
+
+    type_attr = candidate_die.attributes["DW_AT_type"]
+    # The offset may be relative to the CU or absolute
+    if type_attr.form == "DW_FORM_ref_addr":
+        type_offset = type_attr.value  # absolute offset in .debug_info
+    else:
+        type_offset = candidate_cu.cu_offset + type_attr.value  # relative to CU
+    return dwarfinfo.get_DIE_from_refaddr(type_offset)
 
 
 def dwarf_die_file_info(elf: ELFFile, die: DIE) -> tuple[str | None, int]:
+    if "DW_AT_decl_file" not in die.attributes or "DW_AT_decl_line" not in die.attributes:
+        return (None, 0)
+
     file_attr = die.attributes["DW_AT_decl_file"]
     line_attr = die.attributes["DW_AT_decl_line"]
 
