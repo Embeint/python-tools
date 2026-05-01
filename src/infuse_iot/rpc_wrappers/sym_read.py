@@ -62,6 +62,7 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
             if symbol is None:
                 sys.exit(f"Could not find symbol for address 0x{args.addr:08x} in '{args.elf}' symbol table")
             self.symbol = symbol
+            self.symbol_die = elftools.dwarf_die_from_symbol(self.elf, symbol)
         else:
             raise NotImplementedError("Unexpected symbol refrence")
 
