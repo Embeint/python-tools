@@ -7,9 +7,11 @@ assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
 def test_socket_comms():
     # Ensure notifications can be sent from the server to the client, and requests sent in reverse
-    mulicast_addr = comms.default_multicast_address()
-    server = comms.LocalServer(mulicast_addr)
-    client = comms.LocalClient(mulicast_addr)
+    multicast_addr = comms.default_multicast_address()
+    # Increment port by 1 so we can run the tests in parallel with a real instance
+    test_addr = (multicast_addr[0], multicast_addr[1] + 1)
+    server = comms.LocalServer(test_addr)
+    client = comms.LocalClient(test_addr)
 
     # Send request to server
     request = comms.GatewayRequestCommsCheck()
