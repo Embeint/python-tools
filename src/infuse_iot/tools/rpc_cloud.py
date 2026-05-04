@@ -38,6 +38,7 @@ class SubCommand(InfuseCommand):
         parser_queue.set_defaults(_tool_action="queue")
         parser_queue.add_argument("--id", required=True, type=lambda x: int(x, 0), help="Infuse ID to run command on")
         parser_queue.add_argument("--queue-timeout", type=int, default=600, help="Timeout to send command in seconds")
+        parser_queue.add_argument("--print-params", action="store_true", help="Print queued RPC request")
         command_list_parser = parser_queue.add_subparsers(title="commands", metavar="<command>", required=True)
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
@@ -84,6 +85,10 @@ class SubCommand(InfuseCommand):
             rpc_req.data_header = RPCReqDataHeader(command.data_payload_recv_len(), 0)
 
         rpc_msg = NewRPCMessage(infuse_id, rpc_req, timeout_ms)
+
+        if self._args.print_params:
+            print(f"Request: {rpc_msg.to_dict()}")
+
         rsp = send_rpc.sync(client=client, body=rpc_msg)
         if rsp is None:
             sys.exit("Failed to queue RPC (No response)")
