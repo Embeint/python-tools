@@ -22,7 +22,6 @@ from infuse_iot.api_client.models.downlink_message_status import DownlinkMessage
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
-from infuse_iot.util.ctypes import UINT32_MAX
 from infuse_iot.zephyr.errno import errno
 
 
@@ -82,7 +81,7 @@ class SubCommand(InfuseCommand):
 
         if command.RPC_DATA_RECEIVE:
             # Generic "unknown" data volume
-            rpc_req.data_header = RPCReqDataHeader(UINT32_MAX, 0)
+            rpc_req.data_header = RPCReqDataHeader(command.data_payload_recv_len(), 0)
 
         rpc_msg = NewRPCMessage(infuse_id, rpc_req, timeout_ms)
         rsp = send_rpc.sync(client=client, body=rpc_msg)
