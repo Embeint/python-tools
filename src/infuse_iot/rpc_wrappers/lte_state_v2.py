@@ -25,7 +25,7 @@ class lte_state_v2(InfuseRpcCommand, defs.lte_state_v2):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({errno.strerror(-return_code)})")
+            print(f"Failed to query LTE state ({errno.strerror(-return_code)})")
             return
 
         common = response.common

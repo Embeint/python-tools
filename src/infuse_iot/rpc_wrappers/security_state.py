@@ -87,7 +87,7 @@ class security_state(InfuseRpcCommand, defs.security_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({errno.strerror(-return_code)})")
+            print(f"Failed to query security state ({errno.strerror(-return_code)})")
             return
 
         def print_bytes(ctypes_array) -> str:

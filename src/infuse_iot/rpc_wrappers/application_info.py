@@ -22,7 +22,7 @@ class application_info(InfuseRpcCommand, defs.application_info):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query current time ({errno.strerror(-return_code)})")
+            print(f"Failed to query application info ({errno.strerror(-return_code)})")
             return
 
         r = response
