@@ -111,3 +111,8 @@ class InfuseRpcCommand:
     def handle_response(self, return_code: int, response: ctypes.LittleEndianStructure | None) -> None:
         """Handle RPC_RSP"""
         raise NotImplementedError
+
+    @classmethod
+    def handle_json_response(cls, response: dict) -> None:
+        """Handle json response from cloud"""
+        raise NotImplementedError

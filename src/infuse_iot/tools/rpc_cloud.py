@@ -19,7 +19,7 @@ from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.rpc import get_rpc_by_id, send_rpc
 from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
-from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
+from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, wrapper_from_command_id
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
 from infuse_iot.zephyr.errno import errno
@@ -111,6 +111,11 @@ class SubCommand(InfuseCommand):
             command_name = id_type_mapping[rpc_req.command_id].NAME
         except KeyError:
             command_name = "Unknown"
+        try:
+            command_wrapper = wrapper_from_command_id(rpc_req.command_id)
+        except Exception:
+            command_wrapper = None
+
         print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
         print(f"       To: {rsp.device.device_id}")
         # Manually detect downlink expiry, as the API doesn't do it
@@ -133,6 +138,12 @@ class SubCommand(InfuseCommand):
             extra = f" ({errno(-rpc_rsp.return_code).name})" if rpc_rsp.return_code < 0 else ""
             print(f"   Result: {rpc_rsp.return_code}{extra}")
             if rpc_rsp.params:
+                try:
+                    if command_wrapper:
+                        command_wrapper.handle_json_response(rpc_rsp.params.additional_properties)
+                        return
+                except NotImplementedError:
+                    pass
                 print(json.dumps(rpc_rsp.params.additional_properties, indent=4))
             elif rpc_rsp.params_encoded:
                 raw_rsp = base64.b64decode(rpc_rsp.params_encoded)
