@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 import infuse_iot.socket_comms as comms

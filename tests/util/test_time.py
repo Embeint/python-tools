@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 from infuse_iot.util.time import humanised_seconds
