@@ -23,6 +23,7 @@ from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID
 from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action
 from infuse_iot.epacket.packet import Auth, HopReceived
+from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
@@ -30,6 +31,7 @@ from infuse_iot.socket_comms import (
     default_multicast_address,
 )
 from infuse_iot.util.argparse import ValidFile, ValidRelease
+from infuse_iot.util.crc import crc16_ccitt
 from infuse_iot.zephyr.errno import errno
 
 
@@ -59,9 +61,11 @@ class SubCommand(InfuseCommand):
             self._single_diff = args.single
         else:
             raise NotImplementedError("Unknow upgrade type")
-        self._app_name = self._release.metadata["application"]["primary"]
-        self._app_id = self._release.metadata["application"]["id"]
-        self._new_ver = self._release.metadata["application"]["version"]
+        app_meta = self._release.metadata["application"]
+        self._app_name = app_meta["primary"]
+        self._app_id = app_meta["id"]
+        self._new_ver = app_meta["version"]
+        self._board_crc = crc16_ccitt(app_meta["board"].encode("utf-8"))
         self._handled: list[int] = []
         self._pending: dict[int, float] = {}
         self._missing_diffs: set[str] = set()
@@ -224,6 +228,8 @@ class SubCommand(InfuseCommand):
                     if announce.application != self._app_id:
                         continue
                 if source.infuse_id in self._handled:
+                    continue
+                if isinstance(announce, readings.announce_v2) and announce.board_crc != self._board_crc:
                     continue
                 v = announce.version
                 v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
