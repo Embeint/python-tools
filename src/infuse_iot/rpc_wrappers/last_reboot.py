@@ -38,3 +38,18 @@ class last_reboot(InfuseRpcCommand, defs.last_reboot):
         print(f"\t     Thread: {response.thread.decode('utf-8')}")
         for idx, val in enumerate(response.esf):
             print(f"\t    ESF[{idx:2d}]: 0x{val:08x}")
+
+    @classmethod
+    def handle_json_response(cls, response: dict) -> None:
+        rsp = defs.last_reboot.response(
+            int(response["reason"]),
+            int(response["epoch_time_source"]),
+            int(response["epoch_time"]),
+            int(response["hardware_flags"]),
+            int(response["uptime"]),
+            int(response["param_1"]),
+            int(response["param_2"]),
+        )
+        rsp.esf = [int(x) for x in response["esf"]]
+        x = cls({})
+        x.handle_response(0, rsp)
