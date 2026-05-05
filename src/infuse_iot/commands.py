@@ -10,7 +10,23 @@ import ctypes
 from abc import ABCMeta, abstractmethod
 from typing import Any
 
+import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.epacket.packet import Auth
+
+
+def wrapper_from_command_id(command_id: int):
+    import importlib
+    import pkgutil
+
+    for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
+        full_name = f"{wrappers.__name__}.{name}"
+        module = importlib.import_module(full_name)
+
+        # Add RPC wrapper to parser
+        cmd_cls = getattr(module, name)
+        if command_id == cmd_cls.COMMAND_ID:
+            return cmd_cls
+    return None
 
 
 class InfuseCommand(metaclass=ABCMeta):
