@@ -35,3 +35,23 @@ class application_info(InfuseRpcCommand, defs.application_info):
         print(f"\t     KV CRC: 0x{r.kv_crc:08x}")
         print(f"\t   O Blocks: {r.data_blocks_internal}")
         print(f"\t   E Blocks: {r.data_blocks_external}")
+
+    @classmethod
+    def handle_json_response(cls, response: dict) -> None:
+        rsp = defs.application_info.response(
+            int(response["application_id"]),
+            defs.rpc_struct_mcuboot_img_sem_ver(
+                int(response["version"]["major"]),
+                int(response["version"]["minor"]),
+                int(response["version"]["revision"]),
+                int(response["version"]["build_num"]),
+            ),
+            int(response["network_id"]),
+            int(response["uptime"]),
+            int(response["reboots"]),
+            int(response["kv_crc"]),
+            int(response["data_blocks_internal"]),
+            int(response["data_blocks_external"]),
+        )
+        x = cls({})
+        x.handle_response(0, rsp)

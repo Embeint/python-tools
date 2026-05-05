@@ -41,3 +41,28 @@ class wifi_scan(InfuseRpcCommand, defs.wifi_scan):
 
         headers = ["SSID", "BSSID", "Band", "Channel", "Security", "RSSI"]
         print(tabulate.tabulate(table, headers=headers))
+
+    @classmethod
+    def handle_json_response(cls, response: dict) -> None:
+        table = []
+        for network in response["networks"]:
+            bssid = ":".join([f"{int(b):02x}" for b in network["bssid"]])
+            try:
+                security = str(z_wifi.SecurityType(int(network["security"])))
+            except ValueError:
+                security = f"Unknown ({network['security']})"
+
+            table.append(
+                [
+                    network["ssid"],
+                    bssid,
+                    str(z_wifi.FrequencyBand(int(network["band"]))),
+                    network["channel"],
+                    security,
+                    f"{network['rssi']} dBm",
+                ]
+            )
+
+        headers = ["SSID", "BSSID", "Band", "Channel", "Security", "RSSI"]
+        print(f"Total Networks: {response['network_count']}")
+        print(tabulate.tabulate(table, headers=headers))
