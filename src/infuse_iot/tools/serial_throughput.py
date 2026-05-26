@@ -8,16 +8,20 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import random
 import sys
 import time
+from datetime import datetime
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType
+from infuse_iot.definitions.rpc import time_set
 from infuse_iot.epacket.packet import Auth, PacketOutput
+from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
     default_multicast_address,
 )
+from infuse_iot.time import InfuseTime
 
 
 class SubCommand(InfuseCommand):
@@ -37,6 +41,11 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._client = LocalClient(default_multicast_address(), 1.0)
         self._iterations = args.iterations
+
+    def run_time_set(self):
+        rpc_client = RpcClient(self._client, 128, InfuseID.GATEWAY)
+        params = time_set.request(InfuseTime.epoch_time_from_unix(datetime.now().timestamp()))
+        rpc_client.run_standard_cmd(time_set.COMMAND_ID, Auth.DEVICE, bytes(params), time_set.response.from_buffer_copy)
 
     def run_send_test(self, num, size, queue_size):
         assert size >= 4
@@ -84,6 +93,9 @@ class SubCommand(InfuseCommand):
     def run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+
+        # Set remote time to avoid key regeneration on every packet
+        self.run_time_set()
 
         # No queuing
         print(f"Averaged across {self._iterations} packets with no queuing:")
