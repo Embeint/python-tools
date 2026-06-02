@@ -159,7 +159,7 @@ class PacketReceived(Serializable):
             frame_type = decode_mapping[common_header.interface]
 
             # Extract interface address (Only Bluetooth supported)
-            addr = Address.from_bytes(common_header.interface, packet_bytes)
+            addr = Address.from_bytes(common_header.interface, bytes(packet_bytes))
             del packet_bytes[: addr.len()]
 
             # Decrypting packet

@@ -252,7 +252,7 @@ class SerialRxThread(SignaledThread):
         try:
             # Decode the serial packet
             try:
-                decoded = PacketReceived.from_serial(self._common.ddb, frame)
+                decoded = PacketReceived.from_serial(self._common.ddb, bytes(frame))
             except NoKeyError:
                 assert self._common.ddb.gateway is not None
                 if not self._common.ddb.has_network_id(self._common.ddb.gateway):
