@@ -1,10 +1,11 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.error import Error
 from ...models.network import Network
 from ...models.new_network import NewNetwork
 from ...types import Response
@@ -29,18 +30,25 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Network | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Error | Network | None:
     if response.status_code == 201:
         response_201 = Network.from_dict(response.json())
 
         return response_201
 
+    if response.status_code == 400:
+        response_400 = Error.from_dict(response.json())
+
+        return response_400
+
     if response.status_code == 409:
-        response_409 = cast(Any, None)
+        response_409 = Error.from_dict(response.json())
+
         return response_409
 
     if response.status_code == 422:
-        response_422 = cast(Any, None)
+        response_422 = Error.from_dict(response.json())
+
         return response_422
 
     if client.raise_on_unexpected_status:
@@ -49,7 +57,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Network]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Error | Network]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -62,7 +70,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewNetwork,
-) -> Response[Any | Network]:
+) -> Response[Error | Network]:
     """Create a new network
 
     Args:
@@ -73,7 +81,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Network]
+        Response[Error | Network]
     """
 
     kwargs = _get_kwargs(
@@ -91,7 +99,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: NewNetwork,
-) -> Any | Network | None:
+) -> Error | Network | None:
     """Create a new network
 
     Args:
@@ -102,7 +110,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Network
+        Error | Network
     """
 
     return sync_detailed(
@@ -115,7 +123,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewNetwork,
-) -> Response[Any | Network]:
+) -> Response[Error | Network]:
     """Create a new network
 
     Args:
@@ -126,7 +134,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Network]
+        Response[Error | Network]
     """
 
     kwargs = _get_kwargs(
@@ -142,7 +150,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: NewNetwork,
-) -> Any | Network | None:
+) -> Error | Network | None:
     """Create a new network
 
     Args:
@@ -153,7 +161,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Network
+        Error | Network
     """
 
     return (

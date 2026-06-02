@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
@@ -7,6 +7,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device import Device
+from ...models.error import Error
 from ...types import Response
 
 
@@ -14,6 +15,7 @@ def _get_kwargs(
     soc: str,
     mcu_id: str,
 ) -> dict[str, Any]:
+
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/device/soc/{soc}/mcuId/{mcu_id}".format(
@@ -25,14 +27,15 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Device | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Device | Error | None:
     if response.status_code == 200:
         response_200 = Device.from_dict(response.json())
 
         return response_200
 
     if response.status_code == 404:
-        response_404 = cast(Any, None)
+        response_404 = Error.from_dict(response.json())
+
         return response_404
 
     if client.raise_on_unexpected_status:
@@ -41,7 +44,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Device]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Device | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -55,7 +58,7 @@ def sync_detailed(
     mcu_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Device]:
+) -> Response[Device | Error]:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -67,7 +70,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Device]
+        Response[Device | Error]
     """
 
     kwargs = _get_kwargs(
@@ -87,7 +90,7 @@ def sync(
     mcu_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Device | None:
+) -> Device | Error | None:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -99,7 +102,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Device
+        Device | Error
     """
 
     return sync_detailed(
@@ -114,7 +117,7 @@ async def asyncio_detailed(
     mcu_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | Device]:
+) -> Response[Device | Error]:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -126,7 +129,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Device]
+        Response[Device | Error]
     """
 
     kwargs = _get_kwargs(
@@ -144,7 +147,7 @@ async def asyncio(
     mcu_id: str,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | Device | None:
+) -> Device | Error | None:
     """Get a device by SoC and MCU ID
 
     Args:
@@ -156,7 +159,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Device
+        Device | Error
     """
 
     return (

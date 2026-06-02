@@ -24,6 +24,7 @@ class NewBoard:
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
         organisation_id (UUID): ID of organisation for board to exist in
+        public (bool | Unset): Whether the board is public (devices from other organisations can use it) Default: False.
         metadata_fields (list[MetadataField] | Unset): Metadata fields for board Example: [{'name': 'Field Name',
             'required': True, 'unique': False}].
     """
@@ -32,6 +33,7 @@ class NewBoard:
     description: str
     soc: str
     organisation_id: UUID
+    public: bool | Unset = False
     metadata_fields: list[MetadataField] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -43,6 +45,8 @@ class NewBoard:
         soc = self.soc
 
         organisation_id = str(self.organisation_id)
+
+        public = self.public
 
         metadata_fields: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.metadata_fields, Unset):
@@ -63,6 +67,8 @@ class NewBoard:
                 "organisationId": organisation_id,
             }
         )
+        if public is not UNSET:
+            field_dict["public"] = public
         if metadata_fields is not UNSET:
             field_dict["metadataFields"] = metadata_fields
 
@@ -81,6 +87,8 @@ class NewBoard:
 
         organisation_id = UUID(d.pop("organisationId"))
 
+        public = d.pop("public", UNSET)
+
         _metadata_fields = d.pop("metadataFields", UNSET)
         metadata_fields: list[MetadataField] | Unset = UNSET
         if _metadata_fields is not UNSET:
@@ -97,6 +105,7 @@ class NewBoard:
             description=description,
             soc=soc,
             organisation_id=organisation_id,
+            public=public,
             metadata_fields=metadata_fields,
         )
 

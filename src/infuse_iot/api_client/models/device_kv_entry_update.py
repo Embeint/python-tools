@@ -21,35 +21,34 @@ T = TypeVar("T", bound="DeviceKVEntryUpdate")
 
 @_attrs_define
 class DeviceKVEntryUpdate:
-    """
+    """Device KV entry update - note for write-only entries the data/decoded fields will not be returned, only CRC.
+
     Attributes:
-        data (str): Raw entry data as a base64 encoded string (must provide either data or decoded)
         id (UUID): ID of update
         key_id (int): Key id
         crc (int): CRC32 of entry update value
         status (DeviceEntryUpdateStatus): Status of device KV entry update
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
+        data (str | Unset): Raw entry data as a base64 encoded string (must provide either data or decoded)
         decoded (NewDeviceKVEntryUpdateDecoded | Unset): Decoded entry value (must provide either data or decoded)
         last_error (str | Unset): Last error message if update failed
         last_attempt_at (datetime.datetime | Unset): Time of last attempt
     """
 
-    data: str
     id: UUID
     key_id: int
     crc: int
     status: DeviceEntryUpdateStatus
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    data: str | Unset = UNSET
     decoded: NewDeviceKVEntryUpdateDecoded | Unset = UNSET
     last_error: str | Unset = UNSET
     last_attempt_at: datetime.datetime | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        data = self.data
-
         id = str(self.id)
 
         key_id = self.key_id
@@ -61,6 +60,8 @@ class DeviceKVEntryUpdate:
         created_at = self.created_at.isoformat()
 
         updated_at = self.updated_at.isoformat()
+
+        data = self.data
 
         decoded: dict[str, Any] | Unset = UNSET
         if not isinstance(self.decoded, Unset):
@@ -76,7 +77,6 @@ class DeviceKVEntryUpdate:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "data": data,
                 "id": id,
                 "keyId": key_id,
                 "crc": crc,
@@ -85,6 +85,8 @@ class DeviceKVEntryUpdate:
                 "updatedAt": updated_at,
             }
         )
+        if data is not UNSET:
+            field_dict["data"] = data
         if decoded is not UNSET:
             field_dict["decoded"] = decoded
         if last_error is not UNSET:
@@ -99,8 +101,6 @@ class DeviceKVEntryUpdate:
         from ..models.new_device_kv_entry_update_decoded import NewDeviceKVEntryUpdateDecoded
 
         d = dict(src_dict)
-        data = d.pop("data")
-
         id = UUID(d.pop("id"))
 
         key_id = d.pop("keyId")
@@ -112,6 +112,8 @@ class DeviceKVEntryUpdate:
         created_at = isoparse(d.pop("createdAt"))
 
         updated_at = isoparse(d.pop("updatedAt"))
+
+        data = d.pop("data", UNSET)
 
         _decoded = d.pop("decoded", UNSET)
         decoded: NewDeviceKVEntryUpdateDecoded | Unset
@@ -130,13 +132,13 @@ class DeviceKVEntryUpdate:
             last_attempt_at = isoparse(_last_attempt_at)
 
         device_kv_entry_update = cls(
-            data=data,
             id=id,
             key_id=key_id,
             crc=crc,
             status=status,
             created_at=created_at,
             updated_at=updated_at,
+            data=data,
             decoded=decoded,
             last_error=last_error,
             last_attempt_at=last_attempt_at,

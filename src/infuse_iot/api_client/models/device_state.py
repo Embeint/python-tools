@@ -14,6 +14,7 @@ from ..types import UNSET, Unset
 if TYPE_CHECKING:
     from ..models.algorithm import Algorithm
     from ..models.application_version import ApplicationVersion
+    from ..models.uplink_route import UplinkRoute
 
 
 T = TypeVar("T", bound="DeviceState")
@@ -29,7 +30,10 @@ class DeviceState:
         application_version (ApplicationVersion | Unset): Application version
         algorithms (list[Algorithm] | Unset): Last announced algorithms
         last_route_interface (RouteType | Unset): Interface of route
-        last_route_udp_address (str | Unset): UDP address of last packet sent by device
+        last_route_udp_address (str | Unset): Address of last packet sent directly via UDP
+        last_route_udp_time (datetime.datetime | Unset): Time of last packet sent directly via UDP
+        last_route (UplinkRoute | Unset):
+        last_route_time (datetime.datetime | Unset): Time of last packet sent by device (via any route)
     """
 
     created_at: datetime.datetime
@@ -39,6 +43,9 @@ class DeviceState:
     algorithms: list[Algorithm] | Unset = UNSET
     last_route_interface: RouteType | Unset = UNSET
     last_route_udp_address: str | Unset = UNSET
+    last_route_udp_time: datetime.datetime | Unset = UNSET
+    last_route: UplinkRoute | Unset = UNSET
+    last_route_time: datetime.datetime | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +72,18 @@ class DeviceState:
 
         last_route_udp_address = self.last_route_udp_address
 
+        last_route_udp_time: str | Unset = UNSET
+        if not isinstance(self.last_route_udp_time, Unset):
+            last_route_udp_time = self.last_route_udp_time.isoformat()
+
+        last_route: dict[str, Any] | Unset = UNSET
+        if not isinstance(self.last_route, Unset):
+            last_route = self.last_route.to_dict()
+
+        last_route_time: str | Unset = UNSET
+        if not isinstance(self.last_route_time, Unset):
+            last_route_time = self.last_route_time.isoformat()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -83,6 +102,12 @@ class DeviceState:
             field_dict["lastRouteInterface"] = last_route_interface
         if last_route_udp_address is not UNSET:
             field_dict["lastRouteUdpAddress"] = last_route_udp_address
+        if last_route_udp_time is not UNSET:
+            field_dict["lastRouteUdpTime"] = last_route_udp_time
+        if last_route is not UNSET:
+            field_dict["lastRoute"] = last_route
+        if last_route_time is not UNSET:
+            field_dict["lastRouteTime"] = last_route_time
 
         return field_dict
 
@@ -90,6 +115,7 @@ class DeviceState:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.algorithm import Algorithm
         from ..models.application_version import ApplicationVersion
+        from ..models.uplink_route import UplinkRoute
 
         d = dict(src_dict)
         created_at = isoparse(d.pop("createdAt"))
@@ -123,6 +149,27 @@ class DeviceState:
 
         last_route_udp_address = d.pop("lastRouteUdpAddress", UNSET)
 
+        _last_route_udp_time = d.pop("lastRouteUdpTime", UNSET)
+        last_route_udp_time: datetime.datetime | Unset
+        if isinstance(_last_route_udp_time, Unset):
+            last_route_udp_time = UNSET
+        else:
+            last_route_udp_time = isoparse(_last_route_udp_time)
+
+        _last_route = d.pop("lastRoute", UNSET)
+        last_route: UplinkRoute | Unset
+        if isinstance(_last_route, Unset):
+            last_route = UNSET
+        else:
+            last_route = UplinkRoute.from_dict(_last_route)
+
+        _last_route_time = d.pop("lastRouteTime", UNSET)
+        last_route_time: datetime.datetime | Unset
+        if isinstance(_last_route_time, Unset):
+            last_route_time = UNSET
+        else:
+            last_route_time = isoparse(_last_route_time)
+
         device_state = cls(
             created_at=created_at,
             updated_at=updated_at,
@@ -131,6 +178,9 @@ class DeviceState:
             algorithms=algorithms,
             last_route_interface=last_route_interface,
             last_route_udp_address=last_route_udp_address,
+            last_route_udp_time=last_route_udp_time,
+            last_route=last_route,
+            last_route_time=last_route_time,
         )
 
         device_state.additional_properties = d

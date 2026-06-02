@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 
 import httpx
@@ -7,6 +7,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device_logger_state import DeviceLoggerState
+from ...models.error import Error
 from ...types import Response
 
 
@@ -14,6 +15,7 @@ def _get_kwargs(
     device_id: str,
     index: int,
 ) -> dict[str, Any]:
+
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/device/deviceId/{device_id}/loggerState/{index}".format(
@@ -27,14 +29,15 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Any | DeviceLoggerState | None:
+) -> DeviceLoggerState | Error | None:
     if response.status_code == 200:
         response_200 = DeviceLoggerState.from_dict(response.json())
 
         return response_200
 
     if response.status_code == 404:
-        response_404 = cast(Any, None)
+        response_404 = Error.from_dict(response.json())
+
         return response_404
 
     if client.raise_on_unexpected_status:
@@ -45,7 +48,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Any | DeviceLoggerState]:
+) -> Response[DeviceLoggerState | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -59,7 +62,7 @@ def sync_detailed(
     index: int,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | DeviceLoggerState]:
+) -> Response[DeviceLoggerState | Error]:
     """Get logger state by DeviceID and index
 
     Args:
@@ -71,7 +74,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | DeviceLoggerState]
+        Response[DeviceLoggerState | Error]
     """
 
     kwargs = _get_kwargs(
@@ -91,7 +94,7 @@ def sync(
     index: int,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | DeviceLoggerState | None:
+) -> DeviceLoggerState | Error | None:
     """Get logger state by DeviceID and index
 
     Args:
@@ -103,7 +106,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | DeviceLoggerState
+        DeviceLoggerState | Error
     """
 
     return sync_detailed(
@@ -118,7 +121,7 @@ async def asyncio_detailed(
     index: int,
     *,
     client: AuthenticatedClient | Client,
-) -> Response[Any | DeviceLoggerState]:
+) -> Response[DeviceLoggerState | Error]:
     """Get logger state by DeviceID and index
 
     Args:
@@ -130,7 +133,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | DeviceLoggerState]
+        Response[DeviceLoggerState | Error]
     """
 
     kwargs = _get_kwargs(
@@ -148,7 +151,7 @@ async def asyncio(
     index: int,
     *,
     client: AuthenticatedClient | Client,
-) -> Any | DeviceLoggerState | None:
+) -> DeviceLoggerState | Error | None:
     """Get logger state by DeviceID and index
 
     Args:
@@ -160,7 +163,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | DeviceLoggerState
+        DeviceLoggerState | Error
     """
 
     return (

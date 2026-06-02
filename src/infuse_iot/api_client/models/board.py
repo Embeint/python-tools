@@ -27,6 +27,7 @@ class Board:
         description (str): Description of board Example: Extended description of board.
         soc (str): System on Chip (SoC) of board Example: nRF9151.
         organisation_id (UUID): ID of organisation for board to exist in
+        public (bool): Whether the board is public (devices from other organisations can use it) Default: False.
         metadata_fields (list[MetadataField]): Metadata fields for board Example: [{'name': 'Field Name', 'required':
             True, 'unique': False}].
     """
@@ -39,6 +40,7 @@ class Board:
     soc: str
     organisation_id: UUID
     metadata_fields: list[MetadataField]
+    public: bool = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,6 +58,8 @@ class Board:
 
         organisation_id = str(self.organisation_id)
 
+        public = self.public
+
         metadata_fields = []
         for componentsschemas_board_metadata_fields_item_data in self.metadata_fields:
             componentsschemas_board_metadata_fields_item = componentsschemas_board_metadata_fields_item_data.to_dict()
@@ -72,6 +76,7 @@ class Board:
                 "description": description,
                 "soc": soc,
                 "organisationId": organisation_id,
+                "public": public,
                 "metadataFields": metadata_fields,
             }
         )
@@ -97,6 +102,8 @@ class Board:
 
         organisation_id = UUID(d.pop("organisationId"))
 
+        public = d.pop("public")
+
         metadata_fields = []
         _metadata_fields = d.pop("metadataFields")
         for componentsschemas_board_metadata_fields_item_data in _metadata_fields:
@@ -114,6 +121,7 @@ class Board:
             description=description,
             soc=soc,
             organisation_id=organisation_id,
+            public=public,
             metadata_fields=metadata_fields,
         )
 
