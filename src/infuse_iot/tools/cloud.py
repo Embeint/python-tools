@@ -5,13 +5,23 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import glob
 import sys
 from typing import Any
+from uuid import UUID
 
 from tabulate import tabulate
 
 import infuse_iot.api_client.models as models
 from infuse_iot.api_client import Client
+from infuse_iot.api_client.api.application import (
+    create_application,
+    create_release,
+    create_release_diff,
+    get_application_by_organisation_id_and_application_id,
+    get_applications_by_organisation_id,
+    get_releases_by_organisation_id_and_application_id,
+)
 from infuse_iot.api_client.api.board import (
     create_board,
     get_board_by_id,
@@ -30,10 +40,12 @@ from infuse_iot.api_client.api.organisation import (
     get_all_organisations,
     get_organisation_by_id,
 )
-from infuse_iot.api_client.models import COAPFilesList, Error, NewBoard, NewOrganisation
-from infuse_iot.api_client.types import Unset
+from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.util.argparse import ValidRelease
+from infuse_iot.util.console import choose_one, user_confirm, user_response
+from infuse_iot.util.version import Version
 
 
 class CloudSubCommand:
@@ -322,6 +334,239 @@ class Coap(CloudSubCommand):
             print("\t" + "\n\t".join(sorted_list))
 
 
+class Applications(CloudSubCommand):
+    @classmethod
+    def add_parser(cls, parser):
+        parser_coap = parser.add_parser("apps", help="Application release management")
+        parser_coap.set_defaults(command_class=cls)
+
+        tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
+
+        list_parser = tool_parser.add_parser("list", help="List all application releases")
+        list_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
+        list_parser.set_defaults(command_fn=cls.list)
+
+        info_parser = tool_parser.add_parser("info", help="Display summary of application releases")
+        info_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
+        info_parser.add_argument("--app", "-a", type=lambda x: int(x, 16), required=True, help="Application ID (hex)")
+        info_parser.set_defaults(command_fn=cls.info)
+
+        upload_parser = tool_parser.add_parser("upload", help="Upload application release")
+        upload_parser.add_argument("--org", "-o", type=str, help="Organisation ID")
+        upload_parser.add_argument("--board", "-b", type=str, help="Board ID")
+        upload_parser.add_argument("--release", "-r", type=ValidRelease, required=True, help="Release to upload")
+        upload_parser.set_defaults(command_fn=cls.upload)
+
+    def run(self):
+        with self.client() as client:
+            self.args.command_fn(self, client)
+
+    def list(self, client: Client):
+        applications = get_applications_by_organisation_id.sync(client=client, id=UUID(self.args.org))
+
+        if not isinstance(applications, list):
+            print(f"Failed to retrieve application list {applications}")
+            return
+
+        app_list = []
+        for app in applications:
+            app_list.append(
+                [
+                    f"0x{app.id:08X}",
+                    app.name,
+                    app.description,
+                ]
+            )
+        print(
+            tabulate(
+                app_list,
+                headers=["ID", "Name", "Description"],
+            )
+        )
+
+    def info(self, client: Client):
+        releases = get_releases_by_organisation_id_and_application_id.sync(
+            client=client, id=UUID(self.args.org), application_id=self.args.app
+        )
+
+        if releases is None:
+            sys.exit("Failed to retrieve release list (No response)")
+        elif isinstance(releases, models.Error):
+            sys.exit(f"<{releases.code}>: {releases.message}")
+
+        release_list = []
+        for release in releases:
+            version = release.version
+            version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
+            release_list.append(
+                [
+                    f"{release.board_target}",
+                    version_str,
+                    f"{release.id}",
+                    f"{release.file.len_ / 1024:.2f} kB",
+                    str(release.created_at),
+                ]
+            )
+        print(
+            tabulate(
+                release_list,
+                headers=["Board Target", "Version", "ID", "Full OTA", "Created"],
+            )
+        )
+
+    def upload(self, client: Client):
+        try:
+            self._board = UUID(self.args.board) if self.args.board else None
+        except ValueError:
+            sys.exit(f"Board ID: '{self.args.board}' is not a valid UUID")
+        try:
+            self._org = UUID(self.args.org) if self.args.org else None
+        except ValueError:
+            sys.exit(f"Organisation ID: '{self.args.org}' is not a valid UUID")
+
+        release: ValidRelease = self.args.release
+        release_app_meta = release.metadata["application"]
+        name = release_app_meta["primary"]
+        app_id = release_app_meta["id"]
+        board_target = release_app_meta["board"]
+        version = Version.from_string(release_app_meta["version"])
+
+        if self._org is None:
+            orgs = get_all_organisations.sync(client=client)
+            if isinstance(orgs, models.Error) or orgs is None:
+                sys.exit(f"Organisation query failed {orgs}")
+            options = [f"{o.name:20s} ({o.id})" for o in orgs]
+
+            idx, _val = choose_one("Organisation", options)
+            self._org = orgs[idx].id
+            self._org_name = orgs[idx].name
+        else:
+            org = get_organisation_by_id.sync(client=client, id=self._org)
+            if not isinstance(org, models.Organisation):
+                sys.exit(f"Failed to query org for ID {self._org}")
+            self._org_name = org.name
+
+        if self._board is None:
+            boards = get_boards.sync(client=client, organisation_id=self._org)
+            if isinstance(boards, models.Error) or boards is None:
+                sys.exit(f"Board query failed {boards}")
+            options = [f"{b.name:20s} ({b.id})" for b in boards]
+
+            idx, _val = choose_one("Board", options)
+            self._board = boards[idx].id
+            self._board_name = boards[idx].name
+        else:
+            board = get_board_by_id.sync(client=client, id=self._board)
+            if not isinstance(org, models.Board):
+                sys.exit(f"Failed to query board for ID {self._board}")
+            self._board_name = board.name
+
+        application = get_application_by_organisation_id_and_application_id.sync(
+            client=client, id=self._org, application_id=app_id
+        )
+
+        if application is None:
+            dialog = f"Application 0x{app_id:08x} does not exist in organisation {self.args.org}, create?"
+            if not user_confirm(dialog):
+                return
+            print(f"Creating application 0x{app_id:08x} in organisation {self.args.org}")
+            description = user_response("Application description:")
+            body = models.NewApplication(id=app_id, name=name, description=description)
+            application = create_application.sync(client=client, id=self._org, body=body)
+
+        if not isinstance(application, models.Application):
+            sys.exit(f"Unexpected internal type {type(application)}")
+
+        ota_files = glob.glob(str(release.dir / "ota-*.bin"))
+        if len(ota_files) != 1:
+            sys.exit(f"Unexpected OTA file search result {ota_files}")
+
+        releases = get_releases_by_organisation_id_and_application_id.sync(
+            client=client,
+            id=self._org,
+            application_id=app_id,
+        )
+        if not isinstance(releases, list):
+            sys.exit(f"Unexpected release query result {releases}")
+
+        cloud_release: None | models.ApplicationRelease = None
+        cloud_releases_by_version: dict[Version, models.ApplicationRelease] = {}
+        for r in releases:
+            v = Version(r.version.major, r.version.minor, r.version.revision, r.version.build_num)
+            cloud_releases_by_version[v] = r
+            if v == version:
+                print(f"Found release for application '0x{app_id:08x} {str(version)}' ({r.id})")
+                cloud_release = r
+
+        if cloud_release is None:
+            dialog = (
+                f"Create release for application '0x{app_id:08x} {str(version)}'"
+                + f" in organisation '{self._org_name}' for board '{self._board_name}'?"
+            )
+            if not user_confirm(dialog):
+                return
+
+            with open(ota_files[0], "rb") as f:
+                ota_file = File(f, ota_files[0], None)
+
+                release_obj = models.CreateReleaseBody(
+                    file=ota_file,
+                    file_diff_len=str(0),
+                    version_major=str(version.major),
+                    version_minor=str(version.minor),
+                    version_revision=str(version.revision),
+                    version_build_num=str(version.build_num),
+                    board_id=self._board,
+                    board_target=board_target,
+                )
+
+                rsp = create_release.sync(
+                    client=client,
+                    id=self._org,
+                    application_id=app_id,
+                    body=release_obj,
+                )
+                if rsp is None:
+                    sys.exit("Create release: No response")
+                elif isinstance(rsp, models.Error):
+                    sys.exit(f"<{rsp.code}>: {rsp.message}")
+                else:
+                    print(f"Release created with ID '{rsp.id}'")
+                    cloud_release = rsp
+
+        # Upload any diffs
+        diff_folder = release.dir / "diffs"
+        if not diff_folder.exists():
+            return
+        for path in diff_folder.iterdir():
+            if not path.is_file() or path.suffix != ".bin":
+                continue
+            try:
+                diff_from_version = Version.from_string(path.stem)
+            except ValueError:
+                print(f"Couldn't parse diff files version '{path.stem}'")
+                continue
+            from_version = cloud_releases_by_version.get(diff_from_version)
+            if from_version is None:
+                print(f"Version {diff_from_version} doesn't exist on cloud")
+                continue
+
+            with open(path, "rb") as f:
+                diff_file = File(f, str(path), None)
+
+                create_body = models.CreateReleaseDiffBody(file=diff_file, from_release_id=from_version.id)
+                diff_rsp = create_release_diff.sync(
+                    client=client, id=self._org, application_id=app_id, release_id=cloud_release.id, body=create_body
+                )
+                prefix = f"{str(diff_from_version)} -> {str(version)}"
+                if isinstance(diff_rsp, models.Error):
+                    print(f"{prefix}: <{diff_rsp.code}> {diff_rsp.message}")
+                elif isinstance(diff_rsp, models.ApplicationReleaseDiff):
+                    print(f"{prefix}: Diff created with ID '{diff_rsp.id}'")
+                else:
+                    print(f"{prefix}: No response")
+
+
 class SubCommand(InfuseCommand):
     NAME = "cloud"
     HELP = "Infuse-IoT cloud interaction"
@@ -335,6 +580,7 @@ class SubCommand(InfuseCommand):
         Boards.add_parser(subparser)
         Device.add_parser(subparser)
         Coap.add_parser(subparser)
+        Applications.add_parser(subparser)
 
     def __init__(self, args):
         self.tool = args.command_class(args)
