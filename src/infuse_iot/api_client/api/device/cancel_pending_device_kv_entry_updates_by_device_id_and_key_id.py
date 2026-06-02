@@ -14,6 +14,7 @@ def _get_kwargs(
     device_id: str,
     key_id: int,
 ) -> dict[str, Any]:
+
     _kwargs: dict[str, Any] = {
         "method": "delete",
         "url": "/device/deviceId/{device_id}/kv/entries/{key_id}/updates".format(

@@ -14,6 +14,7 @@ from ...types import Response
 def _get_kwargs(
     version: int,
 ) -> dict[str, Any]:
+
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/defs/rpc/{version}".format(

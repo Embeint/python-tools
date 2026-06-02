@@ -4,12 +4,20 @@ from .algorithm import Algorithm
 from .api_key_org_user_type import APIKeyOrgUserType
 from .api_key_resource_name import APIKeyResourceName
 from .api_key_resource_perm import APIKeyResourcePerm
+from .application import Application
+from .application_diff_file_stats import ApplicationDiffFileStats
+from .application_release import ApplicationRelease
+from .application_release_diff import ApplicationReleaseDiff
+from .application_release_file_stats import ApplicationReleaseFileStats
+from .application_release_version import ApplicationReleaseVersion
 from .application_version import ApplicationVersion
 from .board import Board
 from .bt_le_route import BtLeRoute
 from .bt_le_route_type import BtLeRouteType
 from .coap_file_stats import COAPFileStats
 from .coap_files_list import COAPFilesList
+from .create_release_body import CreateReleaseBody
+from .create_release_diff_body import CreateReleaseDiffBody
 from .created_board_properties import CreatedBoardProperties
 from .created_device_properties import CreatedDeviceProperties
 from .created_organisation_properties import CreatedOrganisationProperties
@@ -73,6 +81,7 @@ from .key import Key
 from .key_interface import KeyInterface
 from .metadata_field import MetadataField
 from .network import Network
+from .new_application import NewApplication
 from .new_board import NewBoard
 from .new_device import NewDevice
 from .new_device_kv_entry_update import NewDeviceKVEntryUpdate
@@ -100,6 +109,12 @@ __all__ = (
     "APIKeyOrgUserType",
     "APIKeyResourceName",
     "APIKeyResourcePerm",
+    "Application",
+    "ApplicationDiffFileStats",
+    "ApplicationRelease",
+    "ApplicationReleaseDiff",
+    "ApplicationReleaseFileStats",
+    "ApplicationReleaseVersion",
     "ApplicationVersion",
     "Board",
     "BtLeRoute",
@@ -110,6 +125,8 @@ __all__ = (
     "CreatedDeviceProperties",
     "CreatedOrganisationProperties",
     "CreatedRpcMessage",
+    "CreateReleaseBody",
+    "CreateReleaseDiffBody",
     "DefinitionsEnumDefinition",
     "DefinitionsEnumValue",
     "DefinitionsFieldConversion",
@@ -169,6 +186,7 @@ __all__ = (
     "KeyInterface",
     "MetadataField",
     "Network",
+    "NewApplication",
     "NewBoard",
     "NewDevice",
     "NewDeviceKVEntryUpdate",

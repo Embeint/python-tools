@@ -1,10 +1,11 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.error import Error
 from ...models.new_organisation import NewOrganisation
 from ...models.organisation import Organisation
 from ...types import Response
@@ -29,14 +30,15 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Organisation | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Error | Organisation | None:
     if response.status_code == 201:
         response_201 = Organisation.from_dict(response.json())
 
         return response_201
 
     if response.status_code == 409:
-        response_409 = cast(Any, None)
+        response_409 = Error.from_dict(response.json())
+
         return response_409
 
     if client.raise_on_unexpected_status:
@@ -45,7 +47,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Organisation]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Error | Organisation]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -58,7 +62,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Response[Any | Organisation]:
+) -> Response[Error | Organisation]:
     """Create a new organisation
 
     Args:
@@ -69,7 +73,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Organisation]
+        Response[Error | Organisation]
     """
 
     kwargs = _get_kwargs(
@@ -87,7 +91,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Any | Organisation | None:
+) -> Error | Organisation | None:
     """Create a new organisation
 
     Args:
@@ -98,7 +102,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Organisation
+        Error | Organisation
     """
 
     return sync_detailed(
@@ -111,7 +115,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Response[Any | Organisation]:
+) -> Response[Error | Organisation]:
     """Create a new organisation
 
     Args:
@@ -122,7 +126,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Organisation]
+        Response[Error | Organisation]
     """
 
     kwargs = _get_kwargs(
@@ -138,7 +142,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: NewOrganisation,
-) -> Any | Organisation | None:
+) -> Error | Organisation | None:
     """Create a new organisation
 
     Args:
@@ -149,7 +153,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Organisation
+        Error | Organisation
     """
 
     return (

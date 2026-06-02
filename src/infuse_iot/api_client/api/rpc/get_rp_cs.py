@@ -24,6 +24,7 @@ def _get_kwargs(
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> dict[str, Any]:
+
     params: dict[str, Any] = {}
 
     json_organisation_id: str | Unset = UNSET

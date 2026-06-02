@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 from urllib.parse import quote
 from uuid import UUID
 
@@ -8,6 +8,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device import Device
+from ...models.error import Error
 from ...types import UNSET, Response, Unset
 
 
@@ -17,6 +18,7 @@ def _get_kwargs(
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
 ) -> dict[str, Any]:
+
     params: dict[str, Any] = {}
 
     params["metadataName"] = metadata_name
@@ -36,7 +38,7 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | list[Device] | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Error | list[Device] | None:
     if response.status_code == 200:
         response_200 = []
         _response_200 = response.json()
@@ -48,7 +50,8 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return response_200
 
     if response.status_code == 404:
-        response_404 = cast(Any, None)
+        response_404 = Error.from_dict(response.json())
+
         return response_404
 
     if client.raise_on_unexpected_status:
@@ -57,7 +60,9 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | list[Device]]:
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Error | list[Device]]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -72,7 +77,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-) -> Response[Any | list[Device]]:
+) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -85,7 +90,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Device]]
+        Response[Error | list[Device]]
     """
 
     kwargs = _get_kwargs(
@@ -107,7 +112,7 @@ def sync(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-) -> Any | list[Device] | None:
+) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -120,7 +125,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Device]
+        Error | list[Device]
     """
 
     return sync_detailed(
@@ -137,7 +142,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-) -> Response[Any | list[Device]]:
+) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -150,7 +155,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | list[Device]]
+        Response[Error | list[Device]]
     """
 
     kwargs = _get_kwargs(
@@ -170,7 +175,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-) -> Any | list[Device] | None:
+) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
     Args:
@@ -183,7 +188,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | list[Device]
+        Error | list[Device]
     """
 
     return (

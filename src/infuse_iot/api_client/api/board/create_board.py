@@ -1,11 +1,12 @@
 from http import HTTPStatus
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.board import Board
+from ...models.error import Error
 from ...models.new_board import NewBoard
 from ...types import Response
 
@@ -29,18 +30,25 @@ def _get_kwargs(
     return _kwargs
 
 
-def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Any | Board | None:
+def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Board | Error | None:
     if response.status_code == 201:
         response_201 = Board.from_dict(response.json())
 
         return response_201
 
+    if response.status_code == 400:
+        response_400 = Error.from_dict(response.json())
+
+        return response_400
+
     if response.status_code == 409:
-        response_409 = cast(Any, None)
+        response_409 = Error.from_dict(response.json())
+
         return response_409
 
     if response.status_code == 422:
-        response_422 = cast(Any, None)
+        response_422 = Error.from_dict(response.json())
+
         return response_422
 
     if client.raise_on_unexpected_status:
@@ -49,7 +57,7 @@ def _parse_response(*, client: AuthenticatedClient | Client, response: httpx.Res
         return None
 
 
-def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Any | Board]:
+def _build_response(*, client: AuthenticatedClient | Client, response: httpx.Response) -> Response[Board | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -62,7 +70,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewBoard,
-) -> Response[Any | Board]:
+) -> Response[Board | Error]:
     """Create a new board
 
     Args:
@@ -73,7 +81,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Board]
+        Response[Board | Error]
     """
 
     kwargs = _get_kwargs(
@@ -91,7 +99,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: NewBoard,
-) -> Any | Board | None:
+) -> Board | Error | None:
     """Create a new board
 
     Args:
@@ -102,7 +110,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Board
+        Board | Error
     """
 
     return sync_detailed(
@@ -115,7 +123,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: NewBoard,
-) -> Response[Any | Board]:
+) -> Response[Board | Error]:
     """Create a new board
 
     Args:
@@ -126,7 +134,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Any | Board]
+        Response[Board | Error]
     """
 
     kwargs = _get_kwargs(
@@ -142,7 +150,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: NewBoard,
-) -> Any | Board | None:
+) -> Board | Error | None:
     """Create a new board
 
     Args:
@@ -153,7 +161,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Any | Board
+        Board | Error
     """
 
     return (
