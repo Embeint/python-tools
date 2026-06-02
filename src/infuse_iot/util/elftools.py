@@ -2,6 +2,7 @@
 
 import ctypes
 
+from elftools.dwarf.compileunit import CompileUnit
 from elftools.dwarf.die import DIE
 from elftools.dwarf.dwarf_expr import DW_OP_name2opcode
 from elftools.dwarf.dwarfinfo import DWARFInfo
@@ -97,13 +98,16 @@ def dwarf_die_from_symbol(elf: ELFFile, symbol: Symbol) -> DIE | None:
             candidate_cu = CU
             candidate_die = die
             if "DW_AT_location" in die.attributes:
-                die_location = die.attributes.get("DW_AT_location").value
+                die_location = die.attributes.get("DW_AT_location")
+                if die_location is None:
+                    continue
+                die_location_val = die_location.value
                 # Constant addresses are in a list of form [0x03, addr_bytes]
-                if not isinstance(die_location, list):
+                if not isinstance(die_location_val, list):
                     continue
-                if die_location[0] != DW_OP_name2opcode["DW_OP_addr"]:
+                if die_location_val[0] != DW_OP_name2opcode["DW_OP_addr"]:
                     continue
-                address = int.from_bytes(die_location[1:], "little")
+                address = int.from_bytes(die_location_val[1:], "little")
                 if address == symbol.entry["st_value"]:
                     return die
 
@@ -128,11 +132,11 @@ def dwarf_die_file_info(elf: ELFFile, die: DIE) -> tuple[str | None, int]:
     line_attr = die.attributes["DW_AT_decl_line"]
 
     dwarfinfo = elf.get_dwarf_info()
-    lineprogram = dwarfinfo.line_program_for_CU(die.cu)
-    if lineprogram is None:
-        cu_filename = None
-    else:
-        cu_filename = lineprogram["file_entry"][file_attr.value - 1].name.decode("latin-1")
+    cu_filename: str | None = None
+    if isinstance(die.cu, CompileUnit):
+        lineprogram = dwarfinfo.line_program_for_CU(die.cu)
+        if lineprogram is not None:
+            cu_filename = lineprogram["file_entry"][file_attr.value - 1].name.decode("latin-1")
 
     return cu_filename, line_attr.value
 
@@ -158,7 +162,10 @@ class dwarf_field:
 
 def _type_from_dwarf_info(dwarfinfo: DWARFInfo, die: DIE):
     refaddr = die.attributes["DW_AT_type"].value + die.cu.cu_offset
-    return dwarfinfo.get_DIE_from_refaddr(refaddr, die.cu)
+    cu: CompileUnit | None = None
+    if isinstance(die.cu, CompileUnit):
+        cu = die.cu
+    return dwarfinfo.get_DIE_from_refaddr(refaddr, cu)
 
 
 def dwarf_die_variable_inf(
