@@ -143,9 +143,8 @@ class SubCommand(InfuseCommand):
             response = get_device_by_soc_and_mcu_id.sync_detailed(
                 client=client, soc=interface.soc_name, mcu_id=hardware_id_str
             )
-            if response.status_code == HTTPStatus.OK:
+            if isinstance(response.parsed, Device):
                 # Device found, fall through
-                assert isinstance(response.parsed, Device)
                 assert isinstance(response.parsed.device_id, str)
                 self._org = response.parsed.organisation_id
                 self._board = response.parsed.board_id
@@ -166,7 +165,11 @@ class SubCommand(InfuseCommand):
                 response = get_device_by_soc_and_mcu_id.sync_detailed(
                     client=client, soc=interface.soc_name, mcu_id=hardware_id_str
                 )
-                if response.status_code != HTTPStatus.OK:
+                if isinstance(response.parsed, Error):
+                    err = "Failed to query device after creation:\n"
+                    err += f"\t<{response.status_code}> {response.parsed.message}"
+                    sys.exit(err)
+                elif response.parsed is None:
                     err = "Failed to query device after creation:\n"
                     err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
                     sys.exit(err)
@@ -175,7 +178,6 @@ class SubCommand(InfuseCommand):
                 err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
                 sys.exit(err)
 
-        assert response.parsed is not None
         assert isinstance(response.parsed.device_id, str)
         # Compare current flash contents to desired flash contents
         cloud_id = int(response.parsed.device_id, 16)

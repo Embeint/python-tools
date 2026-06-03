@@ -6,12 +6,11 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import sys
-from http import HTTPStatus
-from json import loads
 from typing import Any
 
 from tabulate import tabulate
 
+import infuse_iot.api_client.models as models
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.board import (
     create_board,
@@ -72,7 +71,7 @@ class Organisations(CloudSubCommand):
         org_list = []
 
         orgs = get_all_organisations.sync(client=client)
-        if isinstance(orgs, Error) or orgs is None:
+        if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
         for o in orgs:
             org_list.append([o.name, o.id])
@@ -87,15 +86,15 @@ class Organisations(CloudSubCommand):
     def create(self, client: Client):
         rsp = create_organisation.sync_detailed(
             client=client,
-            body=NewOrganisation(self.args.name),
+            body=models.NewOrganisation(self.args.name),
         )
 
-        if rsp.status_code == HTTPStatus.CREATED:
-            assert rsp.parsed is not None
-            print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
+        if rsp.parsed is None:
+            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
+        elif isinstance(rsp.parsed, models.Error):
+            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
         else:
-            c = loads(rsp.content.decode("utf-8"))
-            print(f"<{rsp.status_code}>: {c['message']}")
+            print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
 
 
 class Boards(CloudSubCommand):
@@ -124,11 +123,11 @@ class Boards(CloudSubCommand):
         board_list = []
 
         orgs = get_all_organisations.sync(client=client)
-        if isinstance(orgs, Error) or orgs is None:
+        if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
         for org in orgs:
             boards = get_boards.sync(client=client, organisation_id=org.id)
-            if isinstance(boards, Error) or boards is None:
+            if isinstance(boards, models.Error) or boards is None:
                 sys.exit(f"Boards query failed {boards}")
 
             for b in boards:
@@ -144,19 +143,20 @@ class Boards(CloudSubCommand):
     def create(self, client: Client):
         rsp = create_board.sync_detailed(
             client=client,
-            body=NewBoard(
+            body=models.NewBoard(
                 name=self.args.name,
                 description=self.args.desc,
                 soc=self.args.soc,
                 organisation_id=self.args.org,
             ),
         )
-        if rsp.status_code == HTTPStatus.CREATED:
-            assert rsp.parsed is not None
-            print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
+
+        if rsp.parsed is None:
+            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
+        elif isinstance(rsp.parsed, models.Error):
+            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
         else:
-            c = loads(rsp.content.decode("utf-8"))
-            print(f"<{rsp.status_code}>: {c['message']}")
+            print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
 
 
 class Device(CloudSubCommand):
@@ -185,6 +185,8 @@ class Device(CloudSubCommand):
         info = get_device_by_device_id.sync(client=client, device_id=id_str)
         if info is None:
             sys.exit(f"No device with Infuse-IoT ID {id_str} found")
+        elif isinstance(info, models.Error):
+            sys.exit(f"<{info.code}>: {info.message}")
         metadata: list[tuple[str, Any]] = []
         if info.metadata:
             metadata = [(f"Metadata.{k}", v) for k, v in info.metadata.additional_properties.items()]
@@ -198,13 +200,16 @@ class Device(CloudSubCommand):
         table: list[tuple[str, Any]] = [
             ("UUID", info.id),
             ("MCU ID", info.mcu_id),
-            ("Organisation", f"{info.organisation_id} ({org.name if org else 'Unknown'})"),
-            ("Board", f"{info.board_id} ({board.name if board else 'Unknown'})"),
+            (
+                "Organisation",
+                f"{info.organisation_id} ({org.name if isinstance(org, models.Organisation) else 'Unknown'})",
+            ),
+            ("Board", f"{info.board_id} ({board.name if isinstance(board, models.Board) else 'Unknown'})"),
             ("Created", info.created_at),
             ("Updated", info.updated_at),
             *metadata,
         ]
-        if state is not None:
+        if isinstance(state, models.DeviceState):
             v = state.application_version
 
             table += [
@@ -215,7 +220,7 @@ class Device(CloudSubCommand):
                 table += [("Application ID", f"0x{state.application_id:08x}")]
             if v:
                 table += [("Version", f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}")]
-        if route is not None:
+        if isinstance(route, models.UplinkRoute):
             table += [
                 ("~~~Latest Route~~~", ""),
                 ("Interface", route.interface.upper()),
@@ -263,7 +268,7 @@ class Device(CloudSubCommand):
         id_str = f"{id_int:016x}"
 
         kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
-        if kv_state is None:
+        if not isinstance(kv_state, list):
             print(f"Unable to query KV state for {id_str}")
             return
 
@@ -307,12 +312,14 @@ class Coap(CloudSubCommand):
     def list(self, client: Client):
         files = get_coap_files.sync(client=client)
 
-        if isinstance(files, COAPFilesList):
+        if files is None:
+            print("Failed to retrieve file list (No response)")
+        elif isinstance(files, models.Error):
+            print(f"<{files.code}>: {files.message}")
+        else:
             sorted_list: list[str] = sorted(files.filenames)
             print("CoAP Files:")
             print("\t" + "\n\t".join(sorted_list))
-        else:
-            print(f"Failed to retrieve file list {files}")
 
 
 class SubCommand(InfuseCommand):
