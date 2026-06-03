@@ -88,3 +88,27 @@ def choose_one(title: str, options: list[str]) -> tuple[int, str]:
                 pass
 
         return idx, options[idx]
+
+
+def user_confirm(question: str) -> bool:
+    """Ask a question of the user and get confirmation"""
+
+    yes_options = ["Y", "y", "Yes", "yes"]
+    no_options = ["N", "n", "No", "no"]
+
+    print(question)
+    while True:
+        rsp = input("Y/N:")
+        if rsp in yes_options:
+            return True
+        elif rsp in no_options:
+            return False
+
+
+def user_response(prompt: str) -> str:
+    """Get a response from the user"""
+    rsp = ""
+
+    while rsp == "":
+        rsp = input(prompt)
+    return rsp
