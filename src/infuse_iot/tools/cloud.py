@@ -474,11 +474,11 @@ class Applications(CloudSubCommand):
             client=client, id=self._org, application_id=app_id
         )
 
-        if application is None:
-            dialog = f"Application 0x{app_id:08x} does not exist in organisation {self.args.org}, create?"
+        if application is None or (isinstance(application, models.Error) and application.code == 404):
+            dialog = f"Application 0x{app_id:08x} does not exist in organisation {self._org_name}, create?"
             if not user_confirm(dialog):
                 return
-            print(f"Creating application 0x{app_id:08x} in organisation {self.args.org}")
+            print(f"Creating application 0x{app_id:08x} in organisation {self._org_name}")
             description = user_response("Application description:")
             body = models.NewApplication(id=app_id, name=name, description=description)
             application = create_application.sync(client=client, id=self._org, body=body)
