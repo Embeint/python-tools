@@ -349,6 +349,7 @@ class Applications(CloudSubCommand):
         info_parser = tool_parser.add_parser("info", help="Display summary of application releases")
         info_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
         info_parser.add_argument("--app", "-a", type=lambda x: int(x, 16), required=True, help="Application ID (hex)")
+        info_parser.add_argument("--coap", action="store_true", help="Display CoAP file information")
         info_parser.set_defaults(command_fn=cls.info)
 
         upload_parser = tool_parser.add_parser("upload", help="Upload application release")
@@ -398,19 +399,27 @@ class Applications(CloudSubCommand):
         for release in releases:
             version = release.version
             version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
-            release_list.append(
-                [
-                    f"{release.board_target}",
-                    version_str,
-                    f"{release.id}",
+            info = [
+                f"{release.board_target}",
+                version_str,
+                f"{release.id}",
+            ]
+            if self.args.coap:
+                info += [release.file.coap_path, str(release.file.len_), str(release.file.crc)]
+            else:
+                info += [
                     f"{release.file.len_ / 1024:.2f} kB",
                     str(release.created_at),
                 ]
-            )
+            release_list.append(info)
+        if self.args.coap:
+            headers = ["Board Target", "Version", "ID", "Path", "Length", "CRC"]
+        else:
+            headers = ["Board Target", "Version", "ID", "Full OTA", "Created"]
         print(
             tabulate(
                 release_list,
-                headers=["Board Target", "Version", "ID", "Full OTA", "Created"],
+                headers=headers,
             )
         )
 
