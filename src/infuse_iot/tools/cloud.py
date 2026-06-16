@@ -31,6 +31,7 @@ from infuse_iot.api_client.api.board import (
 )
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
+    get_device_application_state_by_device_id,
     get_device_by_device_id,
     get_device_kv_entries_by_device_id,
     get_device_last_route_by_device_id,
@@ -210,6 +211,7 @@ class Device(CloudSubCommand):
         board = get_board_by_id.sync(client=client, id=info.board_id)
         state = get_device_state_by_id.sync(client=client, id=info.id)
         route = get_device_last_route_by_device_id.sync(client=client, device_id=id_str)
+        app = get_device_application_state_by_device_id.sync(client=client, device_id=id_str)
         logger_states = get_device_logger_states_by_device_id.sync(client=client, device_id=id_str)
 
         table: list[tuple[str, Any]] = [
@@ -235,6 +237,8 @@ class Device(CloudSubCommand):
                 table += [("Application ID", f"0x{state.application_id:08x}")]
             if v:
                 table += [("Version", f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}")]
+            if isinstance(app, models.DeviceApplicationState):
+                table += [("Release ID", app.release_id if app.release_id else "N/A")]
         if isinstance(route, models.UplinkRoute):
             table += [
                 ("~~~Latest Route~~~", ""),
