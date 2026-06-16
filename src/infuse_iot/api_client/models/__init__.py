@@ -50,6 +50,10 @@ from .definitions_tdf_structs import DefinitionsTDFStructs
 from .derive_device_key_body import DeriveDeviceKeyBody
 from .device import Device
 from .device_and_state import DeviceAndState
+from .device_application_state import DeviceApplicationState
+from .device_application_update import DeviceApplicationUpdate
+from .device_application_update_and_message import DeviceApplicationUpdateAndMessage
+from .device_application_update_status import DeviceApplicationUpdateStatus
 from .device_entry_update_status import DeviceEntryUpdateStatus
 from .device_id_field import DeviceIdField
 from .device_kv_entry import DeviceKVEntry
@@ -84,6 +88,7 @@ from .network import Network
 from .new_application import NewApplication
 from .new_board import NewBoard
 from .new_device import NewDevice
+from .new_device_application_update import NewDeviceApplicationUpdate
 from .new_device_kv_entry_update import NewDeviceKVEntryUpdate
 from .new_device_kv_entry_update_decoded import NewDeviceKVEntryUpdateDecoded
 from .new_device_state import NewDeviceState
@@ -155,6 +160,10 @@ __all__ = (
     "DeriveDeviceKeyBody",
     "Device",
     "DeviceAndState",
+    "DeviceApplicationState",
+    "DeviceApplicationUpdate",
+    "DeviceApplicationUpdateAndMessage",
+    "DeviceApplicationUpdateStatus",
     "DeviceEntryUpdateStatus",
     "DeviceIdField",
     "DeviceKVEntry",
@@ -189,6 +198,7 @@ __all__ = (
     "NewApplication",
     "NewBoard",
     "NewDevice",
+    "NewDeviceApplicationUpdate",
     "NewDeviceKVEntryUpdate",
     "NewDeviceKVEntryUpdateDecoded",
     "NewDeviceState",
