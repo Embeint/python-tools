@@ -20,6 +20,8 @@ from infuse_iot.api_client.api.application import (
     create_release_diff,
     get_application_by_organisation_id_and_application_id,
     get_applications_by_organisation_id,
+    get_diffs_by_organisation_id_and_application_id_and_release_id,
+    get_release_by_organisation_id_and_application_id_and_release_id,
     get_releases_by_organisation_id_and_application_id,
 )
 from infuse_iot.api_client.api.board import (
@@ -349,6 +351,7 @@ class Applications(CloudSubCommand):
         info_parser = tool_parser.add_parser("info", help="Display summary of application releases")
         info_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
         info_parser.add_argument("--app", "-a", type=lambda x: int(x, 16), required=True, help="Application ID (hex)")
+        info_parser.add_argument("--rel", "-r", type=str, help="Release ID")
         info_parser.add_argument("--coap", action="store_true", help="Display CoAP file information")
         info_parser.set_defaults(command_fn=cls.info)
 
@@ -385,7 +388,64 @@ class Applications(CloudSubCommand):
             )
         )
 
-    def info(self, client: Client):
+    def _info_one(self, client: Client):
+        application = get_application_by_organisation_id_and_application_id.sync(
+            client=client,
+            id=UUID(self.args.org),
+            application_id=self.args.app,
+        )
+        if application is None:
+            sys.exit("Get application: No response")
+        elif isinstance(application, models.Error):
+            sys.exit(f"<{application.code}>: {application.message}")
+        release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if release is None:
+            sys.exit("Get release: No response")
+        elif isinstance(release, models.Error):
+            sys.exit(f"<{release.code}>: {release.message}")
+        diffs = get_diffs_by_organisation_id_and_application_id_and_release_id.sync(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if diffs is None:
+            sys.exit("Get diffs: No response")
+        elif isinstance(diffs, models.Error):
+            sys.exit(f"<{diffs.code}>: {diffs.message}")
+
+        version = release.version
+        version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
+
+        print(
+            tabulate(
+                [
+                    ["Application Name", application.name],
+                    ["Application Description", application.description],
+                    ["Board Target", release.board_target],
+                    ["Version", version_str],
+                ],
+                tablefmt="simple",
+            )
+        )
+        diff_info = []
+        for diff in diffs:
+            from_release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+                client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=diff.from_release_id
+            )
+            if not isinstance(from_release, models.ApplicationRelease):
+                print(f"Failed to query information about source release {diff.from_release_id}")
+                continue
+            from_version = from_release.version
+            from_version_str = (
+                f"{from_version.major}.{from_version.minor}.{from_version.revision}+{from_version.build_num:08x}"
+            )
+            diff_info.append([from_version_str, diff.file.coap_path, diff.file.len_, diff.file.crc])
+
+        if len(diff_info) > 0:
+            print("~~~ Diffs ~~~")
+            print(tabulate(diff_info, headers=["From Version", "Path", "Length", "CRC"]))
+
+    def _info_all(self, client: Client):
         releases = get_releases_by_organisation_id_and_application_id.sync(
             client=client, id=UUID(self.args.org), application_id=self.args.app
         )
@@ -422,6 +482,12 @@ class Applications(CloudSubCommand):
                 headers=headers,
             )
         )
+
+    def info(self, client: Client):
+        if self.args.rel:
+            self._info_one(client)
+        else:
+            self._info_all(client)
 
     def upload(self, client: Client):
         try:
