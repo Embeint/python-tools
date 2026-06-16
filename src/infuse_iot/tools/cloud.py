@@ -59,7 +59,8 @@ class CloudSubCommand:
 
     def client(self):
         """Get API client object ready to use"""
-        return Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+        bearer = self.args.api_key if self.args.api_key else get_api_key()
+        return Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {bearer}"})
 
 
 class Organisations(CloudSubCommand):
@@ -649,6 +650,7 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
+        parser.add_argument("--api-key", type=str, help="Cloud API key to use instead of stored credentials")
         subparser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
 
         Organisations.add_parser(subparser)
