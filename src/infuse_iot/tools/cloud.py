@@ -31,7 +31,9 @@ from infuse_iot.api_client.api.board import (
 )
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
+    create_device_application_update_by_device_id,
     get_device_application_state_by_device_id,
+    get_device_application_updates_by_device_id,
     get_device_by_device_id,
     get_device_kv_entries_by_device_id,
     get_device_last_route_by_device_id,
@@ -186,10 +188,18 @@ class Device(CloudSubCommand):
         info_parser = tool_parser.add_parser("info", help="General device information")
         info_parser.set_defaults(command_fn=cls.info)
         info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+
         kv_parser = tool_parser.add_parser("kv_state", help="Key-Value device state")
         kv_parser.set_defaults(command_fn=cls.kv_state)
         kv_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
         kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
+
+        dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
+        dfu_parser.set_defaults(command_fn=cls.dfu)
+        dfu_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        dfu_action = dfu_parser.add_mutually_exclusive_group(required=True)
+        dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
+        dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
 
     def run(self):
         with self.client() as client:
@@ -311,6 +321,49 @@ class Device(CloudSubCommand):
                     self._kv_display(table, key, element.decoded.additional_properties)
 
         print(tabulate(table))
+
+    def dfu(self, client: Client):
+        id_int = int(self.args.id, 0)
+        id_str = f"{id_int:016x}"
+
+        if self.args.schedule:
+            body = models.NewDeviceApplicationUpdate(self.args.schedule)
+            rsp = create_device_application_update_by_device_id.sync(client=client, device_id=id_str, body=body)
+
+            if rsp is None:
+                sys.exit("Create application updates: No response")
+            elif isinstance(rsp, models.Error):
+                sys.exit(f"<{rsp.code}>: {rsp.message}")
+            elif isinstance(rsp, models.DeviceApplicationState):
+                print(f"Device already on release {self.args.schedule}")
+            elif isinstance(rsp, models.DeviceApplicationUpdate):
+                print(f"DFU scheduled with ID {rsp.id}")
+            else:
+                raise NotImplementedError(f"Unknown response ({rsp})")
+        elif self.args.status:
+            updates = get_device_application_updates_by_device_id.sync(
+                client=client,
+                device_id=id_str,
+            )
+            if updates is None:
+                sys.exit("Get application updates: No response")
+            elif isinstance(updates, models.Error):
+                sys.exit(f"<{updates.code}>: {updates.message}")
+
+            for update in updates:
+                print(
+                    tabulate(
+                        [
+                            ["To Release", update.release_id],
+                            ["Status", str(update.status)],
+                            ["Attempts", str(update.attempt_count)],
+                            ["Last Attempt", str(update.last_attempt_at)],
+                            ["Completed", str(update.completed_at)],
+                        ]
+                    )
+                )
+        else:
+            raise NotImplementedError("Unknown DFU subcommand")
 
 
 class Coap(CloudSubCommand):
