@@ -403,7 +403,7 @@ class Applications(CloudSubCommand):
         tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
 
         list_parser = tool_parser.add_parser("list", help="List all application releases")
-        list_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
+        list_parser.add_argument("--org", "-o", type=str, help="Organisation ID")
         list_parser.set_defaults(command_fn=cls.list)
 
         info_parser = tool_parser.add_parser("info", help="Display summary of application releases")
@@ -424,7 +424,20 @@ class Applications(CloudSubCommand):
             self.args.command_fn(self, client)
 
     def list(self, client: Client):
-        applications = get_applications_by_organisation_id.sync(client=client, id=UUID(self.args.org))
+        org: UUID
+        if self.args.org is None:
+            orgs = get_all_organisations.sync(client=client)
+            if isinstance(orgs, models.Error) or orgs is None:
+                sys.exit(f"Organisation query failed {orgs}")
+            options = [f"{o.name:20s} ({o.id})" for o in orgs]
+
+            idx, _val = choose_one("Organisation", options)
+            org = orgs[idx].id
+            print(f"Selected organisation '{orgs[idx].name}' ({orgs[idx].id})")
+        else:
+            org = UUID(self.args.org)
+
+        applications = get_applications_by_organisation_id.sync(client=client, id=org)
 
         if not isinstance(applications, list):
             print(f"Failed to retrieve application list {applications}")
