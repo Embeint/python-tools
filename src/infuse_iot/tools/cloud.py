@@ -287,12 +287,13 @@ class Device(CloudSubCommand):
 
         print(tabulate(table))
 
-    def _kv_display(self, table: list[tuple[str, Any]], name_base: str, dictionary: dict):
+    def _kv_display(self, table: list[tuple[str, str, Any]], key_val: str, name_base: str, dictionary: dict):
         for name, value in dictionary.items():
             if isinstance(value, dict):
-                self._kv_display(table, f"{name_base}.{name}", value)
+                self._kv_display(table, key_val, f"{name_base}.{name}", value)
             else:
-                table.append((f"{name_base}.{name}", value))
+                table.append((key_val, f"{name_base}.{name}", value))
+            key_val = ""
 
     def kv_state(self, client: Client):
         id_int = int(self.args.id, 0)
@@ -303,9 +304,10 @@ class Device(CloudSubCommand):
             print(f"Unable to query KV state for {id_str}")
             return
 
-        table: list[tuple[str, Any]] = []
+        table: list[tuple[str, str, Any]] = []
         for element in kv_state:
-            key = element.key_name if isinstance(element.key_name, str) else str(element.key_id)
+            key = element.key_name if isinstance(element.key_name, str) else ""
+            key_id = str(element.key_id)
 
             # Don't display task schedules unless requested
             if key == "TASK_SCHEDULES" and not self.args.schedules:
@@ -313,17 +315,17 @@ class Device(CloudSubCommand):
 
             if isinstance(element.data, Unset):
                 if element.crc:
-                    table.append((key, f"Write-only (CRC: 0x{element.crc:08x})"))
+                    table.append((key_id, key, f"Write-only (CRC: 0x{element.crc:08x})"))
                 else:
-                    table.append((key, "Not set"))
+                    table.append((key_id, key, "Not set"))
             else:
                 if self.args.hex:
-                    table.append((key, base64.b64decode(element.data).hex()))
+                    table.append((key_id, key, base64.b64decode(element.data).hex()))
                 else:
                     if isinstance(element.decoded, Unset):
-                        table.append((key, element.data))
+                        table.append((key_id, key, element.data))
                     else:
-                        self._kv_display(table, key, element.decoded.additional_properties)
+                        self._kv_display(table, key_id, key, element.decoded.additional_properties)
 
         print(tabulate(table))
 
