@@ -5,6 +5,7 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import base64
 import glob
 import sys
 from typing import Any
@@ -193,6 +194,7 @@ class Device(CloudSubCommand):
         kv_parser.set_defaults(command_fn=cls.kv_state)
         kv_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
         kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
+        kv_parser.add_argument("--hex", action="store_true", help="Display values as hex strings instead of decoding")
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
@@ -315,10 +317,13 @@ class Device(CloudSubCommand):
                 else:
                     table.append((key, "Not set"))
             else:
-                if isinstance(element.decoded, Unset):
-                    table.append((key, element.data))
+                if self.args.hex:
+                    table.append((key, base64.b64decode(element.data).hex()))
                 else:
-                    self._kv_display(table, key, element.decoded.additional_properties)
+                    if isinstance(element.decoded, Unset):
+                        table.append((key, element.data))
+                    else:
+                        self._kv_display(table, key, element.decoded.additional_properties)
 
         print(tabulate(table))
 
