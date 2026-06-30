@@ -194,7 +194,11 @@ class Device(CloudSubCommand):
         kv_parser.set_defaults(command_fn=cls.kv_state)
         kv_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
         kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
-        kv_parser.add_argument("--hex", action="store_true", help="Display values as hex strings instead of decoding")
+        kv_display = kv_parser.add_mutually_exclusive_group()
+        kv_display.add_argument("--hex", action="store_true", help="Display values as hex strings instead of decoding")
+        kv_display.add_argument(
+            "--base64", action="store_true", help="Display values as base64 strings instead of decoding"
+        )
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
@@ -321,6 +325,8 @@ class Device(CloudSubCommand):
             else:
                 if self.args.hex:
                     table.append((key_id, key, base64.b64decode(element.data).hex()))
+                elif self.args.base64:
+                    table.append((key_id, key, element.data))
                 else:
                     if isinstance(element.decoded, Unset):
                         table.append((key_id, key, element.data))
