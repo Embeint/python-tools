@@ -54,26 +54,31 @@ class lte_state(InfuseRpcCommand, defs.lte_state):
             or lte_state == reg_class.SEARCHING
         )
         access_tech = z_lte.AccessTechnology(lte.access_technology)
-        if valid:
-            if lte.earfcn != 0:
-                freq_dl, freq_ul = z_lte.LteBands.earfcn_to_freq(lte.earfcn)
-                freq_string = f" (UL: {int(freq_ul)}MHz, DL: {int(freq_dl)}MHz)"
-            else:
-                freq_string = ""
-            country = z_lte.MobileCountryCodes.name_from_mcc(lte.mcc)
-            active_str = f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
-            edrx_interval_str = f"{lte.edrx_interval} s" if lte.edrx_interval != -1.0 else "N/A"
-            edrx_window_str = f"{lte.edrx_paging_window} s" if lte.edrx_paging_window != -1.0 else "N/A"
-            print(f"\t    Access Tech: {access_tech}")
-            print(f"\t   Country Code: {lte.mcc} ({country})")
-            print(f"\t   Network Code: {lte.mnc}")
-            print(f"\t        Cell ID: {lte.cell_id}")
-            print(f"\t  Tracking Area: {lte.tac}")
-            print(f"\t            TAU: {lte.tau} s")
-            print(f"\t         EARFCN: {lte.earfcn}{freq_string}")
-            print(f"\t           Band: {lte.band}")
-            print(f"\tPSM Active Time: {active_str}")
-            print(f"\t  eDRX Interval: {edrx_interval_str}")
-            print(f"\t    eDRX Window: {edrx_window_str}")
-            print(f"\t           RSRP: {lte.rsrp} dBm")
-            print(f"\t           RSRQ: {lte.rsrq} dB")
+        if not valid:
+            return
+        band = lte.band
+        if lte.earfcn != 0:
+            freq_dl, freq_ul = z_lte.LteBands.earfcn_to_freq(lte.earfcn)
+            freq_string = f" (UL: {int(freq_ul)}MHz, DL: {int(freq_dl)}MHz)"
+            if band == 0:
+                # Band not provided by device, derive from EARFCN
+                band = z_lte.LteBands.earfcn_to_band(lte.earfcn).band
+        else:
+            freq_string = ""
+        country = z_lte.MobileCountryCodes.name_from_mcc(lte.mcc)
+        active_str = f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
+        edrx_interval_str = f"{lte.edrx_interval} s" if lte.edrx_interval != -1.0 else "N/A"
+        edrx_window_str = f"{lte.edrx_paging_window} s" if lte.edrx_paging_window != -1.0 else "N/A"
+        print(f"\t    Access Tech: {access_tech}")
+        print(f"\t   Country Code: {lte.mcc} ({country})")
+        print(f"\t   Network Code: {lte.mnc}")
+        print(f"\t        Cell ID: {lte.cell_id}")
+        print(f"\t  Tracking Area: {lte.tac}")
+        print(f"\t            TAU: {lte.tau} s")
+        print(f"\t         EARFCN: {lte.earfcn}{freq_string}")
+        print(f"\t           Band: {band}")
+        print(f"\tPSM Active Time: {active_str}")
+        print(f"\t  eDRX Interval: {edrx_interval_str}")
+        print(f"\t    eDRX Window: {edrx_window_str}")
+        print(f"\t           RSRP: {lte.rsrp} dBm")
+        print(f"\t           RSRQ: {lte.rsrq} dB")

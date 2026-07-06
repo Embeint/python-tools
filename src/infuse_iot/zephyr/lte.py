@@ -116,7 +116,7 @@ class LteSystemPreference(enum.IntEnum):
 
 
 class LteBand:
-    def __init__(self, band, freq_dl_low, offset_dl, freq_ul_low, offset_ul):
+    def __init__(self, band: int, freq_dl_low: float, offset_dl: int, freq_ul_low: float, offset_ul: int):
         self.band = band
         self.fdl_low = freq_dl_low
         self.ndl = offset_dl
@@ -168,24 +168,26 @@ class LteBands:
     }
 
     @classmethod
-    def earfcn_to_freq(cls, earfcn_dl):
+    def earfcn_to_band(cls, earfcn_dl: int) -> LteBand:
         prev = None
         for b in cls.bands.values():
             if prev is None:
                 prev = b
                 continue
             if earfcn_dl >= prev.ndl and earfcn_dl < b.ndl:
-                info = prev
-
-                ul_offset = info.nul - info.ndl
-                earfcn_ul = earfcn_dl + ul_offset
-
-                freq_dl = info.fdl_low + 0.1 * (earfcn_dl - info.ndl)
-                freq_ul = info.ful_low + 0.1 * (earfcn_ul - info.nul)
-                return (freq_dl, freq_ul)
-
+                return prev
             prev = b
         raise ValueError(f"EARFCN {earfcn_dl} is invalid")
+
+    @classmethod
+    def earfcn_to_freq(cls, earfcn_dl: int):
+        info = cls.earfcn_to_band(earfcn_dl)
+        ul_offset = info.nul - info.ndl
+        earfcn_ul = earfcn_dl + ul_offset
+
+        freq_dl = info.fdl_low + 0.1 * (earfcn_dl - info.ndl)
+        freq_ul = info.ful_low + 0.1 * (earfcn_ul - info.nul)
+        return (freq_dl, freq_ul)
 
 
 class MobileCountryCodes:
