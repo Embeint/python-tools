@@ -33,6 +33,7 @@ from infuse_iot.api_client.api.board import (
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
     create_device_application_update_by_device_id,
+    create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_application_state_by_device_id,
     get_device_application_updates_by_device_id,
     get_device_by_device_id,
@@ -49,7 +50,7 @@ from infuse_iot.api_client.api.organisation import (
 from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
-from infuse_iot.util.argparse import InfuseDeviceId, ValidRelease
+from infuse_iot.util.argparse import HexString, InfuseDeviceId, ValidRelease
 from infuse_iot.util.console import choose_one, user_confirm, user_response
 from infuse_iot.util.version import Version
 
@@ -200,6 +201,12 @@ class Device(CloudSubCommand):
             "--base64", action="store_true", help="Display values as base64 strings instead of decoding"
         )
 
+        kv_update = tool_parser.add_parser("kv_update", help="Key-Value update")
+        kv_update.set_defaults(command_fn=cls.kv_update)
+        kv_update.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
+        kv_update.add_argument("--key", "-k", type=int, required=True, help="Key ID to update")
+        kv_update.add_argument("--val", "-v", type=HexString, required=True, help="Key value as a hex string")
+
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
         dfu_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
@@ -332,6 +339,28 @@ class Device(CloudSubCommand):
                         self._kv_display(table, key_id, key, element.decoded.additional_properties)
 
         print(tabulate(table))
+
+    def kv_update(self, client: Client):
+        id_str = f"{self.args.id:016x}"
+
+        val_encoded = base64.b64encode(self.args.val).decode("utf-8")
+        update = models.NewDeviceKVEntryUpdate(data=val_encoded)
+
+        rsp = create_device_kv_entry_update_by_device_id_and_key_id.sync(
+            client=client,
+            device_id=id_str,
+            key_id=self.args.key,
+            body=update,
+        )
+        if rsp is None:
+            sys.exit("KV update: No response")
+        elif isinstance(rsp, models.Error):
+            sys.exit(f"<{rsp.code}>: {rsp.message}")
+        elif isinstance(rsp, models.DeviceKVEntry):
+            print(f"Device {id_str} key {self.args.key} already has value {self.args.val.hex()}")
+        else:
+            assert isinstance(rsp, models.DeviceKVEntryUpdate)
+            print(f"Device {id_str} update scheduled with ID {rsp.id}")
 
     def dfu(self, client: Client):
         id_str = f"{self.args.id:016x}"
