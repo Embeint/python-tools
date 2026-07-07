@@ -89,3 +89,13 @@ class InfuseDeviceId:
             return int(string, 16)
         except ValueError as e:
             raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
+
+
+class HexString:
+    """Hexadecimal string"""
+
+    def __new__(cls, string: str) -> bytes:  # type: ignore
+        try:
+            return bytes.fromhex(string)
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
