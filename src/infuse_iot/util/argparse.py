@@ -14,7 +14,7 @@ from infuse_iot.util.ctypes import bytes_to_uint8
 class ValidFile:
     """Filesystem file that exists"""
 
-    def __new__(cls, string) -> pathlib.Path:  # type: ignore
+    def __new__(cls, string: str) -> pathlib.Path:  # type: ignore
         p = pathlib.Path(string)
         if p.exists():
             if p.is_dir():
@@ -28,7 +28,7 @@ class ValidFile:
 class ValidDir:
     """Filesystem directory that exists"""
 
-    def __new__(cls, string) -> pathlib.Path:  # type: ignore
+    def __new__(cls, string: str) -> pathlib.Path:  # type: ignore
         p = pathlib.Path(string)
         if not p.exists():
             raise argparse.ArgumentTypeError(f"{string} does not exist")
@@ -40,7 +40,7 @@ class ValidDir:
 class ValidRelease:
     """Infuse-IoT release folder"""
 
-    def __init__(self, string):
+    def __init__(self, string: str):
         p: pathlib.Path = ValidDir(string)  # type: ignore
         metadata = p / "manifest.yaml"
         if not metadata.exists():
@@ -54,7 +54,7 @@ class ValidRelease:
 class BtLeAddress:
     """Bluetooth Low-Energy address"""
 
-    def __new__(cls, string) -> int:  # type: ignore
+    def __new__(cls, string: str) -> int:  # type: ignore
         pattern = r"((([0-9a-fA-F]{2}):){5})([0-9a-fA-F]{2})"
 
         if re.match(pattern, string):
@@ -76,7 +76,7 @@ class BtLeAddress:
         )
 
     @classmethod
-    def integer_value(cls, string) -> int:
+    def integer_value(cls, string: str) -> int:
         """Integer value from address string"""
         return cast(int, cls(string))
 
@@ -84,7 +84,7 @@ class BtLeAddress:
 class InfuseDeviceId:
     """Infuse-IoT Device ID"""
 
-    def __new__(cls, string) -> int:  # type: ignore
+    def __new__(cls, string: str) -> int:  # type: ignore
         try:
             return int(string, 16)
         except ValueError as e:
