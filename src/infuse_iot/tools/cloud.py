@@ -637,6 +637,17 @@ class Applications(CloudSubCommand):
             sys.exit(f"Unexpected internal type {type(application)}")
 
         ota_files = glob.glob(str(release.dir / "ota-*.bin"))
+        if len(ota_files) == 0:
+            # Old release folder, try and find the right file
+            app_folder = release.dir / release_app_meta["primary"] / "zephyr"
+            tfm_file = app_folder / "tfm_s_zephyr_ns_signed.bin"
+            std_file = app_folder / "zephyr.signed.bin"
+            if tfm_file.exists():
+                ota_files = [str(tfm_file)]
+            elif std_file.exists():
+                ota_files = [str(std_file)]
+            if len(ota_files) == 1 and not user_confirm(f"Use file {ota_files[0]} for upload?"):
+                sys.exit()
         if len(ota_files) != 1:
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
