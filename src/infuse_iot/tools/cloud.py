@@ -642,7 +642,7 @@ class Applications(CloudSubCommand):
             self._board_name = boards[idx].name
         else:
             board = get_board_by_id.sync(client=client, id=self._board)
-            if not isinstance(org, models.Board):
+            if not isinstance(board, models.Board):
                 sys.exit(f"Failed to query board for ID {self._board}")
             self._board_name = board.name
 
