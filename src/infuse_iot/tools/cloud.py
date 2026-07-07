@@ -538,11 +538,28 @@ class Applications(CloudSubCommand):
                 tablefmt="simple",
             )
         )
+
+        other_apps = get_applications_by_organisation_id.sync(client=client, id=UUID(self.args.org))
+        assert isinstance(other_apps, list)
+
         diff_info = []
         for diff in diffs:
+            source_app_id = self.args.app
             from_release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
-                client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=diff.from_release_id
+                client=client, id=UUID(self.args.org), application_id=source_app_id, release_id=diff.from_release_id
             )
+            if not isinstance(from_release, models.ApplicationRelease):
+                # Try the other applications in the organisation
+                for other_app in other_apps:
+                    from_release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+                        client=client,
+                        id=UUID(self.args.org),
+                        application_id=other_app.id,
+                        release_id=diff.from_release_id,
+                    )
+                    if isinstance(from_release, models.ApplicationRelease):
+                        source_app_id = other_app.id
+                        break
             if not isinstance(from_release, models.ApplicationRelease):
                 print(f"Failed to query information about source release {diff.from_release_id}")
                 continue
@@ -550,11 +567,13 @@ class Applications(CloudSubCommand):
             from_version_str = (
                 f"{from_version.major}.{from_version.minor}.{from_version.revision}+{from_version.build_num:08x}"
             )
-            diff_info.append([from_version_str, diff.file.coap_path, diff.file.len_, diff.file.crc])
+            diff_info.append(
+                [f"0x{source_app_id:08x}", from_version_str, diff.file.coap_path, diff.file.len_, diff.file.crc]
+            )
 
         if len(diff_info) > 0:
             print("~~~ Diffs ~~~")
-            print(tabulate(diff_info, headers=["From Version", "Path", "Length", "CRC"]))
+            print(tabulate(diff_info, headers=["From App", "From Version", "Path", "Length", "CRC"]))
 
     def _info_all(self, client: Client):
         releases = get_releases_by_organisation_id_and_application_id.sync(
