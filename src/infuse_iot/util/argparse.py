@@ -79,3 +79,13 @@ class BtLeAddress:
     def integer_value(cls, string) -> int:
         """Integer value from address string"""
         return cast(int, cls(string))
+
+
+class InfuseDeviceId:
+    """Infuse-IoT Device ID"""
+
+    def __new__(cls, string) -> int:  # type: ignore
+        try:
+            return int(string, 16)
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
