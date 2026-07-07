@@ -18,6 +18,7 @@ from infuse_iot.socket_comms import (
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
+from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import Console
 
 
@@ -35,7 +36,7 @@ class SubCommand(InfuseCommand):
 
     @classmethod
     def add_parser(cls, parser):
-        parser.add_argument("--id", type=lambda x: int(x, 0), required=True, help="Infuse ID to receive logs for")
+        parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse ID to receive logs for")
         parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"

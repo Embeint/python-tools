@@ -22,6 +22,7 @@ from infuse_iot.api_client.models.downlink_message_status import DownlinkMessage
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, wrapper_from_command_id
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
+from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.zephyr.errno import errno
 
 
@@ -36,7 +37,7 @@ class SubCommand(InfuseCommand):
 
         parser_queue = subparser.add_parser("queue", help="Queue a RPC to be sent")
         parser_queue.set_defaults(_tool_action="queue")
-        parser_queue.add_argument("--id", required=True, type=lambda x: int(x, 0), help="Infuse ID to run command on")
+        parser_queue.add_argument("--id", required=True, type=InfuseDeviceId, help="Infuse ID to run command on")
         parser_queue.add_argument("--queue-timeout", type=int, default=600, help="Timeout to send command in seconds")
         parser_queue.add_argument("--print-params", action="store_true", help="Print queued RPC request")
         command_list_parser = parser_queue.add_subparsers(title="commands", metavar="<command>", required=True)

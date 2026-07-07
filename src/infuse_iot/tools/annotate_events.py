@@ -28,7 +28,7 @@ from infuse_iot.socket_comms import (
     default_multicast_address,
 )
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import ValidFile
+from infuse_iot.util.argparse import InfuseDeviceId, ValidFile
 from infuse_iot.util.console import choose_one
 from infuse_iot.zephyr.errno import errno
 
@@ -37,11 +37,13 @@ class LabelType(enum.Enum):
     CUSTOM = "custom"
     MANUAL = "manual"
 
+
 class TimeCheckType(enum.Enum):
     NONE = "none"
     FORCE = "force"
     AUTO = "auto"
     DEFAULT = "default"
+
 
 class SubCommand(InfuseCommand):
     NAME = "annotate_events"
@@ -58,44 +60,66 @@ class SubCommand(InfuseCommand):
     def add_parser(cls, parser):
         # Logger Selection parameters.
         logger_parser = parser.add_mutually_exclusive_group(required=True)
-        logger_parser.add_argument("--onboard", dest="logger", action="store_const",
-                              const=rpc_enum_data_logger.FLASH_ONBOARD)
-        logger_parser.add_argument("--external", dest="logger", action="store_const",
-                              const=rpc_enum_data_logger.FLASH_REMOVABLE)
-        logger_parser.add_argument("--logger", "-l", type=annotate_wrapper.parse_logger,
-                              help="TDF Data Logger to write the event to")
+        logger_parser.add_argument(
+            "--onboard", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_ONBOARD
+        )
+        logger_parser.add_argument(
+            "--external", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_REMOVABLE
+        )
+        logger_parser.add_argument(
+            "--logger", "-l", type=annotate_wrapper.parse_logger, help="TDF Data Logger to write the event to"
+        )
 
         # Label selection parameters.
         label_group = parser.add_mutually_exclusive_group(required=True)
         label_group.add_argument(
-            "--preset-labels", "-p", dest="labels", type=ValidFile,
-            help="JSON file containing labels"
+            "--preset-labels", "-p", dest="labels", type=ValidFile, help="JSON file containing labels"
         )
         label_group.add_argument(
-            "--custom-labels", "-c", dest="labels", action="store_const", const=LabelType.CUSTOM,
-            help="Specify custom labels at runtime"
+            "--custom-labels",
+            "-c",
+            dest="labels",
+            action="store_const",
+            const=LabelType.CUSTOM,
+            help="Specify custom labels at runtime",
         )
         label_group.add_argument(
-            "--manual-labels", "-m", dest="labels", action="store_const", const=LabelType.MANUAL,
-            help="Manually enter labels for each event"
+            "--manual-labels",
+            "-m",
+            dest="labels",
+            action="store_const",
+            const=LabelType.MANUAL,
+            help="Manually enter labels for each event",
         )
 
         # Time sync parameters.
         time_group = parser.add_mutually_exclusive_group()
         time_group.add_argument(
-            "--force-time", "-f", dest="time", action="store_const", const=TimeCheckType.FORCE,
-            help="Forcibly update the tag's time before writing annotations"
+            "--force-time",
+            "-f",
+            dest="time",
+            action="store_const",
+            const=TimeCheckType.FORCE,
+            help="Forcibly update the tag's time before writing annotations",
         )
         time_group.add_argument(
-            "--auto-time", "-a", dest="time", action="store_const", const=TimeCheckType.AUTO,
-            help="Automatically update the tag's time if it is not current"
+            "--auto-time",
+            "-a",
+            dest="time",
+            action="store_const",
+            const=TimeCheckType.AUTO,
+            help="Automatically update the tag's time if it is not current",
         )
         time_group.add_argument(
-            "--skip-time", "-s", dest="time", action="store_const", const=TimeCheckType.NONE,
-            help="Do not update the tag's time before writing annotations"
+            "--skip-time",
+            "-s",
+            dest="time",
+            action="store_const",
+            const=TimeCheckType.NONE,
+            help="Do not update the tag's time before writing annotations",
         )
 
-        parser.add_argument("--id", type=lambda x: int(x, 0), help="Device to log events to")
+        parser.add_argument("--id", type=InfuseDeviceId, help="Device to log events to")
 
     def __init__(self, args):
         self._label_type = args.labels
@@ -147,18 +171,14 @@ class SubCommand(InfuseCommand):
         sync_request_sent = datetime.now()
         assert self.rpc_client is not None
         hdr, rsp = self.rpc_client.run_standard_cmd(
-            time_get.COMMAND_ID,
-            Auth.DEVICE,
-            bytes(params),
-            time_get.response.from_buffer_copy
+            time_get.COMMAND_ID, Auth.DEVICE, bytes(params), time_get.response.from_buffer_copy
         )
         sync_response_received = datetime.now()
 
         if hdr is None:
             raise RuntimeError("Failed to get time from tag")
         if hdr.return_code != 0:
-            raise RuntimeError(f"Error getting time from tag ({hdr.return_code}): "
-                               f"{errno.strerror(-hdr.return_code)}")
+            raise RuntimeError(f"Error getting time from tag ({hdr.return_code}): {errno.strerror(-hdr.return_code)}")
 
         assert isinstance(rsp, time_get.response)
         time_response: time_get.response = rsp
@@ -179,7 +199,7 @@ class SubCommand(InfuseCommand):
                         f"Tag's clock is out of sync. Update the tag's time?\n"
                         f"Tag:    {tag_datetime_now}\n"
                         f"System: {self._time_of_sync}",
-                        ["Yes", "No"]
+                        ["Yes", "No"],
                     )
                     update = not bool(selection)
                 except IndexError:
@@ -190,25 +210,19 @@ class SubCommand(InfuseCommand):
     def sync_tag_time(self):
         # Update the tag's time to the current time.
         now = datetime.now().timestamp()
-        params = time_set.request(
-            InfuseTime.epoch_time_from_unix(now)
-        )
+        params = time_set.request(InfuseTime.epoch_time_from_unix(now))
 
         sync_request_sent = datetime.now()
         assert self.rpc_client is not None
         hdr, _ = self.rpc_client.run_standard_cmd(
-            time_set.COMMAND_ID,
-            Auth.DEVICE,
-            bytes(params),
-            time_set.response.from_buffer_copy
+            time_set.COMMAND_ID, Auth.DEVICE, bytes(params), time_set.response.from_buffer_copy
         )
 
         sync_response_received = datetime.now()
         if hdr is None:
             raise RuntimeError("Failed to set time on tag")
         if hdr.return_code != 0:
-            raise RuntimeError(f"Error setting time on tag ({hdr.return_code}): "
-                               f"{errno.strerror(-hdr.return_code)}")
+            raise RuntimeError(f"Error setting time on tag ({hdr.return_code}): {errno.strerror(-hdr.return_code)}")
 
         # Update sync point to reflect new time on tag, assuming the tag's time doesn't change for
         # the duration of the connection.
@@ -249,8 +263,11 @@ class SubCommand(InfuseCommand):
             evt = self._client.receive()
             if evt is None:
                 continue
-            if isinstance(evt, ClientNotificationConnectionDropped) and \
-                    evt.infuse_id == self._device_id and not self.complete:
+            if (
+                isinstance(evt, ClientNotificationConnectionDropped)
+                and evt.infuse_id == self._device_id
+                and not self.complete
+            ):
                 # Ensure the connection wasn't caused by the script existing.
                 print("\n" * (len(self._labels)))  # Clear any pending input lines
                 print(f"Lost connection to {self._device_id:016x}")
@@ -267,10 +284,10 @@ class SubCommand(InfuseCommand):
         cl.start()
 
         while not self.complete:
-            with Live(self.draw_connecting(), refresh_per_second=4) as live, \
-                self._client.connection(
-                    self._device_id, GatewayRequestConnectionRequest.DataType.COMMAND
-                ) as mtu:
+            with (
+                Live(self.draw_connecting(), refresh_per_second=4) as live,
+                self._client.connection(self._device_id, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu,
+            ):
                 self.connected = True
                 live.transient = True
                 live.stop()
@@ -293,15 +310,10 @@ class SubCommand(InfuseCommand):
                     params = annotate_wrapper.annotate_factory(self._logger, timestamp, label)
 
                     hdr, _ = self.rpc_client.run_standard_cmd(
-                        annotate.COMMAND_ID,
-                        Auth.DEVICE,
-                        bytes(params),
-                        annotate.response.from_buffer_copy
+                        annotate.COMMAND_ID, Auth.DEVICE, bytes(params), annotate.response.from_buffer_copy
                     )
 
                     if hdr is None:
                         print("Failed to send annotation event to tag")
                         continue
-                    annotate_wrapper.handle_response_generic(
-                        hdr.return_code, self._logger, now, label
-                    )
+                    annotate_wrapper.handle_response_generic(hdr.return_code, self._logger, now, label)
