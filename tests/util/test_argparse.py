@@ -6,7 +6,7 @@ import pathlib
 
 import pytest
 
-from infuse_iot.util.argparse import BtLeAddress, ValidDir, ValidFile
+from infuse_iot.util.argparse import BtLeAddress, InfuseDeviceId, ValidDir, ValidFile
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -46,3 +46,16 @@ def test_bt_le_address():
     assert isinstance(addr, int)
     addr = BtLeAddress("123456aaFF4A")
     assert isinstance(addr, int)
+
+
+def test_infuse_device_id():
+    with pytest.raises(argparse.ArgumentTypeError):
+        InfuseDeviceId("NotHex")
+    with pytest.raises(argparse.ArgumentTypeError):
+        InfuseDeviceId("aabb::00")
+    assert InfuseDeviceId("0x00aa") == 0xAA
+    assert InfuseDeviceId("00aa") == 0xAA
+    assert InfuseDeviceId("0x99") == 0x99
+    assert InfuseDeviceId("99") == 0x99
+    assert InfuseDeviceId("0x1234aa43bc") == 0x1234AA43BC
+    assert InfuseDeviceId("1234aa43bc") == 0x1234AA43BC
