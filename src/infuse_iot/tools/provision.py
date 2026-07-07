@@ -20,6 +20,7 @@ from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Board, Device, DeviceMetadata, Error, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
 from infuse_iot.util.soc import nrf, soc, stm
 
@@ -49,7 +50,7 @@ class SubCommand(InfuseCommand):
         parser.add_argument(
             "--id",
             "-i",
-            type=lambda x: int(x, 0),
+            type=InfuseDeviceId,
             help="Infuse device ID to provision as",
         )
         parser.add_argument(

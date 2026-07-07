@@ -30,7 +30,7 @@ from infuse_iot.socket_comms import (
     LocalClient,
     default_multicast_address,
 )
-from infuse_iot.util.argparse import ValidFile, ValidRelease
+from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease
 from infuse_iot.util.crc import crc16_ccitt
 from infuse_iot.zephyr.errno import errno
 
@@ -104,7 +104,7 @@ class SubCommand(InfuseCommand):
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
         explicit = parser.add_mutually_exclusive_group()
-        explicit.add_argument("--id", type=lambda x: int(x, 0), help="Single device to upgrade")
+        explicit.add_argument("--id", type=InfuseDeviceId, help="Single device to upgrade")
         explicit.add_argument("--list", type=ValidFile, help="File containing a list of IDs to upgrade")
 
     def progress_table(self):

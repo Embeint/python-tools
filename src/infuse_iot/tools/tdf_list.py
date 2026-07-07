@@ -20,6 +20,7 @@ from infuse_iot.socket_comms import (
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
+from infuse_iot.util.argparse import InfuseDeviceId
 
 
 class SubCommand(InfuseCommand):
@@ -31,7 +32,7 @@ class SubCommand(InfuseCommand):
     def add_parser(cls, parser):
         parser.add_argument("--array-all", action="store_true", help="Display all array values, not just the last")
         parser.add_argument(
-            "--id", type=lambda x: int(x, 0), action="append", default=[], help="Limit displayed TDFs by device ID"
+            "--id", type=InfuseDeviceId, action="append", default=[], help="Limit displayed TDFs by device ID"
         )
         parser.add_argument("--min-rssi", type=int, help="Minimum RSSI to display TDF")
 

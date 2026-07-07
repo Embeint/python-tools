@@ -22,6 +22,7 @@ from infuse_iot.socket_comms import (
     default_multicast_address,
 )
 from infuse_iot.tdf import TDF
+from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import Console
 
 
@@ -47,7 +48,7 @@ class SubCommand(InfuseCommand):
     def add_parser(cls, parser):
         addr_group = parser.add_mutually_exclusive_group(required=True)
         addr_group.add_argument("--gateway", action="store_true", help="Run command on local gateway")
-        addr_group.add_argument("--id", type=lambda x: int(x, 0), help="Infuse ID to run command on")
+        addr_group.add_argument("--id", type=InfuseDeviceId, help="Infuse ID to run command on")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )

@@ -49,7 +49,7 @@ from infuse_iot.api_client.api.organisation import (
 from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
-from infuse_iot.util.argparse import ValidRelease
+from infuse_iot.util.argparse import InfuseDeviceId, ValidRelease
 from infuse_iot.util.console import choose_one, user_confirm, user_response
 from infuse_iot.util.version import Version
 
@@ -188,11 +188,11 @@ class Device(CloudSubCommand):
 
         info_parser = tool_parser.add_parser("info", help="General device information")
         info_parser.set_defaults(command_fn=cls.info)
-        info_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        info_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
 
         kv_parser = tool_parser.add_parser("kv_state", help="Key-Value device state")
         kv_parser.set_defaults(command_fn=cls.kv_state)
-        kv_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        kv_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
         kv_display = kv_parser.add_mutually_exclusive_group()
         kv_display.add_argument("--hex", action="store_true", help="Display values as hex strings instead of decoding")
@@ -202,7 +202,7 @@ class Device(CloudSubCommand):
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
-        dfu_parser.add_argument("--id", type=str, required=True, help="Infuse-IoT device ID")
+        dfu_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         dfu_action = dfu_parser.add_mutually_exclusive_group(required=True)
         dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
         dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
@@ -212,8 +212,7 @@ class Device(CloudSubCommand):
             self.args.command_fn(self, client)
 
     def info(self, client: Client):
-        id_int = int(self.args.id, 0)
-        id_str = f"{id_int:016x}"
+        id_str = f"{self.args.id:016x}"
         info = get_device_by_device_id.sync(client=client, device_id=id_str)
         if info is None:
             sys.exit(f"No device with Infuse-IoT ID {id_str} found")
@@ -300,8 +299,7 @@ class Device(CloudSubCommand):
             key_val = ""
 
     def kv_state(self, client: Client):
-        id_int = int(self.args.id, 0)
-        id_str = f"{id_int:016x}"
+        id_str = f"{self.args.id:016x}"
 
         kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
         if not isinstance(kv_state, list):
@@ -336,8 +334,7 @@ class Device(CloudSubCommand):
         print(tabulate(table))
 
     def dfu(self, client: Client):
-        id_int = int(self.args.id, 0)
-        id_str = f"{id_int:016x}"
+        id_str = f"{self.args.id:016x}"
 
         if self.args.schedule:
             body = models.NewDeviceApplicationUpdate(self.args.schedule)
