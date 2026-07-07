@@ -7,6 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import base64
 import glob
+import pathlib
 import sys
 from typing import Any
 from uuid import UUID
@@ -677,24 +678,26 @@ class Applications(CloudSubCommand):
         if len(ota_files) != 1:
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
-        releases = get_releases_by_organisation_id_and_application_id.sync(
-            client=client,
-            id=self._org,
-            application_id=app_id,
-        )
-        if not isinstance(releases, list):
-            sys.exit(f"Unexpected release query result {releases}")
+        def get_all_releases(org: UUID, app_id: int) -> dict[Version, models.ApplicationRelease]:
+            releases = get_releases_by_organisation_id_and_application_id.sync(
+                client=client,
+                id=org,
+                application_id=app_id,
+            )
+            if not isinstance(releases, list):
+                sys.exit(f"Unexpected release query result {releases}")
 
-        cloud_release: None | models.ApplicationRelease = None
-        cloud_releases_by_version: dict[Version, models.ApplicationRelease] = {}
-        for r in releases:
-            v = Version(r.version.major, r.version.minor, r.version.revision, r.version.build_num)
-            cloud_releases_by_version[v] = r
-            if v == version:
-                print(f"Found release for application '0x{app_id:08x} {str(version)}' ({r.id})")
-                cloud_release = r
+            by_version: dict[Version, models.ApplicationRelease] = {}
+            for r in releases:
+                v = Version(r.version.major, r.version.minor, r.version.revision, r.version.build_num)
+                by_version[v] = r
+            return by_version
 
-        if cloud_release is None:
+        cloud_releases_by_version = get_all_releases(self._org, app_id)
+        cloud_release = cloud_releases_by_version.get(version)
+        if cloud_release is not None:
+            print(f"Found release for application '0x{app_id:08x} {str(version)}' ({cloud_release.id})")
+        else:
             dialog = (
                 f"Create release for application '0x{app_id:08x} {str(version)}'"
                 + f" in organisation '{self._org_name}' for board '{self._board_name}'?"
@@ -730,37 +733,64 @@ class Applications(CloudSubCommand):
                     print(f"Release created with ID '{rsp.id}'")
                     cloud_release = rsp
 
+        def upload_diffs_from_application(
+            org: UUID,
+            application: models.Application,
+            releases_from_version: dict[Version, models.ApplicationRelease],
+            diff_folder: pathlib.Path,
+        ):
+            for path in diff_folder.iterdir():
+                if path.is_dir():
+                    try:
+                        other_app_id = int(path.stem, 16)
+                    except ValueError:
+                        print(f"{path.stem} does not appear to be an application ID")
+                        continue
+                    other_application = get_application_by_organisation_id_and_application_id.sync(
+                        client=client, id=org, application_id=other_app_id
+                    )
+                    if not isinstance(other_application, models.Application):
+                        print(f"Could not retrieve application with ID {path.stem}")
+                        continue
+                    other_application_releases = get_all_releases(org, other_application.id)
+                    upload_diffs_from_application(org, other_application, other_application_releases, path)
+                    continue
+                elif path.suffix != ".bin":
+                    continue
+                try:
+                    diff_from_version = Version.from_string(path.stem)
+                except ValueError:
+                    print(f"Couldn't parse diff files version '{path.stem}'")
+                    continue
+                from_version = releases_from_version.get(diff_from_version)
+                if from_version is None:
+                    print(f"Version {diff_from_version} doesn't exist on cloud for application 0x{application.id:08x}")
+                    continue
+
+                with open(path, "rb") as f:
+                    diff_file = File(f, str(path), None)
+
+                    create_body = models.CreateReleaseDiffBody(file=diff_file, from_release_id=from_version.id)
+                    diff_rsp = create_release_diff.sync(
+                        client=client,
+                        id=org,
+                        application_id=app_id,
+                        release_id=cloud_release.id,
+                        body=create_body,
+                    )
+                    prefix = f"{str(diff_from_version)} -> {str(version)}"
+                    if isinstance(diff_rsp, models.Error):
+                        print(f"{prefix}: <{diff_rsp.code}> {diff_rsp.message}")
+                    elif isinstance(diff_rsp, models.ApplicationReleaseDiff):
+                        print(f"{prefix}: Diff created with ID '{diff_rsp.id}'")
+                    else:
+                        print(f"{prefix}: No response")
+
         # Upload any diffs
         diff_folder = release.dir / "diffs"
         if not diff_folder.exists():
             return
-        for path in diff_folder.iterdir():
-            if not path.is_file() or path.suffix != ".bin":
-                continue
-            try:
-                diff_from_version = Version.from_string(path.stem)
-            except ValueError:
-                print(f"Couldn't parse diff files version '{path.stem}'")
-                continue
-            from_version = cloud_releases_by_version.get(diff_from_version)
-            if from_version is None:
-                print(f"Version {diff_from_version} doesn't exist on cloud")
-                continue
-
-            with open(path, "rb") as f:
-                diff_file = File(f, str(path), None)
-
-                create_body = models.CreateReleaseDiffBody(file=diff_file, from_release_id=from_version.id)
-                diff_rsp = create_release_diff.sync(
-                    client=client, id=self._org, application_id=app_id, release_id=cloud_release.id, body=create_body
-                )
-                prefix = f"{str(diff_from_version)} -> {str(version)}"
-                if isinstance(diff_rsp, models.Error):
-                    print(f"{prefix}: <{diff_rsp.code}> {diff_rsp.message}")
-                elif isinstance(diff_rsp, models.ApplicationReleaseDiff):
-                    print(f"{prefix}: Diff created with ID '{diff_rsp.id}'")
-                else:
-                    print(f"{prefix}: No response")
+        upload_diffs_from_application(self._org, application, cloud_releases_by_version, diff_folder)
 
 
 class SubCommand(InfuseCommand):
