@@ -15,10 +15,9 @@ from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 from infuse_iot.util.console import Console
 
 
@@ -28,7 +27,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Connect to remote Bluetooth device serial logs"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
         self._id = args.id
         self._data = args.data
@@ -41,6 +40,7 @@ class SubCommand(InfuseCommand):
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
+        add_server_port_parser(parser)
 
     def run(self):
         if not self._client.comms_check():

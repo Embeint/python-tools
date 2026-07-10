@@ -14,10 +14,10 @@ from infuse_iot.common import InfuseType
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
+from infuse_iot.util.argparse import add_server_port_parser
 
 
 def _to_str(unix_time: float) -> str:
@@ -32,9 +32,10 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")
+        add_server_port_parser(parser)
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
         self.args = args
 

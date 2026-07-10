@@ -16,11 +16,10 @@ from infuse_iot.generated.tdf_base import TdfReadingBase, TdfStructBase
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
@@ -35,9 +34,10 @@ class SubCommand(InfuseCommand):
             "--id", type=InfuseDeviceId, action="append", default=[], help="Limit displayed TDFs by device ID"
         )
         parser.add_argument("--min-rssi", type=int, help="Minimum RSSI to display TDF")
+        add_server_port_parser(parser)
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
         self._array_all = args.array_all
         self._ids = args.id

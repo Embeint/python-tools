@@ -19,10 +19,9 @@ from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 from infuse_iot.util.console import Console
 
 
@@ -32,7 +31,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Record audio data to a file from TDF"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
         if args.gateway:
             self._id = InfuseID.GATEWAY
@@ -53,6 +52,8 @@ class SubCommand(InfuseCommand):
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
         parser.add_argument("--name", type=str, help="Filename prefix")
+
+        add_server_port_parser(parser)
 
     def handle_channel(self, channel: str, stack: ExitStack, tdf: TDF.Reading):
         if channel == "left":

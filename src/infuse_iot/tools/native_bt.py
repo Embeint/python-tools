@@ -43,9 +43,8 @@ from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
     LocalServer,
-    default_multicast_address,
 )
-from infuse_iot.util.argparse import BtLeAddress, ValidFile
+from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
 
 
@@ -212,11 +211,12 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
+        add_server_port_parser(parser)
 
     def __init__(self, args: argparse.Namespace):
         self.infuse_manu = 0x0DE4
         self.database = DeviceDatabase(args.root)
-        self.server = LocalServer(default_multicast_address())
+        self.server = LocalServer(args.server_sock)
         self.bleak_mapping: dict[int, BLEDevice] = {}
         self.unknown_networks: set[int] = set()
         Console.init()

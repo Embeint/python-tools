@@ -25,10 +25,9 @@ from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import InfuseDeviceId, ValidFile
+from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, add_server_port_parser
 from infuse_iot.util.console import choose_one
 from infuse_iot.zephyr.errno import errno
 
@@ -121,6 +120,8 @@ class SubCommand(InfuseCommand):
 
         parser.add_argument("--id", type=InfuseDeviceId, help="Device to log events to")
 
+        add_server_port_parser(parser)
+
     def __init__(self, args):
         self._label_type = args.labels
         self._time_check = args.time or TimeCheckType.DEFAULT
@@ -153,7 +154,7 @@ class SubCommand(InfuseCommand):
             self._labels = []
 
         self._logger: rpc_enum_data_logger = args.logger
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._device_id = args.id
         self.rpc_client: RpcClient | None = None
         self.connected = False

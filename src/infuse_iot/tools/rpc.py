@@ -20,9 +20,8 @@ from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
@@ -56,9 +55,11 @@ class SubCommand(InfuseCommand):
             cmd_parser.set_defaults(rpc_class=cmd_cls)
             cmd_cls.add_parser(cmd_parser)
 
+        add_server_port_parser(parser)
+
     def __init__(self, args: argparse.Namespace):
         self._args = args
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
         self._max_payload = 0

@@ -19,9 +19,9 @@ from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.time import InfuseTime
+from infuse_iot.util.argparse import add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
@@ -37,9 +37,10 @@ class SubCommand(InfuseCommand):
             default=20,
             help="Number of times to send each sized packet",
         )
+        add_server_port_parser(parser)
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._iterations = args.iterations
 
     def run_time_set(self):

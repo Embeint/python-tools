@@ -26,10 +26,10 @@ from infuse_iot.generated.tdf_base import TdfStructBase
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
+from infuse_iot.util.argparse import add_server_port_parser
 from infuse_iot.util.console import Console
 from infuse_iot.util.threading import SignaledThread
 
@@ -42,6 +42,7 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--port", "-p", type=int, default=8080, help="Port number for localhost server")
+        add_server_port_parser(parser)
 
     def __init__(self, args):
         self._data_lock = threading.Lock()
@@ -51,7 +52,7 @@ class SubCommand(InfuseCommand):
         self._data: dict[int, dict] = {}
         self._port: int = args.port
 
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
 
     # Serve the HTML file

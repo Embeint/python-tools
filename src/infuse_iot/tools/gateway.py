@@ -51,9 +51,8 @@ from infuse_iot.socket_comms import (
     GatewayRequestEpacketSend,
     GatewayRequestObservedDevices,
     LocalServer,
-    default_multicast_address,
 )
-from infuse_iot.util.argparse import ValidFile
+from infuse_iot.util.argparse import ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
 from infuse_iot.util.os import is_wsl
 from infuse_iot.util.threading import SignaledThread
@@ -529,7 +528,7 @@ class SubCommand(InfuseCommand):
         )
         parser.add_argument("--baud", type=int, default=115200, help="Baudrate for serial port")
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
-        parser.add_argument("--server-port", type=int, help="Alternate multicast port to use")
+        add_server_port_parser(parser)
 
     def __init__(self, args: argparse.Namespace):
         self.port: SerialLike
@@ -545,8 +544,7 @@ class SubCommand(InfuseCommand):
         if args.display_only:
             self.server = None
         else:
-            addr = default_multicast_address(args.server_port) if args.server_port else default_multicast_address()
-            self.server = LocalServer(addr)
+            self.server = LocalServer(args.server_sock)
         self.rpc_server = LocalRpcServer(self.ddb)
         self._common = CommonThreadState(self.server, self.port, self.ddb, self.rpc_server)
         self.log = args.log
