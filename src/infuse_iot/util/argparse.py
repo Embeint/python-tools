@@ -8,6 +8,7 @@ from typing import cast
 import yaml
 
 from infuse_iot.definitions.rpc import rpc_enum_bt_le_addr_type, rpc_struct_bt_addr_le
+from infuse_iot.socket_comms import default_multicast_address
 from infuse_iot.util.ctypes import bytes_to_uint8
 
 
@@ -99,3 +100,28 @@ class HexString:
             return bytes.fromhex(string)
         except ValueError as e:
             raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
+
+class ServerPort:
+    """Server port number to socket tuple"""
+
+    def __new__(cls, string: str) -> tuple[str, int]:  # type: ignore
+        try:
+            port = int(string)
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(f"{string} is not a valid port number") from e
+        if not (0 < port <= 65535):
+            raise argparse.ArgumentTypeError(f"{string} is not a valid port number")
+        if port % 2 == 0:
+            raise argparse.ArgumentError(None, f"`--server-port` must be odd: {port}")
+        return default_multicast_address(port)
+
+def add_server_port_parser(parser: argparse.ArgumentParser, multi_port: bool = False):
+    """Register `--server-port`with an argument parser. `multi_port` allows multiple port(s)"""
+    parser.add_argument(
+        '--server-port',
+        dest='server_sock',
+        default=[default_multicast_address()] if multi_port else default_multicast_address(),
+        type=ServerPort,
+        nargs= '+' if multi_port else None,
+        help="Alternate port to use for Gateway connections (default 8751)"
+    )
