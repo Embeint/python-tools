@@ -18,9 +18,9 @@ from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
 from infuse_iot.tdf import TDF
+from infuse_iot.util.argparse import add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
@@ -31,7 +31,7 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self.app_ids = args.app
         self.active = args.active or False
-        self.client = LocalClient(default_multicast_address(), 1.0)
+        self.client = LocalClient(args.server_sock, 1.0)
         self.decoder = TDF()
         self.state = "Scanning"
         self.name = "Active" if args.active else "Inactive"
@@ -46,6 +46,8 @@ class SubCommand(InfuseCommand):
         mode_group = parser.add_mutually_exclusive_group(required=True)
         mode_group.add_argument("--active", action="store_true", help="Move all devices to active state")
         mode_group.add_argument("--inactive", action="store_true", help="Move all devices to inactive state")
+
+        add_server_port_parser(parser)
 
     def progress_table(self):
         table = Table()

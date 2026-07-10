@@ -28,9 +28,8 @@ from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
-from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease
+from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease, add_server_port_parser
 from infuse_iot.util.crc import crc16_ccitt
 from infuse_iot.zephyr.errno import errno
 
@@ -41,7 +40,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Automatically OTA upgrade observed devices"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
         self._explicit_ids: list[int] = []
@@ -106,6 +105,8 @@ class SubCommand(InfuseCommand):
         explicit = parser.add_mutually_exclusive_group()
         explicit.add_argument("--id", type=InfuseDeviceId, help="Single device to upgrade")
         explicit.add_argument("--list", type=ValidFile, help="File containing a list of IDs to upgrade")
+
+        add_server_port_parser(parser)
 
     def progress_table(self):
         table = Table()

@@ -28,9 +28,8 @@ from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
-    default_multicast_address,
 )
-from infuse_iot.util.argparse import ValidDir
+from infuse_iot.util.argparse import ValidDir, add_server_port_parser
 
 
 class DeviceState:
@@ -65,7 +64,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Synchronise data logger state from remote devices"
 
     def __init__(self, args):
-        self._client = LocalClient(default_multicast_address(), 1.0)
+        self._client = LocalClient(args.server_sock, 1.0)
         self._min_rssi: int | None = args.rssi
         self._app = args.app
         self._out = args.out
@@ -111,6 +110,8 @@ class SubCommand(InfuseCommand):
             const=rpc_enum_data_logger.FLASH_REMOVABLE,
             help="Synchronise removable loggers",
         )
+
+        add_server_port_parser(parser)
 
     def progress_table(self):
         table = Table()
