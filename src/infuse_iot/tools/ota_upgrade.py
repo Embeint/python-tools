@@ -44,9 +44,21 @@ class SubCommand(InfuseCommand):
         self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
         self._explicit_ids: list[int] = []
+        self._supported_apps: list[int] = []
         if args.release:
             self._release: ValidRelease = args.release
             self._single_diff = None
+            # Also capture any releases for other applications.
+            if args.cross_app:
+                release_dir = self._release.dir / "diffs"
+                # List out *.bin files in release_dir and filter where the parent folder is not the release_dir itself
+                for diff_file in release_dir.glob("**/*.bin"):
+                    if diff_file.parent != release_dir and diff_file.parent.parent == release_dir:
+                        # This is a diff for a different application
+                        diff_app_id = int(diff_file.parent.name, 0)
+                        if diff_app_id not in self._supported_apps:
+                            self._supported_apps.append(diff_app_id)
+
         elif args.single:
             # Find the associated release
             diff_folder = args.single.parent
@@ -58,6 +70,12 @@ class SubCommand(InfuseCommand):
             release_folder = diff_folder.parent
             self._release = ValidRelease(str(release_folder))
             self._single_diff = args.single
+
+            diff_app_id = int(args.single.parent.name, 0)
+            if diff_app_id != self._release.metadata["application"]:
+                self._supported_apps.append(diff_app_id)
+            if args.cross_app and diff_app_id not in self._supported_apps:
+                self._supported_apps.append(diff_app_id)
         else:
             raise NotImplementedError("Unknow upgrade type")
         app_meta = self._release.metadata["application"]
@@ -97,6 +115,7 @@ class SubCommand(InfuseCommand):
         upgrade_type = parser.add_mutually_exclusive_group(required=True)
         upgrade_type.add_argument("--release", "-r", type=ValidRelease, help="Application release to upgrade to")
         upgrade_type.add_argument("--single", type=ValidFile, help="Single diff")
+        parser.add_argument("--cross-app", action="store_true", help="Allow upgrades from other applications")
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
         parser.add_argument("--log", type=str, help="File to write upgrade results to")
         parser.add_argument(
@@ -226,7 +245,7 @@ class SubCommand(InfuseCommand):
                         self.state_update(live, "All devices updated")
                         return
                 else:
-                    if announce.application != self._app_id:
+                    if announce.application != self._app_id and announce.application not in self._supported_apps:
                         continue
                 if source.infuse_id in self._handled:
                     continue
@@ -256,7 +275,7 @@ class SubCommand(InfuseCommand):
                     continue
 
                 # Already running the requested version?
-                if v_str == self._new_ver:
+                if v_str == self._new_ver and announce.application == self._app_id:
                     self._handled.append(source.infuse_id)
                     self._already += 1
                     self.state_update(live, "Scanning")
@@ -270,7 +289,7 @@ class SubCommand(InfuseCommand):
                 # Do we have a valid diff?
                 diff_file = self._release.dir / "diffs" / f"{v_str}.bin"
 
-                if not diff_file.exists():
+                if not diff_file.exists() and announce.application in self._supported_apps:
                     # Is this a single diff from a different application we know about?
                     diff_file = self._release.dir / "diffs" / f"0x{announce.application:08x}" / f"{v_str}.bin"
                     if not diff_file.exists():
