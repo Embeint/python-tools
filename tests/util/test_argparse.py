@@ -6,7 +6,15 @@ import pathlib
 
 import pytest
 
-from infuse_iot.util.argparse import BtLeAddress, HexString, InfuseDeviceId, ValidDir, ValidFile
+from infuse_iot.util.argparse import (
+    BtLeAddress,
+    HexString,
+    InfuseDeviceId,
+    ServerPort,
+    ValidDir,
+    ValidFile,
+    add_server_port_parser,
+)
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -72,3 +80,46 @@ def test_hexstring():
     assert HexString("AABB") == b"\xaa\xbb"
     assert HexString("aa00bb") == b"\xaa\x00\xbb"
     assert HexString("00AABB") == b"\x00\xaa\xbb"
+
+def test_server_port():
+    with pytest.raises(argparse.ArgumentTypeError):
+        ServerPort("NotAnInt")
+    with pytest.raises(argparse.ArgumentTypeError):
+        ServerPort("-1")
+    with pytest.raises(argparse.ArgumentTypeError):
+        ServerPort("65536")
+    with pytest.raises(argparse.ArgumentError):
+        # Must be odd
+        ServerPort("2")
+    with pytest.raises(argparse.ArgumentTypeError):
+        # Cannot be wildcard port
+        ServerPort("0")
+    assert ServerPort("1") == ("224.1.1.1", 1)
+    assert ServerPort("8751") == ("224.1.1.1", 8751)
+    assert ServerPort("65535") == ("224.1.1.1", 65535)
+
+def test_server_port_parser(capsys):
+    parser = argparse.ArgumentParser()
+    add_server_port_parser(parser)
+
+    args = parser.parse_args([])
+    assert args.server_sock == ("224.1.1.1", 8751)
+    args = parser.parse_args(["--server-port", "8751"])
+    assert args.server_sock == ("224.1.1.1", 8751)
+    args = parser.parse_args(["--server-port", "8753"])
+    assert args.server_sock == ("224.1.1.1", 8753)
+    with pytest.raises(SystemExit):
+        # Additional port supplied when not supported
+        args = parser.parse_args(["--server-port", "8751", "8753"])
+
+    parser = argparse.ArgumentParser()
+    add_server_port_parser(parser, multi_port=True)
+
+    args = parser.parse_args([])
+    assert args.server_sock == [("224.1.1.1", 8751)]
+    args = parser.parse_args(["--server-port", "8751"])
+    assert args.server_sock == [("224.1.1.1", 8751)]
+    args = parser.parse_args(["--server-port", "8753"])
+    assert args.server_sock == [("224.1.1.1", 8753)]
+    args = parser.parse_args(["--server-port", "8751", "8753"])
+    assert args.server_sock == [("224.1.1.1", 8751), ("224.1.1.1", 8753)]
