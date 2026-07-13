@@ -226,6 +226,9 @@ class SubCommand(InfuseCommand):
             self._failed += 1
         elif hdr.return_code == 0:
             self._pending[source.infuse_id] = time.time() + 60
+        elif hdr.return_code < 0:
+            err = errno.strerror(-hdr.return_code)
+            print(f"Failed to copy patch file to {source.infuse_id:016X} ({err})")
 
     def run(self):
         if not self._client.comms_check():
