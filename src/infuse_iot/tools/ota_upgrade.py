@@ -8,6 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import argparse
 import binascii
 import sys
+import threading
 import time
 
 from rich.live import Live
@@ -41,7 +42,7 @@ class SubCommand(InfuseCommand):
     DESCRIPTION = "Automatically OTA upgrade observed devices"
 
     def __init__(self, args):
-        self._client = LocalClient(args.server_sock, 1.0)
+        self._clients = [LocalClient(addr, 1.0) for addr in args.server_sock]
         self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
         self._explicit_ids: list[int] = []
@@ -113,6 +114,7 @@ class SubCommand(InfuseCommand):
             with args.list.open("r") as f:
                 for line in f.readlines():
                     self._explicit_ids.append(int(line.strip(), 0))
+        self.end = False
 
     @classmethod
     def add_parser(cls, parser):
@@ -129,7 +131,7 @@ class SubCommand(InfuseCommand):
         explicit.add_argument("--id", type=InfuseDeviceId, help="Single device to upgrade")
         explicit.add_argument("--list", type=ValidFile, help="File containing a list of IDs to upgrade")
 
-        add_server_port_parser(parser)
+        add_server_port_parser(parser, multi_port=True)
 
     @property
     def _actioning(self) -> set[int]:
@@ -260,6 +262,9 @@ class SubCommand(InfuseCommand):
 
     def run_thread(self, live: Live, client: LocalClient):
         for source, announce in client.observe_announce():
+            if self.end:
+                return
+
             live.update(self.progress_table())
             if len(self._explicit_ids):
                 if source.infuse_id not in self._explicit_ids:
@@ -367,14 +372,61 @@ class SubCommand(InfuseCommand):
             live.update(self.progress_table())
 
     def run(self):
-        if not self._client.comms_check():
-            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+        # Check Gateways are available
+        unavailable: list[LocalClient] = []
+        for client in self._clients:
+            if not client.comms_check():
+                unavailable.append(client)
+        if len(unavailable) != 0:
+            print(
+                f"Warning: Could not use {len(unavailable)} gateways on port(s)"
+                f" {[x._input_sock.getsockname() for x in unavailable]}."
+            )
 
+        # If requested, load single diff onto gateways.
         if self._single_diff:
-            try:
-                self.gateway_diff_load(self._client)
-            except RuntimeError as e:
-                sys.exit(str(e))
+            for client in unavailable:
+                self._clients.remove(client)
+            for client in self._clients:
+                try:
+                    self.gateway_diff_load(client)
+                except RuntimeError as e:
+                    unavailable.append(client)
+                    port_name = client._input_sock.getsockname()
+                    print(f"Skipping Gateway on port {port_name}: {''.join(e.args)}.")
 
+        # Ensure there is at least one operational gateway available
+        if len(unavailable) == len(self._clients):
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+        for client in unavailable:
+            self._clients.remove(client)
+
+        if len(self._clients) > 1:
+            print(
+                f"running on {len(self._clients)} gateways "
+                f"{[x._input_sock.getsockname() for x in self._clients]}"
+            )
+
+        threads: list[threading.Thread] = []
         with Live(self.progress_table(), refresh_per_second=4) as live:
-            self.run_thread(live, self._client)
+            for client in self._clients:
+                socket = client._input_sock.getsockname()
+                t = threading.Thread(
+                    target=self.run_thread,
+                    args=(live, client),
+                    name=f"OTA Upgrade {socket}",
+                )
+                threads.append(t)
+            if len(threads) > 1:
+                try:
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join()
+                except KeyboardInterrupt:
+                    self.end = True
+                    self.state_update(live, "Shutting down...")
+                    for t in threads:
+                        t.join()
+            else:
+                threads[0].run()
