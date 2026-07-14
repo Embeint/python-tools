@@ -11,6 +11,10 @@ from .application_release_diff import ApplicationReleaseDiff
 from .application_release_file_stats import ApplicationReleaseFileStats
 from .application_release_version import ApplicationReleaseVersion
 from .application_version import ApplicationVersion
+from .appplication_states_by_devices_body import AppplicationStatesByDevicesBody
+from .appplication_states_by_devices_response import AppplicationStatesByDevicesResponse
+from .appplication_states_by_devices_response_data import AppplicationStatesByDevicesResponseData
+from .batch_device_error import BatchDeviceError
 from .board import Board
 from .bt_le_route import BtLeRoute
 from .bt_le_route_type import BtLeRouteType
@@ -83,6 +87,13 @@ from .health_check import HealthCheck
 from .interface_data import InterfaceData
 from .key import Key
 from .key_interface import KeyInterface
+from .logger_state_for_devices_by_index_update_body import LoggerStateForDevicesByIndexUpdateBody
+from .logger_state_for_devices_by_index_update_response import LoggerStateForDevicesByIndexUpdateResponse
+from .logger_state_for_devices_by_index_update_response_data import LoggerStateForDevicesByIndexUpdateResponseData
+from .logger_state_for_devices_by_index_update_response_errors import LoggerStateForDevicesByIndexUpdateResponseErrors
+from .logger_states_for_devices_by_index_body import LoggerStatesForDevicesByIndexBody
+from .logger_states_for_devices_by_index_response import LoggerStatesForDevicesByIndexResponse
+from .logger_states_for_devices_by_index_response_data import LoggerStatesForDevicesByIndexResponseData
 from .metadata_field import MetadataField
 from .network import Network
 from .new_application import NewApplication
@@ -97,6 +108,11 @@ from .new_organisation import NewOrganisation
 from .new_rpc_message import NewRPCMessage
 from .new_rpc_req import NewRPCReq
 from .organisation import Organisation
+from .pending_device_application_updates_by_devices_body import PendingDeviceApplicationUpdatesByDevicesBody
+from .pending_device_application_updates_by_devices_response import PendingDeviceApplicationUpdatesByDevicesResponse
+from .pending_device_application_updates_by_devices_response_data import (
+    PendingDeviceApplicationUpdatesByDevicesResponseData,
+)
 from .route_type import RouteType
 from .rpc_message import RpcMessage
 from .rpc_params import RPCParams
@@ -121,6 +137,10 @@ __all__ = (
     "ApplicationReleaseFileStats",
     "ApplicationReleaseVersion",
     "ApplicationVersion",
+    "AppplicationStatesByDevicesBody",
+    "AppplicationStatesByDevicesResponse",
+    "AppplicationStatesByDevicesResponseData",
+    "BatchDeviceError",
     "Board",
     "BtLeRoute",
     "BtLeRouteType",
@@ -193,6 +213,13 @@ __all__ = (
     "InterfaceData",
     "Key",
     "KeyInterface",
+    "LoggerStateForDevicesByIndexUpdateBody",
+    "LoggerStateForDevicesByIndexUpdateResponse",
+    "LoggerStateForDevicesByIndexUpdateResponseData",
+    "LoggerStateForDevicesByIndexUpdateResponseErrors",
+    "LoggerStatesForDevicesByIndexBody",
+    "LoggerStatesForDevicesByIndexResponse",
+    "LoggerStatesForDevicesByIndexResponseData",
     "MetadataField",
     "Network",
     "NewApplication",
@@ -207,6 +234,9 @@ __all__ = (
     "NewRPCMessage",
     "NewRPCReq",
     "Organisation",
+    "PendingDeviceApplicationUpdatesByDevicesBody",
+    "PendingDeviceApplicationUpdatesByDevicesResponse",
+    "PendingDeviceApplicationUpdatesByDevicesResponseData",
     "RouteType",
     "RpcMessage",
     "RPCParams",

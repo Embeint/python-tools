@@ -1,33 +1,25 @@
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.device_application_update_and_message import DeviceApplicationUpdateAndMessage
 from ...models.error import Error
-from ...models.organisation import Organisation
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
+    device_id: str,
 ) -> dict[str, Any]:
-
-    params: dict[str, Any] = {}
-
-    params["limit"] = limit
-
-    params["offset"] = offset
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/organisation",
-        "params": params,
+        "url": "/device/deviceId/{device_id}/application/updates/pending".format(
+            device_id=quote(str(device_id), safe=""),
+        ),
     }
 
     return _kwargs
@@ -35,16 +27,20 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Error | list[Organisation] | None:
+) -> Any | DeviceApplicationUpdateAndMessage | Error | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Organisation.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = DeviceApplicationUpdateAndMessage.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 204:
+        response_204 = cast(Any, None)
+        return response_204
+
+    if response.status_code == 404:
+        response_404 = Error.from_dict(response.json())
+
+        return response_404
 
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
@@ -59,7 +55,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Error | list[Organisation]]:
+) -> Response[Any | DeviceApplicationUpdateAndMessage | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,29 +65,25 @@ def _build_response(
 
 
 def sync_detailed(
+    device_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+) -> Response[Any | DeviceApplicationUpdateAndMessage | Error]:
+    """Get pending device application update with downlink message by DeviceID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        device_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[Any | DeviceApplicationUpdateAndMessage | Error]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        device_id=device_id,
     )
 
     response = client.get_httpx_client().request(
@@ -102,57 +94,49 @@ def sync_detailed(
 
 
 def sync(
+    device_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+) -> Any | DeviceApplicationUpdateAndMessage | Error | None:
+    """Get pending device application update with downlink message by DeviceID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        device_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        Any | DeviceApplicationUpdateAndMessage | Error
     """
 
     return sync_detailed(
+        device_id=device_id,
         client=client,
-        limit=limit,
-        offset=offset,
     ).parsed
 
 
 async def asyncio_detailed(
+    device_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+) -> Response[Any | DeviceApplicationUpdateAndMessage | Error]:
+    """Get pending device application update with downlink message by DeviceID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        device_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[Any | DeviceApplicationUpdateAndMessage | Error]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        device_id=device_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -161,30 +145,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    device_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+) -> Any | DeviceApplicationUpdateAndMessage | Error | None:
+    """Get pending device application update with downlink message by DeviceID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        device_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        Any | DeviceApplicationUpdateAndMessage | Error
     """
 
     return (
         await asyncio_detailed(
+            device_id=device_id,
             client=client,
-            limit=limit,
-            offset=offset,
         )
     ).parsed

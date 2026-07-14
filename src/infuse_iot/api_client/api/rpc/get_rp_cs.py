@@ -21,6 +21,7 @@ def _get_kwargs(
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
     limit: int | Unset = 10,
+    offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> dict[str, Any]:
@@ -51,6 +52,8 @@ def _get_kwargs(
     params["endTime"] = json_end_time
 
     params["limit"] = limit
+
+    params["offset"] = offset
 
     params["rpcCommandId"] = rpc_command_id
 
@@ -111,6 +114,7 @@ def sync_detailed(
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
     limit: int | Unset = 10,
+    offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> Response[Error | list[RpcMessage]]:
@@ -126,6 +130,8 @@ def sync_detailed(
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
         limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
 
@@ -144,6 +150,7 @@ def sync_detailed(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
     )
@@ -164,6 +171,7 @@ def sync(
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
     limit: int | Unset = 10,
+    offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> Error | list[RpcMessage] | None:
@@ -179,6 +187,8 @@ def sync(
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
         limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
 
@@ -198,6 +208,7 @@ def sync(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
     ).parsed
@@ -212,6 +223,7 @@ async def asyncio_detailed(
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
     limit: int | Unset = 10,
+    offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> Response[Error | list[RpcMessage]]:
@@ -227,6 +239,8 @@ async def asyncio_detailed(
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
         limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
 
@@ -245,6 +259,7 @@ async def asyncio_detailed(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
     )
@@ -263,6 +278,7 @@ async def asyncio(
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
     limit: int | Unset = 10,
+    offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
 ) -> Error | list[RpcMessage] | None:
@@ -278,6 +294,8 @@ async def asyncio(
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
         limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
 
@@ -298,6 +316,7 @@ async def asyncio(
             start_time=start_time,
             end_time=end_time,
             limit=limit,
+            offset=offset,
             rpc_command_id=rpc_command_id,
             show_expired=show_expired,
         )

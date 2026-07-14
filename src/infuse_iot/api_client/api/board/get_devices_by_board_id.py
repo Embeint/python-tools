@@ -17,6 +17,8 @@ def _get_kwargs(
     *,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -24,6 +26,10 @@ def _get_kwargs(
     params["metadataName"] = metadata_name
 
     params["metadataValue"] = metadata_value
+
+    params["limit"] = limit
+
+    params["offset"] = offset
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -77,6 +83,8 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
@@ -84,6 +92,9 @@ def sync_detailed(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -97,6 +108,8 @@ def sync_detailed(
         id=id,
         metadata_name=metadata_name,
         metadata_value=metadata_value,
+        limit=limit,
+        offset=offset,
     )
 
     response = client.get_httpx_client().request(
@@ -112,6 +125,8 @@ def sync(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
@@ -119,6 +134,9 @@ def sync(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -133,6 +151,8 @@ def sync(
         client=client,
         metadata_name=metadata_name,
         metadata_value=metadata_value,
+        limit=limit,
+        offset=offset,
     ).parsed
 
 
@@ -142,6 +162,8 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
@@ -149,6 +171,9 @@ async def asyncio_detailed(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -162,6 +187,8 @@ async def asyncio_detailed(
         id=id,
         metadata_name=metadata_name,
         metadata_value=metadata_value,
+        limit=limit,
+        offset=offset,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -175,6 +202,8 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
@@ -182,6 +211,9 @@ async def asyncio(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -197,5 +229,7 @@ async def asyncio(
             client=client,
             metadata_name=metadata_name,
             metadata_value=metadata_value,
+            limit=limit,
+            offset=offset,
         )
     ).parsed
