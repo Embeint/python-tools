@@ -7,13 +7,15 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.network import Network
-from ...types import UNSET, Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     *,
     organisation_id: UUID,
     include_public: bool = False,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -22,6 +24,10 @@ def _get_kwargs(
     params["organisationId"] = json_organisation_id
 
     params["includePublic"] = include_public
+
+    params["limit"] = limit
+
+    params["offset"] = offset
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -65,6 +71,8 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Response[list[Network]]:
     """Get networks
 
@@ -73,6 +81,9 @@ def sync_detailed(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -85,6 +96,8 @@ def sync_detailed(
     kwargs = _get_kwargs(
         organisation_id=organisation_id,
         include_public=include_public,
+        limit=limit,
+        offset=offset,
     )
 
     response = client.get_httpx_client().request(
@@ -99,6 +112,8 @@ def sync(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> list[Network] | None:
     """Get networks
 
@@ -107,6 +122,9 @@ def sync(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,6 +138,8 @@ def sync(
         client=client,
         organisation_id=organisation_id,
         include_public=include_public,
+        limit=limit,
+        offset=offset,
     ).parsed
 
 
@@ -128,6 +148,8 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> Response[list[Network]]:
     """Get networks
 
@@ -136,6 +158,9 @@ async def asyncio_detailed(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -148,6 +173,8 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         organisation_id=organisation_id,
         include_public=include_public,
+        limit=limit,
+        offset=offset,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -160,6 +187,8 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
+    limit: int | Unset = 10,
+    offset: int | Unset = 0,
 ) -> list[Network] | None:
     """Get networks
 
@@ -168,6 +197,9 @@ async def asyncio(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
+        limit (int | Unset): Maximum number of items to return Default: 10.
+        offset (int | Unset): Number of items to skip before starting to return results (for
+            pagination) Default: 0.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -182,5 +214,7 @@ async def asyncio(
             client=client,
             organisation_id=organisation_id,
             include_public=include_public,
+            limit=limit,
+            offset=offset,
         )
     ).parsed

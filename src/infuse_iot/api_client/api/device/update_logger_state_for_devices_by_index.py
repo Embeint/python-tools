@@ -1,50 +1,51 @@
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
-from ...models.organisation import Organisation
-from ...types import UNSET, Response, Unset
+from ...models.logger_state_for_devices_by_index_update_body import LoggerStateForDevicesByIndexUpdateBody
+from ...models.logger_state_for_devices_by_index_update_response import LoggerStateForDevicesByIndexUpdateResponse
+from ...types import Response
 
 
 def _get_kwargs(
+    index: int,
     *,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
+    body: LoggerStateForDevicesByIndexUpdateBody,
 ) -> dict[str, Any]:
-
-    params: dict[str, Any] = {}
-
-    params["limit"] = limit
-
-    params["offset"] = offset
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+    headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
-        "method": "get",
-        "url": "/organisation",
-        "params": params,
+        "method": "patch",
+        "url": "/device/loggerState/{index}/".format(
+            index=quote(str(index), safe=""),
+        ),
     }
 
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Error | list[Organisation] | None:
+) -> Error | LoggerStateForDevicesByIndexUpdateResponse | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Organisation.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = LoggerStateForDevicesByIndexUpdateResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 400:
+        response_400 = Error.from_dict(response.json())
+
+        return response_400
 
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
@@ -59,7 +60,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Error | list[Organisation]]:
+) -> Response[Error | LoggerStateForDevicesByIndexUpdateResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,29 +70,29 @@ def _build_response(
 
 
 def sync_detailed(
+    index: int,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+    body: LoggerStateForDevicesByIndexUpdateBody,
+) -> Response[Error | LoggerStateForDevicesByIndexUpdateResponse]:
+    """Update logger state for a group of devices
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        index (int):
+        body (LoggerStateForDevicesByIndexUpdateBody): Body for updating logger states for devices
+            by index
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[Error | LoggerStateForDevicesByIndexUpdateResponse]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        index=index,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -102,57 +103,57 @@ def sync_detailed(
 
 
 def sync(
+    index: int,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+    body: LoggerStateForDevicesByIndexUpdateBody,
+) -> Error | LoggerStateForDevicesByIndexUpdateResponse | None:
+    """Update logger state for a group of devices
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        index (int):
+        body (LoggerStateForDevicesByIndexUpdateBody): Body for updating logger states for devices
+            by index
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        Error | LoggerStateForDevicesByIndexUpdateResponse
     """
 
     return sync_detailed(
+        index=index,
         client=client,
-        limit=limit,
-        offset=offset,
+        body=body,
     ).parsed
 
 
 async def asyncio_detailed(
+    index: int,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+    body: LoggerStateForDevicesByIndexUpdateBody,
+) -> Response[Error | LoggerStateForDevicesByIndexUpdateResponse]:
+    """Update logger state for a group of devices
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        index (int):
+        body (LoggerStateForDevicesByIndexUpdateBody): Body for updating logger states for devices
+            by index
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[Error | LoggerStateForDevicesByIndexUpdateResponse]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        index=index,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -161,30 +162,30 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    index: int,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+    body: LoggerStateForDevicesByIndexUpdateBody,
+) -> Error | LoggerStateForDevicesByIndexUpdateResponse | None:
+    """Update logger state for a group of devices
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        index (int):
+        body (LoggerStateForDevicesByIndexUpdateBody): Body for updating logger states for devices
+            by index
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        Error | LoggerStateForDevicesByIndexUpdateResponse
     """
 
     return (
         await asyncio_detailed(
+            index=index,
             client=client,
-            limit=limit,
-            offset=offset,
+            body=body,
         )
     ).parsed

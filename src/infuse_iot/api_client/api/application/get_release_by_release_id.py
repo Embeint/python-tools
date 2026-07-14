@@ -1,33 +1,25 @@
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.application_release import ApplicationRelease
 from ...models.error import Error
-from ...models.organisation import Organisation
-from ...types import UNSET, Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
-    *,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
+    release_id: str,
 ) -> dict[str, Any]:
-
-    params: dict[str, Any] = {}
-
-    params["limit"] = limit
-
-    params["offset"] = offset
-
-    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/organisation",
-        "params": params,
+        "url": "/release/{release_id}".format(
+            release_id=quote(str(release_id), safe=""),
+        ),
     }
 
     return _kwargs
@@ -35,16 +27,26 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Error | list[Organisation] | None:
+) -> ApplicationRelease | Error | None:
     if response.status_code == 200:
-        response_200 = []
-        _response_200 = response.json()
-        for response_200_item_data in _response_200:
-            response_200_item = Organisation.from_dict(response_200_item_data)
-
-            response_200.append(response_200_item)
+        response_200 = ApplicationRelease.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 400:
+        response_400 = Error.from_dict(response.json())
+
+        return response_400
+
+    if response.status_code == 403:
+        response_403 = Error.from_dict(response.json())
+
+        return response_403
+
+    if response.status_code == 404:
+        response_404 = Error.from_dict(response.json())
+
+        return response_404
 
     if response.status_code == 500:
         response_500 = Error.from_dict(response.json())
@@ -59,7 +61,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[Error | list[Organisation]]:
+) -> Response[ApplicationRelease | Error]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -69,29 +71,25 @@ def _build_response(
 
 
 def sync_detailed(
+    release_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+) -> Response[ApplicationRelease | Error]:
+    """Get a release by release ID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        release_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[ApplicationRelease | Error]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        release_id=release_id,
     )
 
     response = client.get_httpx_client().request(
@@ -102,57 +100,49 @@ def sync_detailed(
 
 
 def sync(
+    release_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+) -> ApplicationRelease | Error | None:
+    """Get a release by release ID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        release_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        ApplicationRelease | Error
     """
 
     return sync_detailed(
+        release_id=release_id,
         client=client,
-        limit=limit,
-        offset=offset,
     ).parsed
 
 
 async def asyncio_detailed(
+    release_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Response[Error | list[Organisation]]:
-    """Get all organisations that user has access to
+) -> Response[ApplicationRelease | Error]:
+    """Get a release by release ID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        release_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[Error | list[Organisation]]
+        Response[ApplicationRelease | Error]
     """
 
     kwargs = _get_kwargs(
-        limit=limit,
-        offset=offset,
+        release_id=release_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -161,30 +151,26 @@ async def asyncio_detailed(
 
 
 async def asyncio(
+    release_id: str,
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
-    offset: int | Unset = 0,
-) -> Error | list[Organisation] | None:
-    """Get all organisations that user has access to
+) -> ApplicationRelease | Error | None:
+    """Get a release by release ID
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
-        offset (int | Unset): Number of items to skip before starting to return results (for
-            pagination) Default: 0.
+        release_id (str):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Error | list[Organisation]
+        ApplicationRelease | Error
     """
 
     return (
         await asyncio_detailed(
+            release_id=release_id,
             client=client,
-            limit=limit,
-            offset=offset,
         )
     ).parsed
