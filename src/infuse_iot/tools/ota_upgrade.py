@@ -14,6 +14,7 @@ from rich.live import Live
 from rich.progress import (
     DownloadColumn,
     Progress,
+    TaskID,
     TransferSpeedColumn,
 )
 from rich.status import Status
@@ -83,6 +84,10 @@ class SubCommand(InfuseCommand):
         self._app_id = app_meta["id"]
         self._new_ver = app_meta["version"]
         self._board_crc = crc16_ccitt(app_meta["board"].encode("utf-8"))
+        self._state_connecting: set[int] = set()
+        self._state_copying: set[int] = set()
+        self._state_uploading: set[int] = set()
+        self._tasks: dict[LocalClient, TaskID] = {}
         self._handled: list[int] = []
         self._pending: dict[int, float] = {}
         self._missing_diffs: set[str] = set()
@@ -97,7 +102,6 @@ class SubCommand(InfuseCommand):
             DownloadColumn(),
             TransferSpeedColumn(),
         )
-        self.task = None
         if args.log is None:
             self._log = None
         else:
@@ -127,6 +131,10 @@ class SubCommand(InfuseCommand):
 
         add_server_port_parser(parser)
 
+    @property
+    def _actioning(self) -> set[int]:
+        return self._state_connecting | self._state_copying | self._state_uploading
+
     def progress_table(self):
         table = Table()
         table.add_column(f"{self._app_name}\n{self._new_ver}")
@@ -144,7 +152,14 @@ class SubCommand(InfuseCommand):
         meta = Table(box=None)
         meta.add_column()
         meta.add_row(table)
-        meta.add_row(Status(self.state))
+        if self._state_connecting:
+            meta.add_row(Status(f"Connecting to: {', '.join(f'{i:016X}' for i in self._state_connecting)}"))
+        processing = self._state_copying | self._state_uploading
+        if processing:
+            meta.add_row(Status(f"Writing patch file: {', '.join(f'{i:016X}' for i in processing)}"))
+
+        if not (self._state_connecting or self._state_copying or self._state_uploading):
+            meta.add_row(Status(self.state))
         meta.add_row(self.progress)
 
         return meta
@@ -153,11 +168,12 @@ class SubCommand(InfuseCommand):
         self.state = state
         live.update(self.progress_table())
 
-    def data_progress_cb(self, offset):
-        if self.task is None:
-            self.state = "Writing patch file"
-            self.task = self.progress.add_task("", total=len(self.patch_file))
-        self.progress.update(self.task, completed=offset)
+    def data_progress_cb(self, offset, client: LocalClient):
+        task = self._tasks.get(client)
+        if task is None:
+            task = self.progress.add_task("", total=len(self.patch_file))
+            self._tasks[client] = task
+        self.progress.update(task, completed=offset)
 
     def gateway_diff_load(self, client: LocalClient):
         assert self._single_diff is not None
@@ -183,57 +199,68 @@ class SubCommand(InfuseCommand):
             print(f"'{self._single_diff}' written to gateway")
 
     def run_file_upload(self, live: Live, mtu: int, source: HopReceived, client: LocalClient):
-        self.state_update(live, f"Uploading patch file to {source.infuse_id:016X}")
-        rpc_client = RpcClient(client, mtu, source.infuse_id)
+        try:
+            self._state_uploading.add(source.infuse_id)
+            live.update(self.progress_table())
+            # self.state_update(live, f"Uploading patch file to {source.infuse_id:016X}")
+            rpc_client = RpcClient(client, mtu, source.infuse_id)
 
-        params = file_write_basic.request(rpc_enum_file_action.APP_CPATCH, binascii.crc32(self.patch_file))
+            params = file_write_basic.request(rpc_enum_file_action.APP_CPATCH, binascii.crc32(self.patch_file))
 
-        hdr, _rsp = rpc_client.run_data_send_cmd(
-            file_write_basic.COMMAND_ID,
-            Auth.DEVICE,
-            bytes(params),
-            self.patch_file,
-            self.data_progress_cb,
-            file_write_basic.response.from_buffer_copy,
-        )
+            hdr, _rsp = rpc_client.run_data_send_cmd(
+                file_write_basic.COMMAND_ID,
+                Auth.DEVICE,
+                bytes(params),
+                self.patch_file,
+                lambda offset: self.data_progress_cb(offset, client),
+                file_write_basic.response.from_buffer_copy,
+            )
 
-        if hdr is None:
-            self._failed += 1
-        elif hdr.return_code == 0:
-            self._pending[source.infuse_id] = time.time() + 60
+            if hdr is None:
+                self._failed += 1
+            elif hdr.return_code == 0:
+                self._pending[source.infuse_id] = time.time() + 60
+        finally:
+            self._state_uploading.remove(source.infuse_id)
+            live.update(self.progress_table())
 
     def run_file_copy(self, live: Live, mtu: int, source: HopReceived, client: LocalClient):
-        self.state_update(live, f"Copying patch file to {source.infuse_id:016X}")
-        rpc_client = RpcClient(client, mtu, InfuseID.GATEWAY)
+        try:
+            self._state_uploading.add(source.infuse_id)
+            live.update(self.progress_table())
+            rpc_client = RpcClient(client, mtu, InfuseID.GATEWAY)
 
-        params = bt_file_copy_basic.request(
-            source.interface_address.val.to_rpc_struct(),
-            rpc_enum_file_action.APP_CPATCH,
-            0,
-            len(self.patch_file),
-            binascii.crc32(self.patch_file),
-            1,
-            3,
-        )
+            params = bt_file_copy_basic.request(
+                source.interface_address.val.to_rpc_struct(),
+                rpc_enum_file_action.APP_CPATCH,
+                0,
+                len(self.patch_file),
+                binascii.crc32(self.patch_file),
+                1,
+                3,
+            )
 
-        hdr, _rsp = rpc_client.run_standard_cmd(
-            bt_file_copy_basic.COMMAND_ID,
-            Auth.DEVICE,
-            bytes(params),
-            bt_file_copy_basic.response.from_buffer_copy,
-        )
-        if hdr is None:
-            self._failed += 1
-        elif hdr.return_code == 0:
-            self._pending[source.infuse_id] = time.time() + 60
-        elif hdr.return_code < 0:
-            sock_name = client._input_sock.getsockname()
-            err = errno.strerror(-hdr.return_code)
-            print(f"{sock_name} Failed to copy patch file to {source.infuse_id:016X} ({err})")
+            hdr, _rsp = rpc_client.run_standard_cmd(
+                bt_file_copy_basic.COMMAND_ID,
+                Auth.DEVICE,
+                bytes(params),
+                bt_file_copy_basic.response.from_buffer_copy,
+            )
+            if hdr is None:
+                self._failed += 1
+            elif hdr.return_code == 0:
+                self._pending[source.infuse_id] = time.time() + 60
+            elif hdr.return_code < 0:
+                sock_name = client._input_sock.getsockname()
+                err = errno.strerror(-hdr.return_code)
+                print(f"{sock_name} Failed to copy patch file to {source.infuse_id:016X} ({err})")
+        finally:
+            self._state_uploading.remove(source.infuse_id)
+            live.update(self.progress_table())
 
     def run_thread(self, live: Live, client: LocalClient):
         for source, announce in client.observe_announce():
-            self.state_update(live, "Scanning")
+            live.update(self.progress_table())
             if len(self._explicit_ids):
                 if source.infuse_id not in self._explicit_ids:
                     continue
@@ -275,7 +302,7 @@ class SubCommand(InfuseCommand):
             if v_str == self._new_ver and announce.application == self._app_id:
                 self._handled.append(source.infuse_id)
                 self._already += 1
-                self.state_update(live, "Scanning")
+                live.update(self.progress_table())
                 if self._log:
                     self._log.write(
                         f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},already\n"
@@ -293,7 +320,7 @@ class SubCommand(InfuseCommand):
                     self._missing_diffs.add(v_str)
                     self._handled.append(source.infuse_id)
                     self._no_diff += 1
-                    self.state_update(live, "Scanning")
+                    live.update(self.progress_table())
                     continue
 
             if self._single_diff and self._single_diff != diff_file:
@@ -301,7 +328,7 @@ class SubCommand(InfuseCommand):
                 self._missing_diffs.add(v_str)
                 self._handled.append(source.infuse_id)
                 self._no_diff += 1
-                self.state_update(live, "Scanning")
+                live.update(self.progress_table())
                 continue
 
             # Is signal strong enough to connect?
@@ -312,27 +339,32 @@ class SubCommand(InfuseCommand):
             with open(diff_file, "rb") as f:
                 self.patch_file = f.read()
 
+            if source.infuse_id in self._actioning:
+                continue
+
             # Attempt to upload
-            self.state_update(live, f"Connecting to {source.infuse_id:016X}")
+            self._state_connecting.add(source.infuse_id)
+            live.update(self.progress_table())
             try:
                 with client.connection(
                     source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
                 ) as mtu:
+                    self._state_connecting.remove(source.infuse_id)
                     if self._single_diff:
                         self.run_file_copy(live, mtu, source, client)
                     else:
                         self.run_file_upload(live, mtu, source, client)
 
             except ConnectionRefusedError:
-                self.state_update(live, "Scanning")
+                self._state_connecting.remove(source.infuse_id)
             except ConnectionAbortedError:
-                self.state_update(live, "Scanning")
+                if source.infuse_id in self._state_connecting:
+                    self._state_connecting.remove(source.infuse_id)
 
-            if self.task is not None:
-                self.progress.remove_task(self.task)
-                self.task = None
-
-            self.state_update(live, "Scanning")
+            if client in self._tasks:
+                self.progress.remove_task(self._tasks[client])
+                del self._tasks[client]
+            live.update(self.progress_table())
 
     def run(self):
         if not self._client.comms_check():
