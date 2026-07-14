@@ -230,6 +230,109 @@ class SubCommand(InfuseCommand):
             err = errno.strerror(-hdr.return_code)
             print(f"Failed to copy patch file to {source.infuse_id:016X} ({err})")
 
+    def run_thread(self, live: Live):
+        for source, announce in self._client.observe_announce():
+            self.state_update(live, "Scanning")
+            if len(self._explicit_ids):
+                if source.infuse_id not in self._explicit_ids:
+                    continue
+                if len(self._handled) == len(self._explicit_ids):
+                    # We've handled all devices
+                    self.state_update(live, "All devices updated")
+                    return
+            else:
+                if announce.application != self._app_id and announce.application not in self._supported_apps:
+                    continue
+            if source.infuse_id in self._handled:
+                continue
+            if isinstance(announce, readings.announce_v2) and announce.board_crc != self._board_crc:
+                continue
+            v = announce.version
+            v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
+
+            # Check against pending upgrades
+            if source.infuse_id in self._pending:
+                if (v_str != self._new_ver) and (time.time() < self._pending[source.infuse_id]):
+                    # Device could still be applying the upgrade
+                    continue
+                self._pending.pop(source.infuse_id)
+                self._handled.append(source.infuse_id)
+                if v_str == self._new_ver:
+                    self._updated += 1
+                    result = "upgraded"
+                else:
+                    self._failed += 1
+                    result = "failed"
+                if self._log:
+                    self._log.write(
+                        f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},{result}\n"
+                    )
+                    self._log.flush()
+                continue
+
+            # Already running the requested version?
+            if v_str == self._new_ver and announce.application == self._app_id:
+                self._handled.append(source.infuse_id)
+                self._already += 1
+                self.state_update(live, "Scanning")
+                if self._log:
+                    self._log.write(
+                        f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},already\n"
+                    )
+                    self._log.flush()
+                continue
+
+            # Do we have a valid diff?
+            diff_file = self._release.dir / "diffs" / f"{v_str}.bin"
+
+            if not diff_file.exists() and announce.application in self._supported_apps:
+                # Is this a single diff from a different application we know about?
+                diff_file = self._release.dir / "diffs" / f"0x{announce.application:08x}" / f"{v_str}.bin"
+                if not diff_file.exists():
+                    self._missing_diffs.add(v_str)
+                    self._handled.append(source.infuse_id)
+                    self._no_diff += 1
+                    self.state_update(live, "Scanning")
+                    continue
+
+            if self._single_diff and self._single_diff != diff_file:
+                # Not the file we've copied to the gateway flash
+                self._missing_diffs.add(v_str)
+                self._handled.append(source.infuse_id)
+                self._no_diff += 1
+                self.state_update(live, "Scanning")
+                continue
+
+            # Is signal strong enough to connect?
+            if self._min_rssi and source.rssi < self._min_rssi:
+                continue
+
+            # Load patch file
+            with open(diff_file, "rb") as f:
+                self.patch_file = f.read()
+
+            # Attempt to upload
+            self.state_update(live, f"Connecting to {source.infuse_id:016X}")
+            try:
+                with self._client.connection(
+                    source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
+                ) as mtu:
+                    if self._single_diff:
+                        self.run_file_copy(live, mtu, source)
+                    else:
+                        self.run_file_upload(live, mtu, source)
+
+            except ConnectionRefusedError:
+                self.state_update(live, "Scanning")
+            except ConnectionAbortedError:
+                self.state_update(live, "Scanning")
+
+            if self.task is not None:
+                self.progress.remove_task(self.task)
+                self.task = None
+
+            self.state_update(live, "Scanning")
+
     def run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
@@ -238,104 +341,4 @@ class SubCommand(InfuseCommand):
             self.gateway_diff_load()
 
         with Live(self.progress_table(), refresh_per_second=4) as live:
-            for source, announce in self._client.observe_announce():
-                self.state_update(live, "Scanning")
-                if len(self._explicit_ids):
-                    if source.infuse_id not in self._explicit_ids:
-                        continue
-                    if len(self._handled) == len(self._explicit_ids):
-                        # We've handled all devices
-                        self.state_update(live, "All devices updated")
-                        return
-                else:
-                    if announce.application != self._app_id and announce.application not in self._supported_apps:
-                        continue
-                if source.infuse_id in self._handled:
-                    continue
-                if isinstance(announce, readings.announce_v2) and announce.board_crc != self._board_crc:
-                    continue
-                v = announce.version
-                v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
-
-                # Check against pending upgrades
-                if source.infuse_id in self._pending:
-                    if (v_str != self._new_ver) and (time.time() < self._pending[source.infuse_id]):
-                        # Device could still be applying the upgrade
-                        continue
-                    self._pending.pop(source.infuse_id)
-                    self._handled.append(source.infuse_id)
-                    if v_str == self._new_ver:
-                        self._updated += 1
-                        result = "upgraded"
-                    else:
-                        self._failed += 1
-                        result = "failed"
-                    if self._log:
-                        self._log.write(
-                            f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},{result}\n"
-                        )
-                        self._log.flush()
-                    continue
-
-                # Already running the requested version?
-                if v_str == self._new_ver and announce.application == self._app_id:
-                    self._handled.append(source.infuse_id)
-                    self._already += 1
-                    self.state_update(live, "Scanning")
-                    if self._log:
-                        self._log.write(
-                            f"{time.time()},0x{source.infuse_id:016x},0x{self._app_id:08x},{v_str},already\n"
-                        )
-                        self._log.flush()
-                    continue
-
-                # Do we have a valid diff?
-                diff_file = self._release.dir / "diffs" / f"{v_str}.bin"
-
-                if not diff_file.exists() and announce.application in self._supported_apps:
-                    # Is this a single diff from a different application we know about?
-                    diff_file = self._release.dir / "diffs" / f"0x{announce.application:08x}" / f"{v_str}.bin"
-                    if not diff_file.exists():
-                        self._missing_diffs.add(v_str)
-                        self._handled.append(source.infuse_id)
-                        self._no_diff += 1
-                        self.state_update(live, "Scanning")
-                        continue
-
-                if self._single_diff and self._single_diff != diff_file:
-                    # Not the file we've copied to the gateway flash
-                    self._missing_diffs.add(v_str)
-                    self._handled.append(source.infuse_id)
-                    self._no_diff += 1
-                    self.state_update(live, "Scanning")
-                    continue
-
-                # Is signal strong enough to connect?
-                if self._min_rssi and source.rssi < self._min_rssi:
-                    continue
-
-                # Load patch file
-                with open(diff_file, "rb") as f:
-                    self.patch_file = f.read()
-
-                # Attempt to upload
-                self.state_update(live, f"Connecting to {source.infuse_id:016X}")
-                try:
-                    with self._client.connection(
-                        source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
-                    ) as mtu:
-                        if self._single_diff:
-                            self.run_file_copy(live, mtu, source)
-                        else:
-                            self.run_file_upload(live, mtu, source)
-
-                except ConnectionRefusedError:
-                    self.state_update(live, "Scanning")
-                except ConnectionAbortedError:
-                    self.state_update(live, "Scanning")
-
-                if self.task is not None:
-                    self.progress.remove_task(self.task)
-                    self.task = None
-
-                self.state_update(live, "Scanning")
+            self.run_thread(live)
