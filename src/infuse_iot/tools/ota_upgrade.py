@@ -159,13 +159,13 @@ class SubCommand(InfuseCommand):
             self.task = self.progress.add_task("", total=len(self.patch_file))
         self.progress.update(self.task, completed=offset)
 
-    def gateway_diff_load(self):
+    def gateway_diff_load(self, client: LocalClient):
         assert self._single_diff is not None
         with self._single_diff.open("rb") as f:
             patch_file = f.read()
 
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as _mtu:
-            rpc_client = RpcClient(self._client, _mtu, InfuseID.GATEWAY)
+        with client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as _mtu:
+            rpc_client = RpcClient(client, _mtu, InfuseID.GATEWAY)
             params = file_write_basic.request(rpc_enum_file_action.FILE_FOR_COPY, binascii.crc32(patch_file))
 
             print(f"Writing '{self._single_diff}' to gateway")
@@ -179,12 +179,12 @@ class SubCommand(InfuseCommand):
             )
             return_code = hdr.return_code if hdr else -1
             if return_code != 0:
-                sys.exit(f"Failed to save diff file to gateway (({errno.strerror(-return_code)}))")
+                raise RuntimeError(f"Failed to save diff file to gateway (({errno.strerror(-return_code)}))")
             print(f"'{self._single_diff}' written to gateway")
 
-    def run_file_upload(self, live: Live, mtu: int, source: HopReceived):
+    def run_file_upload(self, live: Live, mtu: int, source: HopReceived, client: LocalClient):
         self.state_update(live, f"Uploading patch file to {source.infuse_id:016X}")
-        rpc_client = RpcClient(self._client, mtu, source.infuse_id)
+        rpc_client = RpcClient(client, mtu, source.infuse_id)
 
         params = file_write_basic.request(rpc_enum_file_action.APP_CPATCH, binascii.crc32(self.patch_file))
 
@@ -202,9 +202,9 @@ class SubCommand(InfuseCommand):
         elif hdr.return_code == 0:
             self._pending[source.infuse_id] = time.time() + 60
 
-    def run_file_copy(self, live: Live, mtu: int, source: HopReceived):
+    def run_file_copy(self, live: Live, mtu: int, source: HopReceived, client: LocalClient):
         self.state_update(live, f"Copying patch file to {source.infuse_id:016X}")
-        rpc_client = RpcClient(self._client, mtu, InfuseID.GATEWAY)
+        rpc_client = RpcClient(client, mtu, InfuseID.GATEWAY)
 
         params = bt_file_copy_basic.request(
             source.interface_address.val.to_rpc_struct(),
@@ -227,11 +227,12 @@ class SubCommand(InfuseCommand):
         elif hdr.return_code == 0:
             self._pending[source.infuse_id] = time.time() + 60
         elif hdr.return_code < 0:
+            sock_name = client._input_sock.getsockname()
             err = errno.strerror(-hdr.return_code)
-            print(f"Failed to copy patch file to {source.infuse_id:016X} ({err})")
+            print(f"{sock_name} Failed to copy patch file to {source.infuse_id:016X} ({err})")
 
-    def run_thread(self, live: Live):
-        for source, announce in self._client.observe_announce():
+    def run_thread(self, live: Live, client: LocalClient):
+        for source, announce in client.observe_announce():
             self.state_update(live, "Scanning")
             if len(self._explicit_ids):
                 if source.infuse_id not in self._explicit_ids:
@@ -314,13 +315,13 @@ class SubCommand(InfuseCommand):
             # Attempt to upload
             self.state_update(live, f"Connecting to {source.infuse_id:016X}")
             try:
-                with self._client.connection(
+                with client.connection(
                     source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
                 ) as mtu:
                     if self._single_diff:
-                        self.run_file_copy(live, mtu, source)
+                        self.run_file_copy(live, mtu, source, client)
                     else:
-                        self.run_file_upload(live, mtu, source)
+                        self.run_file_upload(live, mtu, source, client)
 
             except ConnectionRefusedError:
                 self.state_update(live, "Scanning")
@@ -338,7 +339,10 @@ class SubCommand(InfuseCommand):
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 
         if self._single_diff:
-            self.gateway_diff_load()
+            try:
+                self.gateway_diff_load(self._client)
+            except RuntimeError as e:
+                sys.exit(str(e))
 
         with Live(self.progress_table(), refresh_per_second=4) as live:
-            self.run_thread(live)
+            self.run_thread(live, self._client)
