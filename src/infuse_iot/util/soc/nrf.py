@@ -63,6 +63,8 @@ class nRF54L(NRFFamily):
             return "nRF54L10"
         elif version.startswith("NRF54L05"):
             return "nRF54L05"
+        elif version.startswith("NRF54LM20"):
+            return "nRF54LM20"
         else:
             raise NotImplementedError(f"Unhandled device {version}")
 
