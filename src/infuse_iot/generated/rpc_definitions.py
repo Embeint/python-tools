@@ -254,6 +254,28 @@ class rpc_struct_data_logger_flushed(VLACompatLittleEndianStruct):
     _pack_ = 1
 
 
+class rpc_struct_filesystem_file_metadata(VLACompatLittleEndianStruct):
+    """Metadata associated with file on the filesystem"""
+
+    _fields_ = [
+        ("timestamp", ctypes.c_uint32),
+        ("identifier", ctypes.c_uint32),
+        ("crc", ctypes.c_uint32),
+    ]
+    _pack_ = 1
+
+
+class rpc_struct_filesystem_file_info(VLACompatLittleEndianStruct):
+    """Information about file on the filesystem"""
+
+    _fields_ = [
+        ("metadata", rpc_struct_filesystem_file_metadata),
+        ("name", ctypes.c_uint32),
+        ("size", ctypes.c_uint32),
+    ]
+    _pack_ = 1
+
+
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
     """Bluetooth LE address type"""
 
@@ -271,6 +293,7 @@ class rpc_enum_file_action(enum.IntEnum):
     BT_CTLR_CPATCH = 12
     NRF91_MODEM_DIFF = 20
     FILE_FOR_COPY = 30
+    WRITE_LITTLEFS = 31
 
 
 class rpc_enum_infuse_bt_characteristic(enum.IntEnum):
@@ -333,6 +356,15 @@ class rpc_enum_support_status(enum.IntEnum):
     UNSUPPORTED = 0
     SUPPORTED = 1
     UNKNOWN = 255
+
+
+class rpc_enum_filesystem_folder(enum.IntEnum):
+    """Folder identifier"""
+
+    GENERAL = 0
+    ALGORITHMS = 1
+    A_GNSS = 2
+    COPY = 3
 
 
 class RPCDefinitionBase:
@@ -1016,6 +1048,38 @@ class coap_download_v2(RPCDefinitionBase):
         _pack_ = 1
 
 
+class coap_download_v3(RPCDefinitionBase):
+    """Download a file from a COAP server (Infuse-IoT DTLS protected)"""
+
+    NAME = "coap_download_v3"
+    HELP = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    DESCRIPTION = "Download a file from a COAP server (Infuse-IoT DTLS protected)"
+    COMMAND_ID = 33
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("server_address", 48 * ctypes.c_char),
+            ("server_port", ctypes.c_uint16),
+            ("block_timeout_ms", ctypes.c_uint16),
+            ("block_size", ctypes.c_uint16),
+            ("action", ctypes.c_uint8),
+            ("folder", ctypes.c_uint8),
+            ("filename", ctypes.c_uint32),
+            ("identifier", ctypes.c_uint32),
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        vla_field = ("resource", 0 * ctypes.c_char)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("resource_len", ctypes.c_uint32),
+            ("resource_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
 class file_write_basic(RPCDefinitionBase):
     """Write a file to the device"""
 
@@ -1080,6 +1144,53 @@ class tdf_data_logger_flush(RPCDefinitionBase):
         ]
         vla_field = ("flushed", 0 * rpc_struct_data_logger_flushed)
         vla_counted_by = "num"
+        _pack_ = 1
+
+
+class shipping_mode(RPCDefinitionBase):
+    """Enter/Exit shipping mode on a device"""
+
+    NAME = "shipping_mode"
+    HELP = "Enter/Exit shipping mode on a device"
+    DESCRIPTION = "Enter/Exit shipping mode on a device"
+    COMMAND_ID = 43
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("enter", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("expected_delay_ms", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+
+class file_write(RPCDefinitionBase):
+    """Write a file to the device"""
+
+    NAME = "file_write"
+    HELP = "Write a file to the device"
+    DESCRIPTION = "Write a file to the device"
+    COMMAND_ID = 44
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("action", ctypes.c_uint8),
+            ("folder", ctypes.c_uint8),
+            ("filename", ctypes.c_uint32),
+            ("identifier", ctypes.c_uint32),
+            ("file_crc", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("recv_len", ctypes.c_uint32),
+            ("recv_crc", ctypes.c_uint32),
+        ]
         _pack_ = 1
 
 
@@ -1228,6 +1339,51 @@ class gravity_reference_update(RPCDefinitionBase):
             ("num_samples", ctypes.c_uint16),
             ("sample_period_us", ctypes.c_uint32),
         ]
+        _pack_ = 1
+
+
+class filesystem_ls(RPCDefinitionBase):
+    """Query files currently on the filesystem"""
+
+    NAME = "filesystem_ls"
+    HELP = "Query files currently on the filesystem"
+    DESCRIPTION = "Query files currently on the filesystem"
+    COMMAND_ID = 61
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("folder", ctypes.c_uint8),
+            ("skip", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("total_files", ctypes.c_uint8),
+            ("contained_files", ctypes.c_uint8),
+        ]
+        vla_field = ("files", 0 * rpc_struct_filesystem_file_info)
+        vla_counted_by = "contained_files"
+        _pack_ = 1
+
+
+class filesystem_rm(RPCDefinitionBase):
+    """Delete file currently on the filesystem"""
+
+    NAME = "filesystem_rm"
+    HELP = "Delete file currently on the filesystem"
+    DESCRIPTION = "Delete file currently on the filesystem"
+    COMMAND_ID = 62
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("folder", ctypes.c_uint8),
+            ("file", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
         _pack_ = 1
 
 
@@ -1413,15 +1569,20 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     coap_download.COMMAND_ID: coap_download,
     zperf_upload.COMMAND_ID: zperf_upload,
     coap_download_v2.COMMAND_ID: coap_download_v2,
+    coap_download_v3.COMMAND_ID: coap_download_v3,
     file_write_basic.COMMAND_ID: file_write_basic,
     annotate.COMMAND_ID: annotate,
     tdf_data_logger_flush.COMMAND_ID: tdf_data_logger_flush,
+    shipping_mode.COMMAND_ID: shipping_mode,
+    file_write.COMMAND_ID: file_write,
     bt_connect_infuse.COMMAND_ID: bt_connect_infuse,
     bt_disconnect.COMMAND_ID: bt_disconnect,
     bt_file_copy_basic.COMMAND_ID: bt_file_copy_basic,
     bt_file_copy_coap.COMMAND_ID: bt_file_copy_coap,
     bt_mcumgr_reboot.COMMAND_ID: bt_mcumgr_reboot,
     gravity_reference_update.COMMAND_ID: gravity_reference_update,
+    filesystem_ls.COMMAND_ID: filesystem_ls,
+    filesystem_rm.COMMAND_ID: filesystem_rm,
     ubx_assist_now_ztp_creds.COMMAND_ID: ubx_assist_now_ztp_creds,
     security_state.COMMAND_ID: security_state,
     security_key_update.COMMAND_ID: security_key_update,
@@ -1452,6 +1613,8 @@ __all__ = [
     "rpc_struct_public_key_info_256bit",
     "rpc_struct_thread_stats",
     "rpc_struct_data_logger_flushed",
+    "rpc_struct_filesystem_file_metadata",
+    "rpc_struct_filesystem_file_info",
     "rpc_enum_bt_le_addr_type",
     "rpc_enum_file_action",
     "rpc_enum_infuse_bt_characteristic",
@@ -1461,6 +1624,7 @@ __all__ = [
     "rpc_enum_key_id",
     "rpc_enum_key_action",
     "rpc_enum_support_status",
+    "rpc_enum_filesystem_folder",
     "reboot",
     "fault",
     "time_get",
@@ -1490,15 +1654,20 @@ __all__ = [
     "coap_download",
     "zperf_upload",
     "coap_download_v2",
+    "coap_download_v3",
     "file_write_basic",
     "annotate",
     "tdf_data_logger_flush",
+    "shipping_mode",
+    "file_write",
     "bt_connect_infuse",
     "bt_disconnect",
     "bt_file_copy_basic",
     "bt_file_copy_coap",
     "bt_mcumgr_reboot",
     "gravity_reference_update",
+    "filesystem_ls",
+    "filesystem_rm",
     "ubx_assist_now_ztp_creds",
     "security_state",
     "security_key_update",
