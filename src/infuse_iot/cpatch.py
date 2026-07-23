@@ -506,7 +506,7 @@ class cpatch:
         # Pre-hash original image
         pre_hash = {}
         prev_val = None
-        for offset in range(len(old) - hash_len):
+        for offset in range(len(old) - hash_len + 1):
             val = old[offset : offset + hash_len]
             if val == prev_val:
                 continue
