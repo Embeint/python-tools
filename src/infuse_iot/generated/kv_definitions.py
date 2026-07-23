@@ -239,6 +239,32 @@ class slots:
         ]
         _pack_ = 1
 
+    class littlefs_fs_state(VLACompatLittleEndianStruct):
+        """State of LittleFS filesystem"""
+
+        NAME = "LITTLEFS_FS_STATE"
+        BASE_ID = 12
+        RANGE = 1
+        _fields_ = [
+            ("disk_version", ctypes.c_uint32),
+            ("block_size", ctypes.c_uint32),
+            ("block_count", ctypes.c_uint32),
+            ("blocks_used", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class littlefs_algorithms_state(VLACompatLittleEndianStruct):
+        """State of algorithms on the LittleFS filesystem"""
+
+        NAME = "LITTLEFS_ALGORITHMS_STATE"
+        BASE_ID = 13
+        RANGE = 1
+        _fields_ = [
+            ("count", ctypes.c_uint8),
+            ("crc_xor", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
     class wifi_ssid(VLACompatLittleEndianStruct):
         """WiFi network name"""
 
@@ -462,6 +488,19 @@ class slots:
         ]
         _pack_ = 1
 
+    class nrf_edge_ai_runtime_version(VLACompatLittleEndianStruct):
+        """Version of the nRF Edge AI runtime"""
+
+        NAME = "NRF_EDGE_AI_RUNTIME_VERSION"
+        BASE_ID = 56
+        RANGE = 1
+        _fields_ = [
+            ("major", ctypes.c_uint8),
+            ("minor", ctypes.c_uint8),
+            ("patch", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
 
@@ -588,6 +627,8 @@ class slots:
         8: secondary_remote_public_key,
         10: fixed_location,
         11: broadcast_fixed_indoors,
+        12: littlefs_fs_state,
+        13: littlefs_algorithms_state,
         20: wifi_ssid,
         21: wifi_psk,
         22: wifi_channels,
@@ -608,6 +649,7 @@ class slots:
         53: led_disable_daily_time_range,
         54: memfault_disable,
         55: gateway_bluetooth_forward_options,
+        56: nrf_edge_ai_runtime_version,
         60: gravity_reference,
         100: geofence,
         101: geofence,

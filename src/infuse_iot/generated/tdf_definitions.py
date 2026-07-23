@@ -1713,6 +1713,26 @@ class readings:
             "value": "{}",
         }
 
+    class ambient_pressure(TdfReadingBase):
+        """Ambient pressure"""
+
+        ID = 62
+        NAME = "AMBIENT_PRESSURE"
+        _fields_ = [
+            ("_pressure", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "pressure": "kPA",
+        }
+        _display_fmt_ = {
+            "pressure": "{:.3f}",
+        }
+
+        @property
+        def pressure(self):
+            return self._pressure * 0.001
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1775,6 +1795,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.pcm_16bit_chan_right.ID: readings.pcm_16bit_chan_right,
     readings.pcm_16bit_chan_dual.ID: readings.pcm_16bit_chan_dual,
     readings.kvs_value_changed.ID: readings.kvs_value_changed,
+    readings.ambient_pressure.ID: readings.ambient_pressure,
 }
 
 __all__ = [
