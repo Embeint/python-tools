@@ -76,7 +76,7 @@ class CommonThreadState:
             self.server.broadcast(notification)
 
     def query_device_key(self, cb_event: threading.Event | None = None):
-        def security_state_done(pkt: PacketReceived, _: int, response: bytes):
+        def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
             cloud_key = response[:32]
             device_key = response[32:64]
             network_id = int.from_bytes(response[64:68], "little")
@@ -85,7 +85,7 @@ class CommonThreadState:
             if cb_event is not None:
                 cb_event.set()
 
-        def public_keys_done(pkt: PacketReceived, rc: int, response: bytes):
+        def public_keys_done(pkt: PacketReceived, rc: int, response: bytes, _):
             if rc != 0:
                 return
             decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
@@ -104,14 +104,17 @@ class CommonThreadState:
                 cb_event.wait(1.0)
 
         # Run security_state RPC
+        challenge = random.randbytes(16)
         cmd_pkt = self.rpc.generate(
-            defs.security_state.COMMAND_ID, random.randbytes(16), Auth.NETWORK, security_state_done
+            defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
         )
         run_cmd_pkt(cmd_pkt)
 
         if self.ddb.has_local_root:
             # Query other public keys from the device
-            cmd_pkt = self.rpc.generate(defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done)
+            cmd_pkt = self.rpc.generate(
+                defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done, None
+            )
             run_cmd_pkt(cmd_pkt)
 
 
@@ -276,7 +279,7 @@ class SerialTxThread(SignaledThread):
         rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.notification_broadcast(rsp)
 
-    def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes):
+    def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
         infuse_id = pkt.route[0].infuse_id
         if rc == 0:
             decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
@@ -287,7 +290,7 @@ class SerialTxThread(SignaledThread):
         # Notify connection success
         self._connected_notification(infuse_id)
 
-    def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes):
+    def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
         resp = defs.bt_connect_infuse.response.from_buffer_copy(pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :])
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
@@ -308,7 +311,7 @@ class SerialTxThread(SignaledThread):
         if self._common.ddb.has_local_root:
             # Query public keys before running callback
             cmd = self._common.rpc.generate_remote_bt(
-                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, self._pub_keys_cb
+                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, self._pub_keys_cb, None
             )
             encrypted = cmd.to_serial(self._common.ddb)
             Console.log_tx(cmd.ptype, len(encrypted))
@@ -351,10 +354,7 @@ class SerialTxThread(SignaledThread):
             0,
         )
         cmd = self._common.rpc.generate(
-            defs.bt_connect_infuse.COMMAND_ID,
-            bytes(connect_args),
-            Auth.DEVICE,
-            self._bt_connect_cb,
+            defs.bt_connect_infuse.COMMAND_ID, bytes(connect_args), Auth.DEVICE, self._bt_connect_cb, None
         )
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
@@ -379,7 +379,7 @@ class SerialTxThread(SignaledThread):
             self._connected.pop(req.infuse_id)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
-        cmd = self._common.rpc.generate(defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None)
+        cmd = self._common.rpc.generate(defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None)
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
