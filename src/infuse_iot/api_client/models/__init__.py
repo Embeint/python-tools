@@ -82,6 +82,7 @@ from .generate_api_key_body_resource_perms import GenerateAPIKeyBodyResourcePerm
 from .generate_mqtt_token_body import GenerateMQTTTokenBody
 from .generated_api_key import GeneratedAPIKey
 from .generated_mqtt_token import GeneratedMQTTToken
+from .get_device_shared_secret_body import GetDeviceSharedSecretBody
 from .get_last_routes_for_devices_body import GetLastRoutesForDevicesBody
 from .health_check import HealthCheck
 from .interface_data import InterfaceData
@@ -208,6 +209,7 @@ __all__ = (
     "GeneratedAPIKey",
     "GeneratedMQTTToken",
     "GenerateMQTTTokenBody",
+    "GetDeviceSharedSecretBody",
     "GetLastRoutesForDevicesBody",
     "HealthCheck",
     "InterfaceData",
