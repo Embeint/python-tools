@@ -26,12 +26,13 @@ RpcCallback = Callable[[PacketReceived, int, bytes, typing.Any], None]
 class LocalRpcServer:
     """Basic class supporting locally generated commands"""
 
-    def __init__(self, database: DeviceDatabase):
+    def __init__(self, database: DeviceDatabase, native_bt: bool = False):
         self._cnt = random.randint(0, 2**31)
         self._ddb = database
+        self._native_bt = native_bt
         self._queued: dict[int, tuple[RpcCallback | None, typing.Any]] = {}
 
-    def generate(
+    def generate_serial(
         self, command: int, args: bytes, auth: Auth, cb: RpcCallback | None, cb_ctx: typing.Any
     ) -> PacketOutputRouted:
         """Generate RPC packet from arguments"""
@@ -43,6 +44,20 @@ class LocalRpcServer:
         )
         assert self._ddb.gateway is not None
         cmd_pkt.route[0].infuse_id = self._ddb.gateway
+        self._queued[self._cnt] = (cb, cb_ctx)
+        self._cnt += 1
+        return cmd_pkt
+
+    def generate_remote_bt_direct(
+        self, remote: int, command: int, args: bytes, auth: Auth, cb: RpcCallback | None, cb_ctx: typing.Any
+    ) -> PacketOutputRouted:
+        """Generate RPC packet for Bluetooth remote from arguments, without intermediate hops"""
+        cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
+        cmd_pkt = PacketOutputRouted(
+            [HopOutput(remote, interface.ID.BT_CENTRAL, auth)],
+            InfuseType.RPC_CMD,
+            cmd_bytes,
+        )
         self._queued[self._cnt] = (cb, cb_ctx)
         self._cnt += 1
         return cmd_pkt
@@ -63,6 +78,16 @@ class LocalRpcServer:
             InfuseType.RPC_CMD,
             cmd_bytes,
         )
+
+    def generate_addressed(
+        self, address: int, command: int, args: bytes, auth: Auth, cb: RpcCallback | None, cb_ctx: typing.Any
+    ) -> PacketOutputRouted:
+        """Generate RPC packet for explicit address"""
+        if self._native_bt:
+            return self.generate_remote_bt_direct(address, command, args, auth, cb, cb_ctx)
+        if address == self._ddb.gateway:
+            return self.generate_serial(command, args, auth, cb, cb_ctx)
+        return self.generate_remote_bt(address, command, args, auth, cb, cb_ctx)
 
     def handle(self, pkt: PacketReceived):
         """Handle received packets"""

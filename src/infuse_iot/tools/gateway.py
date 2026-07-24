@@ -75,13 +75,18 @@ class CommonThreadState:
         if self.server:
             self.server.broadcast(notification)
 
-    def query_device_key(self, cb_event: threading.Event | None = None):
+    def query_device_key(self, infuse_id: int, cb_event: threading.Event | None = None):
         def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
-            cloud_key = response[:32]
-            device_key = response[32:64]
-            network_id = int.from_bytes(response[64:68], "little")
-
-            self.ddb.observe_security_state(pkt.route[0].infuse_id, cloud_key, device_key, network_id)
+            decoded = defs.security_state.response.vla_from_buffer_copy(response)
+            self.ddb.observe_security_state(
+                infuse_id,
+                bytes(decoded.cloud_public_key),
+                bytes(decoded.device_public_key),
+                decoded.network_id,
+                challenge,
+                decoded.challenge_response_type,
+                bytes(decoded.challenge_response),
+            )
             if cb_event is not None:
                 cb_event.set()
 
@@ -91,7 +96,6 @@ class CommonThreadState:
             decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
             for key in decoded.public_keys:
                 if key.id == defs.rpc_enum_key_id.SECONDARY_REMOTE_PUBLIC_KEY:
-                    infuse_id = pkt.route[0].infuse_id
                     self.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
 
         def run_cmd_pkt(cmd_pkt: PacketOutputRouted):
@@ -105,15 +109,15 @@ class CommonThreadState:
 
         # Run security_state RPC
         challenge = random.randbytes(16)
-        cmd_pkt = self.rpc.generate(
-            defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
+        cmd_pkt = self.rpc.generate_addressed(
+            infuse_id, defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
         )
         run_cmd_pkt(cmd_pkt)
 
         if self.ddb.has_local_root:
             # Query other public keys from the device
-            cmd_pkt = self.rpc.generate(
-                defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done, None
+            cmd_pkt = self.rpc.generate_addressed(
+                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done, None
             )
             run_cmd_pkt(cmd_pkt)
 
@@ -193,7 +197,7 @@ class SerialRxThread(SignaledThread):
                     else:
                         Console.log_info(f"Dropping {len(frame)} byte packet...")
                 else:
-                    self._common.query_device_key(None)
+                    self._common.query_device_key(self._common.ddb.gateway, None)
                     Console.log_info(f"Dropping {len(frame)} byte packet to query device key...")
                 return
             except cryptography.exceptions.InvalidTag as e:
@@ -213,7 +217,8 @@ class SerialRxThread(SignaledThread):
                     self._handle_memfault_pkt(pkt)
                 # Proactively requery keys
                 elif pkt.ptype == InfuseType.KEY_IDS:
-                    self._common.query_device_key(None)
+                    assert self._common.ddb.gateway is not None
+                    self._common.query_device_key(self._common.ddb.gateway, None)
 
                 # Forward to clients
                 notification = ClientNotificationEpacketReceived(pkt)
@@ -264,9 +269,9 @@ class SerialTxThread(SignaledThread):
 
         # Do we have the device public keys we need?
         for hop in routed.route:
-            if hop.auth == Auth.DEVICE and not self._common.ddb.has_public_key(hop.infuse_id):
+            if hop.auth == Auth.DEVICE and not self._common.ddb.has_shared_key(hop.infuse_id):
                 cb_event = threading.Event()
-                self._common.query_device_key(cb_event)
+                self._common.query_device_key(hop.infuse_id, cb_event)
 
         # Encode and encrypt payload
         encrypted = routed.to_serial(self._common.ddb)
@@ -353,7 +358,7 @@ class SerialTxThread(SignaledThread):
             subs,
             0,
         )
-        cmd = self._common.rpc.generate(
+        cmd = self._common.rpc.generate_serial(
             defs.bt_connect_infuse.COMMAND_ID, bytes(connect_args), Auth.DEVICE, self._bt_connect_cb, None
         )
         encrypted = cmd.to_serial(self._common.ddb)
@@ -379,7 +384,9 @@ class SerialTxThread(SignaledThread):
             self._connected.pop(req.infuse_id)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
-        cmd = self._common.rpc.generate(defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None)
+        cmd = self._common.rpc.generate_serial(
+            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None
+        )
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)

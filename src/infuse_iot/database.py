@@ -11,8 +11,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
 from infuse_iot.api_client import Client
-from infuse_iot.api_client.api.key import get_shared_secret
-from infuse_iot.api_client.models import Key
+from infuse_iot.api_client.api.key import get_device_shared_secret
+from infuse_iot.api_client.models.get_device_shared_secret_body import GetDeviceSharedSecretBody
+from infuse_iot.api_client.models.security_state import SecurityState
 from infuse_iot.credentials import get_api_key, load_network
 from infuse_iot.epacket.interface import Address as InterfaceAddress
 from infuse_iot.util.crypto import hkdf_derive
@@ -156,7 +157,14 @@ class DeviceDatabase:
             return state["shared_key"]
 
     def observe_security_state(
-        self, infuse_id: int, cloud_pub_key: bytes, device_pub_key: bytes, network_id: int
+        self,
+        infuse_id: int,
+        cloud_pub_key: bytes,
+        device_pub_key: bytes,
+        network_id: int,
+        challenge: bytes,
+        challenge_resp_type: int,
+        challenge_resp: bytes,
     ) -> None:
         """Update device state based on security_state response"""
         if infuse_id not in self.devices:
@@ -174,8 +182,16 @@ class DeviceDatabase:
 
         client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
         with client as client:
-            body = Key(base64.b64encode(device_pub_key).decode("utf-8"))
-            response = get_shared_secret.sync(client=client, body=body)
+            security_state = SecurityState(
+                base64.b64encode(cloud_pub_key).decode("utf-8"),
+                base64.b64encode(device_pub_key).decode("utf-8"),
+                network_id,
+                base64.b64encode(challenge).decode("utf-8"),
+                challenge_resp_type,
+                base64.b64encode(challenge_resp).decode("utf-8"),
+            )
+            body = GetDeviceSharedSecretBody(f"{infuse_id:016x}", security_state)
+            response = get_device_shared_secret.sync(client=client, body=body)
             if response is not None:
                 key = base64.b64decode(response.key)
                 self.devices[infuse_id].shared_key = key
@@ -207,6 +223,12 @@ class DeviceDatabase:
         if infuse_id not in self.devices:
             return False
         return self.devices[infuse_id].device_public_key is not None
+
+    def has_shared_key(self, infuse_id: int) -> bool:
+        """Does the database have the shared key for this device?"""
+        if infuse_id not in self.devices:
+            return False
+        return self.devices[infuse_id].shared_key is not None
 
     def has_network_id(self, infuse_id: int) -> bool:
         """Does the database know the network ID for this device?"""

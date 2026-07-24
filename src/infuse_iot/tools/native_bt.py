@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import ctypes
 import json
+import random
 from typing import Any
 
 from bleak import BleakClient, BleakScanner
@@ -17,6 +18,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from cryptography.exceptions import InvalidTag
 
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
 from infuse_iot.database import DeviceDatabase, UnknownNetworkError
@@ -46,6 +48,7 @@ from infuse_iot.socket_comms import (
 )
 from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
+from infuse_iot.util.local_rpc_server import LocalRpcServer
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -66,6 +69,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._mapping = bleak_mapping
         self._queues: dict[int, asyncio.Queue] = {}
         self._tasks: dict[int, asyncio.Task] = {}
+        self._rpc = LocalRpcServer(database, native_bt=True)
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
         try:
@@ -98,34 +102,83 @@ class MulticastHandler(asyncio.DatagramProtocol):
             bytes(decr),
         )
         Console.log_rx(pkt.ptype, len(data))
+        # Handle any local RPC responses
+        self._rpc.handle(pkt)
+        # Forward to clients
         self.wrapped_broadcast(ClientNotificationEpacketReceived(pkt))
 
     async def create_connection_internal(
         self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
     ):
-        Console.log_info(f"{dev}: Initiating connection")
+        command_notify_enabled = False
+        Console.log_info(f"{request.infuse_id:016x}: Initiating connection")
         async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
                 await client._backend._acquire_mtu()  # type: ignore
 
-            security_info = await client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR)
-            resp = InfuseGattReadResponse.from_buffer_copy(security_info)
-            self._db.observe_security_state(
-                request.infuse_id,
-                bytes(resp.cloud_public_key),
-                bytes(resp.device_public_key),
-                resp.network_id,
-            )
+            Console.log_info(f"{request.infuse_id:016x}: Connected (MTU {client.mtu_size})")
 
-            if request.data_types & request.DataType.COMMAND:
+            have_shared_key = self._db.has_shared_key(request.infuse_id)
+            if have_shared_key:
+                # Read the current keys back to confirm they haven't changed
+                security_info = await client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR)
+                resp = InfuseGattReadResponse.from_buffer_copy(security_info)
+                key_id = self._db.get_device_key_id(bytes(resp.cloud_public_key), bytes(resp.device_public_key))
+                if self._db.devices[request.infuse_id].device_key_id != key_id:
+                    # Keys mismatch, invaidate the shared key
+                    Console.log_info(f"{dev}: Key mismatch, re-running derivation")
+                    have_shared_key = False
+
+            if not have_shared_key:
+                # Always need the command characteristic to get the response
+                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
+                command_notify_enabled = True
+
+                security_state_received = asyncio.Event()
+
+                def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
+                    decoded = defs.security_state.response.vla_from_buffer_copy(response)
+                    self._db.observe_security_state(
+                        request.infuse_id,
+                        bytes(decoded.cloud_public_key),
+                        bytes(decoded.device_public_key),
+                        decoded.network_id,
+                        challenge,
+                        decoded.challenge_response_type,
+                        bytes(decoded.challenge_response),
+                    )
+                    security_state_received.set()
+
+                # Construct the Security State RPC command
+                challenge = random.randbytes(16)
+                ss_pkt = self._rpc.generate_addressed(
+                    request.infuse_id,
+                    defs.security_state.COMMAND_ID,
+                    challenge,
+                    Auth.NETWORK,
+                    security_state_done,
+                    challenge,
+                )
+
+                # Encrypt command and write to remote
+                encr = CtypeBtGattFrame.encrypt(self._db, request.infuse_id, ss_pkt.ptype, Auth.NETWORK, ss_pkt.payload)
+                Console.log_tx(ss_pkt.ptype, len(encr))
+                await client.write_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR, encr, response=False)
+
+                # Wait for a response
+                await asyncio.wait_for(security_state_received.wait(), timeout=request.timeout_ms / 1000)
+
+                # Disable the command characteristic if not requested
+                if not (request.data_types & request.DataType.COMMAND):
+                    await client.stop_notify(InfuseBluetoothUUID.COMMAND_CHAR)
+
+            if (request.data_types & request.DataType.COMMAND) and not command_notify_enabled:
                 await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
             if request.data_types & request.DataType.DATA:
                 await client.start_notify(InfuseBluetoothUUID.DATA_CHAR, self.notification_handler)
             if request.data_types & request.DataType.LOGGING:
                 await client.start_notify(InfuseBluetoothUUID.LOGGING_CHAR, self.notification_handler)
-
-            Console.log_info(f"{dev}: Connected (MTU {client.mtu_size})")
 
             self.wrapped_broadcast(
                 ClientNotificationConnectionCreated(
