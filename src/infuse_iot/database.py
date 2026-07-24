@@ -130,7 +130,7 @@ class DeviceDatabase:
         assert self._local_root_public is not None
         assert dev.device_public_key is not None
         device_public_key = x25519.X25519PublicKey.from_public_bytes(dev.device_public_key)
-        dev.secondary_device_key_id = binascii.crc32(self._local_root_public + dev.device_public_key) & 0xFFFFFF
+        dev.secondary_device_key_id = self.get_device_key_id(self._local_root_public, dev.device_public_key)
         dev.local_shared_key = self._local_root.exchange(device_public_key)
 
     @contextmanager
@@ -161,7 +161,7 @@ class DeviceDatabase:
         """Update device state based on security_state response"""
         if infuse_id not in self.devices:
             self.devices[infuse_id] = self.DeviceState(infuse_id)
-        device_key_id = binascii.crc32(cloud_pub_key + device_pub_key) & 0x00FFFFFF
+        device_key_id = self.get_device_key_id(cloud_pub_key, device_pub_key)
         self.devices[infuse_id].device_key_id = device_key_id
         self.devices[infuse_id].network_id = network_id
         self.devices[infuse_id].device_public_key = device_pub_key
@@ -180,6 +180,11 @@ class DeviceDatabase:
                 key = base64.b64decode(response.key)
                 self.devices[infuse_id].shared_key = key
                 self._update_cache(infuse_id, device_pub_key, key)
+
+    @staticmethod
+    def get_device_key_id(cloud_pub_key: bytes, device_pub_key: bytes) -> int:
+        """Get device key ID for a given cloud and device public key"""
+        return binascii.crc32(cloud_pub_key + device_pub_key) & 0x00FFFFFF
 
     def _network_key(self, network_id: int, interface: bytes, gps_time: int) -> bytes:
         if network_id not in self._network_keys:
