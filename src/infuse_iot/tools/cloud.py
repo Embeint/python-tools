@@ -267,6 +267,8 @@ class Device(CloudSubCommand):
                 ("~~~Latest Route~~~", ""),
                 ("Interface", route.interface.upper()),
             ]
+            if route.forwarded:
+                table += [("Forwarded From", f"{route.forwarded.device_id} ({route.forwarded.rssi} dBm)")]
             if route.bt_adv:
                 table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
             if route.udp:
