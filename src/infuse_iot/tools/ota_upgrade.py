@@ -201,6 +201,7 @@ class SubCommand(InfuseCommand):
     def run_file_copy(self, live: Live, mtu: int, source: HopReceived):
         self.state_update(live, f"Copying patch file to {source.infuse_id:016X}")
         rpc_client = RpcClient(self._client, mtu, InfuseID.GATEWAY)
+        rpc_client.set_timeout(60.0)
 
         params = bt_file_copy_basic.request(
             source.interface_address.val.to_rpc_struct(),
