@@ -21,7 +21,7 @@ import cryptography.exceptions
 import infuse_iot.definitions.rpc as defs
 import infuse_iot.definitions.tdf as tdf_defs
 import infuse_iot.epacket.interface as interface
-from infuse_iot import rpc, tdf
+from infuse_iot import tdf
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.database import (
@@ -295,8 +295,8 @@ class SerialTxThread(SignaledThread):
         # Notify connection success
         self._connected_notification(infuse_id)
 
-    def _bt_connect_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
-        resp = defs.bt_connect_infuse.response.from_buffer_copy(pkt.payload[ctypes.sizeof(rpc.ResponseHeader) :])
+    def _bt_connect_cb(self, _pkt: PacketReceived, rc: int, response: bytes, _):
+        resp = defs.bt_connect_infuse.response.from_buffer_copy(response)
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
 
