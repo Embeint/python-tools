@@ -23,10 +23,6 @@ from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
-    NAME = "tdf_list"
-    HELP = "Display received TDFs in a list"
-    DESCRIPTION = "Display received TDFs in a list"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--array-all", action="store_true", help="Display all array values, not just the last")

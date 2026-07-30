@@ -35,10 +35,6 @@ from infuse_iot.util.threading import SignaledThread
 
 
 class SubCommand(InfuseCommand):
-    NAME = "localhost"
-    HELP = "Run a local server for TDF viewing"
-    DESCRIPTION = "Run a local server for TDF viewing"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--port", "-p", type=int, default=8080, help="Port number for localhost server")

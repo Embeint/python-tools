@@ -26,10 +26,6 @@ from infuse_iot.util.console import Console
 
 
 class SubCommand(InfuseCommand):
-    NAME = "audio_record"
-    HELP = "Record audio data to a file from TDF"
-    DESCRIPTION = "Record audio data to a file from TDF"
-
     def __init__(self, args):
         self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()

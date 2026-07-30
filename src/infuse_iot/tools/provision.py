@@ -26,10 +26,6 @@ from infuse_iot.util.soc import nrf, soc, stm
 
 
 class SubCommand(InfuseCommand):
-    NAME = "provision"
-    HELP = "Provision device on Infuse Cloud"
-    DESCRIPTION = "Provision device on Infuse Cloud"
-
     @classmethod
     def add_parser(cls, parser):
         vendor_group = parser.add_mutually_exclusive_group(required=True)

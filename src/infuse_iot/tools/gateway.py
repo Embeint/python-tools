@@ -451,10 +451,6 @@ class SerialTxThread(SignaledThread):
 
 
 class SubCommand(InfuseCommand):
-    NAME = "gateway"
-    HELP = "Connect to a local gateway device"
-    DESCRIPTION = "Connect to a gateway device over serial and route commands to Bluetooth devices"
-
     @classmethod
     def add_parser(cls, parser):
         # COM ports are not valid files

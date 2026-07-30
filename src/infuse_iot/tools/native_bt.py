@@ -257,10 +257,6 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
 
 class SubCommand(InfuseCommand):
-    NAME = "native_bt"
-    HELP = "Native Bluetooth gateway"
-    DESCRIPTION = "Use the local Bluetooth adapter for Bluetooth interaction"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")

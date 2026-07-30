@@ -27,10 +27,6 @@ from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
-    NAME = "rpc_cloud"
-    HELP = "Manage remote procedure calls through Infuse-IoT cloud"
-    DESCRIPTION = "Manage remote procedure calls through Infuse-IoT cloud"
-
     @classmethod
     def add_parser(cls, parser):
         subparser = parser.add_subparsers(title="commands", metavar="<command>", required=True)

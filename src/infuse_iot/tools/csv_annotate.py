@@ -10,10 +10,6 @@ from infuse_iot.util.argparse import ValidFile
 
 
 class SubCommand(InfuseCommand):
-    NAME = "csv_annotate"
-    HELP = "Annotate CSV data"
-    DESCRIPTION = "Annotate CSV data"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--file", "-f", required=True, type=ValidFile)

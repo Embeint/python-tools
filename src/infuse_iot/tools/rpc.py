@@ -25,10 +25,6 @@ from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
-    NAME = "rpc"
-    HELP = "Run remote procedure calls on devices"
-    DESCRIPTION = "Run remote procedure calls on devices"
-
     @classmethod
     def add_parser(cls, parser):
         addr_group = parser.add_mutually_exclusive_group(required=True)
