@@ -21,7 +21,7 @@ from rich.table import Table
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID
-from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action
+from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action, time_set
 from infuse_iot.epacket.packet import Auth, HopReceived
 from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
@@ -29,6 +29,7 @@ from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
 )
+from infuse_iot.time import InfuseTime
 from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease, add_server_port_parser
 from infuse_iot.util.crc import crc16_ccitt
 from infuse_iot.zephyr.errno import errno
@@ -163,6 +164,20 @@ class SubCommand(InfuseCommand):
                 sys.exit(f"Failed to save diff file to gateway (({errno.strerror(-return_code)}))")
             print(f"'{self._single_diff}' written to gateway")
 
+    def set_device_time(self, mtu: int, infuse_id: int) -> bool:
+        rpc_client = RpcClient(self._client, mtu, infuse_id)
+        rpc_client.set_timeout(2.0)
+
+        params = time_set.request(InfuseTime.epoch_time_from_unix(time.time()))
+        hdr, _rsp = rpc_client.run_standard_cmd(
+            time_set.COMMAND_ID,
+            Auth.DEVICE,
+            bytes(params),
+            time_set.response.from_buffer_copy,
+        )
+        # Command completed and succeeded
+        return hdr is not None and hdr.return_code == 0
+
     def run_file_upload(self, live: Live, mtu: int, source: HopReceived):
         self.state_update(live, f"Uploading patch file to {source.infuse_id:016X}")
         rpc_client = RpcClient(self._client, mtu, source.infuse_id)
@@ -214,6 +229,11 @@ class SubCommand(InfuseCommand):
 
         if self._single_diff:
             self.gateway_diff_load()
+
+        # Set the gateways time at script startup
+        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as mtu:
+            if not self.set_device_time(mtu, InfuseID.GATEWAY):
+                sys.exit("Failed to set time on local gateway")
 
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
@@ -302,6 +322,9 @@ class SubCommand(InfuseCommand):
                     with self._client.connection(
                         source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
                     ) as mtu:
+                        # Set time on the remote device to keep keys in sync
+                        if not self.set_device_time(mtu, source.infuse_id):
+                            break
                         if self._single_diff:
                             self.run_file_copy(live, mtu, source)
                         else:
