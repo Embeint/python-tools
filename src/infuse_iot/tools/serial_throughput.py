@@ -25,10 +25,6 @@ from infuse_iot.util.argparse import add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
-    NAME = "serial_throughput"
-    HELP = "Test serial throughput to local gateway"
-    DESCRIPTION = "Test serial throughput to local gateway"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(

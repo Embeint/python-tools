@@ -24,10 +24,6 @@ from infuse_iot.util.argparse import add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
-    NAME = "auto_activate"
-    HELP = "Automatically activate/deactivate observed devices"
-    DESCRIPTION = "Automatically activate/deactivate observed devices"
-
     def __init__(self, args):
         self.app_ids = args.app
         self.active = args.active or False

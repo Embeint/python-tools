@@ -10,10 +10,6 @@ from infuse_iot.util.argparse import ValidFile
 
 
 class SubCommand(InfuseCommand):
-    NAME = "csv_plot"
-    HELP = "Plot CSV data"
-    DESCRIPTION = "Plot CSV data"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument(

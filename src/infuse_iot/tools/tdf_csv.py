@@ -25,10 +25,6 @@ def _to_str(unix_time: float) -> str:
 
 
 class SubCommand(InfuseCommand):
-    NAME = "tdf_csv"
-    HELP = "Save received TDFs in CSV files"
-    DESCRIPTION = "Save received TDFs in CSV files"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")

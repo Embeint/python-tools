@@ -9,14 +9,11 @@ import yaml
 
 from infuse_iot import credentials
 from infuse_iot.commands import InfuseCommand
+from infuse_iot.tools.registry import load_extension_tools
 from infuse_iot.util.argparse import ValidDir, ValidFile
 
 
 class SubCommand(InfuseCommand):
-    NAME = "credentials"
-    HELP = "Manage Infuse-IoT credentials"
-    DESCRIPTION = "Manage Infuse-IoT credentials"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--api-key", type=str, help="Set Infuse-IoT API key")
@@ -44,6 +41,7 @@ class SubCommand(InfuseCommand):
             network_info = yaml.safe_load(content)
             credentials.save_network(network_info["id"], content)
         if self.args.custom_tools:
+            load_extension_tools(self.args.custom_tools)
             credentials.set_custom_tool_path(str(self.args.custom_tools.absolute()))
         if self.args.custom_definitions:
             credentials.set_custom_definitions_path(str(self.args.custom_definitions.absolute()))

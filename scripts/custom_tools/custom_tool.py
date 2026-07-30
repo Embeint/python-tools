@@ -14,10 +14,6 @@ from infuse_iot.commands import InfuseCommand
 
 
 class SubCommand(InfuseCommand):
-    NAME = "custom_tool"
-    HELP = "Test out-of-tree tool"
-    DESCRIPTION = "Test out-of-tree tool"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--echo", "-e", required=True, type=str)

@@ -22,10 +22,6 @@ from infuse_iot.util.console import Console
 
 
 class SubCommand(InfuseCommand):
-    NAME = "bt_log"
-    HELP = "Connect to remote Bluetooth device serial logs"
-    DESCRIPTION = "Connect to remote Bluetooth device serial logs"
-
     def __init__(self, args):
         self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()

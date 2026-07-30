@@ -44,21 +44,6 @@ class InfuseCommand(metaclass=ABCMeta):
     def run(self) -> None:
         """Run the subcommand"""
 
-    @property
-    @abstractmethod
-    def NAME(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def HELP(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def DESCRIPTION(self) -> str:
-        pass
-
 
 class InfuseRpcCommand:
     RPC_DATA_SEND: bool = False

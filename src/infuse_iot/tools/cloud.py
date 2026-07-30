@@ -815,10 +815,6 @@ class Applications(CloudSubCommand):
 
 
 class SubCommand(InfuseCommand):
-    NAME = "cloud"
-    HELP = "Infuse-IoT cloud interaction"
-    DESCRIPTION = "Infuse-IoT cloud interaction"
-
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--api-key", type=str, help="Cloud API key to use instead of stored credentials")

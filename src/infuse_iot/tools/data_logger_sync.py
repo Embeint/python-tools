@@ -59,10 +59,6 @@ class DeviceState:
 
 
 class SubCommand(InfuseCommand):
-    NAME = "data_logger_sync"
-    HELP = "Synchronise data logger state from remote devices"
-    DESCRIPTION = "Synchronise data logger state from remote devices"
-
     def __init__(self, args):
         self._client = LocalClient(args.server_sock, 1.0)
         self._min_rssi: int | None = args.rssi

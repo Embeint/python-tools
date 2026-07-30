@@ -36,10 +36,6 @@ from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
-    NAME = "ota_upgrade"
-    HELP = "Automatically OTA upgrade observed devices"
-    DESCRIPTION = "Automatically OTA upgrade observed devices"
-
     def __init__(self, args):
         self._client = LocalClient(args.server_sock, 1.0)
         self._conn_timeout = args.conn_timeout

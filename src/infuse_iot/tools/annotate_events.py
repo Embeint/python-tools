@@ -45,10 +45,6 @@ class TimeCheckType(enum.Enum):
 
 
 class SubCommand(InfuseCommand):
-    NAME = "annotate_events"
-    HELP = "Annotate events on Infuse Tags"
-    DESCRIPTION = "Save labelled event annotations live on Infuse Tags"
-
     _label_type: LabelType | Path
     _labels: list[str]
     _time_check: TimeCheckType
