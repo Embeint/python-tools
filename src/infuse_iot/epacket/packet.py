@@ -189,8 +189,11 @@ class PacketReceived(Serializable):
                 decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(packet_bytes)
                 del packet_bytes[: ctypes.sizeof(decr_header)]
 
-                # Notify database of BT Addr -> Infuse ID mapping
-                database.observe_device(decr_header.device_id, bt_addr=addr.val)
+                # Notify database of BT Addr -> Infuse ID mapping and key metadata
+                if decr_header.flags & Flags.ENCR_DEVICE:
+                    database.observe_device(decr_header.device_id, device_key_id=decr_header.key_id, bt_addr=addr.val)
+                else:
+                    database.observe_device(decr_header.device_id, network_id=decr_header.key_id, bt_addr=addr.val)
 
                 bt_hop = HopReceived(
                     decr_header.device_id,
