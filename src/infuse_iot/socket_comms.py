@@ -275,6 +275,12 @@ class LocalServer:
         self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton("127.0.0.1"))
         self._output_addr = multicast_address
+        if sys.platform == "win32":
+            # On Windows, trying to send to a multicast socket that has no receivers in the group will result in an
+            # error. To avoid this, we add the output socket to the group, even though we don't expect to receive
+            # anything on it.
+            mreq = struct.pack("4s4s", socket.inet_aton(multicast_address[0]), socket.inet_aton("127.0.0.1"))
+            self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         # Single input socket
         unicast_address = ("localhost", multicast_address[1] + 1)
         self._input_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
