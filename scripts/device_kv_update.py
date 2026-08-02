@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Schedule cloud-side key-value updates for selected Infuse-IoT devices.
+
+Edit the ``config`` block in this file with target device IDs, the KV key ID,
+and the desired base64-encoded value. The script checks the current cloud KV
+entry for each device and schedules an update only when the stored value does
+not already match.
+"""
 
 import base64
 

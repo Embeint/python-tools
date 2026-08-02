@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Extract initialized ``struct task_schedule`` arrays from a Zephyr ELF.
+
+The script walks DWARF variable/type metadata to find arrays whose element type
+is ``struct task_schedule``, maps the selected variable back to initialized ELF
+file bytes, and prints each array element as hex or base64. It exits with a
+diagnostic when no initialized array is found or when multiple candidates need
+to be disambiguated with ``--name``.
+"""
 
 import argparse
 import base64

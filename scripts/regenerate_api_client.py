@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerate the Infuse-IoT OpenAPI client."""
+"""Regenerate the checked-in Infuse-IoT OpenAPI client.
+
+The script runs ``openapi-python-client`` against a supplied OpenAPI YAML file,
+locates the generated package in a temporary staging directory, and atomically
+replaces ``src/infuse_iot/api_client`` while preserving its existing README.
+"""
 
 from __future__ import annotations
 

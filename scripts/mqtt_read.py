@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-"""Read device packets from the Infuse-IoT Cloud MQTT broker"""
+"""Read device packets from the Infuse-IoT Cloud MQTT broker.
+
+The script subscribes to an organisation-wide MQTT topic, optionally narrowed
+to one device, and prints incoming packets as raw JSON or formatted metadata,
+route, and TDF tables.
+"""
 
 __author__ = "Jace Galvin"
 __copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"
