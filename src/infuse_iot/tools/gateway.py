@@ -331,6 +331,11 @@ class SerialTxThread(SignaledThread):
             self._common.port.write(encrypted)
             return
 
+        if not self._common.ddb.has_shared_key(infuse_id):
+            # Pro-actively query key information
+            cb_event = threading.Event()
+            self._common.query_device_key(infuse_id, cb_event)
+
         # Notify connection success
         self._connected_notification(infuse_id)
 
@@ -349,7 +354,7 @@ class SerialTxThread(SignaledThread):
 
         subs = 0
         bt_char = defs.rpc_enum_infuse_bt_characteristic
-        if req.data_types & req.DataType.COMMAND:
+        if req.data_types & req.DataType.COMMAND or not self._common.ddb.has_shared_key(req.infuse_id):
             subs |= bt_char.COMMAND
         if req.data_types & req.DataType.DATA:
             subs |= bt_char.DATA
