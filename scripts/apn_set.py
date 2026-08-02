@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Configure LTE APN settings on locally discoverable Infuse-IoT devices.
+
+The script listens for announce packets for a target application ID, opens a
+local command connection to each matching device, and writes the LTE PDP
+configuration KV slot with the requested APN and IP family. A live table tracks
+devices that were updated or already held the requested value.
+"""
 
 import argparse
 import ctypes

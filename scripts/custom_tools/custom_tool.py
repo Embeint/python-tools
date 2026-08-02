@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-"""Example out-of-tree tool"""
+"""Provide a minimal example of an out-of-tree Infuse command.
+
+The command registers a custom subcommand that accepts an ``--echo`` argument
+and prints it back, demonstrating the shape expected by ``InfuseCommand``
+plugins without depending on project-specific behavior.
+"""
 
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"

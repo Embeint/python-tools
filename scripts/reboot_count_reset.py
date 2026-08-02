@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Reset reboot counters for locally discoverable Infuse-IoT devices.
+
+The script watches local announce packets for one or more application IDs,
+connects to devices whose reported reboot count differs from the requested
+value, and writes the reboot-count KV slot through the standard KV RPC. A live
+terminal table reports updated and already-matching devices.
+"""
 
 import argparse
 
