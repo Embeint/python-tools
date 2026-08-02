@@ -324,12 +324,12 @@ class SubCommand(InfuseCommand):
                         source.infuse_id, GatewayRequestConnectionRequest.DataType.COMMAND, self._conn_timeout
                     ) as mtu:
                         # Set time on the remote device to keep keys in sync
-                        if not self.set_device_time(mtu, source.infuse_id):
-                            break
-                        if self._single_diff:
-                            self.run_file_copy(live, mtu, source)
-                        else:
-                            self.run_file_upload(live, mtu, source)
+                        if self.set_device_time(mtu, source.infuse_id):
+                            # Upload the patch file
+                            if self._single_diff:
+                                self.run_file_copy(live, mtu, source)
+                            else:
+                                self.run_file_upload(live, mtu, source)
 
                 except ConnectionRefusedError:
                     self.state_update(live, "Scanning")
