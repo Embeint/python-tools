@@ -12,8 +12,17 @@ def test_socket_comms():
     multicast_addr = comms.default_multicast_address()
     # Increment port by 1 so we can run the tests in parallel with a real instance
     test_addr = (multicast_addr[0], multicast_addr[1] + 1)
+
+    # Create the server first
     server = comms.LocalServer(test_addr)
+
+    # Send a message before any client is connected
+    broadcast_msg = comms.ClientNotificationObservedDevices({})
+    server.broadcast(broadcast_msg)
+
+    # Create a client that receives from the server, shouldn't receive the broadcast message
     client = comms.LocalClient(test_addr)
+    assert client.receive() is None
 
     # Send request to server
     request = comms.GatewayRequestCommsCheck()
