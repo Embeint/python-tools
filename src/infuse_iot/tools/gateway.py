@@ -75,7 +75,9 @@ class CommonThreadState:
         if self.server:
             self.server.broadcast(notification)
 
-    def query_device_key(self, infuse_id: int, cb_event: threading.Event | None = None):
+    def query_device_key(self, infuse_id: int, cb_event: threading.Event | None = None) -> bool:
+        """Query device key, returns True on success, False on failure"""
+
         def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
             decoded = defs.security_state.response.vla_from_buffer_copy(response)
             self.ddb.observe_security_state(
@@ -98,28 +100,32 @@ class CommonThreadState:
                 if key.id == defs.rpc_enum_key_id.SECONDARY_REMOTE_PUBLIC_KEY:
                     self.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
 
-        def run_cmd_pkt(cmd_pkt: PacketOutputRouted):
+        def run_cmd_pkt(cmd_pkt: PacketOutputRouted) -> bool:
             encrypted = cmd_pkt.to_serial(self.ddb)
             # Write to serial port
             Console.log_tx(cmd_pkt.ptype, len(encrypted))
             self.port.write(encrypted)
             if cb_event is not None:
                 # Wait for the response
-                cb_event.wait(1.0)
+                return cb_event.wait(1.0)
+            return True
 
         # Run security_state RPC
         challenge = random.randbytes(16)
         cmd_pkt = self.rpc.generate_addressed(
             infuse_id, defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
         )
-        run_cmd_pkt(cmd_pkt)
+        if not run_cmd_pkt(cmd_pkt):
+            return False
 
         if self.ddb.has_local_root:
             # Query other public keys from the device
             cmd_pkt = self.rpc.generate_addressed(
                 infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done, None
             )
-            run_cmd_pkt(cmd_pkt)
+            if not run_cmd_pkt(cmd_pkt):
+                return False
+        return True
 
 
 class SerialRxThread(SignaledThread):
@@ -271,7 +277,9 @@ class SerialTxThread(SignaledThread):
         for hop in routed.route:
             if hop.auth == Auth.DEVICE and not self._common.ddb.has_shared_key(hop.infuse_id):
                 cb_event = threading.Event()
-                self._common.query_device_key(hop.infuse_id, cb_event)
+                if not self._common.query_device_key(hop.infuse_id, cb_event):
+                    Console.log_error("Failed to query device key for {infuse_id:016x}")
+                    return
 
         # Encode and encrypt payload
         encrypted = routed.to_serial(self._common.ddb)
