@@ -30,9 +30,26 @@ class UnknownNetworkError(NoKeyError):
 class DeviceUnknownDeviceKey(NoKeyError):
     """Device key is not known for requested device"""
 
+    def __init__(self, infuse_id: int, interface: bytes, key_id: int | None):
+        self.infuse_id = infuse_id
+        self.interface = interface
+        self.key_id = key_id
+
+    def __str__(self):
+        interface_str = self.interface.decode("utf-8")
+        return f"{self.infuse_id:016x}: {interface_str} {self.key_id}"
+
 
 class DeviceUnknownNetworkKey(NoKeyError):
     """Network key is not known for requested device"""
+
+    def __init__(self, infuse_id: int, interface: bytes):
+        self.infuse_id = infuse_id
+        self.interface = interface
+
+    def __str__(self):
+        interface_str = self.interface.decode("utf-8")
+        return f"{self.infuse_id:016x}: {interface_str}"
 
 
 class DeviceKeyChangedError(KeyError):
@@ -242,17 +259,17 @@ class DeviceDatabase:
 
     def _get_network_key(self, infuse_id: int, name: bytes, gps_time: int) -> bytes:
         if infuse_id not in self.devices:
-            raise DeviceUnknownNetworkKey
+            raise DeviceUnknownNetworkKey(infuse_id, name)
         network_id = self.devices[infuse_id].network_id
         if network_id is None:
-            raise DeviceUnknownNetworkKey
+            raise DeviceUnknownNetworkKey(infuse_id, name)
         return self._network_key(network_id, name, gps_time)
 
     def _get_device_key(
         self, infuse_id: int, name: bytes, gps_time: int, key_id: int | None = None
     ) -> tuple[int, bytes]:
         if infuse_id not in self.devices:
-            raise DeviceUnknownDeviceKey
+            raise DeviceUnknownDeviceKey(infuse_id, name, key_id)
         d = self.devices[infuse_id]
         if key_id is None:
             if d.secondary_device_key_id:
@@ -266,9 +283,9 @@ class DeviceDatabase:
         elif key_id == d.secondary_device_key_id:
             base = d.local_shared_key
         else:
-            raise DeviceUnknownDeviceKey
+            raise DeviceUnknownDeviceKey(infuse_id, name, key_id)
         if base is None:
-            raise DeviceUnknownDeviceKey
+            raise DeviceUnknownDeviceKey(infuse_id, name, key_id)
         assert key_id is not None
         time_idx = gps_time // (60 * 60 * 24)
         return key_id, hkdf_derive(base, time_idx.to_bytes(4, "little"), name)
