@@ -56,6 +56,18 @@ class DeviceKeyChangedError(KeyError):
     """Device key for the requested device has changed"""
 
 
+class DeviceKeyQueryFailed(Exception):
+    """Querying a device key from the cloud failed"""
+
+    def __init__(self, infuse_id: int, status_code: int, content: str):
+        self.infuse_id = infuse_id
+        self.status_code = status_code
+        self.content = content
+
+    def __str__(self):
+        return f"{self.infuse_id:016x}: <{self.status_code}> {self.content}"
+
+
 class DeviceDatabase:
     """Database of current device state"""
 
@@ -208,9 +220,11 @@ class DeviceDatabase:
                 base64.b64encode(challenge_resp).decode("utf-8"),
             )
             body = GetDeviceSharedSecretBody(f"{infuse_id:016x}", security_state)
-            response = get_device_shared_secret.sync(client=client, body=body)
-            if response is not None:
-                key = base64.b64decode(response.key)
+            response = get_device_shared_secret.sync_detailed(client=client, body=body)
+            if response.parsed is None:
+                raise DeviceKeyQueryFailed(infuse_id, response.status_code, response.content.decode("utf-8"))
+            else:
+                key = base64.b64decode(response.parsed.key)
                 self.devices[infuse_id].shared_key = key
                 self._update_cache(infuse_id, device_pub_key, key)
 
