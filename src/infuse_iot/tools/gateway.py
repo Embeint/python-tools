@@ -26,6 +26,7 @@ from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.database import (
     DeviceDatabase,
+    DeviceKeyQueryFailed,
     NoKeyError,
 )
 from infuse_iot.epacket.packet import (
@@ -80,15 +81,19 @@ class CommonThreadState:
 
         def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
             decoded = defs.security_state.response.vla_from_buffer_copy(response)
-            self.ddb.observe_security_state(
-                infuse_id,
-                bytes(decoded.cloud_public_key),
-                bytes(decoded.device_public_key),
-                decoded.network_id,
-                challenge,
-                decoded.challenge_response_type,
-                bytes(decoded.challenge_response),
-            )
+            try:
+                self.ddb.observe_security_state(
+                    infuse_id,
+                    bytes(decoded.cloud_public_key),
+                    bytes(decoded.device_public_key),
+                    decoded.network_id,
+                    challenge,
+                    decoded.challenge_response_type,
+                    bytes(decoded.challenge_response),
+                )
+            except DeviceKeyQueryFailed as e:
+                Console.log_error(f"Failed to query key for {e.infuse_id:016x}: {e.content}")
+                return
             if cb_event is not None:
                 cb_event.set()
 
