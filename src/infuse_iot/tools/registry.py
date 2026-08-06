@@ -167,6 +167,12 @@ TOOLS = (
         module="infuse_iot.tools.rpc_cloud",
     ),
     ToolSpec(
+        name="schedule",
+        help="Task schedule utilities",
+        description="Task schedule utilities",
+        module="infuse_iot.tools.schedule",
+    ),
+    ToolSpec(
         name="serial_throughput",
         help="Test serial throughput to local gateway",
         description="Test serial throughput to local gateway",
