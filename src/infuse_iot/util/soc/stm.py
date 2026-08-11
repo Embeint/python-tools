@@ -126,7 +126,7 @@ class Interface(ProvisioningInterface):
 
         # Byte order matches that returned by `hwinfo_stm32`
         id_bytes = word2.to_bytes(4, "big") + word1.to_bytes(4, "big") + word0.to_bytes(4, "big")
-        return int.from_bytes(id_bytes, "big")
+        return int.from_bytes(id_bytes, "little")
 
     @staticmethod
     def unique_device_id_fields(uid: int) -> dict:
