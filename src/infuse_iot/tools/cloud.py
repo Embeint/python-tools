@@ -42,6 +42,7 @@ from infuse_iot.api_client.api.device import (
     get_device_last_route_by_device_id,
     get_device_logger_states_by_device_id,
     get_device_state_by_id,
+    update_device_logger_state_by_device_id_and_index,
 )
 from infuse_iot.api_client.api.organisation import (
     create_organisation,
@@ -181,6 +182,11 @@ class Boards(CloudSubCommand):
 
 
 class Device(CloudSubCommand):
+    logger_names = {
+        0: "Onboard",
+        1: "Removable",
+    }
+
     @classmethod
     def add_parser(cls, parser):
         parser_boards = parser.add_parser("device", help="Infuse-IoT devices")
@@ -215,9 +221,26 @@ class Device(CloudSubCommand):
         dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
         dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
 
+        logger_parser = tool_parser.add_parser("logger", help="Configure logger download state")
+        logger_parser.set_defaults(command_fn=cls.logger)
+        logger_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
+        control_action = logger_parser.add_mutually_exclusive_group(required=True)
+        control_action.add_argument("--enable", action="store_true", help="Enable logger download")
+        control_action.add_argument("--disable", action="store_true", help="Disable logger download")
+        logger_choice = logger_parser.add_mutually_exclusive_group(required=True)
+        logger_choice.add_argument(
+            "--onboard", dest="logger_idx", action="store_const", const=0, help="Onboard flash logger"
+        )
+
     def run(self):
         with self.client() as client:
             self.args.command_fn(self, client)
+
+    @staticmethod
+    def _val_or_na(value) -> str:
+        if isinstance(value, Unset):
+            return "N/A"
+        return str(value)
 
     def info(self, client: Client):
         id_str = f"{self.args.id:016x}"
@@ -275,25 +298,15 @@ class Device(CloudSubCommand):
                 table += [("IP Address", route.udp.address)]
 
         if isinstance(logger_states, list) and len(logger_states) > 0:
-            logger_names = {
-                0: "Onboard",
-                1: "Removable",
-            }
-
-            def val_or_na(value) -> str:
-                if isinstance(value, Unset):
-                    return "N/A"
-                return str(value)
-
             for logger in logger_states:
-                name = logger_names.get(logger.index, str(logger.index))
+                name = self.logger_names.get(logger.index, str(logger.index))
                 table += [
                     (f"~~~{name} Logger Sync~~~", ""),
                     ("Enabled", logger.download_enabled),
-                    ("Last Report Time", val_or_na(logger.last_reported_time)),
-                    ("Last Downloaded Time", val_or_na(logger.last_downloaded_time)),
-                    ("Reported Block", val_or_na(logger.last_reported_block)),
-                    ("Downloaded Block", val_or_na(logger.last_downloaded_block)),
+                    ("Last Report Time", self._val_or_na(logger.last_reported_time)),
+                    ("Last Downloaded Time", self._val_or_na(logger.last_downloaded_time)),
+                    ("Reported Block", self._val_or_na(logger.last_reported_block)),
+                    ("Downloaded Block", self._val_or_na(logger.last_downloaded_block)),
                 ]
                 if isinstance(logger.last_reported_block, int) and isinstance(logger.last_downloaded_block, int):
                     table += [("Block Lag", logger.last_reported_block - logger.last_downloaded_block)]
@@ -406,6 +419,34 @@ class Device(CloudSubCommand):
                 )
         else:
             raise NotImplementedError("Unknown DFU subcommand")
+
+    def logger(self, client: Client):
+        id_str = f"{self.args.id:016x}"
+
+        resp = update_device_logger_state_by_device_id_and_index.sync(
+            client=client,
+            device_id=id_str,
+            index=self.args.logger_idx,
+            body=models.DeviceLoggerStateUpdate(self.args.enable),
+        )
+        if resp is None:
+            sys.exit("Update logger state: No response")
+        elif isinstance(resp, models.Error):
+            sys.exit(f"<{resp.code}>: {resp.message}")
+        else:
+            name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
+            table = [
+                (f"~~~{name} Logger Sync~~~", ""),
+                ("Enabled", resp.download_enabled),
+                ("Last Report Time", self._val_or_na(resp.last_reported_time)),
+                ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
+                ("Reported Block", self._val_or_na(resp.last_reported_block)),
+                ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
+            ]
+            if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
+                table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
+
+            print(tabulate(table))
 
 
 class Coap(CloudSubCommand):
