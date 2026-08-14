@@ -129,6 +129,7 @@ class DeviceDatabase:
         infuse_id: int,
         network_id: int | None = None,
         device_key_id: int | None = None,
+        device_public_key: bytes | None = None,
         bt_addr: InterfaceAddress.BluetoothLeAddr | None = None,
     ) -> None:
         """Update device state based on observed packet"""
@@ -139,6 +140,9 @@ class DeviceDatabase:
         dev = self.devices[infuse_id]
         if network_id is not None:
             dev.network_id = network_id
+        if (device_public_key is not None) and (device_public_key != dev.device_public_key):
+            dev.device_public_key = device_public_key
+            dev.shared_key = None
         if device_key_id is not None:
             if device_key_id == dev.secondary_device_key_id:
                 pass
