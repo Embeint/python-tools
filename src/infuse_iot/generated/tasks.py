@@ -234,6 +234,7 @@ TaskGnss.Args._fields_ = [
     ("position_dop", ctypes.c_uint16),
     ("mode", TaskGnss.ModeArgs),
     ("dynamic_model", ctypes.c_uint8),
+    ("measurement_period_s", ctypes.c_uint8),
 ]
 
 

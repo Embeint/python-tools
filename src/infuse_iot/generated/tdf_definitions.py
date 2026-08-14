@@ -1733,6 +1733,22 @@ class readings:
         def pressure(self):
             return self._pressure * 0.001
 
+    class lte_control(TdfReadingBase):
+        """LTE modem control state"""
+
+        ID = 63
+        NAME = "LTE_CONTROL"
+        _fields_ = [
+            ("enabled", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "enabled": "",
+        }
+        _display_fmt_ = {
+            "enabled": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1796,6 +1812,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.pcm_16bit_chan_dual.ID: readings.pcm_16bit_chan_dual,
     readings.kvs_value_changed.ID: readings.kvs_value_changed,
     readings.ambient_pressure.ID: readings.ambient_pressure,
+    readings.lte_control.ID: readings.lte_control,
 }
 
 __all__ = [
