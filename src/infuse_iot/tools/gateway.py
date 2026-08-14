@@ -336,6 +336,8 @@ class SerialTxThread(SignaledThread):
             self._common.port.write(encrypted)
             return
 
+        self._common.ddb.observe_device(infuse_id, device_public_key=bytes(resp.device_public_key))
+
         if not self._common.ddb.has_shared_key(infuse_id):
             # Pro-actively query key information
             cb_event = threading.Event()
