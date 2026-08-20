@@ -1749,6 +1749,41 @@ class readings:
             "enabled": "{}",
         }
 
+    class lte_sleep_enter(TdfReadingBase):
+        """LTE modem has entered sleep mode"""
+
+        ID = 64
+        NAME = "LTE_SLEEP_ENTER"
+        _fields_ = [
+            ("type", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "type": "",
+        }
+        _display_fmt_ = {
+            "type": "{}",
+        }
+
+    class lte_sleep_exit(TdfReadingBase):
+        """LTE modem has exited sleep mode"""
+
+        ID = 65
+        NAME = "LTE_SLEEP_EXIT"
+        _fields_ = [
+            ("type", ctypes.c_uint8),
+            ("duration_s", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "type": "",
+            "duration_s": "",
+        }
+        _display_fmt_ = {
+            "type": "{}",
+            "duration_s": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1813,6 +1848,8 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.kvs_value_changed.ID: readings.kvs_value_changed,
     readings.ambient_pressure.ID: readings.ambient_pressure,
     readings.lte_control.ID: readings.lte_control,
+    readings.lte_sleep_enter.ID: readings.lte_sleep_enter,
+    readings.lte_sleep_exit.ID: readings.lte_sleep_exit,
 }
 
 __all__ = [
