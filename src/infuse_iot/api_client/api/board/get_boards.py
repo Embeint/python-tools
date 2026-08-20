@@ -13,6 +13,7 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     organisation_id: UUID,
+    include_public: bool | Unset = False,
     limit: int | Unset = 10,
     offset: int | Unset = 0,
 ) -> dict[str, Any]:
@@ -21,6 +22,8 @@ def _get_kwargs(
 
     json_organisation_id = str(organisation_id)
     params["organisationId"] = json_organisation_id
+
+    params["includePublic"] = include_public
 
     params["limit"] = limit
 
@@ -67,6 +70,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
+    include_public: bool | Unset = False,
     limit: int | Unset = 10,
     offset: int | Unset = 0,
 ) -> Response[list[Board]]:
@@ -74,6 +78,7 @@ def sync_detailed(
 
     Args:
         organisation_id (UUID):
+        include_public (bool | Unset):  Default: False.
         limit (int | Unset): Maximum number of items to return Default: 10.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
@@ -88,6 +93,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         organisation_id=organisation_id,
+        include_public=include_public,
         limit=limit,
         offset=offset,
     )
@@ -103,6 +109,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
+    include_public: bool | Unset = False,
     limit: int | Unset = 10,
     offset: int | Unset = 0,
 ) -> list[Board] | None:
@@ -110,6 +117,7 @@ def sync(
 
     Args:
         organisation_id (UUID):
+        include_public (bool | Unset):  Default: False.
         limit (int | Unset): Maximum number of items to return Default: 10.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
@@ -125,6 +133,7 @@ def sync(
     return sync_detailed(
         client=client,
         organisation_id=organisation_id,
+        include_public=include_public,
         limit=limit,
         offset=offset,
     ).parsed
@@ -134,6 +143,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
+    include_public: bool | Unset = False,
     limit: int | Unset = 10,
     offset: int | Unset = 0,
 ) -> Response[list[Board]]:
@@ -141,6 +151,7 @@ async def asyncio_detailed(
 
     Args:
         organisation_id (UUID):
+        include_public (bool | Unset):  Default: False.
         limit (int | Unset): Maximum number of items to return Default: 10.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
@@ -155,6 +166,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         organisation_id=organisation_id,
+        include_public=include_public,
         limit=limit,
         offset=offset,
     )
@@ -168,6 +180,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
+    include_public: bool | Unset = False,
     limit: int | Unset = 10,
     offset: int | Unset = 0,
 ) -> list[Board] | None:
@@ -175,6 +188,7 @@ async def asyncio(
 
     Args:
         organisation_id (UUID):
+        include_public (bool | Unset):  Default: False.
         limit (int | Unset): Maximum number of items to return Default: 10.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
@@ -191,6 +205,7 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             organisation_id=organisation_id,
+            include_public=include_public,
             limit=limit,
             offset=offset,
         )

@@ -20,6 +20,7 @@ class DeviceApplicationUpdate:
     """
     Attributes:
         release_id (str): ID of application release to update device to
+        max_attempts (int): Maximum number of attempts to update the device (0 for unlimited attempts) Default: 5.
         id (UUID): ID of update
         status (DeviceApplicationUpdateStatus): Status of device application update
         attempt_count (int): Number of attempts made to update the device
@@ -37,6 +38,7 @@ class DeviceApplicationUpdate:
     attempt_count: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    max_attempts: int = 5
     last_error: str | Unset = UNSET
     last_attempt_at: datetime.datetime | Unset = UNSET
     downlink_message_id: UUID | Unset = UNSET
@@ -45,6 +47,8 @@ class DeviceApplicationUpdate:
 
     def to_dict(self) -> dict[str, Any]:
         release_id = self.release_id
+
+        max_attempts = self.max_attempts
 
         id = str(self.id)
 
@@ -75,6 +79,7 @@ class DeviceApplicationUpdate:
         field_dict.update(
             {
                 "releaseId": release_id,
+                "maxAttempts": max_attempts,
                 "id": id,
                 "status": status,
                 "attemptCount": attempt_count,
@@ -97,6 +102,8 @@ class DeviceApplicationUpdate:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         release_id = d.pop("releaseId")
+
+        max_attempts = d.pop("maxAttempts")
 
         id = UUID(d.pop("id"))
 
@@ -133,6 +140,7 @@ class DeviceApplicationUpdate:
 
         device_application_update = cls(
             release_id=release_id,
+            max_attempts=max_attempts,
             id=id,
             status=status,
             attempt_count=attempt_count,
