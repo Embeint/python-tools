@@ -412,8 +412,8 @@ class Device(CloudSubCommand):
                             ["To Release", update.release_id],
                             ["Status", str(update.status)],
                             ["Attempts", str(update.attempt_count)],
-                            ["Last Attempt", str(update.last_attempt_at)],
-                            ["Completed", str(update.completed_at)],
+                            ["Last Attempt", self._val_or_na(update.last_attempt_at)],
+                            ["Completed", self._val_or_na(update.completed_at)],
                         ]
                     )
                 )
