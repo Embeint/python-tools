@@ -91,7 +91,7 @@ class SubCommand(InfuseCommand):
             self._org = orgs[idx].id
 
         if self._board is None:
-            boards = get_boards.sync(client=client, organisation_id=self._org)
+            boards = get_boards.sync(client=client, organisation_id=self._org, include_public=True, limit=50)
             if isinstance(boards, Error) or boards is None:
                 sys.exit(f"Board query failed {boards}")
             options = [f"{b.name:20s} ({b.id})" for b in boards]

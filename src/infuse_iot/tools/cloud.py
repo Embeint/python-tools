@@ -148,7 +148,7 @@ class Boards(CloudSubCommand):
         if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
         for org in orgs:
-            boards = get_boards.sync(client=client, organisation_id=org.id)
+            boards = get_boards.sync(client=client, organisation_id=org.id, include_public=True, limit=50)
             if isinstance(boards, models.Error) or boards is None:
                 sys.exit(f"Boards query failed {boards}")
 
