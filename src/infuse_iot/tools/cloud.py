@@ -296,7 +296,12 @@ class Device(CloudSubCommand):
                 table += [("BT Address", f"{route.bt_adv.address} ({route.bt_adv.type_})")]
             if route.udp:
                 table += [("IP Address", route.udp.address)]
-
+        if isinstance(state, models.DeviceState) and state.last_route_udp_time:
+            table += [
+                ("~~~Latest UDP~~~", ""),
+            ]
+            table += [("Latest Packet", state.last_route_udp_time)]
+            table += [("IP Address", self._val_or_na(state.last_route_udp_address))]
         if isinstance(logger_states, list) and len(logger_states) > 0:
             for logger in logger_states:
                 name = self.logger_names.get(logger.index, str(logger.index))
