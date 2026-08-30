@@ -8,7 +8,36 @@ from tabulate import tabulate
 import infuse_iot.definitions.kv as kv
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
+
+
+def _append_decoded_field(fields: list[tuple[str, Any]], field_name: str, field_val: Any) -> None:
+    fmt_val: Any
+
+    if isinstance(field_val, VLACompatLittleEndianStruct):
+        for subfield_name, subfield_val in field_val.iter_fields():
+            _append_decoded_field(fields, f"{field_name}.{subfield_name}", subfield_val)
+        return
+
+    if isinstance(field_val, list):
+        for idx, val in enumerate(field_val):
+            _append_decoded_field(fields, f"{field_name}[{idx}]", val)
+        return
+
+    if isinstance(field_val, ctypes.Array):
+        if field_val._type_ == ctypes.c_char:
+            fmt_val = bytes(field_val).decode("utf-8")
+        elif field_val._type_ == ctypes.c_ubyte:
+            fmt_val = bytes(field_val).hex()
+        else:
+            for idx, val in enumerate(field_val):
+                _append_decoded_field(fields, f"{field_name}[{idx}]", val)
+            return
+    else:
+        fmt_val = field_val
+
+    fields.append((field_name, fmt_val))
 
 
 class kv_read(InfuseRpcCommand, defs.kv_read):
@@ -45,19 +74,9 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
                 print(f"Key: {kv_type.NAME} ({r.len} bytes):")
                 print(f"\tHex: {b.hex()}")
 
-                fields = []
+                fields: list[tuple[str, Any]] = []
                 for field_name, field_val in kv_val.iter_fields():
-                    fmt_val: Any
-                    if isinstance(field_val, ctypes.Array):
-                        if field_val._type_ == ctypes.c_char:
-                            fmt_val = bytes(field_val).decode("utf-8")
-                        elif field_val._type_ == ctypes.c_ubyte:
-                            fmt_val = bytes(field_val).hex()
-                        else:
-                            fmt_val = list(field_val)
-                    else:
-                        fmt_val = field_val
-                    fields.append((field_name, fmt_val))
+                    _append_decoded_field(fields, field_name, field_val)
                 print(tabulate(fields))
             else:
                 print(f"Key: {r.id} (Failed to read '{errno.strerror(-r.len)}')")
