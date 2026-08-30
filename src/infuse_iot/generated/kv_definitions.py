@@ -116,6 +116,15 @@ class structs:
         ]
         _pack_ = 1
 
+    class kv_device_state(VLACompatLittleEndianStruct):
+        """Initialisation results for a single device. Matches `struct device_state` from Zephyr"""
+
+        _fields_ = [
+            ("init_res", ctypes.c_uint8),
+            ("initialized", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+
 
 class slots:
     class reboots(VLACompatLittleEndianStruct):
@@ -215,6 +224,18 @@ class slots:
         _fields_ = [
             ("public_key", 32 * ctypes.c_uint8),
         ]
+        _pack_ = 1
+
+    class z_devstate(VLACompatLittleEndianStruct):
+        """State of the `z_devstate` section after boot. Requires .map file to assign states to devices"""
+
+        NAME = "Z_DEVSTATE"
+        BASE_ID = 9
+        RANGE = 1
+        _fields_ = [
+            ("first", structs.kv_device_state),
+        ]
+        vla_field = ("remainder", 0 * structs.kv_device_state)
         _pack_ = 1
 
     class fixed_location(VLACompatLittleEndianStruct):
@@ -625,6 +646,7 @@ class slots:
         6: application_active,
         7: board_target,
         8: secondary_remote_public_key,
+        9: z_devstate,
         10: fixed_location,
         11: broadcast_fixed_indoors,
         12: littlefs_fs_state,
