@@ -171,7 +171,10 @@ class RttPort(SerialLike):
             if len(trace_data) > 0:
                 self._modem_trace.write(trace_data)
 
-        return bytes(self._jlink.rtt_read(0, num))
+        out = bytes(self._jlink.rtt_read(0, num))
+        if len(out) == 0:
+            time.sleep(0.01)
+        return out
 
     def ping(self):
         self._jlink.rtt_write(0, SerialFrame.SYNC + b"\x01\x00" + b"\x4d")
