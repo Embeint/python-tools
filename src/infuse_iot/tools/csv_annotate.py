@@ -25,7 +25,7 @@ class SubCommand(InfuseCommand):
         from plotly.subplots import make_subplots
 
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.2)
-        for col in self.df.columns.values[1:]:
+        for col in self.df.columns[1:]:
             fig.add_trace(
                 go.Scatter(x=self.df["time"], y=self.df[col], name=col),
                 row=2 if col == "labels" else 1,
@@ -35,15 +35,13 @@ class SubCommand(InfuseCommand):
         return fig
 
     def run(self):
-        import pandas as pd
+        import polars as pl
         from dash import Dash, Input, Output, State, callback, dcc, html
+        from dateutil import parser as date_parser
 
         # Read data, add label column
-        self.df = pd.read_csv(self.file, parse_dates=["time"])
-        self.df.insert(
-            len(self.df.columns),
-            "labels",
-            [self.labels[0] for _ in range(self.df.shape[0])],
+        self.df = pl.read_csv(self.file, try_parse_dates=True).with_columns(
+            pl.lit(self.labels[0]).alias("labels")
         )
 
         app = Dash()
@@ -94,8 +92,8 @@ class SubCommand(InfuseCommand):
                 ]
             else:
                 self.selection = [
-                    pd.Timestamp(relayoutData["xaxis.range[0]"]),
-                    pd.Timestamp(relayoutData["xaxis.range[1]"]),
+                    date_parser.parse(relayoutData["xaxis.range[0]"]),
+                    date_parser.parse(relayoutData["xaxis.range[1]"]),
                 ]
 
         @callback(
@@ -105,10 +103,12 @@ class SubCommand(InfuseCommand):
             prevent_initial_call=True,
         )
         def label_current_selection(n_clicks, value):
-            self.df.loc[
-                (self.df["time"] >= self.selection[0]) & (self.df["time"] <= self.selection[1]),
-                "labels",
-            ] = value
+            selection_filter = (pl.col("time") >= self.selection[0]) & (
+                pl.col("time") <= self.selection[1]
+            )
+            self.df = self.df.with_columns(
+                pl.when(selection_filter).then(pl.lit(value)).otherwise(pl.col("labels")).alias("labels")
+            )
             return self.make_plots()
 
         app.run_server(debug=True)
