@@ -41,10 +41,13 @@ class SubCommand(InfuseCommand):
             fig = go.Figure()
 
         for file in self.files:
-            df = pd.read_csv(file)
+            df = pd.read_csv(file, parse_dates=["time"])
 
-            mask = df["time"] >= self.start
-            filtered_df = df.loc[mask]
+            start = pd.Timestamp(self.start)
+            if df["time"].dt.tz is not None and start.tzinfo is None:
+                start = start.tz_localize(df["time"].dt.tz)
+            mask = df["time"] >= start
+            filtered_df = df.loc[mask].reset_index(drop=True)
 
             y_data = filtered_df[self.field] if self.field else filtered_df.columns.values[1:]
             if self.group:
