@@ -3,6 +3,7 @@ attrs
 cryptography
 colorama
 httpx
+polars
 pylink-square
 pyserial
 pyocd

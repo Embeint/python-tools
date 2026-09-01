@@ -9,6 +9,7 @@ import logging
 import math
 import time
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.util.argparse import ValidFile
@@ -60,47 +61,51 @@ class SubCommand(InfuseCommand):
 
         for start in range(1, len(y) - 1, bucket_size):
             end = min(start + bucket_size, len(y) - 1)
-            bucket = y.iloc[start:end]
-            if bucket.empty:
+            bucket = y.slice(start, end - start)
+            if bucket.is_empty():
                 continue
 
-            bucket = bucket.dropna()
-            if bucket.empty:
+            if bucket.null_count() == len(bucket):
                 indices.add(start)
                 continue
 
             try:
-                indices.add(bucket.idxmin())
-                indices.add(bucket.idxmax())
+                indices.add(start + bucket.arg_min())
+                indices.add(start + bucket.arg_max())
             except TypeError:
                 indices.add(start)
 
         sorted_indices = sorted(indices)
-        return x.iloc[sorted_indices], y.iloc[sorted_indices]
+        return x.gather(sorted_indices), y.gather(sorted_indices)
 
     def run(self):
-        import pandas as pd
         import plotly.graph_objects as go
+        import polars as pl
         from dash import Dash, Input, Output, dcc, html
         from dash.exceptions import PreventUpdate
+        from dateutil.parser import parse as parse_datetime
 
         relayout_ignore = object()
 
-        def timestamp_for_series(value, series):
-            timestamp = pd.Timestamp(value)
-            if series.dt.tz is not None and timestamp.tzinfo is None:
-                timestamp = timestamp.tz_localize(series.dt.tz)
-            elif series.dt.tz is None and timestamp.tzinfo is not None:
-                timestamp = timestamp.tz_localize(None)
+        def timestamp_for_dtype(value, dtype):
+            timestamp = parse_datetime(value)
+            time_zone = getattr(dtype, "time_zone", None)
+            if time_zone is not None and timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=ZoneInfo(time_zone))
+            elif time_zone is not None:
+                timestamp = timestamp.astimezone(ZoneInfo(time_zone))
+            elif timestamp.tzinfo is not None:
+                timestamp = timestamp.replace(tzinfo=None)
             return timestamp
 
         def data_frame_range(data_frame, x_range):
             if x_range is None:
                 return data_frame
 
-            start = timestamp_for_series(x_range[0], data_frame["time"])
-            end = timestamp_for_series(x_range[1], data_frame["time"])
-            return data_frame.loc[(data_frame["time"] >= start) & (data_frame["time"] <= end)].reset_index(drop=True)
+            time_dtype = data_frame.schema["time"]
+            start = timestamp_for_dtype(x_range[0], time_dtype)
+            end = timestamp_for_dtype(x_range[1], time_dtype)
+            return data_frame.filter((pl.col("time") >= start) & (pl.col("time") <= end))
 
         def relayout_range(relayout_data):
             if not relayout_data:
@@ -151,11 +156,11 @@ class SubCommand(InfuseCommand):
 
             load_start = time.perf_counter()
             logger.info("Loading CSV %s%s", file, file_size_str)
-            df = pd.read_csv(file, parse_dates=["time"])
-
-            start = timestamp_for_series(self.start, df["time"])
-            mask = df["time"] >= start
-            filtered_df = df.loc[mask].reset_index(drop=True)
+            lazy_df = pl.scan_csv(file, try_parse_dates=True)
+            if self.field:
+                lazy_df = lazy_df.select(["time", self.field])
+            start = timestamp_for_dtype(self.start, lazy_df.collect_schema()["time"])
+            filtered_df = lazy_df.filter(pl.col("time") >= start).collect()
             load_elapsed = time.perf_counter() - load_start
             logger.info(
                 "Loaded CSV %s from %s: %d rows, %d columns in %.3f s",
@@ -166,7 +171,7 @@ class SubCommand(InfuseCommand):
                 load_elapsed,
             )
 
-            y_columns = [self.field] if self.field else filtered_df.columns.values[1:]
+            y_columns = [self.field] if self.field else filtered_df.columns[1:]
             if self.group:
                 grouped_datasets.append((filtered_df, y_columns, file.name))
             else:

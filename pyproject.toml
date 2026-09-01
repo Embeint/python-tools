@@ -26,6 +26,7 @@ dependencies = [
     "pyserial",
     "python-dateutil",
     "rich",
+    "polars",
     "simple-term-menu",
     "tabulate",
     "keyring",
