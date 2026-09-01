@@ -64,4 +64,4 @@ class SubCommand(InfuseCommand):
             figures = [dcc.Graph(figure=fig, style={"height": "90vh"})]
         app.layout = html.Div(figures)
 
-        app.run(debug=True)
+        app.run(debug=False)
