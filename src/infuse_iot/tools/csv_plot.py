@@ -5,11 +5,21 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
+import logging
 import math
+import time
 from typing import Any
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.util.argparse import ValidFile
+
+logger = logging.getLogger("infuse.csv_plot")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 
 class SubCommand(InfuseCommand):
@@ -133,11 +143,28 @@ class SubCommand(InfuseCommand):
         grouped_datasets: list[Any] = []
 
         for file in self.files:
+            try:
+                file_size = file.stat().st_size
+                file_size_str = f" ({file_size / (1024 * 1024):.1f} MiB)"
+            except OSError:
+                file_size_str = ""
+
+            load_start = time.perf_counter()
+            logger.info("Loading CSV %s%s", file, file_size_str)
             df = pd.read_csv(file, parse_dates=["time"])
 
             start = timestamp_for_series(self.start, df["time"])
             mask = df["time"] >= start
             filtered_df = df.loc[mask].reset_index(drop=True)
+            load_elapsed = time.perf_counter() - load_start
+            logger.info(
+                "Loaded CSV %s from %s: %d rows, %d columns in %.3f s",
+                file,
+                self.start,
+                len(filtered_df),
+                len(filtered_df.columns),
+                load_elapsed,
+            )
 
             y_columns = [self.field] if self.field else filtered_df.columns.values[1:]
             if self.group:
