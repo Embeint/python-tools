@@ -101,6 +101,40 @@ class HexString:
         except ValueError as e:
             raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
 
+
+def add_subparsers_with_list(
+    parser: argparse.ArgumentParser,
+    *,
+    dest: str,
+    title: str = "commands",
+    metavar: str = "<command>",
+    list_title: str = "Available sub commands:",
+) -> argparse._SubParsersAction:
+    """Register subparsers that list their commands when omitted."""
+    subparsers = parser.add_subparsers(dest=dest, title=title, metavar=metavar)
+    parser.set_defaults(
+        _available_subcommands=subparsers,
+        _available_subcommands_dest=dest,
+        _available_subcommands_title=list_title,
+    )
+    return subparsers
+
+
+def print_subcommands_if_missing(args: argparse.Namespace) -> bool:
+    """Print available subcommands if the active parser's subcommand was omitted."""
+    dest = getattr(args, "_available_subcommands_dest", None)
+    if dest is None or getattr(args, dest) is not None:
+        return False
+
+    subparsers = args._available_subcommands
+    title = args._available_subcommands_title
+    print(title)
+    for choice in getattr(subparsers, "_choices_actions", []):
+        help_text = "" if choice.help is argparse.SUPPRESS else choice.help
+        print(f"  {choice.dest:<18} {help_text}")
+    return True
+
+
 class ServerPort:
     """Server port number to socket tuple"""
 

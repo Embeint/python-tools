@@ -22,21 +22,21 @@ from infuse_iot.api_client.models.downlink_message_status import DownlinkMessage
 from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, wrapper_from_command_id
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, add_subparsers_with_list, print_subcommands_if_missing
 from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
-        subparser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
+        subparser = add_subparsers_with_list(parser, dest="_rpc_cloud_command")
 
         parser_queue = subparser.add_parser("queue", help="Queue a RPC to be sent")
         parser_queue.set_defaults(_tool_action="queue")
         parser_queue.add_argument("--id", required=True, type=InfuseDeviceId, help="Infuse ID to run command on")
         parser_queue.add_argument("--queue-timeout", type=int, default=600, help="Timeout to send command in seconds")
         parser_queue.add_argument("--print-params", action="store_true", help="Print queued RPC request")
-        command_list_parser = parser_queue.add_subparsers(title="commands", metavar="<command>", required=True)
+        command_list_parser = add_subparsers_with_list(parser_queue, dest="_rpc_cloud_queue_command")
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
             full_name = f"{wrappers.__name__}.{name}"
@@ -150,6 +150,9 @@ class SubCommand(InfuseCommand):
                 pass
 
     def run(self):
+        if print_subcommands_if_missing(self._args):
+            return
+
         with Client(base_url="https://api.infuse-iot.com").with_headers(
             {"x-api-key": f"Bearer {get_api_key()}"}
         ) as client:
