@@ -52,7 +52,13 @@ from infuse_iot.api_client.api.organisation import (
 from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
-from infuse_iot.util.argparse import HexString, InfuseDeviceId, ValidRelease
+from infuse_iot.util.argparse import (
+    HexString,
+    InfuseDeviceId,
+    ValidRelease,
+    add_subparsers_with_list,
+    print_subcommands_if_missing,
+)
 from infuse_iot.util.console import choose_one, user_confirm, user_response
 from infuse_iot.util.version import Version
 
@@ -63,6 +69,8 @@ class CloudSubCommand:
 
     def run(self):
         """Run cloud sub-command"""
+        if print_subcommands_if_missing(self.args):
+            return
 
     def client(self):
         """Get API client object ready to use"""
@@ -76,7 +84,7 @@ class Organisations(CloudSubCommand):
         parser_orgs = parser.add_parser("orgs", help="Infuse-IoT organisations")
         parser_orgs.set_defaults(command_class=cls)
 
-        tool_parser = parser_orgs.add_subparsers(title="commands", metavar="<command>", required=True)
+        tool_parser = add_subparsers_with_list(parser_orgs, dest="_cloud_orgs_command")
 
         list_parser = tool_parser.add_parser("list", help="List all organisations")
         list_parser.set_defaults(command_fn=cls.list)
@@ -86,6 +94,8 @@ class Organisations(CloudSubCommand):
         create_parser.set_defaults(command_fn=cls.create)
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
         with self.client() as client:
             self.args.command_fn(self, client)
 
@@ -125,7 +135,7 @@ class Boards(CloudSubCommand):
         parser_boards = parser.add_parser("boards", help="Infuse-IoT hardware platforms")
         parser_boards.set_defaults(command_class=cls)
 
-        tool_parser = parser_boards.add_subparsers(title="commands", metavar="<command>", required=True)
+        tool_parser = add_subparsers_with_list(parser_boards, dest="_cloud_boards_command")
 
         list_parser = tool_parser.add_parser("list", help="List all hardware platforms")
         list_parser.set_defaults(command_fn=cls.list)
@@ -138,6 +148,8 @@ class Boards(CloudSubCommand):
         create_parser.set_defaults(command_fn=cls.create)
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
         with self.client() as client:
             self.args.command_fn(self, client)
 
@@ -192,7 +204,7 @@ class Device(CloudSubCommand):
         parser_boards = parser.add_parser("device", help="Infuse-IoT devices")
         parser_boards.set_defaults(command_class=cls)
 
-        tool_parser = parser_boards.add_subparsers(title="commands", metavar="<command>", required=True)
+        tool_parser = add_subparsers_with_list(parser_boards, dest="_cloud_device_command")
 
         info_parser = tool_parser.add_parser("info", help="General device information")
         info_parser.set_defaults(command_fn=cls.info)
@@ -233,6 +245,8 @@ class Device(CloudSubCommand):
         )
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
         with self.client() as client:
             self.args.command_fn(self, client)
 
@@ -460,12 +474,14 @@ class Coap(CloudSubCommand):
         parser_coap = parser.add_parser("coap", help="CoAP file server")
         parser_coap.set_defaults(command_class=cls)
 
-        tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
+        tool_parser = add_subparsers_with_list(parser_coap, dest="_cloud_coap_command")
 
         list_parser = tool_parser.add_parser("list", help="List all CoAP files")
         list_parser.set_defaults(command_fn=cls.list)
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
         with self.client() as client:
             self.args.command_fn(self, client)
 
@@ -488,7 +504,7 @@ class Applications(CloudSubCommand):
         parser_coap = parser.add_parser("apps", help="Application release management")
         parser_coap.set_defaults(command_class=cls)
 
-        tool_parser = parser_coap.add_subparsers(title="commands", metavar="<command>", required=True)
+        tool_parser = add_subparsers_with_list(parser_coap, dest="_cloud_apps_command")
 
         list_parser = tool_parser.add_parser("list", help="List all application releases")
         list_parser.add_argument("--org", "-o", type=str, help="Organisation ID")
@@ -508,6 +524,8 @@ class Applications(CloudSubCommand):
         upload_parser.set_defaults(command_fn=cls.upload)
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
         with self.client() as client:
             self.args.command_fn(self, client)
 
@@ -864,7 +882,7 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--api-key", type=str, help="Cloud API key to use instead of stored credentials")
-        subparser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
+        subparser = add_subparsers_with_list(parser, dest="_cloud_command")
 
         Organisations.add_parser(subparser)
         Boards.add_parser(subparser)
@@ -873,7 +891,11 @@ class SubCommand(InfuseCommand):
         Applications.add_parser(subparser)
 
     def __init__(self, args):
-        self.tool = args.command_class(args)
+        self.args = args
+        self.tool = args.command_class(args) if hasattr(args, "command_class") else None
 
     def run(self):
+        if print_subcommands_if_missing(self.args):
+            return
+        assert self.tool is not None
         self.tool.run()

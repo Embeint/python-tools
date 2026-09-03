@@ -21,7 +21,12 @@ from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
 )
-from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
+from infuse_iot.util.argparse import (
+    InfuseDeviceId,
+    add_server_port_parser,
+    add_subparsers_with_list,
+    print_subcommands_if_missing,
+)
 
 
 class SubCommand(InfuseCommand):
@@ -34,7 +39,7 @@ class SubCommand(InfuseCommand):
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
-        command_list_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
+        command_list_parser = add_subparsers_with_list(parser, dest="_rpc_command")
 
         for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
             full_name = f"{wrappers.__name__}.{name}"
@@ -55,6 +60,10 @@ class SubCommand(InfuseCommand):
 
     def __init__(self, args: argparse.Namespace):
         self._args = args
+        if print_subcommands_if_missing(args):
+            self._missing_subcommand = True
+            return
+        self._missing_subcommand = False
         self._client = LocalClient(args.server_sock, 1.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
         self._request_id = random.randint(0, 2**32 - 1)
@@ -73,6 +82,9 @@ class SubCommand(InfuseCommand):
             print(pkt.epacket.payload.decode("utf-8"), end="")
 
     def run(self):
+        if self._missing_subcommand:
+            return
+
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 

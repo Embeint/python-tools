@@ -6,12 +6,17 @@ import argparse
 import sys
 
 from infuse_iot.task_runner import format_description, format_schedule_python, parse_schedule
+from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 
 
 class SubCommand:
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
-        subcommands = parser.add_subparsers(title="schedule commands", metavar="<command>", required=True)
+        subcommands = add_subparsers_with_list(
+            parser,
+            dest="_schedule_command",
+            title="schedule commands",
+        )
 
         decode = subcommands.add_parser(
             "decode",
@@ -26,6 +31,9 @@ class SubCommand:
         self._args = args
 
     def run(self) -> None:
+        if print_subcommands_if_missing(self._args):
+            return
+
         if self._args.schedule_command == "decode":
             self._run_decode()
 

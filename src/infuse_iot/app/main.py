@@ -21,6 +21,7 @@ from argcomplete.lexers import split_line
 
 from infuse_iot.credentials import get_custom_tool_path
 from infuse_iot.tools.registry import TOOLS, ToolSpec, load_extension_tools
+from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 from infuse_iot.version import __version__
 
 
@@ -51,6 +52,8 @@ class InfuseApp:
         # Handle CLI tab completion
         argcomplete.autocomplete(self.parser)
         self.args = self.parser.parse_args(argv)
+        if print_subcommands_if_missing(self.args):
+            return
 
         tool = self.args.tool_class(self.args)
         tool.run()
@@ -113,7 +116,7 @@ class InfuseApp:
             self._load_selected_tool(parser_words[1:])
 
     def _load_tools(self, parser: argparse.ArgumentParser):
-        self._tools_parser = parser.add_subparsers(title="commands", metavar="<command>", required=True)
+        self._tools_parser = add_subparsers_with_list(parser, dest="_tool", title="commands", metavar="<command>")
 
         # Register local tools without importing their implementation modules.
         for tool in TOOLS:
