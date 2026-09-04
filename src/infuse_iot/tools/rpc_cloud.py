@@ -19,11 +19,10 @@ from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.rpc import get_rpc_by_id, send_rpc
 from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
-from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, wrapper_from_command_id
+from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, rpc_return_code_str, wrapper_from_command_id
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
 from infuse_iot.util.argparse import InfuseDeviceId, add_subparsers_with_list, print_subcommands_if_missing
-from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
@@ -132,7 +131,7 @@ class SubCommand(InfuseCommand):
         if downlink.status == DownlinkMessageStatus.COMPLETED:
             rpc_rsp = downlink.rpc_rsp
             assert isinstance(rpc_rsp, RpcRsp)
-            extra = f" ({errno(-rpc_rsp.return_code).name})" if rpc_rsp.return_code < 0 else ""
+            extra = f" ({rpc_return_code_str(rpc_rsp.return_code)})" if rpc_rsp.return_code != 0 else ""
             print(f"   Result: {rpc_rsp.return_code}{extra}")
             if rpc_rsp.params:
                 try:
