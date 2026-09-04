@@ -12,6 +12,21 @@ from typing import Any
 
 import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.epacket.packet import Auth
+from infuse_iot.generated.rpc_errors import RPCError
+from infuse_iot.zephyr.errno import errno
+
+
+def rpc_return_code_str(return_code: int) -> str:
+    """Human-readable RPC return code, supporting generated and legacy codes."""
+    try:
+        return RPCError(return_code).name
+    except ValueError:
+        pass
+
+    if return_code < 0:
+        return errno.strerror(-return_code)
+
+    return f"Unknown RPC return code ({return_code})"
 
 
 def wrapper_from_command_id(command_id: int):
@@ -96,6 +111,11 @@ class InfuseRpcCommand:
     def handle_response(self, return_code: int, response: ctypes.LittleEndianStructure | None) -> None:
         """Handle RPC_RSP"""
         raise NotImplementedError
+
+    @staticmethod
+    def return_code_str(return_code: int) -> str:
+        """Human-readable RPC return code, supporting generated and legacy codes."""
+        return rpc_return_code_str(return_code)
 
     @classmethod
     def handle_json_response(cls, response: dict) -> None:

@@ -2,7 +2,7 @@
 
 import os
 
-from infuse_iot.commands import wrapper_from_command_id
+from infuse_iot.commands import rpc_return_code_str, wrapper_from_command_id
 from infuse_iot.rpc_wrappers import application_info, security_public_keys, wifi_scan
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -17,3 +17,9 @@ def test_wrapper_from_command_id():
     class_test(security_public_keys.security_public_keys)
 
     assert wrapper_from_command_id(123456789) is None
+
+
+def test_rpc_return_code_str():
+    assert rpc_return_code_str(-1000) == "INVALID_COMMAND"
+    assert rpc_return_code_str(-22) == "Invalid argument"
+    assert rpc_return_code_str(-9999) == "Unknown errno (9999)"
