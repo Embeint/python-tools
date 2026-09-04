@@ -16,7 +16,7 @@ from threading import Thread
 from rich.live import Live
 from rich.status import Status
 
-from infuse_iot.commands import InfuseCommand
+from infuse_iot.commands import InfuseCommand, rpc_return_code_str
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.generated.rpc_definitions import annotate, rpc_enum_data_logger, time_get, time_set
 from infuse_iot.rpc_client import RpcClient
@@ -29,7 +29,6 @@ from infuse_iot.socket_comms import (
 from infuse_iot.time import InfuseTime
 from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, add_server_port_parser
 from infuse_iot.util.console import choose_one
-from infuse_iot.zephyr.errno import errno
 
 
 class LabelType(enum.Enum):
@@ -175,7 +174,8 @@ class SubCommand(InfuseCommand):
         if hdr is None:
             raise RuntimeError("Failed to get time from tag")
         if hdr.return_code != 0:
-            raise RuntimeError(f"Error getting time from tag ({hdr.return_code}): {errno.strerror(-hdr.return_code)}")
+            msg = f"Error getting time from tag ({hdr.return_code}): {rpc_return_code_str(hdr.return_code)}"
+            raise RuntimeError(msg)
 
         assert isinstance(rsp, time_get.response)
         time_response: time_get.response = rsp
@@ -219,7 +219,8 @@ class SubCommand(InfuseCommand):
         if hdr is None:
             raise RuntimeError("Failed to set time on tag")
         if hdr.return_code != 0:
-            raise RuntimeError(f"Error setting time on tag ({hdr.return_code}): {errno.strerror(-hdr.return_code)}")
+            msg = f"Error setting time on tag ({hdr.return_code}): {rpc_return_code_str(hdr.return_code)}"
+            raise RuntimeError(msg)
 
         # Update sync point to reflect new time on tag, assuming the tag's time doesn't change for
         # the duration of the connection.
