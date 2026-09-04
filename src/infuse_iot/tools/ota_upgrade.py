@@ -19,7 +19,7 @@ from rich.progress import (
 from rich.status import Status
 from rich.table import Table
 
-from infuse_iot.commands import InfuseCommand
+from infuse_iot.commands import InfuseCommand, rpc_return_code_str
 from infuse_iot.common import InfuseID
 from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action, time_set
 from infuse_iot.epacket.packet import Auth, HopReceived
@@ -32,7 +32,6 @@ from infuse_iot.socket_comms import (
 from infuse_iot.time import InfuseTime
 from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease, add_server_port_parser
 from infuse_iot.util.crc import crc16_ccitt
-from infuse_iot.zephyr.errno import errno
 
 
 class SubCommand(InfuseCommand):
@@ -157,7 +156,7 @@ class SubCommand(InfuseCommand):
             )
             return_code = hdr.return_code if hdr else -1
             if return_code != 0:
-                sys.exit(f"Failed to save diff file to gateway (({errno.strerror(-return_code)}))")
+                sys.exit(f"Failed to save diff file to gateway ({rpc_return_code_str(return_code)})")
             print(f"'{self._single_diff}' written to gateway")
 
     def set_device_time(self, mtu: int, infuse_id: int) -> bool:
