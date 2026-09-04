@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.generated.rpc_definitions import rpc_enum_data_logger
+from infuse_iot.generated.rpc_errors import RPCError
 from infuse_iot.time import InfuseTime
 from infuse_iot.util.ctypes import bytes_to_uint8
 from infuse_iot.zephyr.errno import errno
@@ -68,16 +69,16 @@ class annotate(InfuseRpcCommand, defs.annotate):
     @staticmethod
     def handle_response_generic(return_code, logger: rpc_enum_data_logger, time: datetime, label: str):
         if return_code != 0:
-            if return_code == -errno.ENODEV:
+            if return_code in {-errno.ENODEV, RPCError.DEVICE_NOT_FOUND}:
                 reason = f": No such logger {logger.name}"
-            elif return_code == -errno.EBADF:
+            elif return_code in {-errno.EBADF, RPCError.DEVICE_NOT_READY}:
                 reason = f": Logger {logger.name} not ready"
-            elif return_code == -errno.EINVAL:
+            elif return_code in {-errno.EINVAL, RPCError.INVALID_ARGUMENT}:
                 reason = f": Invalid event label '{label}'"
             else:
                 reason = ""
 
-            print(f"Failed to log annotation event ({errno.strerror(-return_code)}){reason}")
+            print(f"Failed to log annotation event ({InfuseRpcCommand.return_code_str(return_code)}){reason}")
             return
 
         print(f"Wrote annotation to {logger.name} with timestamp {time.isoformat()}")

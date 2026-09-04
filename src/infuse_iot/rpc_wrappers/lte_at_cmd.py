@@ -5,7 +5,6 @@ import ctypes
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
-from infuse_iot.zephyr.errno import errno
 
 
 class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
@@ -38,4 +37,4 @@ class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
                 print(decoded)
         # Notification that command failed
         if return_code != 0:
-            print(f"Failed to run command ({errno.strerror(-return_code)})")
+            print(f"Failed to run command ({self.return_code_str(return_code)})")

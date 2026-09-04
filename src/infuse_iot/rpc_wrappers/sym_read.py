@@ -11,7 +11,6 @@ import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util import console, elftools
 from infuse_iot.util.argparse import ValidFile
-from infuse_iot.zephyr.errno import errno
 
 
 class sym_read(InfuseRpcCommand, defs.mem_read):
@@ -94,7 +93,7 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to read data logger ({errno.strerror(-return_code)})")
+            print(f"Failed to read data logger ({self.return_code_str(return_code)})")
             return
 
         if response.sent_len != len(self.output):

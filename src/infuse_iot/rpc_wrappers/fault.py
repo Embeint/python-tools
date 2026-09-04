@@ -3,7 +3,6 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class fault(InfuseRpcCommand, defs.fault):
@@ -74,4 +73,4 @@ class fault(InfuseRpcCommand, defs.fault):
         return self.request(self._fault_type, 0)
 
     def handle_response(self, return_code, _):
-        print(f"Failed to trigger exception ({errno.strerror(-return_code)})")
+        print(f"Failed to trigger exception ({self.return_code_str(return_code)})")

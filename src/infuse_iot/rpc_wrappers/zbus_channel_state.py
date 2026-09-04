@@ -7,7 +7,6 @@ import tabulate
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.definitions import rpc as rpc_defs
 from infuse_iot.definitions import tdf as tdf_defs
-from infuse_iot.zephyr.errno import errno
 
 
 class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
@@ -103,7 +102,7 @@ class zbus_channel_state(InfuseRpcCommand, rpc_defs.zbus_channel_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query channel ({errno.strerror(-return_code)})")
+            print(f"Failed to query channel ({self.return_code_str(return_code)})")
             return
 
         from infuse_iot.time import InfuseTime

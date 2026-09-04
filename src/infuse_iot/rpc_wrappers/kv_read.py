@@ -9,7 +9,6 @@ import infuse_iot.definitions.kv as kv
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
-from infuse_iot.zephyr.errno import errno
 
 
 def _append_decoded_field(fields: list[tuple[str, Any]], field_name: str, field_val: Any) -> None:
@@ -57,7 +56,7 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
+            print(f"Invalid data buffer ({self.return_code_str(return_code)})")
             return
 
         for r in response.values:
@@ -79,4 +78,4 @@ class kv_read(InfuseRpcCommand, defs.kv_read):
                     _append_decoded_field(fields, field_name, field_val)
                 print(tabulate(fields))
             else:
-                print(f"Key: {r.id} (Failed to read '{errno.strerror(-r.len)}')")
+                print(f"Key: {r.id} (Failed to read '{self.return_code_str(r.len)}')")

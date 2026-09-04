@@ -9,7 +9,6 @@ from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.util.argparse import ValidFile
 from infuse_iot.util.ctypes import bytes_to_uint8
-from infuse_iot.zephyr.errno import errno
 
 
 class security_key_update(InfuseRpcCommand, defs.security_key_update):
@@ -57,6 +56,6 @@ class security_key_update(InfuseRpcCommand, defs.security_key_update):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to update key ({errno.strerror(-return_code)}, {-return_code})")
+            print(f"Failed to update key ({self.return_code_str(return_code)}, {-return_code})")
             return
         print(f"Updated key {self._key_id.name} on device")
