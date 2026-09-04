@@ -9,7 +9,6 @@ from infuse_iot.definitions.rpc import (
 )
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
-from infuse_iot.zephyr.errno import errno
 
 
 class bt_disconnect(InfuseRpcCommand, defs.bt_disconnect):
@@ -40,7 +39,7 @@ class bt_disconnect(InfuseRpcCommand, defs.bt_disconnect):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to disconnect ({errno.strerror(-return_code)})")
+            print(f"Failed to disconnect ({self.return_code_str(return_code)})")
             return
         else:
             print("Disconnected")

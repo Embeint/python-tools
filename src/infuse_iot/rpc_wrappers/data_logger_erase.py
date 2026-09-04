@@ -2,7 +2,6 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class data_logger_erase(InfuseRpcCommand, defs.data_logger_erase):
@@ -47,7 +46,7 @@ class data_logger_erase(InfuseRpcCommand, defs.data_logger_erase):
 
     def handle_response(self, return_code, _response):
         if return_code != 0:
-            print(f"Failed to erase data logger ({errno.strerror(-return_code)})")
+            print(f"Failed to erase data logger ({self.return_code_str(return_code)})")
             return
 
         print("Data logger erased")

@@ -77,7 +77,7 @@ class annotate(InfuseRpcCommand, defs.annotate):
             else:
                 reason = ""
 
-            print(f"Failed to log annotation event ({errno.strerror(-return_code)}){reason}")
+            print(f"Failed to log annotation event ({InfuseRpcCommand.return_code_str(return_code)}){reason}")
             return
 
         print(f"Wrote annotation to {logger.name} with timestamp {time.isoformat()}")

@@ -26,7 +26,7 @@ class gravity_reference_update(InfuseRpcCommand, defs.gravity_reference_update):
             print(f"IMU variance too large: {r.variance.x:6d} {r.variance.y:6d} {r.variance.z:6d}")
             return
         elif return_code < 0:
-            print(f"Failed to update gravity reference vector ({errno.strerror(-return_code)})")
+            print(f"Failed to update gravity reference vector ({self.return_code_str(return_code)})")
             return
 
         print(f"\t  Gravity: {r.reference.x:6d} {r.reference.y:6d} {r.reference.z:6d}")

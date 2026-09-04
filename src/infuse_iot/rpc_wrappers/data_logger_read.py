@@ -6,7 +6,6 @@ import time
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import UINT32_MAX
-from infuse_iot.zephyr.errno import errno
 
 
 class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
@@ -61,7 +60,7 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
     def handle_response(self, return_code, response):
         end_time = time.time()
         if return_code != 0:
-            print(f"Failed to read data logger ({errno.strerror(-return_code)})")
+            print(f"Failed to read data logger ({self.return_code_str(return_code)})")
             return
 
         if response.sent_len != len(self.output):

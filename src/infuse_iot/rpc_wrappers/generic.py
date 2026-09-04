@@ -4,7 +4,6 @@ import ctypes
 
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
-from infuse_iot.zephyr.errno import errno
 
 
 class generic(InfuseRpcCommand):
@@ -37,7 +36,7 @@ class generic(InfuseRpcCommand):
         return request(bytes_to_uint8(self._arg_bytes))
 
     def handle_response(self, return_code, response):
-        print(f"Return Code: {return_code} ({errno.strerror(-return_code)})")
+        print(f"Return Code: {return_code} ({self.return_code_str(return_code)})")
         if len(response.val) > 0:
             print(f"   Response: {bytes(response.val).hex()}")
         else:

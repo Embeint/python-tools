@@ -84,7 +84,7 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
+            print(f"Invalid data buffer ({self.return_code_str(return_code)})")
             return
 
         def print_status(name, rc):
@@ -94,7 +94,7 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
                 elif rc == -errno.ENOENT:
                     print(f"{name} did not exist")
                 else:
-                    print(f"{name} failed to delete ({errno(-rc).name})")
+                    print(f"{name} failed to delete ({self.return_code_str(rc)})")
             else:
                 if rc < 0:
                     print(f"{name} failed to write")

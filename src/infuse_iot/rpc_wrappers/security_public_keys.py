@@ -2,7 +2,6 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class security_public_keys(InfuseRpcCommand, defs.security_public_keys):
@@ -20,7 +19,7 @@ class security_public_keys(InfuseRpcCommand, defs.security_public_keys):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to update key ({errno.strerror(-return_code)}, {-return_code})")
+            print(f"Failed to update key ({self.return_code_str(return_code)}, {-return_code})")
             return
 
         for key in response.public_keys:

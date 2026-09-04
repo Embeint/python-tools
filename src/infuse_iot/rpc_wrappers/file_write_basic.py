@@ -11,7 +11,6 @@ from rich.progress import (
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import Auth, InfuseRpcCommand
 from infuse_iot.definitions.rpc import rpc_enum_file_action
-from infuse_iot.zephyr.errno import errno
 
 
 class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
@@ -111,7 +110,7 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
         self.progress.stop()
 
         if return_code != 0:
-            print(f"Failed to write file ({errno.strerror(-return_code)})")
+            print(f"Failed to write file ({self.return_code_str(return_code)})")
             return
         len_match = response.recv_len == len(self.payload)
         crc_match = response.recv_crc == self._expected_crc

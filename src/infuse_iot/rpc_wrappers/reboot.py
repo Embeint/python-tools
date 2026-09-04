@@ -3,7 +3,6 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class reboot(InfuseRpcCommand, defs.reboot):
@@ -24,4 +23,4 @@ class reboot(InfuseRpcCommand, defs.reboot):
         if return_code == 0:
             print(f"Rebooting in {response.delay_ms} ms")
         else:
-            print(f"Failed to trigger reboot ({errno.strerror(-return_code)})")
+            print(f"Failed to trigger reboot ({self.return_code_str(return_code)})")

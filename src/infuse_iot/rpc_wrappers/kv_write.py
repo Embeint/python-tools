@@ -8,7 +8,6 @@ import infuse_iot.definitions.kv as kv_defs
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import VLACompatLittleEndianStruct, bytes_to_uint8
-from infuse_iot.zephyr.errno import errno
 
 
 class kv_write(InfuseRpcCommand, defs.kv_write):
@@ -76,7 +75,7 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
+            print(f"Invalid data buffer ({self.return_code_str(return_code)})")
             return
 
         def print_status(name, rc):

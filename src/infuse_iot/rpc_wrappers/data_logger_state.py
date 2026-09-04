@@ -4,7 +4,6 @@
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.time import humanised_seconds
-from infuse_iot.zephyr.errno import errno
 
 
 class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
@@ -30,7 +29,7 @@ class data_logger_state(InfuseRpcCommand, defs.data_logger_state):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query data logger state ({errno.strerror(-return_code)})")
+            print(f"Failed to query data logger state ({self.return_code_str(return_code)})")
             return
 
         def sizeof_fmt(num, suffix="B"):
