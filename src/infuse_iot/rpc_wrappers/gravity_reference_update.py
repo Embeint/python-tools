@@ -2,6 +2,7 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.generated.rpc_errors import RPCError
 from infuse_iot.zephyr.errno import errno
 
 
@@ -22,11 +23,11 @@ class gravity_reference_update(InfuseRpcCommand, defs.gravity_reference_update):
     def handle_response(self, return_code, response):
         r = response
 
-        if return_code == -errno.EIO:
+        if return_code in {-errno.EIO, RPCError.DATA_VARIANCE_TOO_HIGH}:
             print(f"IMU variance too large: {r.variance.x:6d} {r.variance.y:6d} {r.variance.z:6d}")
             return
         elif return_code < 0:
-            print(f"Failed to update gravity reference vector ({errno.strerror(-return_code)})")
+            print(f"Failed to update gravity reference vector ({self.return_code_str(return_code)})")
             return
 
         print(f"\t  Gravity: {r.reference.x:6d} {r.reference.y:6d} {r.reference.z:6d}")

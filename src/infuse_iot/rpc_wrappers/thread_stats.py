@@ -6,7 +6,6 @@ import tabulate
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class thread_stats(InfuseRpcCommand, defs.thread_stats):
@@ -42,7 +41,7 @@ class thread_stats(InfuseRpcCommand, defs.thread_stats):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query thread stats ({errno.strerror(-return_code)})")
+            print(f"Failed to query thread stats ({self.return_code_str(return_code)})")
             return
 
         if self.args.sort_percentage:

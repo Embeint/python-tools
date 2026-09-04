@@ -8,7 +8,6 @@ import tabulate
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 from infuse_iot.zephyr.net import AddressFamily, SockType
 
 
@@ -107,7 +106,7 @@ class zperf_upload(InfuseRpcCommand, defs.zperf_upload):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to run zperf ({errno.strerror(-return_code)})")
+            print(f"Failed to run zperf ({self.return_code_str(return_code)})")
             return
 
         throughput_bps = 8 * response.total_len / (response.client_time_in_us / 1000)

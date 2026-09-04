@@ -5,7 +5,6 @@ import ctypes
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import UINT16_MAX
-from infuse_iot.zephyr.errno import errno
 
 
 class infuse_states_update(InfuseRpcCommand, defs.infuse_states_update):
@@ -37,6 +36,6 @@ class infuse_states_update(InfuseRpcCommand, defs.infuse_states_update):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to update state {self.args.state} ({errno.strerror(-return_code)})")
+            print(f"Failed to update state {self.args.state} ({self.return_code_str(return_code)})")
         else:
             print(f"Updated state {self.args.state}")

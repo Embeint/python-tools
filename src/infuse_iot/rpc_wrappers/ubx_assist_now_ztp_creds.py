@@ -3,7 +3,6 @@
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class ubx_assist_now_ztp_creds(InfuseRpcCommand, defs.ubx_assist_now_ztp_creds):
@@ -22,7 +21,7 @@ class ubx_assist_now_ztp_creds(InfuseRpcCommand, defs.ubx_assist_now_ztp_creds):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query ZTP credentials ({errno.strerror(-return_code)})")
+            print(f"Failed to query ZTP credentials ({self.return_code_str(return_code)})")
             return
 
         print(f"UBX-SEC-UNIQID: {bytes(response.ubx_sec_uniqid).hex()}")

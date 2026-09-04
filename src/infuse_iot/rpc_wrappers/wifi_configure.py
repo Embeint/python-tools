@@ -5,6 +5,7 @@ import ctypes
 import infuse_iot.definitions.rpc as defs
 import infuse_iot.zephyr.wifi as wifi
 from infuse_iot.commands import InfuseRpcCommand
+from infuse_iot.generated.rpc_errors import RPCError
 from infuse_iot.rpc_wrappers.kv_write import kv_write
 from infuse_iot.util.ctypes import UINT8_MAX, VLACompatLittleEndianStruct
 from infuse_iot.zephyr.errno import errno
@@ -84,17 +85,17 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Invalid data buffer ({errno.strerror(-return_code)})")
+            print(f"Invalid data buffer ({self.return_code_str(return_code)})")
             return
 
         def print_status(name, rc):
             if self.args.delete:
                 if rc == 0:
                     print(f"{name} deleted")
-                elif rc == -errno.ENOENT:
+                elif rc in {-errno.ENOENT, RPCError.KV_KEY_NOT_FOUND}:
                     print(f"{name} did not exist")
                 else:
-                    print(f"{name} failed to delete ({errno(-rc).name})")
+                    print(f"{name} failed to delete ({self.return_code_str(rc)})")
             else:
                 if rc < 0:
                     print(f"{name} failed to write")

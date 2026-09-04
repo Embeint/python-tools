@@ -4,7 +4,6 @@ import tabulate
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.zephyr.errno import errno
 
 
 class infuse_states_query(InfuseRpcCommand, defs.infuse_states_query):
@@ -23,7 +22,7 @@ class infuse_states_query(InfuseRpcCommand, defs.infuse_states_query):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query states ({errno.strerror(-return_code)})")
+            print(f"Failed to query states ({self.return_code_str(return_code)})")
             return
 
         states = []

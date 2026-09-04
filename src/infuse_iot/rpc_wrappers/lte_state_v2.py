@@ -6,7 +6,6 @@ import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.zephyr import lte as z_lte
 from infuse_iot.zephyr import net_if as z_nif
-from infuse_iot.zephyr.errno import errno
 
 
 class lte_state_v2(InfuseRpcCommand, defs.lte_state_v2):
@@ -25,7 +24,7 @@ class lte_state_v2(InfuseRpcCommand, defs.lte_state_v2):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to query LTE state ({errno.strerror(-return_code)})")
+            print(f"Failed to query LTE state ({self.return_code_str(return_code)})")
             return
 
         common = response.common

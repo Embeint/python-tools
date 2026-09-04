@@ -8,7 +8,6 @@ from infuse_iot.definitions.rpc import rpc_enum_bt_le_addr_type, rpc_enum_file_a
 from infuse_iot.rpc_wrappers.coap_download import coap_download, coap_server_file_stats
 from infuse_iot.util.argparse import BtLeAddress
 from infuse_iot.util.ctypes import bytes_to_uint8
-from infuse_iot.zephyr.errno import errno
 
 
 class bt_file_copy_coap(InfuseRpcCommand, defs.bt_file_copy_coap):
@@ -112,7 +111,7 @@ class bt_file_copy_coap(InfuseRpcCommand, defs.bt_file_copy_coap):
 
     def handle_response(self, return_code, response):
         if return_code != 0:
-            print(f"Failed to download file ({errno.strerror(-return_code)})")
+            print(f"Failed to download file ({self.return_code_str(return_code)})")
             return
         else:
             print("File downloaded and copied")
