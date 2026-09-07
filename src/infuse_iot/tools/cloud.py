@@ -52,6 +52,7 @@ from infuse_iot.api_client.api.organisation import (
 from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import (
     HexString,
     InfuseDeviceId,
@@ -102,7 +103,7 @@ class Organisations(CloudSubCommand):
     def list(self, client: Client):
         org_list = []
 
-        orgs = get_all_organisations.sync(client=client)
+        orgs = fetch_all(get_all_organisations, client=client)
         if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
         for o in orgs:
@@ -156,11 +157,11 @@ class Boards(CloudSubCommand):
     def list(self, client: Client):
         board_list = []
 
-        orgs = get_all_organisations.sync(client=client)
+        orgs = fetch_all(get_all_organisations, client=client)
         if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
         for org in orgs:
-            boards = get_boards.sync(client=client, organisation_id=org.id, include_public=True, limit=50)
+            boards = fetch_all(get_boards, client=client, organisation_id=org.id, include_public=True)
             if isinstance(boards, models.Error) or boards is None:
                 sys.exit(f"Boards query failed {boards}")
 
@@ -533,7 +534,7 @@ class Applications(CloudSubCommand):
     def list(self, client: Client):
         org: UUID
         if self.args.org is None:
-            orgs = get_all_organisations.sync(client=client)
+            orgs = fetch_all(get_all_organisations, client=client)
             if isinstance(orgs, models.Error) or orgs is None:
                 sys.exit(f"Organisation query failed {orgs}")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
@@ -544,7 +545,7 @@ class Applications(CloudSubCommand):
         else:
             org = UUID(self.args.org)
 
-        applications = get_applications_by_organisation_id.sync(client=client, id=org)
+        applications = fetch_all(get_applications_by_organisation_id, client=client, id=org)
 
         if not isinstance(applications, list):
             print(f"Failed to retrieve application list {applications}")
@@ -583,8 +584,12 @@ class Applications(CloudSubCommand):
             sys.exit("Get release: No response")
         elif isinstance(release, models.Error):
             sys.exit(f"<{release.code}>: {release.message}")
-        diffs = get_diffs_by_organisation_id_and_application_id_and_release_id.sync(
-            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        diffs = fetch_all(
+            get_diffs_by_organisation_id_and_application_id_and_release_id,
+            client=client,
+            id=UUID(self.args.org),
+            application_id=self.args.app,
+            release_id=self.args.rel,
         )
         if diffs is None:
             sys.exit("Get diffs: No response")
@@ -606,7 +611,7 @@ class Applications(CloudSubCommand):
             )
         )
 
-        other_apps = get_applications_by_organisation_id.sync(client=client, id=UUID(self.args.org))
+        other_apps = fetch_all(get_applications_by_organisation_id, client=client, id=UUID(self.args.org))
         assert isinstance(other_apps, list)
 
         diff_info = []
@@ -643,8 +648,11 @@ class Applications(CloudSubCommand):
             print(tabulate(diff_info, headers=["From App", "From Version", "Path", "Length", "CRC"]))
 
     def _info_all(self, client: Client):
-        releases = get_releases_by_organisation_id_and_application_id.sync(
-            client=client, id=UUID(self.args.org), application_id=self.args.app
+        releases = fetch_all(
+            get_releases_by_organisation_id_and_application_id,
+            client=client,
+            id=UUID(self.args.org),
+            application_id=self.args.app,
         )
 
         if releases is None:
@@ -704,7 +712,7 @@ class Applications(CloudSubCommand):
         version = Version.from_string(release_app_meta["version"])
 
         if self._org is None:
-            orgs = get_all_organisations.sync(client=client)
+            orgs = fetch_all(get_all_organisations, client=client)
             if isinstance(orgs, models.Error) or orgs is None:
                 sys.exit(f"Organisation query failed {orgs}")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
@@ -719,7 +727,7 @@ class Applications(CloudSubCommand):
             self._org_name = org.name
 
         if self._board is None:
-            boards = get_boards.sync(client=client, organisation_id=self._org)
+            boards = fetch_all(get_boards, client=client, organisation_id=self._org)
             if isinstance(boards, models.Error) or boards is None:
                 sys.exit(f"Board query failed {boards}")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
@@ -765,7 +773,8 @@ class Applications(CloudSubCommand):
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
         def get_all_releases(org: UUID, app_id: int) -> dict[Version, models.ApplicationRelease]:
-            releases = get_releases_by_organisation_id_and_application_id.sync(
+            releases = fetch_all(
+                get_releases_by_organisation_id_and_application_id,
                 client=client,
                 id=org,
                 application_id=app_id,
