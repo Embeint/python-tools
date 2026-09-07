@@ -139,6 +139,11 @@ class Boards(CloudSubCommand):
         tool_parser = add_subparsers_with_list(parser_boards, dest="_cloud_boards_command")
 
         list_parser = tool_parser.add_parser("list", help="List all hardware platforms")
+        list_parser.add_argument(
+            "--no-public",
+            action="store_true",
+            help="Only list boards owned by your organisations, omitting public reference boards",
+        )
         list_parser.set_defaults(command_fn=cls.list)
 
         create_parser = tool_parser.add_parser("create", help="Create new hardware platform")
@@ -162,7 +167,12 @@ class Boards(CloudSubCommand):
 
         boards: dict[UUID, models.Board] = {}
         for org in orgs:
-            found = fetch_all(get_boards, client=client, organisation_id=org.id, include_public=True)
+            found = fetch_all(
+                get_boards,
+                client=client,
+                organisation_id=org.id,
+                include_public=not self.args.no_public,
+            )
             if isinstance(found, models.Error) or found is None:
                 sys.exit(f"Boards query failed {found}")
             # `include_public` also returns other organisations' public boards,
