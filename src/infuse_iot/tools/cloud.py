@@ -155,23 +155,37 @@ class Boards(CloudSubCommand):
             self.args.command_fn(self, client)
 
     def list(self, client: Client):
-        board_list = []
-
         orgs = fetch_all(get_all_organisations, client=client)
         if isinstance(orgs, models.Error) or orgs is None:
             sys.exit(f"Organisation query failed {orgs}")
-        for org in orgs:
-            boards = fetch_all(get_boards, client=client, organisation_id=org.id, include_public=True)
-            if isinstance(boards, models.Error) or boards is None:
-                sys.exit(f"Boards query failed {boards}")
+        org_names = {o.id: o.name for o in orgs}
 
-            for b in boards:
-                board_list.append([b.name, b.id, b.soc, org.name, b.description])
+        boards: dict[UUID, models.Board] = {}
+        for org in orgs:
+            found = fetch_all(get_boards, client=client, organisation_id=org.id, include_public=True)
+            if isinstance(found, models.Error) or found is None:
+                sys.exit(f"Boards query failed {found}")
+            # `include_public` also returns other organisations' public boards,
+            # so the same board comes back once per organisation queried
+            boards.update({b.id: b for b in found})
+
+        board_list = [
+            [
+                b.name,
+                b.id,
+                b.soc,
+                # Only organisations we are a member of can be resolved to a name
+                org_names.get(b.organisation_id, b.organisation_id),
+                "yes" if b.public else "no",
+                b.description,
+            ]
+            for b in boards.values()
+        ]
 
         print(
             tabulate(
                 board_list,
-                headers=["Name", "ID", "SoC", "Organisation", "Description"],
+                headers=["Name", "ID", "SoC", "Organisation", "Public", "Description"],
             )
         )
 
