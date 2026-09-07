@@ -20,6 +20,7 @@ from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Board, Device, DeviceMetadata, Error, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_key
+from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
 from infuse_iot.util.soc import nrf, soc, stm
@@ -82,7 +83,7 @@ class SubCommand(InfuseCommand):
 
     def create_device(self, client: Client, soc_name: str, hardware_id_str: str):
         if self._org is None:
-            orgs = get_all_organisations.sync(client=client)
+            orgs = fetch_all(get_all_organisations, client=client)
             if isinstance(orgs, Error) or orgs is None:
                 sys.exit(f"Organisation query failed {orgs}")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
@@ -91,7 +92,7 @@ class SubCommand(InfuseCommand):
             self._org = orgs[idx].id
 
         if self._board is None:
-            boards = get_boards.sync(client=client, organisation_id=self._org, include_public=True, limit=50)
+            boards = fetch_all(get_boards, client=client, organisation_id=self._org, include_public=True)
             if isinstance(boards, Error) or boards is None:
                 sys.exit(f"Board query failed {boards}")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
