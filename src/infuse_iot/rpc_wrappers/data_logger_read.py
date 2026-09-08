@@ -3,6 +3,12 @@
 import binascii
 import time
 
+from rich.progress import (
+    DownloadColumn,
+    Progress,
+    TransferSpeedColumn,
+)
+
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.util.ctypes import UINT32_MAX
@@ -32,6 +38,12 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         self.expected_offset = 0
         self.output = bytearray()
         self.start_time = time.time()
+        self.progress = Progress(
+            *Progress.get_default_columns(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+        )
+        self.task = None
 
     def request_struct(self):
         return self.request(self.logger, self.start, self.last)
@@ -42,6 +54,9 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
     def data_recv_cb(self, offset: int, data: bytes) -> None:
         if self.expected_offset == 0:
             self.start_time = time.time()
+        if self.task is None:
+            self.progress.start()
+            self.task = self.progress.add_task("Reading...", total=None)
         if offset == self.expected_offset:
             self.output += data
             # Next expected offset
@@ -49,16 +64,23 @@ class data_logger_read(InfuseRpcCommand, defs.data_logger_read):
         else:
             missing = offset - self.expected_offset
             if missing > 0:
-                print(f"Missed {missing:d} bytes from offset 0x{self.expected_offset:08x}")
+                self.progress.console.print(f"Missed {missing:d} bytes from offset 0x{self.expected_offset:08x}")
                 self.output += b"\x00" * missing
                 self.output += data
                 self.expected_offset = offset + len(data)
             else:
-                print(f"Received missing bytes from offset 0x{self.expected_offset:08x}")
+                self.progress.console.print(f"Received missing bytes from offset 0x{self.expected_offset:08x}")
                 self.output[offset : offset + len(data)] = data
+
+        self.progress.update(self.task, completed=len(self.output))
 
     def handle_response(self, return_code, response):
         end_time = time.time()
+        if self.task is not None:
+            if response is not None:
+                self.progress.update(self.task, total=response.sent_len, completed=len(self.output))
+            self.progress.stop()
+
         if return_code != 0:
             print(f"Failed to read data logger ({self.return_code_str(return_code)})")
             return
