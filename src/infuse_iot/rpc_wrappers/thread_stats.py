@@ -14,8 +14,8 @@ class thread_stats(InfuseRpcCommand, defs.thread_stats):
     @classmethod
     def add_parser(cls, parser):
         sort = parser.add_mutually_exclusive_group()
-        sort.add_argument("--sort-percentage", action="store_true", help="Sort threads by stack usage (%)")
-        sort.add_argument("--sort-bytes", action="store_true", help="Sort threads by bytes bytes")
+        sort.add_argument("--sort-percentage", action="store_true", help="Sort threads by stack usage (%%)")
+        sort.add_argument("--sort-bytes", action="store_true", help="Sort threads by stack usage (bytes)")
 
     def __init__(self, args):
         self.args = args
