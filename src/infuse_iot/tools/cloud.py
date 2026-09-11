@@ -275,6 +275,7 @@ class Device(CloudSubCommand):
         logger_states = get_device_logger_states_by_device_id.sync(client=client, device_id=id_str)
 
         table: list[tuple[str, Any]] = [
+            ("Infuse ID", id_str),
             ("UUID", info.id),
             ("MCU ID", info.mcu_id),
             (
