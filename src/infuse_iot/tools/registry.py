@@ -36,6 +36,7 @@ def load_extension_tools(path: str | pathlib.Path) -> tuple[ToolSpec, ...]:
     """Load and validate ToolSpec entries from an extension tool directory."""
     extension_path = pathlib.Path(path)
     module = _load_registry_module(extension_path)
+    _register_device_id_converters(module)
 
     if not hasattr(module, "TOOLS"):
         raise ValueError(f"Custom tools registry {extension_path / 'registry.py'} does not define TOOLS")
@@ -67,6 +68,19 @@ def load_extension_tools(path: str | pathlib.Path) -> tuple[ToolSpec, ...]:
         validated_tools.append(tool)
 
     return tuple(validated_tools)
+
+
+def _register_device_id_converters(module: types.ModuleType) -> None:
+    converters = getattr(module, "DEVICE_ID_CONVERTERS", ())
+    if not isinstance(converters, (list, tuple)):
+        raise TypeError("Custom tools registry DEVICE_ID_CONVERTERS must be a list or tuple of callables")
+
+    from infuse_iot.util.argparse import register_infuse_device_id_fallback
+
+    for converter in converters:
+        if not callable(converter):
+            raise TypeError("Custom tools registry DEVICE_ID_CONVERTERS must contain only callables")
+        register_infuse_device_id_fallback(converter)
 
 
 TOOLS = (
