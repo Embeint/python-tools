@@ -14,6 +14,7 @@ from infuse_iot.util.argparse import (
     ValidDir,
     ValidFile,
     add_server_port_parser,
+    register_infuse_device_id_fallback,
 )
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -69,6 +70,21 @@ def test_infuse_device_id():
     assert InfuseDeviceId("1234aa43bc") == 0x1234AA43BC
 
 
+def test_infuse_device_id_fallback():
+    def test_prefix_converter(value: str) -> int | None:
+        if not value.startswith("test-"):
+            return None
+
+        return int(value.removeprefix("test-"), 16)
+
+    register_infuse_device_id_fallback(test_prefix_converter)
+
+    assert InfuseDeviceId("test-1234abcd") == 0x1234ABCD
+    assert InfuseDeviceId("0x99") == 0x99
+    with pytest.raises(argparse.ArgumentTypeError):
+        InfuseDeviceId("invalid-device")
+
+
 def test_hexstring():
     with pytest.raises(argparse.ArgumentTypeError):
         HexString("NotHex")
@@ -80,6 +96,7 @@ def test_hexstring():
     assert HexString("AABB") == b"\xaa\xbb"
     assert HexString("aa00bb") == b"\xaa\x00\xbb"
     assert HexString("00AABB") == b"\x00\xaa\xbb"
+
 
 def test_server_port():
     with pytest.raises(argparse.ArgumentTypeError):
@@ -97,6 +114,7 @@ def test_server_port():
     assert ServerPort("1") == ("224.1.1.1", 1)
     assert ServerPort("8751") == ("224.1.1.1", 8751)
     assert ServerPort("65535") == ("224.1.1.1", 65535)
+
 
 def test_server_port_parser(capsys):
     parser = argparse.ArgumentParser()

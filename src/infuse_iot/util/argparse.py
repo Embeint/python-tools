@@ -3,6 +3,7 @@
 import argparse
 import pathlib
 import re
+from collections.abc import Callable
 from typing import cast
 
 import yaml
@@ -10,6 +11,15 @@ import yaml
 from infuse_iot.definitions.rpc import rpc_enum_bt_le_addr_type, rpc_struct_bt_addr_le
 from infuse_iot.socket_comms import default_multicast_address
 from infuse_iot.util.ctypes import bytes_to_uint8
+
+InfuseDeviceIdConverter = Callable[[str], int | None]
+_infuse_device_id_fallbacks: list[InfuseDeviceIdConverter] = []
+
+
+def register_infuse_device_id_fallback(converter: InfuseDeviceIdConverter) -> None:
+    """Register a fallback converter for non-hex Infuse-IoT Device IDs."""
+    if converter not in _infuse_device_id_fallbacks:
+        _infuse_device_id_fallbacks.append(converter)
 
 
 class ValidFile:
@@ -88,8 +98,18 @@ class InfuseDeviceId:
     def __new__(cls, string: str) -> int:  # type: ignore
         try:
             return int(string, 16)
-        except ValueError as e:
-            raise argparse.ArgumentTypeError(f"{string} is not a valid hex ID") from e
+        except ValueError:
+            pass
+
+        for converter in _infuse_device_id_fallbacks:
+            try:
+                value = converter(string)
+            except ValueError:
+                continue
+            if value is not None:
+                return value
+
+        raise argparse.ArgumentTypeError(f"{string} is not a valid Infuse-IoT Device ID")
 
 
 class HexString:
@@ -149,13 +169,14 @@ class ServerPort:
             raise argparse.ArgumentError(None, f"`--server-port` must be odd: {port}")
         return default_multicast_address(port)
 
+
 def add_server_port_parser(parser: argparse.ArgumentParser, multi_port: bool = False):
     """Register `--server-port`with an argument parser. `multi_port` allows multiple port(s)"""
     parser.add_argument(
-        '--server-port',
-        dest='server_sock',
+        "--server-port",
+        dest="server_sock",
         default=[default_multicast_address()] if multi_port else default_multicast_address(),
         type=ServerPort,
-        nargs= '+' if multi_port else None,
-        help="Alternate port to use for Gateway connections (default 8751)"
+        nargs="+" if multi_port else None,
+        help="Alternate port to use for Gateway connections (default 8751)",
     )

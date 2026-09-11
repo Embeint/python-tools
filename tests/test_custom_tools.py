@@ -9,6 +9,7 @@ import pytest
 
 import infuse_iot.credentials as cred
 from infuse_iot.app.main import InfuseApp
+from infuse_iot.util.argparse import InfuseDeviceId
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -53,6 +54,7 @@ def test_extension_tool_registry_loading():
         app = InfuseApp()
 
         assert "custom_tool" in app._tools
+        assert InfuseDeviceId("custom-1234abcd") == 0x1234ABCD
         assert app._tools["custom_tool"].spec.module == "custom_tool"
         assert "custom_tool" not in app._loaded_tools
         assert "infuse_iot_custom_tools.custom_tool" not in sys.modules
