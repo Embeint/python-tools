@@ -302,6 +302,7 @@ class rpc_enum_infuse_bt_characteristic(enum.IntEnum):
     COMMAND = 1
     DATA = 2
     LOGGING = 4
+    CLOUD_UPLINK = 8
 
 
 class rpc_enum_data_logger(enum.IntEnum):
@@ -310,6 +311,8 @@ class rpc_enum_data_logger(enum.IntEnum):
     FLASH_ONBOARD = 1
     FLASH_REMOVABLE = 2
     UDP = 3
+    SERIAL = 4
+    BT_PERIPHERAL = 5
 
 
 class rpc_enum_tdf_data_logger(enum.IntEnum):

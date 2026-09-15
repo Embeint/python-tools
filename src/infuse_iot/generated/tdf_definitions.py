@@ -1784,6 +1784,25 @@ class readings:
             "duration_s": "{}",
         }
 
+    class device_init_error(TdfReadingBase):
+        """Device that failed to initialise on boot"""
+
+        ID = 66
+        NAME = "DEVICE_INIT_ERROR"
+        _fields_ = [
+            ("code", ctypes.c_int8),
+            ("name", 0 * ctypes.c_char),
+        ]
+        _pack_ = 1
+        _postfix_ = {
+            "code": "",
+            "name": "",
+        }
+        _display_fmt_ = {
+            "code": "{}",
+            "name": "{}",
+        }
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1850,6 +1869,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.lte_control.ID: readings.lte_control,
     readings.lte_sleep_enter.ID: readings.lte_sleep_enter,
     readings.lte_sleep_exit.ID: readings.lte_sleep_exit,
+    readings.device_init_error.ID: readings.device_init_error,
 }
 
 __all__ = [
