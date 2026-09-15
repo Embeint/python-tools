@@ -69,13 +69,13 @@ def test_nested_subcommand_lists_subcommands(capsys, monkeypatch):
 
 
 def test_completion_loads_selected_tool(monkeypatch):
-    command_line = "infuse credentials --api"
+    command_line = "infuse profile configure --api"
     monkeypatch.setenv("COMP_LINE", command_line)
     monkeypatch.setenv("COMP_POINT", str(len(command_line)))
     monkeypatch.setenv("_ARGCOMPLETE", "1")
 
     app = InfuseApp()
-    assert "infuse_iot.tools.credentials" not in sys.modules
+    assert "infuse_iot.tools.profile" not in sys.modules
 
     app._load_selected_completion_tool()
-    assert "infuse_iot.tools.credentials" in sys.modules
+    assert "infuse_iot.tools.profile" in sys.modules
