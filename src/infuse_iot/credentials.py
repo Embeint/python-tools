@@ -90,6 +90,12 @@ def get_custom_tool_path() -> str | None:
     """
     Retrieve the location of custom Infuse-IoT tools on the filesystem
     """
+    from infuse_iot.profile import get_active_profile_custom_tool_path
+
+    profile_path = get_active_profile_custom_tool_path()
+    if profile_path is not None:
+        return profile_path
+
     return keyring.get_password("infuse-iot", "custom-tools")
 
 
@@ -111,6 +117,12 @@ def get_custom_definitions_path() -> str | None:
     """
     Retrieve the location of custom Infuse-IoT definitions on the filesystem
     """
+    from infuse_iot.profile import get_active_profile_custom_definitions_path
+
+    profile_path = get_active_profile_custom_definitions_path()
+    if profile_path is not None:
+        return profile_path
+
     return keyring.get_password("infuse-iot", "custom-definitions")
 
 
