@@ -34,6 +34,7 @@ class SubCommand(InfuseCommand):
 
         configure_parser = subcommands.add_parser("configure", help="Create or update a profile")
         configure_parser.add_argument("--name", "-n", required=True, help="Profile name")
+        configure_parser.add_argument("--api-key", type=str, help="Set Infuse-IoT API key")
         configure_parser.add_argument("--custom-tools", type=ValidDir, help="Location of custom tools")
         configure_parser.add_argument("--custom-definitions", type=ValidDir, help="Location of custom definitions")
         configure_parser.set_defaults(profile_command="configure")
@@ -80,6 +81,7 @@ class SubCommand(InfuseCommand):
             self._args.name,
             custom_tools=custom_tools,
             custom_definitions=custom_definitions,
+            api_key=self._args.api_key,
         )
         action = "Created" if created else "Updated"
         print(f"{action} profile {self._args.name}")

@@ -9,6 +9,23 @@ DEFAULT_NETWORK_KEY = (
 )
 
 
+def set_profile_api_key(api_key_id: str, api_key: str) -> None:
+    """
+    Save a profile-specific Infuse-IoT API key to the keyring module
+    """
+    keyring.set_password("infuse-iot", f"profile-api-key-{api_key_id}", api_key)
+
+
+def get_profile_api_key(api_key_id: str) -> str:
+    """
+    Retrieve a profile-specific Infuse-IoT API key from the keyring module
+    """
+    key = keyring.get_password("infuse-iot", f"profile-api-key-{api_key_id}")
+    if key is None:
+        raise FileNotFoundError(f"Profile API key {api_key_id} does not exist in keyring")
+    return key
+
+
 def set_api_key(api_key: str) -> None:
     """
     Save the Infuse-IoT API key to the keyring module
@@ -20,6 +37,12 @@ def get_api_key() -> str:
     """
     Retrieve the Infuse-IoT API key from the keyring module
     """
+    from infuse_iot.profile import get_active_profile_api_key_id
+
+    profile_api_key_id = get_active_profile_api_key_id()
+    if profile_api_key_id is not None:
+        return get_profile_api_key(profile_api_key_id)
+
     key = keyring.get_password("infuse-iot", "api-key")
     if key is None:
         raise FileNotFoundError("API key does not exist in keyring")
