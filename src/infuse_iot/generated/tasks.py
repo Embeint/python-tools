@@ -158,6 +158,8 @@ class TaskGnss:
         """Log latitude, longitude, height and accuracy"""
         FIX_INFO = BIT(1)
         """Log fix information"""
+        ERROR = BIT(6)
+        """Log runtime errors"""
         PVT = BIT(7)
         """Log maximum information position, velocity and time"""
 
