@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import platformdirs
 
@@ -17,6 +18,7 @@ class Profile:
     creation_time: str
     custom_tools: str | None = None
     custom_definitions: str | None = None
+    api_key_id: str | None = None
 
 
 def profile_store_path() -> Path:
@@ -81,23 +83,28 @@ def configure_profile(
     name: str,
     custom_tools: str | None = None,
     custom_definitions: str | None = None,
+    api_key: str | None = None,
 ) -> tuple[Profile, bool]:
     config = load_profile_config()
     if name in config.profiles:
         profile = config.profiles[name]
+        api_key_id = _store_api_key(api_key, profile.api_key_id)
         updated_profile = Profile(
             creation_time=profile.creation_time,
             custom_tools=custom_tools if custom_tools is not None else profile.custom_tools,
             custom_definitions=custom_definitions if custom_definitions is not None else profile.custom_definitions,
+            api_key_id=api_key_id if api_key_id is not None else profile.api_key_id,
         )
         config.profiles[name] = updated_profile
         save_profile_config(config)
         return updated_profile, False
 
+    api_key_id = _store_api_key(api_key)
     profile = Profile(
         creation_time=datetime.now(timezone.utc).isoformat(),
         custom_tools=custom_tools,
         custom_definitions=custom_definitions,
+        api_key_id=api_key_id,
     )
     config.profiles[name] = profile
     if config.active_profile is None:
@@ -140,3 +147,22 @@ def get_active_profile_custom_definitions_path() -> str | None:
         return None
 
     return active_profile.custom_definitions
+
+
+def get_active_profile_api_key_id() -> str | None:
+    active_profile = get_active_profile()
+    if active_profile is None:
+        return None
+
+    return active_profile.api_key_id
+
+
+def _store_api_key(api_key: str | None, api_key_id: str | None = None) -> str | None:
+    if api_key is None:
+        return None
+
+    from infuse_iot.credentials import set_profile_api_key
+
+    api_key_id = api_key_id or uuid4().hex
+    set_profile_api_key(api_key_id, api_key)
+    return api_key_id
