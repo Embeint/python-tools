@@ -3,43 +3,41 @@
 """Save received TDFs in CSV files"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
+__copyright__ = "Copyright 2026, Embeint Holdings Pty Ltd"
 
-import os
 import sys
-import time
+from pathlib import Path
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
+from infuse_iot.exporter import Exporter
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import add_server_port_parser
-
-
-def _to_str(unix_time: float) -> str:
-    return str(unix_time)
+from infuse_iot.util.argparse import ValidDir, add_server_port_parser
 
 
 class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
+        parser.add_argument("--dir", '-d', type=ValidDir, default=Path("."), help="Directory to save CSV files to")
         parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")
         add_server_port_parser(parser)
 
     def __init__(self, args):
         self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
+        print(f"Exporting to {Path(args.dir)}")
+        self._exporter = Exporter(Path(args.dir))
+        self._time_format = str if args.unix else InfuseTime.utc_time_string_log
         self.args = args
 
     def run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
-
-        files = {}
 
         while True:
             msg = self._client.receive()
@@ -52,45 +50,6 @@ class SubCommand(InfuseCommand):
             source = msg.epacket.route[0]
 
             for tdf in self._decoder.decode(msg.epacket.payload):
-                # Construct reading strings
-                lines = []
-                reading_time = tdf.time
-                for idx, reading in enumerate(tdf.data):
-                    if self.args.unix:
-                        time_func = _to_str
-                    else:
-                        time_func = InfuseTime.utc_time_string_log
-
-                    if tdf.base_idx is not None:
-                        if reading_time is None or idx > 0:
-                            time_str = f"{tdf.base_idx + idx}"
-                        else:
-                            time_str = time_func(reading_time)
-                    elif reading_time is None:
-                        # Log with local time
-                        time_str = time_func(time.time())
-                    else:
-                        time_str = time_func(reading_time)
-                    line = time_str + "," + ",".join([f.val_fmt() for f in reading.iter_fields()])
-                    lines.append(line)
-                    if tdf.period is not None:
-                        assert reading_time is not None
-                        reading_time += tdf.period
-
-                # Handle file creation/opening
-                first = tdf.data[0]
-                filename = f"{source.infuse_id:016x}_{first.NAME}.csv"
-                if filename not in files:
-                    if os.path.exists(filename):
-                        print(f"Appending to existing {filename}")
-                        files[filename] = open(filename, "a", encoding="utf-8")  # noqa: SIM115
-                    else:
-                        print(f"Opening new {filename}")
-                        files[filename] = open(filename, "w", encoding="utf-8")  # noqa: SIM115
-                        headings = "time," + ",".join([f.name for f in first.iter_fields()])
-                        files[filename].write(headings + os.linesep)
-
-                # Write line to file then flush
-                for line in lines:
-                    files[filename].write(line + os.linesep)
-                files[filename].flush()
+                filename = Path(f"{source.infuse_id:016x}_{tdf.name}.csv")
+                lines = tdf.csv_lines(time_fmt=self._time_format)
+                self._exporter.write_lines(filename, lines, header=tdf.csv_header)
