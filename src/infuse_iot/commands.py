@@ -7,12 +7,17 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
 import ctypes
+import importlib
+import pkgutil
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterator
 from typing import Any
 
 import infuse_iot.rpc_wrappers as wrappers
+from infuse_iot.credentials import get_custom_tool_path
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.generated.rpc_errors import RPCError
+from infuse_iot.tools.registry import import_extension_rpc_wrapper, load_extension_rpc_wrappers
 from infuse_iot.zephyr.errno import errno
 
 
@@ -30,18 +35,22 @@ def rpc_return_code_str(return_code: int) -> str:
 
 
 def wrapper_from_command_id(command_id: int):
-    import importlib
-    import pkgutil
-
-    for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
-        full_name = f"{wrappers.__name__}.{name}"
-        module = importlib.import_module(full_name)
-
-        # Add RPC wrapper to parser
-        cmd_cls = getattr(module, name)
+    for _, cmd_cls in iter_rpc_wrapper_classes():
         if command_id == cmd_cls.COMMAND_ID:
             return cmd_cls
     return None
+
+
+def iter_rpc_wrapper_classes() -> Iterator[tuple[str, Any]]:
+    """Yield parser names and wrapper classes for built-in and custom RPC wrappers."""
+    for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
+        full_name = f"{wrappers.__name__}.{name}"
+        module = importlib.import_module(full_name)
+        yield name, getattr(module, name)
+
+    if custom_tools_path := get_custom_tool_path():
+        for wrapper in load_extension_rpc_wrappers(custom_tools_path):
+            yield wrapper.name, import_extension_rpc_wrapper(custom_tools_path, wrapper)
 
 
 class InfuseCommand(metaclass=ABCMeta):
