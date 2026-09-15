@@ -20,6 +20,7 @@ import argcomplete
 from argcomplete.lexers import split_line
 
 from infuse_iot.credentials import get_custom_tool_path
+from infuse_iot.profile import get_active_profile_custom_tool_path
 from infuse_iot.tools.registry import TOOLS, ToolSpec, load_extension_tools
 from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 from infuse_iot.version import __version__
@@ -123,7 +124,7 @@ class InfuseApp:
             self._register_tool(tool)
 
         # Load custom tools, if configured
-        if extension_tools := get_custom_tool_path():
+        if extension_tools := (get_active_profile_custom_tool_path() or get_custom_tool_path()):
             extension_path = pathlib.Path(extension_tools)
             for tool in load_extension_tools(extension_path):
                 self._register_tool(tool, extension_path)

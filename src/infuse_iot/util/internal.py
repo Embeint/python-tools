@@ -6,6 +6,7 @@ import pathlib
 import types
 
 import infuse_iot.credentials
+import infuse_iot.profile
 
 
 def extension_load(name: str) -> None | types.ModuleType:
@@ -13,7 +14,9 @@ def extension_load(name: str) -> None | types.ModuleType:
         # Skip expensive imports when running argcomplete
         return None
 
-    defs_path = infuse_iot.credentials.get_custom_definitions_path()
+    defs_path = infuse_iot.profile.get_active_profile_custom_definitions_path()
+    if defs_path is None:
+        defs_path = infuse_iot.credentials.get_custom_definitions_path()
     if defs_path is None:
         return None
     extensions_file = pathlib.Path(defs_path) / f"{name}.py"

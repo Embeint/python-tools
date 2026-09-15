@@ -16,7 +16,8 @@ from infuse_iot.profile import (
     load_raw_profile_config,
     set_active_profile,
 )
-from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
+from infuse_iot.tools.registry import load_extension_tools
+from infuse_iot.util.argparse import ValidDir, add_subparsers_with_list, print_subcommands_if_missing
 
 
 class SubCommand(InfuseCommand):
@@ -33,6 +34,8 @@ class SubCommand(InfuseCommand):
 
         configure_parser = subcommands.add_parser("configure", help="Create or update a profile")
         configure_parser.add_argument("--name", "-n", required=True, help="Profile name")
+        configure_parser.add_argument("--custom-tools", type=ValidDir, help="Location of custom tools")
+        configure_parser.add_argument("--custom-definitions", type=ValidDir, help="Location of custom definitions")
         configure_parser.set_defaults(profile_command="configure")
 
         set_parser = subcommands.add_parser("set", help="Set active profile")
@@ -61,13 +64,23 @@ class SubCommand(InfuseCommand):
     def _run_list(self) -> None:
         active_profile = get_active_profile_name()
         rows = [
-            [name, "yes" if name == active_profile else "no", profile.creation_time]
+            [
+                name,
+                "yes" if name == active_profile else "no",
+                profile.custom_tools if profile.custom_tools is not None else "",
+                profile.custom_definitions if profile.custom_definitions is not None else "",
+            ]
             for name, profile in sorted(load_profiles().items())
         ]
-        print(tabulate(rows, headers=["Name", "Active", "Created"]))
+        print(tabulate(rows, headers=["Name", "Active", "Custom Tools", "Custom Definitions"]))
 
     def _run_configure(self) -> None:
-        _, created = configure_profile(self._args.name)
+        custom_tools, custom_definitions = self._profile_path_args()
+        _, created = configure_profile(
+            self._args.name,
+            custom_tools=custom_tools,
+            custom_definitions=custom_definitions,
+        )
         action = "Created" if created else "Updated"
         print(f"{action} profile {self._args.name}")
 
@@ -86,3 +99,13 @@ class SubCommand(InfuseCommand):
             print("No profiles configured")
         else:
             print(json.dumps(raw_profile_config, indent=2, sort_keys=True))
+
+    def _profile_path_args(self) -> tuple[str | None, str | None]:
+        custom_tools = self._args.custom_tools
+        if custom_tools:
+            load_extension_tools(custom_tools)
+
+        return (
+            str(custom_tools.absolute()) if custom_tools else None,
+            str(self._args.custom_definitions.absolute()) if self._args.custom_definitions else None,
+        )
