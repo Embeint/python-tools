@@ -4,22 +4,50 @@ import json
 import os
 import pathlib
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
+from unittest.mock import patch
+
+import platformdirs
 
 import infuse_iot.credentials as cred
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
 
-def test_profile_configure_and_list(tmp_path):
+def profile_test_env(tmp_path, monkeypatch=None) -> dict[str, str]:
     config_root = tmp_path / "config"
     env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    updates = {
+        "XDG_CONFIG_HOME": str(config_root),
+        "APPDATA": str(config_root),
+        "LOCALAPPDATA": str(config_root),
+        "WIN_PD_OVERRIDE_APPDATA": str(config_root),
+        "WIN_PD_OVERRIDE_LOCAL_APPDATA": str(config_root),
+    }
+    for name in updates:
+        for existing_name in list(env):
+            if existing_name.upper() == name:
+                del env[existing_name]
+    env.update(updates)
+    if monkeypatch is not None:
+        for name, value in updates.items():
+            monkeypatch.setenv(name, value)
+    return env
+
+
+def profile_store_path(env: Mapping[str, str]) -> Path:
+    with patch.dict(os.environ, env, clear=True):
+        return Path(platformdirs.user_config_dir("infuse-iot", "Embeint")) / "profiles.json"
+
+
+def test_profile_configure_and_list(tmp_path):
+    env = profile_test_env(tmp_path)
 
     output = subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env).decode()
     assert "Created profile test" in output
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
 
@@ -37,28 +65,24 @@ def test_profile_configure_and_list(tmp_path):
 
 
 def test_profile_configure_existing_updates(tmp_path):
-    env = os.environ.copy()
-    config_root = tmp_path / "config"
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
     output = subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env).decode()
 
     assert "Updated profile test" in output
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
     assert list(profiles["profiles"]) == ["test"]
 
 
 def test_profile_configure_with_custom_paths(tmp_path):
-    config_root = tmp_path / "config"
     custom_tools_path = pathlib.Path(__file__).parent.parent / "scripts" / "custom_tools"
     custom_definitions_path = tmp_path / "definitions"
     custom_definitions_path.mkdir()
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(
         [
@@ -75,7 +99,7 @@ def test_profile_configure_with_custom_paths(tmp_path):
         env=env,
     )
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
 
@@ -88,13 +112,11 @@ def test_profile_configure_with_custom_paths(tmp_path):
 
 
 def test_profile_configure_with_api_key(tmp_path, monkeypatch):
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
-    monkeypatch.setenv("XDG_CONFIG_HOME", env["XDG_CONFIG_HOME"])
+    env = profile_test_env(tmp_path, monkeypatch)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test", "--api-key", "profile-key"], env=env)
 
-    store_path = Path(env["XDG_CONFIG_HOME"]) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
 
@@ -106,15 +128,13 @@ def test_profile_configure_with_api_key(tmp_path, monkeypatch):
 
 
 def test_profile_set_active(tmp_path):
-    config_root = tmp_path / "config"
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
     output = subprocess.check_output(["infuse", "profile", "set", "--name", "test"], env=env).decode()
     assert "Active profile set to test" in output
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
     assert profiles["active_profile"] == "test"
@@ -126,12 +146,10 @@ def test_profile_set_active(tmp_path):
 
 
 def test_profile_configure_updates_custom_paths(tmp_path):
-    config_root = tmp_path / "config"
     custom_tools_path = pathlib.Path(__file__).parent.parent / "scripts" / "custom_tools"
     custom_definitions_path = tmp_path / "definitions"
     custom_definitions_path.mkdir()
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
     subprocess.check_output(
@@ -149,7 +167,7 @@ def test_profile_configure_updates_custom_paths(tmp_path):
         env=env,
     )
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
 
@@ -158,12 +176,10 @@ def test_profile_configure_updates_custom_paths(tmp_path):
 
 
 def test_profile_configure_updates_api_key(tmp_path, monkeypatch):
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
-    monkeypatch.setenv("XDG_CONFIG_HOME", env["XDG_CONFIG_HOME"])
+    env = profile_test_env(tmp_path, monkeypatch)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test", "--api-key", "first-key"], env=env)
-    store_path = Path(env["XDG_CONFIG_HOME"]) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
     first_api_key_id = profiles["profiles"]["test"]["api_key_id"]
@@ -180,9 +196,7 @@ def test_profile_configure_updates_api_key(tmp_path, monkeypatch):
 
 
 def test_profile_without_api_key_uses_legacy_credentials(tmp_path, monkeypatch):
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
-    monkeypatch.setenv("XDG_CONFIG_HOME", env["XDG_CONFIG_HOME"])
+    env = profile_test_env(tmp_path, monkeypatch)
 
     try:
         cred.set_api_key("legacy-key")
@@ -195,8 +209,7 @@ def test_profile_without_api_key_uses_legacy_credentials(tmp_path, monkeypatch):
 
 def test_profile_custom_tools_are_loaded(tmp_path):
     custom_tools_path = pathlib.Path(__file__).parent.parent / "scripts" / "custom_tools"
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(
         ["infuse", "profile", "configure", "--name", "test", "--custom-tools", str(custom_tools_path)],
@@ -209,14 +222,12 @@ def test_profile_custom_tools_are_loaded(tmp_path):
 
 
 def test_profile_configure_does_not_replace_active_profile(tmp_path):
-    config_root = tmp_path / "config"
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "first"], env=env)
     subprocess.check_output(["infuse", "profile", "configure", "--name", "second"], env=env)
 
-    store_path = Path(config_root) / "infuse-iot" / "profiles.json"
+    store_path = profile_store_path(env)
     with store_path.open("r", encoding="utf-8") as f:
         profiles = json.load(f)
 
@@ -225,8 +236,7 @@ def test_profile_configure_does_not_replace_active_profile(tmp_path):
 
 
 def test_profile_set_missing_errors(tmp_path):
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+    env = profile_test_env(tmp_path)
 
     result = subprocess.run(
         ["infuse", "profile", "set", "--name", "test"],
@@ -241,9 +251,7 @@ def test_profile_set_missing_errors(tmp_path):
 
 
 def test_profile_dump(tmp_path):
-    config_root = tmp_path / "config"
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(config_root)
+    env = profile_test_env(tmp_path)
 
     subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
     subprocess.check_output(["infuse", "profile", "set", "--name", "test"], env=env)
@@ -258,8 +266,7 @@ def test_profile_dump(tmp_path):
 
 
 def test_profile_dump_empty(tmp_path):
-    env = os.environ.copy()
-    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+    env = profile_test_env(tmp_path)
 
     output = subprocess.check_output(["infuse", "profile", "dump"], env=env).decode().strip()
 
