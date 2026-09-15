@@ -18,6 +18,14 @@ class ToolSpec:
     module: str
 
 
+@dataclass(frozen=True)
+class RpcWrapperSpec:
+    """Lightweight RPC wrapper metadata for parser construction."""
+
+    name: str
+    module: str
+
+
 def _load_registry_module(path: pathlib.Path) -> types.ModuleType:
     registry_path = path / "registry.py"
     if not registry_path.exists():
@@ -39,6 +47,8 @@ def load_extension_tools(path: str | pathlib.Path) -> tuple[ToolSpec, ...]:
     _register_device_id_converters(module)
 
     if not hasattr(module, "TOOLS"):
+        if hasattr(module, "RPC_WRAPPERS"):
+            return ()
         raise ValueError(f"Custom tools registry {extension_path / 'registry.py'} does not define TOOLS")
 
     tools = module.TOOLS
@@ -68,6 +78,52 @@ def load_extension_tools(path: str | pathlib.Path) -> tuple[ToolSpec, ...]:
         validated_tools.append(tool)
 
     return tuple(validated_tools)
+
+
+def load_extension_rpc_wrappers(path: str | pathlib.Path) -> tuple[RpcWrapperSpec, ...]:
+    """Load and validate RpcWrapperSpec entries from an extension tool directory."""
+    extension_path = pathlib.Path(path)
+    module = _load_registry_module(extension_path)
+
+    wrappers = getattr(module, "RPC_WRAPPERS", ())
+    if not isinstance(wrappers, (list, tuple)):
+        raise TypeError("Custom tools registry RPC_WRAPPERS must be a list or tuple of RpcWrapperSpec entries")
+
+    names = set()
+    validated_wrappers = []
+    for wrapper in wrappers:
+        if not isinstance(wrapper, RpcWrapperSpec):
+            raise TypeError("Custom tools registry RPC_WRAPPERS must contain only RpcWrapperSpec entries")
+        if wrapper.name in names:
+            raise ValueError(f"Duplicate custom RPC wrapper name: {wrapper.name}")
+        names.add(wrapper.name)
+        if not wrapper.name:
+            raise ValueError("Custom RPC wrapper name cannot be empty")
+        if not wrapper.module:
+            raise ValueError(f"Custom RPC wrapper {wrapper.name} module cannot be empty")
+
+        module_path = extension_path / f"{wrapper.module.replace('.', '/')}.py"
+        if not module_path.exists():
+            raise FileNotFoundError(f"Custom RPC wrapper module does not exist: {module_path}")
+        validated_wrappers.append(wrapper)
+
+    return tuple(validated_wrappers)
+
+
+def import_extension_rpc_wrapper(extension_path: str | pathlib.Path, wrapper: RpcWrapperSpec) -> type:
+    """Import a custom RPC wrapper class from an extension tool directory."""
+    import importlib.util
+
+    extension_path = pathlib.Path(extension_path)
+    module_path = extension_path / f"{wrapper.module.replace('.', '/')}.py"
+    module_name = f"infuse_iot_custom_tools.{wrapper.module}"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Failed to import custom RPC wrapper module: {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, wrapper.name)
 
 
 def _register_device_id_converters(module: types.ModuleType) -> None:
