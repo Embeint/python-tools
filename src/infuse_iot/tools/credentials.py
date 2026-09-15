@@ -9,7 +9,7 @@ import yaml
 
 from infuse_iot import credentials
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.tools.registry import load_extension_tools
+from infuse_iot.tools.registry import load_extension_rpc_wrappers, load_extension_tools
 from infuse_iot.util.argparse import ValidDir, ValidFile
 
 
@@ -42,6 +42,7 @@ class SubCommand(InfuseCommand):
             credentials.save_network(network_info["id"], content)
         if self.args.custom_tools:
             load_extension_tools(self.args.custom_tools)
+            load_extension_rpc_wrappers(self.args.custom_tools)
             credentials.set_custom_tool_path(str(self.args.custom_tools.absolute()))
         if self.args.custom_definitions:
             credentials.set_custom_definitions_path(str(self.args.custom_definitions.absolute()))

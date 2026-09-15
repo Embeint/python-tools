@@ -2,7 +2,7 @@
 
 """Example out-of-tree tool registry."""
 
-from infuse_iot.tools.registry import ToolSpec
+from infuse_iot.tools.registry import RpcWrapperSpec, ToolSpec
 
 
 def custom_device_id(value: str) -> int | None:
@@ -19,5 +19,12 @@ TOOLS = (
         help="Test out-of-tree tool",
         description="Test out-of-tree tool",
         module="custom_tool",
+    ),
+)
+
+RPC_WRAPPERS = (
+    RpcWrapperSpec(
+        name="custom_rpc",
+        module="custom_rpc",
     ),
 )
