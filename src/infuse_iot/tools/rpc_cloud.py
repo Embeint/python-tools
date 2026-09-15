@@ -8,18 +8,21 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import argparse
 import base64
 import datetime
-import importlib
 import json
-import pkgutil
 import sys
 from uuid import UUID
 
-import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.rpc import get_rpc_by_id, send_rpc
 from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
-from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, rpc_return_code_str, wrapper_from_command_id
+from infuse_iot.commands import (
+    InfuseCommand,
+    InfuseRpcCommand,
+    iter_rpc_wrapper_classes,
+    rpc_return_code_str,
+    wrapper_from_command_id,
+)
 from infuse_iot.credentials import get_api_key
 from infuse_iot.definitions.rpc import id_type_mapping
 from infuse_iot.util.argparse import InfuseDeviceId, add_subparsers_with_list, print_subcommands_if_missing
@@ -37,12 +40,7 @@ class SubCommand(InfuseCommand):
         parser_queue.add_argument("--print-params", action="store_true", help="Print queued RPC request")
         command_list_parser = add_subparsers_with_list(parser_queue, dest="_rpc_cloud_queue_command")
 
-        for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
-            full_name = f"{wrappers.__name__}.{name}"
-            module = importlib.import_module(full_name)
-
-            # Add RPC wrapper to parser
-            cmd_cls = getattr(module, name)
+        for name, cmd_cls in iter_rpc_wrapper_classes():
             cmd_parser = command_list_parser.add_parser(
                 name,
                 help=cmd_cls.HELP,

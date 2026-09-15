@@ -6,13 +6,10 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
-import importlib
-import pkgutil
 import random
 import sys
 
-import infuse_iot.rpc_wrappers as wrappers
-from infuse_iot.commands import InfuseCommand, InfuseRpcCommand
+from infuse_iot.commands import InfuseCommand, InfuseRpcCommand, iter_rpc_wrapper_classes
 from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.rpc_client import RpcClient
 from infuse_iot.socket_comms import (
@@ -41,12 +38,7 @@ class SubCommand(InfuseCommand):
         )
         command_list_parser = add_subparsers_with_list(parser, dest="_rpc_command")
 
-        for _, name, _ in pkgutil.walk_packages(wrappers.__path__):
-            full_name = f"{wrappers.__name__}.{name}"
-            module = importlib.import_module(full_name)
-
-            # Add RPC wrapper to parser
-            cmd_cls = getattr(module, name)
+        for name, cmd_cls in iter_rpc_wrapper_classes():
             cmd_parser = command_list_parser.add_parser(
                 name,
                 help=cmd_cls.HELP,
