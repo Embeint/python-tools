@@ -12,3 +12,4 @@ simple-term-menu
 tabulate
 keyring
 paho-mqtt
+platformdirs

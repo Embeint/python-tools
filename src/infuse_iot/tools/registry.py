@@ -225,6 +225,12 @@ TOOLS = (
         module="infuse_iot.tools.provision",
     ),
     ToolSpec(
+        name="profile",
+        help="Manage Infuse-IoT profiles",
+        description="Manage Infuse-IoT profiles",
+        module="infuse_iot.tools.profile",
+    ),
+    ToolSpec(
         name="rpc",
         help="Run remote procedure calls on devices",
         description="Run remote procedure calls on devices",

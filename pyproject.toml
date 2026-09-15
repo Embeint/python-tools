@@ -33,6 +33,7 @@ dependencies = [
     "pyocd",
     "pyyaml",
     "paho-mqtt",
+    "platformdirs",
 ]
 license = "LicenseRef-FSL-1.1-ALv2"
 
