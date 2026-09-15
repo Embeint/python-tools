@@ -16,9 +16,11 @@ from infuse_iot.util.argparse import InfuseDeviceId
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
 
-def test_custom_tool_integration():
+def test_custom_tool_integration(tmp_path):
     # Validate custom tool integration
     echo_string = "test_string"
+    env = os.environ.copy()
+    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
 
     try:
         cred.delete_custom_tool_path()
@@ -26,19 +28,19 @@ def test_custom_tool_integration():
         pass
 
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string])
+        subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string], env=env)
 
     custom_tools_path = pathlib.Path(__file__).parent.parent / "scripts" / "custom_tools"
 
-    subprocess.check_output(["infuse", "credentials", "--custom-tools", str(custom_tools_path)])
+    subprocess.check_output(["infuse", "credentials", "--custom-tools", str(custom_tools_path)], env=env)
 
-    output = subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string]).decode()
+    output = subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string], env=env).decode()
     assert echo_string in output
 
     cred.delete_custom_tool_path()
 
     with pytest.raises(subprocess.CalledProcessError):
-        subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string])
+        subprocess.check_output(["infuse", "custom_tool", "--echo", echo_string], env=env)
 
 
 def test_custom_tool_path_requires_registry(tmp_path):
@@ -46,8 +48,9 @@ def test_custom_tool_path_requires_registry(tmp_path):
         subprocess.check_output(["infuse", "credentials", "--custom-tools", str(tmp_path)])
 
 
-def test_extension_tool_registry_loading():
+def test_extension_tool_registry_loading(tmp_path, monkeypatch):
     custom_tools_path = pathlib.Path(__file__).parent.parent / "scripts" / "custom_tools"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
 
     try:
         cred.set_custom_tool_path(str(custom_tools_path))

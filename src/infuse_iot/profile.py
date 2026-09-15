@@ -15,6 +15,8 @@ PROFILE_STORE_FILENAME = "profiles.json"
 @dataclass(frozen=True)
 class Profile:
     creation_time: str
+    custom_tools: str | None = None
+    custom_definitions: str | None = None
 
 
 def profile_store_path() -> Path:
@@ -75,12 +77,28 @@ def save_profiles(profiles: dict[str, Profile]) -> None:
     save_profile_config(ProfileConfig(active_profile=config.active_profile, profiles=profiles))
 
 
-def configure_profile(name: str) -> tuple[Profile, bool]:
+def configure_profile(
+    name: str,
+    custom_tools: str | None = None,
+    custom_definitions: str | None = None,
+) -> tuple[Profile, bool]:
     config = load_profile_config()
     if name in config.profiles:
-        return config.profiles[name], False
+        profile = config.profiles[name]
+        updated_profile = Profile(
+            creation_time=profile.creation_time,
+            custom_tools=custom_tools if custom_tools is not None else profile.custom_tools,
+            custom_definitions=custom_definitions if custom_definitions is not None else profile.custom_definitions,
+        )
+        config.profiles[name] = updated_profile
+        save_profile_config(config)
+        return updated_profile, False
 
-    profile = Profile(creation_time=datetime.now(timezone.utc).isoformat())
+    profile = Profile(
+        creation_time=datetime.now(timezone.utc).isoformat(),
+        custom_tools=custom_tools,
+        custom_definitions=custom_definitions,
+    )
     config.profiles[name] = profile
     if config.active_profile is None:
         config = ProfileConfig(active_profile=name, profiles=config.profiles)
@@ -98,3 +116,27 @@ def set_active_profile(name: str) -> None:
         raise ValueError(f"profile does not exist: {name}")
 
     save_profile_config(ProfileConfig(active_profile=name, profiles=config.profiles))
+
+
+def get_active_profile() -> Profile | None:
+    config = load_profile_config()
+    if config.active_profile is None:
+        return None
+
+    return config.profiles[config.active_profile]
+
+
+def get_active_profile_custom_tool_path() -> str | None:
+    active_profile = get_active_profile()
+    if active_profile is None:
+        return None
+
+    return active_profile.custom_tools
+
+
+def get_active_profile_custom_definitions_path() -> str | None:
+    active_profile = get_active_profile()
+    if active_profile is None:
+        return None
+
+    return active_profile.custom_definitions
