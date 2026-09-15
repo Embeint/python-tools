@@ -3,13 +3,16 @@
 """Connect to remote Bluetooth device serial logs"""
 
 __author__ = "Jordan Yates"
-__copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
+__copyright__ = "Copyright 2026, Embeint Holdings Pty Ltd"
 
 import sys
+from argparse import ArgumentError
+from pathlib import Path
 
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseType
 from infuse_iot.epacket import interface
+from infuse_iot.exporter import Exporter
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
@@ -17,7 +20,8 @@ from infuse_iot.socket_comms import (
     LocalClient,
 )
 from infuse_iot.tdf import TDF
-from infuse_iot.util.argparse import InfuseDeviceId, add_server_port_parser
+from infuse_iot.time import InfuseTime
+from infuse_iot.util.argparse import InfuseDeviceId, ValidDir, add_server_port_parser
 from infuse_iot.util.console import Console
 
 
@@ -28,11 +32,21 @@ class SubCommand(InfuseCommand):
         self._id = args.id
         self._data = args.data
         self._conn_timeout = args.conn_timeout
+        self._exporter = Exporter(Path(args.csv)) if args.csv else None
+        self._time_format = str if args.unix else InfuseTime.utc_time_string_log
+        self._files = {}
+
+        if args.csv and not self._data:
+            raise ArgumentError(None, "Cannot log CSV export without subscribing to the data characteristic"
+                                "(`--data`)")
 
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse ID to receive logs for")
         parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
+        parser.add_argument("--csv", type=ValidDir, help="Save received TDFs from the data characteristic to CSV files"
+                            " in the specified folder")
+        parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
         )
@@ -67,6 +81,11 @@ class SubCommand(InfuseCommand):
                         print(evt.epacket.payload.decode("utf-8"), end="")
                     if evt.epacket.ptype == InfuseType.TDF:
                         for tdf in self._decoder.decode(evt.epacket.payload):
+                            if self._exporter:
+                                filename = Path(f"{source.infuse_id:016x}_{tdf.name}.csv")
+                                lines = tdf.csv_lines(time_fmt=self._time_format)
+                                self._exporter.write_lines(filename, lines, header=tdf.csv_header)
+
                             t = tdf.data[-1]
                             t_str = f"{tdf.time:.3f}" if tdf.time else "N/A"
                             if len(tdf.data) > 1:
