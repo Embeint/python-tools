@@ -4,7 +4,7 @@ import copy
 import ctypes
 import enum
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 
 from infuse_iot.definitions import tdf as tdf_defs
 from infuse_iot.generated import tdf_base
@@ -94,6 +94,37 @@ class TDF:
             self.period = period
             self.base_idx = base_idx
             self.data = data
+
+        @property
+        def name(self) -> str:
+            return self.data[0].NAME
+
+        def csv_header(self) -> str:
+            """Return the CSV Header for this TDF Reading"""
+            first = self.data[0]
+            return "time," + ",".join([f.name for f in first.iter_fields()])
+
+        def csv_lines(self, time_fmt: Callable[[float], str] = InfuseTime.utc_time_string_log) -> list[str]:
+            """Return the CSV lines for this TDF Reading"""
+            lines = []
+            reading_time = self.time
+            for idx, reading in enumerate(self.data):
+                if self.base_idx is not None:
+                    if reading_time is None or idx > 0:
+                        time_str = f"{self.base_idx + idx}"
+                    else:
+                        time_str = time_fmt(reading_time)
+                elif reading_time is None:
+                    # Log with local time
+                    time_str = time_fmt(time.time())
+                else:
+                    time_str = time_fmt(reading_time)
+                line = f"{time_str},{','.join([f.val_fmt() for f in reading.iter_fields()])}"
+                lines.append(line)
+                if self.period is not None:
+                    assert reading_time is not None
+                    reading_time += self.period
+            return lines
 
     def __init__(self):
         pass
