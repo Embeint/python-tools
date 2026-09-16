@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import importlib.util
-import os
 import pathlib
 import types
 
@@ -10,10 +9,6 @@ import infuse_iot.profile
 
 
 def extension_load(name: str) -> None | types.ModuleType:
-    if os.environ.get("_ARGCOMPLETE") == "1":
-        # Skip expensive imports when running argcomplete
-        return None
-
     defs_path = infuse_iot.profile.get_active_profile_custom_definitions_path()
     if defs_path is None:
         defs_path = infuse_iot.credentials.get_custom_definitions_path()
