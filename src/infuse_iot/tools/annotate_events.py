@@ -55,13 +55,23 @@ class SubCommand(InfuseCommand):
         # Logger Selection parameters.
         logger_parser = parser.add_mutually_exclusive_group(required=True)
         logger_parser.add_argument(
-            "--onboard", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_ONBOARD
+            "--onboard", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_ONBOARD,
+            help="Save the annotation to Onboard Flash"
         )
         logger_parser.add_argument(
-            "--external", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_REMOVABLE
+            "--external", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_REMOVABLE,
+            help="Store the annotation to External Flash"
         )
         logger_parser.add_argument(
-            "--logger", "-l", type=annotate_wrapper.parse_logger, help="TDF Data Logger to write the event to"
+            "--serial", dest="logger", action="store_const", const=rpc_enum_data_logger.SERIAL,
+            help="Send the annotation via the Serial interface"
+        )
+        logger_parser.add_argument(
+            "--gatt", dest="logger", action="store_const", const=rpc_enum_data_logger.BT_PERIPHERAL,
+            help="Send the annotation via the Bluetooth GATT interface"
+        )
+        logger_parser.add_argument(
+            "--logger", "-l", type=annotate_wrapper.parse_logger, help="Other TDF Data Logger to write the event to"
         )
 
         # Label selection parameters.
