@@ -36,8 +36,10 @@ class annotate(InfuseRpcCommand, defs.annotate):
                               const=rpc_enum_data_logger.FLASH_ONBOARD)
         l_parser.add_argument("--external", dest="logger", action="store_const",
                               const=rpc_enum_data_logger.FLASH_REMOVABLE)
+        l_parser.add_argument("--gatt", dest="logger", action="store_const",
+                              const=rpc_enum_data_logger.BT_PERIPHERAL)
         l_parser.add_argument("--logger", "-l", type=cls.parse_logger,
-                              help="TDF Data Logger to write the event to")
+                              help="Other TDF Data Logger to write the event to")
 
         # Timestamp parsing
         t_parser = parser.add_mutually_exclusive_group(required=True)
