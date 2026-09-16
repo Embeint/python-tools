@@ -387,6 +387,16 @@ class LocalClient:
         # Close the socket
         self._input_sock.close()
 
+    def receive_tdf(self) -> ClientNotificationEpacketReceived | None:
+        msg = self.receive()
+        if msg is None:
+            return None
+        if not isinstance(msg, ClientNotificationEpacketReceived):
+            return None
+        if msg.epacket.ptype != InfuseType.TDF:
+            return None
+        return msg
+
     def observe_announce(self) -> Generator[tuple[HopReceived, readings.announce | readings.announce_v2], None, None]:
         decoder = TDF()
         while True:
