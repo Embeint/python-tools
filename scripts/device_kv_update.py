@@ -14,7 +14,7 @@ from infuse_iot.api_client.api.device import (
     create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_kv_entry_by_device_id_and_key_id,
 )
-from infuse_iot.credentials import get_api_key
+from infuse_iot.credentials import get_api_auth_header
 
 
 class ScriptConfig:
@@ -36,7 +36,7 @@ config = ScriptConfig(
 )
 
 if __name__ == "__main__":
-    api_client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+    api_client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
 
     with api_client as client:
         # Value doesn't change per device

@@ -49,6 +49,14 @@ def get_api_key() -> str:
     return key
 
 
+def get_api_auth_header(api_key: str | None = None) -> dict[str, str]:
+    """
+    Retrieve the Infuse-IoT authentication header
+    """
+    key = api_key if api_key is not None else get_api_key()
+    return {"x-api-key": f"Bearer {key}"}
+
+
 def delete_api_key() -> None:
     """
     Delete the Infuse-IoT API key from the keyring module

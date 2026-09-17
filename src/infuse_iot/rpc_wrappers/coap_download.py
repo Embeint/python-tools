@@ -9,7 +9,7 @@ import infuse_iot.definitions.rpc as defs
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.coap import get_coap_file_stats
 from infuse_iot.commands import InfuseRpcCommand
-from infuse_iot.credentials import get_api_key
+from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import rpc_enum_file_action
 from infuse_iot.util.ctypes import UINT32_MAX
 
@@ -21,7 +21,7 @@ def coap_server_file_stats(server: str, resource: str) -> tuple[int, int]:
             sys.exit("Infuse-IoT COAP files start with 'file/'")
         api_filename = resource.removeprefix("file/")
         # Get COAP file information
-        client = Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {get_api_key()}"})
+        client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
         with client as client:
             response = get_coap_file_stats.sync_detailed(client=client, filename=api_filename)
             decoded = loads(response.content.decode("utf-8"))

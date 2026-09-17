@@ -51,7 +51,7 @@ from infuse_iot.api_client.api.organisation import (
 )
 from infuse_iot.api_client.types import File, Unset
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.credentials import get_api_key
+from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import (
     HexString,
@@ -75,8 +75,7 @@ class CloudSubCommand:
 
     def client(self):
         """Get API client object ready to use"""
-        bearer = self.args.api_key if self.args.api_key else get_api_key()
-        return Client(base_url="https://api.infuse-iot.com").with_headers({"x-api-key": f"Bearer {bearer}"})
+        return Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header(self.args.api_key))
 
 
 class Organisations(CloudSubCommand):
