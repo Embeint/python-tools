@@ -21,6 +21,7 @@ class ApplicationReleaseDiff:
     Attributes:
         id (str): Global unique ID of application release diff (generated on creation)
         from_release_id (str): ID of application release the diff is from
+        from_application_id (int): ID of application the source release belongs to
         to_release_id (str): ID of application release the diff is to
         file (ApplicationDiffFileStats):
         created_at (datetime.datetime):
@@ -29,6 +30,7 @@ class ApplicationReleaseDiff:
 
     id: str
     from_release_id: str
+    from_application_id: int
     to_release_id: str
     file: ApplicationDiffFileStats
     created_at: datetime.datetime
@@ -39,6 +41,8 @@ class ApplicationReleaseDiff:
         id = self.id
 
         from_release_id = self.from_release_id
+
+        from_application_id = self.from_application_id
 
         to_release_id = self.to_release_id
 
@@ -54,6 +58,7 @@ class ApplicationReleaseDiff:
             {
                 "id": id,
                 "fromReleaseId": from_release_id,
+                "fromApplicationId": from_application_id,
                 "toReleaseId": to_release_id,
                 "file": file,
                 "createdAt": created_at,
@@ -72,6 +77,8 @@ class ApplicationReleaseDiff:
 
         from_release_id = d.pop("fromReleaseId")
 
+        from_application_id = d.pop("fromApplicationId")
+
         to_release_id = d.pop("toReleaseId")
 
         file = ApplicationDiffFileStats.from_dict(d.pop("file"))
@@ -83,6 +90,7 @@ class ApplicationReleaseDiff:
         application_release_diff = cls(
             id=id,
             from_release_id=from_release_id,
+            from_application_id=from_application_id,
             to_release_id=to_release_id,
             file=file,
             created_at=created_at,

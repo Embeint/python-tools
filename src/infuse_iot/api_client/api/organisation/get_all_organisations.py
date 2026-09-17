@@ -6,14 +6,18 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.error import Error
+from ...models.get_all_organisations_order_by import GetAllOrganisationsOrderBy
+from ...models.get_all_organisations_order_dir import GetAllOrganisationsOrderDir
 from ...models.organisation import Organisation
 from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     *,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_by: GetAllOrganisationsOrderBy | Unset = GetAllOrganisationsOrderBy.CREATEDAT,
+    order_dir: GetAllOrganisationsOrderDir | Unset = GetAllOrganisationsOrderDir.ASC,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -21,6 +25,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -71,15 +87,21 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_by: GetAllOrganisationsOrderBy | Unset = GetAllOrganisationsOrderBy.CREATEDAT,
+    order_dir: GetAllOrganisationsOrderDir | Unset = GetAllOrganisationsOrderDir.ASC,
 ) -> Response[Error | list[Organisation]]:
     """Get all organisations that user has access to
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_by (GetAllOrganisationsOrderBy | Unset):  Default:
+            GetAllOrganisationsOrderBy.CREATEDAT.
+        order_dir (GetAllOrganisationsOrderDir | Unset):  Default:
+            GetAllOrganisationsOrderDir.ASC.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,6 +114,8 @@ def sync_detailed(
     kwargs = _get_kwargs(
         limit=limit,
         offset=offset,
+        order_by=order_by,
+        order_dir=order_dir,
     )
 
     response = client.get_httpx_client().request(
@@ -104,15 +128,21 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_by: GetAllOrganisationsOrderBy | Unset = GetAllOrganisationsOrderBy.CREATEDAT,
+    order_dir: GetAllOrganisationsOrderDir | Unset = GetAllOrganisationsOrderDir.ASC,
 ) -> Error | list[Organisation] | None:
     """Get all organisations that user has access to
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_by (GetAllOrganisationsOrderBy | Unset):  Default:
+            GetAllOrganisationsOrderBy.CREATEDAT.
+        order_dir (GetAllOrganisationsOrderDir | Unset):  Default:
+            GetAllOrganisationsOrderDir.ASC.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -126,21 +156,29 @@ def sync(
         client=client,
         limit=limit,
         offset=offset,
+        order_by=order_by,
+        order_dir=order_dir,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_by: GetAllOrganisationsOrderBy | Unset = GetAllOrganisationsOrderBy.CREATEDAT,
+    order_dir: GetAllOrganisationsOrderDir | Unset = GetAllOrganisationsOrderDir.ASC,
 ) -> Response[Error | list[Organisation]]:
     """Get all organisations that user has access to
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_by (GetAllOrganisationsOrderBy | Unset):  Default:
+            GetAllOrganisationsOrderBy.CREATEDAT.
+        order_dir (GetAllOrganisationsOrderDir | Unset):  Default:
+            GetAllOrganisationsOrderDir.ASC.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,6 +191,8 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         limit=limit,
         offset=offset,
+        order_by=order_by,
+        order_dir=order_dir,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -163,15 +203,21 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_by: GetAllOrganisationsOrderBy | Unset = GetAllOrganisationsOrderBy.CREATEDAT,
+    order_dir: GetAllOrganisationsOrderDir | Unset = GetAllOrganisationsOrderDir.ASC,
 ) -> Error | list[Organisation] | None:
     """Get all organisations that user has access to
 
     Args:
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_by (GetAllOrganisationsOrderBy | Unset):  Default:
+            GetAllOrganisationsOrderBy.CREATEDAT.
+        order_dir (GetAllOrganisationsOrderDir | Unset):  Default:
+            GetAllOrganisationsOrderDir.ASC.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -186,5 +232,7 @@ async def asyncio(
             client=client,
             limit=limit,
             offset=offset,
+            order_by=order_by,
+            order_dir=order_dir,
         )
     ).parsed

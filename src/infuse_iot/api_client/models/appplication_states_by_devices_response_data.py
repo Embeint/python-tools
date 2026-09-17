@@ -15,7 +15,14 @@ T = TypeVar("T", bound="AppplicationStatesByDevicesResponseData")
 
 @_attrs_define
 class AppplicationStatesByDevicesResponseData:
-    """Application states keyed by deviceId."""
+    """Application states keyed by deviceId.
+
+    Example:
+        {'d291d4d66bf0a955': {'applicationId': 1, 'version': {'major': 1, 'minor': 2, 'revision': 3, 'buildNum': 4},
+            'boardTargetCrc': 4660, 'lastReportedTime': datetime.datetime(2026, 7, 14, 0, 43, 47, 520000,
+            tzinfo=datetime.timezone(datetime.timedelta(0), 'Z')), 'releaseId': '0011223344556677'}}
+
+    """
 
     additional_properties: dict[str, DeviceApplicationState] = _attrs_field(init=False, factory=dict)
 

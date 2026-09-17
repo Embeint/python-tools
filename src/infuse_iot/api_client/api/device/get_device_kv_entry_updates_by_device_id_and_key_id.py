@@ -8,6 +8,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device_entry_update_status import DeviceEntryUpdateStatus
 from ...models.device_kv_entry_update import DeviceKVEntryUpdate
+from ...models.get_device_kv_entry_updates_by_device_id_and_key_id_order_by import (
+    GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy,
+)
+from ...models.get_device_kv_entry_updates_by_device_id_and_key_id_order_dir import (
+    GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir,
+)
 from ...types import UNSET, Response, Unset
 
 
@@ -18,6 +24,10 @@ def _get_kwargs(
     status: DeviceEntryUpdateStatus | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC,
+    order_by: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -31,6 +41,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -84,6 +106,10 @@ def sync_detailed(
     status: DeviceEntryUpdateStatus | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC,
+    order_by: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT,
 ) -> Response[list[DeviceKVEntryUpdate]]:
     """Get KV entry updates by DeviceID and Key ID
 
@@ -91,8 +117,12 @@ def sync_detailed(
         device_id (str):
         key_id (int):
         status (DeviceEntryUpdateStatus | Unset): Status of device KV entry update
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC.
+        order_by (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -108,6 +138,8 @@ def sync_detailed(
         status=status,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -125,6 +157,10 @@ def sync(
     status: DeviceEntryUpdateStatus | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC,
+    order_by: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT,
 ) -> list[DeviceKVEntryUpdate] | None:
     """Get KV entry updates by DeviceID and Key ID
 
@@ -132,8 +168,12 @@ def sync(
         device_id (str):
         key_id (int):
         status (DeviceEntryUpdateStatus | Unset): Status of device KV entry update
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC.
+        order_by (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,6 +190,8 @@ def sync(
         status=status,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -161,6 +203,10 @@ async def asyncio_detailed(
     status: DeviceEntryUpdateStatus | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC,
+    order_by: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT,
 ) -> Response[list[DeviceKVEntryUpdate]]:
     """Get KV entry updates by DeviceID and Key ID
 
@@ -168,8 +214,12 @@ async def asyncio_detailed(
         device_id (str):
         key_id (int):
         status (DeviceEntryUpdateStatus | Unset): Status of device KV entry update
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC.
+        order_by (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -185,6 +235,8 @@ async def asyncio_detailed(
         status=status,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -200,6 +252,10 @@ async def asyncio(
     status: DeviceEntryUpdateStatus | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC,
+    order_by: GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy
+    | Unset = GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT,
 ) -> list[DeviceKVEntryUpdate] | None:
     """Get KV entry updates by DeviceID and Key ID
 
@@ -207,8 +263,12 @@ async def asyncio(
         device_id (str):
         key_id (int):
         status (DeviceEntryUpdateStatus | Unset): Status of device KV entry update
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderDir.DESC.
+        order_by (GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy | Unset):  Default:
+            GetDeviceKVEntryUpdatesByDeviceIDAndKeyIDOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -226,5 +286,7 @@ async def asyncio(
             status=status,
             limit=limit,
             offset=offset,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed

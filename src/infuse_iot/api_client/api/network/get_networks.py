@@ -6,6 +6,8 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.get_networks_order_by import GetNetworksOrderBy
+from ...models.get_networks_order_dir import GetNetworksOrderDir
 from ...models.network import Network
 from ...types import UNSET, Response, Unset
 
@@ -14,8 +16,10 @@ def _get_kwargs(
     *,
     organisation_id: UUID,
     include_public: bool = False,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetNetworksOrderDir | Unset = GetNetworksOrderDir.ASC,
+    order_by: GetNetworksOrderBy | Unset = GetNetworksOrderBy.CREATEDAT,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -28,6 +32,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -71,8 +87,10 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetNetworksOrderDir | Unset = GetNetworksOrderDir.ASC,
+    order_by: GetNetworksOrderBy | Unset = GetNetworksOrderBy.CREATEDAT,
 ) -> Response[list[Network]]:
     """Get networks
 
@@ -81,9 +99,11 @@ def sync_detailed(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetNetworksOrderDir | Unset):  Default: GetNetworksOrderDir.ASC.
+        order_by (GetNetworksOrderBy | Unset):  Default: GetNetworksOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -98,6 +118,8 @@ def sync_detailed(
         include_public=include_public,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -112,8 +134,10 @@ def sync(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetNetworksOrderDir | Unset = GetNetworksOrderDir.ASC,
+    order_by: GetNetworksOrderBy | Unset = GetNetworksOrderBy.CREATEDAT,
 ) -> list[Network] | None:
     """Get networks
 
@@ -122,9 +146,11 @@ def sync(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetNetworksOrderDir | Unset):  Default: GetNetworksOrderDir.ASC.
+        order_by (GetNetworksOrderBy | Unset):  Default: GetNetworksOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -140,6 +166,8 @@ def sync(
         include_public=include_public,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -148,8 +176,10 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetNetworksOrderDir | Unset = GetNetworksOrderDir.ASC,
+    order_by: GetNetworksOrderBy | Unset = GetNetworksOrderBy.CREATEDAT,
 ) -> Response[list[Network]]:
     """Get networks
 
@@ -158,9 +188,11 @@ async def asyncio_detailed(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetNetworksOrderDir | Unset):  Default: GetNetworksOrderDir.ASC.
+        order_by (GetNetworksOrderBy | Unset):  Default: GetNetworksOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -175,6 +207,8 @@ async def asyncio_detailed(
         include_public=include_public,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -187,8 +221,10 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     organisation_id: UUID,
     include_public: bool = False,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetNetworksOrderDir | Unset = GetNetworksOrderDir.ASC,
+    order_by: GetNetworksOrderBy | Unset = GetNetworksOrderBy.CREATEDAT,
 ) -> list[Network] | None:
     """Get networks
 
@@ -197,9 +233,11 @@ async def asyncio(
     Args:
         organisation_id (UUID):
         include_public (bool):  Default: False.
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetNetworksOrderDir | Unset):  Default: GetNetworksOrderDir.ASC.
+        order_by (GetNetworksOrderBy | Unset):  Default: GetNetworksOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -216,5 +254,7 @@ async def asyncio(
             include_public=include_public,
             limit=limit,
             offset=offset,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed

@@ -9,6 +9,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.application_release import ApplicationRelease
 from ...models.error import Error
+from ...models.get_releases_by_organisation_id_and_application_id_order_by import (
+    GetReleasesByOrganisationIdAndApplicationIdOrderBy,
+)
+from ...models.get_releases_by_organisation_id_and_application_id_order_dir import (
+    GetReleasesByOrganisationIdAndApplicationIdOrderDir,
+)
 from ...types import UNSET, Response, Unset
 
 
@@ -24,6 +30,10 @@ def _get_kwargs(
     board_target: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetReleasesByOrganisationIdAndApplicationIdOrderDir
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC,
+    order_by: GetReleasesByOrganisationIdAndApplicationIdOrderBy
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -46,6 +56,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -119,6 +141,10 @@ def sync_detailed(
     board_target: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetReleasesByOrganisationIdAndApplicationIdOrderDir
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC,
+    order_by: GetReleasesByOrganisationIdAndApplicationIdOrderBy
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION,
 ) -> Response[Error | list[ApplicationRelease]]:
     """Get all releases for an application
 
@@ -131,8 +157,12 @@ def sync_detailed(
         version_build_num (int | Unset): Build version number of application release
         board_id (UUID | Unset):
         board_target (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetReleasesByOrganisationIdAndApplicationIdOrderDir | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC.
+        order_by (GetReleasesByOrganisationIdAndApplicationIdOrderBy | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,6 +183,8 @@ def sync_detailed(
         board_target=board_target,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -175,6 +207,10 @@ def sync(
     board_target: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetReleasesByOrganisationIdAndApplicationIdOrderDir
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC,
+    order_by: GetReleasesByOrganisationIdAndApplicationIdOrderBy
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION,
 ) -> Error | list[ApplicationRelease] | None:
     """Get all releases for an application
 
@@ -187,8 +223,12 @@ def sync(
         version_build_num (int | Unset): Build version number of application release
         board_id (UUID | Unset):
         board_target (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetReleasesByOrganisationIdAndApplicationIdOrderDir | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC.
+        order_by (GetReleasesByOrganisationIdAndApplicationIdOrderBy | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -210,6 +250,8 @@ def sync(
         board_target=board_target,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -226,6 +268,10 @@ async def asyncio_detailed(
     board_target: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetReleasesByOrganisationIdAndApplicationIdOrderDir
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC,
+    order_by: GetReleasesByOrganisationIdAndApplicationIdOrderBy
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION,
 ) -> Response[Error | list[ApplicationRelease]]:
     """Get all releases for an application
 
@@ -238,8 +284,12 @@ async def asyncio_detailed(
         version_build_num (int | Unset): Build version number of application release
         board_id (UUID | Unset):
         board_target (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetReleasesByOrganisationIdAndApplicationIdOrderDir | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC.
+        order_by (GetReleasesByOrganisationIdAndApplicationIdOrderBy | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -260,6 +310,8 @@ async def asyncio_detailed(
         board_target=board_target,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -280,6 +332,10 @@ async def asyncio(
     board_target: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetReleasesByOrganisationIdAndApplicationIdOrderDir
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC,
+    order_by: GetReleasesByOrganisationIdAndApplicationIdOrderBy
+    | Unset = GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION,
 ) -> Error | list[ApplicationRelease] | None:
     """Get all releases for an application
 
@@ -292,8 +348,12 @@ async def asyncio(
         version_build_num (int | Unset): Build version number of application release
         board_id (UUID | Unset):
         board_target (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetReleasesByOrganisationIdAndApplicationIdOrderDir | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderDir.DESC.
+        order_by (GetReleasesByOrganisationIdAndApplicationIdOrderBy | Unset):  Default:
+            GetReleasesByOrganisationIdAndApplicationIdOrderBy.VERSION.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -316,5 +376,7 @@ async def asyncio(
             board_target=board_target,
             limit=limit,
             offset=offset,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed

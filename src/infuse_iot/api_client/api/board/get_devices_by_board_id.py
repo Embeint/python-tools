@@ -9,6 +9,8 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device import Device
 from ...models.error import Error
+from ...models.get_devices_by_board_id_order_by import GetDevicesByBoardIdOrderBy
+from ...models.get_devices_by_board_id_order_dir import GetDevicesByBoardIdOrderDir
 from ...types import UNSET, Response, Unset
 
 
@@ -17,8 +19,10 @@ def _get_kwargs(
     *,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDevicesByBoardIdOrderDir | Unset = GetDevicesByBoardIdOrderDir.ASC,
+    order_by: GetDevicesByBoardIdOrderBy | Unset = GetDevicesByBoardIdOrderBy.CREATEDAT,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -30,6 +34,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -83,8 +99,10 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDevicesByBoardIdOrderDir | Unset = GetDevicesByBoardIdOrderDir.ASC,
+    order_by: GetDevicesByBoardIdOrderBy | Unset = GetDevicesByBoardIdOrderBy.CREATEDAT,
 ) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
@@ -92,9 +110,13 @@ def sync_detailed(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetDevicesByBoardIdOrderDir | Unset):  Default:
+            GetDevicesByBoardIdOrderDir.ASC.
+        order_by (GetDevicesByBoardIdOrderBy | Unset):  Default:
+            GetDevicesByBoardIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -110,6 +132,8 @@ def sync_detailed(
         metadata_value=metadata_value,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -125,8 +149,10 @@ def sync(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDevicesByBoardIdOrderDir | Unset = GetDevicesByBoardIdOrderDir.ASC,
+    order_by: GetDevicesByBoardIdOrderBy | Unset = GetDevicesByBoardIdOrderBy.CREATEDAT,
 ) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
@@ -134,9 +160,13 @@ def sync(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetDevicesByBoardIdOrderDir | Unset):  Default:
+            GetDevicesByBoardIdOrderDir.ASC.
+        order_by (GetDevicesByBoardIdOrderBy | Unset):  Default:
+            GetDevicesByBoardIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,6 +183,8 @@ def sync(
         metadata_value=metadata_value,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -162,8 +194,10 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDevicesByBoardIdOrderDir | Unset = GetDevicesByBoardIdOrderDir.ASC,
+    order_by: GetDevicesByBoardIdOrderBy | Unset = GetDevicesByBoardIdOrderBy.CREATEDAT,
 ) -> Response[Error | list[Device]]:
     """Get devices by board id and optional metadata field
 
@@ -171,9 +205,13 @@ async def asyncio_detailed(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetDevicesByBoardIdOrderDir | Unset):  Default:
+            GetDevicesByBoardIdOrderDir.ASC.
+        order_by (GetDevicesByBoardIdOrderBy | Unset):  Default:
+            GetDevicesByBoardIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -189,6 +227,8 @@ async def asyncio_detailed(
         metadata_value=metadata_value,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -202,8 +242,10 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     metadata_name: str | Unset = UNSET,
     metadata_value: str | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDevicesByBoardIdOrderDir | Unset = GetDevicesByBoardIdOrderDir.ASC,
+    order_by: GetDevicesByBoardIdOrderBy | Unset = GetDevicesByBoardIdOrderBy.CREATEDAT,
 ) -> Error | list[Device] | None:
     """Get devices by board id and optional metadata field
 
@@ -211,9 +253,13 @@ async def asyncio(
         id (UUID):
         metadata_name (str | Unset):
         metadata_value (str | Unset):
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
+        order_dir (GetDevicesByBoardIdOrderDir | Unset):  Default:
+            GetDevicesByBoardIdOrderDir.ASC.
+        order_by (GetDevicesByBoardIdOrderBy | Unset):  Default:
+            GetDevicesByBoardIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -231,5 +277,7 @@ async def asyncio(
             metadata_value=metadata_value,
             limit=limit,
             offset=offset,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed
