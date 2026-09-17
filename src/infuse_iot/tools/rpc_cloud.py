@@ -23,7 +23,7 @@ from infuse_iot.commands import (
     rpc_return_code_str,
     wrapper_from_command_id,
 )
-from infuse_iot.credentials import get_api_key
+from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import id_type_mapping
 from infuse_iot.util.argparse import InfuseDeviceId, add_subparsers_with_list, print_subcommands_if_missing
 
@@ -150,9 +150,7 @@ class SubCommand(InfuseCommand):
         if print_subcommands_if_missing(self._args):
             return
 
-        with Client(base_url="https://api.infuse-iot.com").with_headers(
-            {"x-api-key": f"Bearer {get_api_key()}"}
-        ) as client:
+        with Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header()) as client:
             if self._args._tool_action == "queue":
                 self.queue(client)
             elif self._args._tool_action == "query":
