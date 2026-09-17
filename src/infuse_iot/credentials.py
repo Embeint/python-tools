@@ -54,7 +54,13 @@ def get_api_auth_header(api_key: str | None = None) -> dict[str, str]:
     Retrieve the Infuse-IoT authentication header
     """
     key = api_key if api_key is not None else get_api_key()
-    return {"x-api-key": f"Bearer {key}"}
+    key_prefix = key[:2]
+    if key_prefix == "ik":
+        return {"Authorization": f"ApiKey {key}"}
+    elif key_prefix == "ey":
+        return {"x-api-key": f"Bearer {key}"}
+    else:
+        raise ValueError(f"Unexpected API key prefix '{key_prefix}'")
 
 
 def delete_api_key() -> None:
