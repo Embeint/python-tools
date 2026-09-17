@@ -9,6 +9,8 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.downlink_message_status import DownlinkMessageStatus
 from ...models.error import Error
+from ...models.get_rp_cs_order_by import GetRPCsOrderBy
+from ...models.get_rp_cs_order_dir import GetRPCsOrderDir
 from ...models.rpc_message import RpcMessage
 from ...types import UNSET, Response, Unset
 
@@ -20,10 +22,12 @@ def _get_kwargs(
     status: DownlinkMessageStatus | Unset = UNSET,
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
+    order_dir: GetRPCsOrderDir | Unset = GetRPCsOrderDir.DESC,
+    order_by: GetRPCsOrderBy | Unset = GetRPCsOrderBy.CREATEDAT,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -58,6 +62,18 @@ def _get_kwargs(
     params["rpcCommandId"] = rpc_command_id
 
     params["showExpired"] = show_expired
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -113,10 +129,12 @@ def sync_detailed(
     status: DownlinkMessageStatus | Unset = UNSET,
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
+    order_dir: GetRPCsOrderDir | Unset = GetRPCsOrderDir.DESC,
+    order_by: GetRPCsOrderBy | Unset = GetRPCsOrderBy.CREATEDAT,
 ) -> Response[Error | list[RpcMessage]]:
     """Get RPC messages
 
@@ -129,11 +147,13 @@ def sync_detailed(
             or after this time)
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
+        order_dir (GetRPCsOrderDir | Unset):  Default: GetRPCsOrderDir.DESC.
+        order_by (GetRPCsOrderBy | Unset):  Default: GetRPCsOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -153,6 +173,8 @@ def sync_detailed(
         offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -170,10 +192,12 @@ def sync(
     status: DownlinkMessageStatus | Unset = UNSET,
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
+    order_dir: GetRPCsOrderDir | Unset = GetRPCsOrderDir.DESC,
+    order_by: GetRPCsOrderBy | Unset = GetRPCsOrderBy.CREATEDAT,
 ) -> Error | list[RpcMessage] | None:
     """Get RPC messages
 
@@ -186,11 +210,13 @@ def sync(
             or after this time)
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
+        order_dir (GetRPCsOrderDir | Unset):  Default: GetRPCsOrderDir.DESC.
+        order_by (GetRPCsOrderBy | Unset):  Default: GetRPCsOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -211,6 +237,8 @@ def sync(
         offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -222,10 +250,12 @@ async def asyncio_detailed(
     status: DownlinkMessageStatus | Unset = UNSET,
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
+    order_dir: GetRPCsOrderDir | Unset = GetRPCsOrderDir.DESC,
+    order_by: GetRPCsOrderBy | Unset = GetRPCsOrderBy.CREATEDAT,
 ) -> Response[Error | list[RpcMessage]]:
     """Get RPC messages
 
@@ -238,11 +268,13 @@ async def asyncio_detailed(
             or after this time)
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
+        order_dir (GetRPCsOrderDir | Unset):  Default: GetRPCsOrderDir.DESC.
+        order_by (GetRPCsOrderBy | Unset):  Default: GetRPCsOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -262,6 +294,8 @@ async def asyncio_detailed(
         offset=offset,
         rpc_command_id=rpc_command_id,
         show_expired=show_expired,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -277,10 +311,12 @@ async def asyncio(
     status: DownlinkMessageStatus | Unset = UNSET,
     start_time: datetime.datetime | Unset = UNSET,
     end_time: datetime.datetime | Unset = UNSET,
-    limit: int | Unset = 10,
+    limit: int | Unset = 100,
     offset: int | Unset = 0,
     rpc_command_id: int | Unset = UNSET,
     show_expired: bool | Unset = True,
+    order_dir: GetRPCsOrderDir | Unset = GetRPCsOrderDir.DESC,
+    order_by: GetRPCsOrderBy | Unset = GetRPCsOrderBy.CREATEDAT,
 ) -> Error | list[RpcMessage] | None:
     """Get RPC messages
 
@@ -293,11 +329,13 @@ async def asyncio(
             or after this time)
         end_time (datetime.datetime | Unset): The end time of the query (only return items on or
             before this time)
-        limit (int | Unset): Maximum number of items to return Default: 10.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset): Number of items to skip before starting to return results (for
             pagination) Default: 0.
         rpc_command_id (int | Unset): ID of RPC command
         show_expired (bool | Unset): Whether to show expired RPC messages Default: True.
+        order_dir (GetRPCsOrderDir | Unset):  Default: GetRPCsOrderDir.DESC.
+        order_by (GetRPCsOrderBy | Unset):  Default: GetRPCsOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -319,5 +357,7 @@ async def asyncio(
             offset=offset,
             rpc_command_id=rpc_command_id,
             show_expired=show_expired,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed

@@ -9,6 +9,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.application_release_diff import ApplicationReleaseDiff
 from ...models.error import Error
+from ...models.get_diffs_by_organisation_id_and_application_id_and_release_id_order_by import (
+    GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy,
+)
+from ...models.get_diffs_by_organisation_id_and_application_id_and_release_id_order_dir import (
+    GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir,
+)
 from ...types import UNSET, Response, Unset
 
 
@@ -20,6 +26,10 @@ def _get_kwargs(
     from_release_id: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC,
+    order_by: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -29,6 +39,18 @@ def _get_kwargs(
     params["limit"] = limit
 
     params["offset"] = offset
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -99,6 +121,10 @@ def sync_detailed(
     from_release_id: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC,
+    order_by: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT,
 ) -> Response[Error | list[ApplicationReleaseDiff]]:
     """Get all diffs to a specific release for an application
 
@@ -107,8 +133,12 @@ def sync_detailed(
         application_id (int):
         release_id (str):
         from_release_id (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir | Unset):
+            Default: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC.
+        order_by (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy | Unset):  Default:
+            GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -125,6 +155,8 @@ def sync_detailed(
         from_release_id=from_release_id,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -143,6 +175,10 @@ def sync(
     from_release_id: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC,
+    order_by: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT,
 ) -> Error | list[ApplicationReleaseDiff] | None:
     """Get all diffs to a specific release for an application
 
@@ -151,8 +187,12 @@ def sync(
         application_id (int):
         release_id (str):
         from_release_id (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir | Unset):
+            Default: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC.
+        order_by (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy | Unset):  Default:
+            GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -170,6 +210,8 @@ def sync(
         from_release_id=from_release_id,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -182,6 +224,10 @@ async def asyncio_detailed(
     from_release_id: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC,
+    order_by: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT,
 ) -> Response[Error | list[ApplicationReleaseDiff]]:
     """Get all diffs to a specific release for an application
 
@@ -190,8 +236,12 @@ async def asyncio_detailed(
         application_id (int):
         release_id (str):
         from_release_id (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir | Unset):
+            Default: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC.
+        order_by (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy | Unset):  Default:
+            GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -208,6 +258,8 @@ async def asyncio_detailed(
         from_release_id=from_release_id,
         limit=limit,
         offset=offset,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -224,6 +276,10 @@ async def asyncio(
     from_release_id: str | Unset = UNSET,
     limit: int | Unset = 100,
     offset: int | Unset = 0,
+    order_dir: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC,
+    order_by: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy
+    | Unset = GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT,
 ) -> Error | list[ApplicationReleaseDiff] | None:
     """Get all diffs to a specific release for an application
 
@@ -232,8 +288,12 @@ async def asyncio(
         application_id (int):
         release_id (str):
         from_release_id (str | Unset):
-        limit (int | Unset):  Default: 100.
+        limit (int | Unset): Maximum number of items to return Default: 100.
         offset (int | Unset):  Default: 0.
+        order_dir (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir | Unset):
+            Default: GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderDir.DESC.
+        order_by (GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy | Unset):  Default:
+            GetDiffsByOrganisationIdAndApplicationIdAndReleaseIdOrderBy.CREATEDAT.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -252,5 +312,7 @@ async def asyncio(
             from_release_id=from_release_id,
             limit=limit,
             offset=offset,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed

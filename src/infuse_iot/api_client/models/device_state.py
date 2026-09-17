@@ -34,6 +34,8 @@ class DeviceState:
         last_route_udp_time (datetime.datetime | Unset): Time of last packet sent directly via UDP
         last_route (UplinkRoute | Unset):
         last_route_time (datetime.datetime | Unset): Time of last packet sent by device (via any route)
+        first_packet_time (datetime.datetime | Unset): Time of first packet received from device (note this has only
+            been tracked since 2026-08-25)
     """
 
     created_at: datetime.datetime
@@ -46,6 +48,7 @@ class DeviceState:
     last_route_udp_time: datetime.datetime | Unset = UNSET
     last_route: UplinkRoute | Unset = UNSET
     last_route_time: datetime.datetime | Unset = UNSET
+    first_packet_time: datetime.datetime | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,6 +87,10 @@ class DeviceState:
         if not isinstance(self.last_route_time, Unset):
             last_route_time = self.last_route_time.isoformat()
 
+        first_packet_time: str | Unset = UNSET
+        if not isinstance(self.first_packet_time, Unset):
+            first_packet_time = self.first_packet_time.isoformat()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -108,6 +115,8 @@ class DeviceState:
             field_dict["lastRoute"] = last_route
         if last_route_time is not UNSET:
             field_dict["lastRouteTime"] = last_route_time
+        if first_packet_time is not UNSET:
+            field_dict["firstPacketTime"] = first_packet_time
 
         return field_dict
 
@@ -170,6 +179,13 @@ class DeviceState:
         else:
             last_route_time = isoparse(_last_route_time)
 
+        _first_packet_time = d.pop("firstPacketTime", UNSET)
+        first_packet_time: datetime.datetime | Unset
+        if isinstance(_first_packet_time, Unset):
+            first_packet_time = UNSET
+        else:
+            first_packet_time = isoparse(_first_packet_time)
+
         device_state = cls(
             created_at=created_at,
             updated_at=updated_at,
@@ -181,6 +197,7 @@ class DeviceState:
             last_route_udp_time=last_route_udp_time,
             last_route=last_route,
             last_route_time=last_route_time,
+            first_packet_time=first_packet_time,
         )
 
         device_state.additional_properties = d

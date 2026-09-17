@@ -15,7 +15,15 @@ T = TypeVar("T", bound="PendingDeviceApplicationUpdatesByDevicesResponseData")
 
 @_attrs_define
 class PendingDeviceApplicationUpdatesByDevicesResponseData:
-    """Pending device application updates keyed by deviceId."""
+    """Pending device application updates keyed by deviceId.
+
+    Example:
+        {'d291d4d66bf0a955': {'id': '5f4b1b2b-3b4d-4b5e-8c6f-7d8e9f0a1b2c', 'releaseId': '0011223344556677', 'status':
+            'pending', 'attemptCount': 0, 'maxAttempts': 5, 'createdAt': datetime.datetime(2026, 7, 14, 0, 43, 47, 520000,
+            tzinfo=datetime.timezone(datetime.timedelta(0), 'Z')), 'updatedAt': datetime.datetime(2026, 7, 14, 0, 43, 47,
+            520000, tzinfo=datetime.timezone(datetime.timedelta(0), 'Z'))}}
+
+    """
 
     additional_properties: dict[str, DeviceApplicationUpdateAndMessage] = _attrs_field(init=False, factory=dict)
 

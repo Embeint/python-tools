@@ -15,7 +15,15 @@ T = TypeVar("T", bound="LoggerStatesForDevicesByIndexResponseData")
 
 @_attrs_define
 class LoggerStatesForDevicesByIndexResponseData:
-    """Logger states keyed by deviceId."""
+    """Logger states keyed by deviceId.
+
+    Example:
+        {'d291d4d66bf0a955': {'lastReportedBlock': 42, 'lastReportedTime': datetime.datetime(2026, 7, 14, 0, 43, 47,
+            520000, tzinfo=datetime.timezone(datetime.timedelta(0), 'Z')), 'lastDownloadedBlock': 40,
+            'lastDownloadedWrapCount': 0, 'lastDownloadedTime': datetime.datetime(2026, 7, 14, 0, 42, 47, 520000,
+            tzinfo=datetime.timezone(datetime.timedelta(0), 'Z')), 'downloadEnabled': True}}
+
+    """
 
     additional_properties: dict[str, DeviceLoggerState] = _attrs_field(init=False, factory=dict)
 

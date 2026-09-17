@@ -8,18 +8,40 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.device_kv_entry import DeviceKVEntry
 from ...models.error import Error
-from ...types import Response
+from ...models.get_device_kv_entries_by_device_id_order_by import GetDeviceKVEntriesByDeviceIDOrderBy
+from ...models.get_device_kv_entries_by_device_id_order_dir import GetDeviceKVEntriesByDeviceIDOrderDir
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     device_id: str,
+    *,
+    order_dir: GetDeviceKVEntriesByDeviceIDOrderDir | Unset = GetDeviceKVEntriesByDeviceIDOrderDir.ASC,
+    order_by: GetDeviceKVEntriesByDeviceIDOrderBy | Unset = GetDeviceKVEntriesByDeviceIDOrderBy.KEYID,
 ) -> dict[str, Any]:
+
+    params: dict[str, Any] = {}
+
+    json_order_dir: str | Unset = UNSET
+    if not isinstance(order_dir, Unset):
+        json_order_dir = order_dir.value
+
+    params["orderDir"] = json_order_dir
+
+    json_order_by: str | Unset = UNSET
+    if not isinstance(order_by, Unset):
+        json_order_by = order_by.value
+
+    params["orderBy"] = json_order_by
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/device/deviceId/{device_id}/kv/entries".format(
             device_id=quote(str(device_id), safe=""),
         ),
+        "params": params,
     }
 
     return _kwargs
@@ -64,11 +86,17 @@ def sync_detailed(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
+    order_dir: GetDeviceKVEntriesByDeviceIDOrderDir | Unset = GetDeviceKVEntriesByDeviceIDOrderDir.ASC,
+    order_by: GetDeviceKVEntriesByDeviceIDOrderBy | Unset = GetDeviceKVEntriesByDeviceIDOrderBy.KEYID,
 ) -> Response[Error | list[DeviceKVEntry]]:
     """Get KV entries by DeviceID
 
     Args:
         device_id (str):
+        order_dir (GetDeviceKVEntriesByDeviceIDOrderDir | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderDir.ASC.
+        order_by (GetDeviceKVEntriesByDeviceIDOrderBy | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderBy.KEYID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -80,6 +108,8 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         device_id=device_id,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = client.get_httpx_client().request(
@@ -93,11 +123,17 @@ def sync(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
+    order_dir: GetDeviceKVEntriesByDeviceIDOrderDir | Unset = GetDeviceKVEntriesByDeviceIDOrderDir.ASC,
+    order_by: GetDeviceKVEntriesByDeviceIDOrderBy | Unset = GetDeviceKVEntriesByDeviceIDOrderBy.KEYID,
 ) -> Error | list[DeviceKVEntry] | None:
     """Get KV entries by DeviceID
 
     Args:
         device_id (str):
+        order_dir (GetDeviceKVEntriesByDeviceIDOrderDir | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderDir.ASC.
+        order_by (GetDeviceKVEntriesByDeviceIDOrderBy | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderBy.KEYID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -110,6 +146,8 @@ def sync(
     return sync_detailed(
         device_id=device_id,
         client=client,
+        order_dir=order_dir,
+        order_by=order_by,
     ).parsed
 
 
@@ -117,11 +155,17 @@ async def asyncio_detailed(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
+    order_dir: GetDeviceKVEntriesByDeviceIDOrderDir | Unset = GetDeviceKVEntriesByDeviceIDOrderDir.ASC,
+    order_by: GetDeviceKVEntriesByDeviceIDOrderBy | Unset = GetDeviceKVEntriesByDeviceIDOrderBy.KEYID,
 ) -> Response[Error | list[DeviceKVEntry]]:
     """Get KV entries by DeviceID
 
     Args:
         device_id (str):
+        order_dir (GetDeviceKVEntriesByDeviceIDOrderDir | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderDir.ASC.
+        order_by (GetDeviceKVEntriesByDeviceIDOrderBy | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderBy.KEYID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -133,6 +177,8 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         device_id=device_id,
+        order_dir=order_dir,
+        order_by=order_by,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -144,11 +190,17 @@ async def asyncio(
     device_id: str,
     *,
     client: AuthenticatedClient | Client,
+    order_dir: GetDeviceKVEntriesByDeviceIDOrderDir | Unset = GetDeviceKVEntriesByDeviceIDOrderDir.ASC,
+    order_by: GetDeviceKVEntriesByDeviceIDOrderBy | Unset = GetDeviceKVEntriesByDeviceIDOrderBy.KEYID,
 ) -> Error | list[DeviceKVEntry] | None:
     """Get KV entries by DeviceID
 
     Args:
         device_id (str):
+        order_dir (GetDeviceKVEntriesByDeviceIDOrderDir | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderDir.ASC.
+        order_by (GetDeviceKVEntriesByDeviceIDOrderBy | Unset):  Default:
+            GetDeviceKVEntriesByDeviceIDOrderBy.KEYID.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -162,5 +214,7 @@ async def asyncio(
         await asyncio_detailed(
             device_id=device_id,
             client=client,
+            order_dir=order_dir,
+            order_by=order_by,
         )
     ).parsed
