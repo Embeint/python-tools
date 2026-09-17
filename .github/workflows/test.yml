@@ -33,4 +33,6 @@ jobs:
       - name: install tox
         run: pip3 install tox
       - name: tox
+        env:
+          INFUSE_PLATFORM_TEST_API_KEY: ${{ secrets.INFUSE_PLATFORM_TEST_API_KEY }}
         run: tox -c 'check out'
