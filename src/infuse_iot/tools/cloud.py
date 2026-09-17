@@ -150,6 +150,7 @@ class Boards(CloudSubCommand):
         create_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
         create_parser.add_argument("--soc", "-s", type=str, required=True, help="Board system on chip")
         create_parser.add_argument("--desc", "-d", type=str, required=True, help="Board description")
+        create_parser.add_argument("--public", action="store_true", help="Public board (globally visible)")
         create_parser.set_defaults(command_fn=cls.create)
 
     def run(self):
@@ -206,6 +207,7 @@ class Boards(CloudSubCommand):
                 description=self.args.desc,
                 soc=self.args.soc,
                 organisation_id=self.args.org,
+                public=self.args.public,
             ),
         )
 
