@@ -13,13 +13,34 @@ from infuse_iot.socket_comms import default_multicast_address
 from infuse_iot.util.ctypes import bytes_to_uint8
 
 InfuseDeviceIdConverter = Callable[[str], int | None]
+InfuseDeviceIdReverseConverter = Callable[[int], str | None]
 _infuse_device_id_fallbacks: list[InfuseDeviceIdConverter] = []
+_infuse_device_id_reverse_fallbacks: list[InfuseDeviceIdReverseConverter] = []
 
 
 def register_infuse_device_id_fallback(converter: InfuseDeviceIdConverter) -> None:
     """Register a fallback converter for non-hex Infuse-IoT Device IDs."""
     if converter not in _infuse_device_id_fallbacks:
         _infuse_device_id_fallbacks.append(converter)
+
+
+def register_infuse_device_id_reverse_fallback(converter: InfuseDeviceIdReverseConverter) -> None:
+    """Register a fallback converter from an Infuse-IoT Device ID to a vendor ID."""
+    if converter not in _infuse_device_id_reverse_fallbacks:
+        _infuse_device_id_reverse_fallbacks.append(converter)
+
+
+def infuse_device_id_to_vendor(infuse_id: int) -> str | None:
+    """Convert an Infuse-IoT Device ID to a vendor-specific ID, if supported."""
+    for converter in _infuse_device_id_reverse_fallbacks:
+        try:
+            value = converter(infuse_id)
+        except ValueError:
+            continue
+        if value is not None:
+            return value
+
+    return None
 
 
 class ValidFile:

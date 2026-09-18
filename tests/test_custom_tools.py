@@ -11,7 +11,7 @@ import infuse_iot.credentials as cred
 from infuse_iot.app.main import InfuseApp
 from infuse_iot.commands import wrapper_from_command_id
 from infuse_iot.tools.registry import RpcWrapperSpec, load_extension_rpc_wrappers, load_extension_tools
-from infuse_iot.util.argparse import InfuseDeviceId
+from infuse_iot.util.argparse import InfuseDeviceId, infuse_device_id_to_vendor
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -60,6 +60,9 @@ def test_extension_tool_registry_loading(tmp_path, monkeypatch):
 
         assert "custom_tool" in app._tools
         assert InfuseDeviceId("custom-1234abcd") == 0x1234ABCD
+        assert infuse_device_id_to_vendor(0x1234ABCD) == "custom-1234abcd"
+        assert infuse_device_id_to_vendor(-1) is None
+        assert infuse_device_id_to_vendor(0x12341234ABCD) is None
         assert app._tools["custom_tool"].spec.module == "custom_tool"
         assert "custom_tool" not in app._loaded_tools
         assert "infuse_iot_custom_tools.custom_tool" not in sys.modules

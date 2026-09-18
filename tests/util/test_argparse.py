@@ -14,7 +14,9 @@ from infuse_iot.util.argparse import (
     ValidDir,
     ValidFile,
     add_server_port_parser,
+    infuse_device_id_to_vendor,
     register_infuse_device_id_fallback,
+    register_infuse_device_id_reverse_fallback,
 )
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -83,6 +85,18 @@ def test_infuse_device_id_fallback():
     assert InfuseDeviceId("0x99") == 0x99
     with pytest.raises(argparse.ArgumentTypeError):
         InfuseDeviceId("invalid-device")
+
+
+def test_infuse_device_id_reverse_fallback():
+    def test_prefix_reverse_converter(value: int) -> str | None:
+        if value >> 32 != 0x1234:
+            return None
+        return f"test-{value & 0xFFFFFFFF:08x}"
+
+    register_infuse_device_id_reverse_fallback(test_prefix_reverse_converter)
+
+    assert infuse_device_id_to_vendor(0x12341234ABCD) == "test-1234abcd"
+    assert infuse_device_id_to_vendor(0x56781234ABCD) is None
 
 
 def test_hexstring():
