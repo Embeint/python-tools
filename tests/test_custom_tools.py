@@ -70,7 +70,9 @@ def test_extension_tool_registry_loading(tmp_path, monkeypatch):
         app._load_selected_tool(["custom_tool", "--echo", "test_string"])
 
         assert "custom_tool" in app._loaded_tools
-        assert wrapper_from_command_id(0xABCD).NAME == "custom_rpc"
+        wrapper = wrapper_from_command_id(0xABCD)
+        assert wrapper is not None
+        assert wrapper.NAME == "custom_rpc"
 
         app._load_selected_tool(["rpc", "--gateway", "custom_rpc"])
     finally:

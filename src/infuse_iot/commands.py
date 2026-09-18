@@ -16,6 +16,7 @@ from typing import Any
 import infuse_iot.rpc_wrappers as wrappers
 from infuse_iot.credentials import get_custom_tool_path
 from infuse_iot.epacket.packet import Auth
+from infuse_iot.generated.rpc_definitions import RPCDefinitionBase
 from infuse_iot.generated.rpc_errors import RPCError
 from infuse_iot.tools.registry import import_extension_rpc_wrapper, load_extension_rpc_wrappers
 from infuse_iot.zephyr.errno import errno
@@ -32,13 +33,6 @@ def rpc_return_code_str(return_code: int) -> str:
         return errno.strerror(-return_code)
 
     return f"Unknown RPC return code ({return_code})"
-
-
-def wrapper_from_command_id(command_id: int):
-    for _, cmd_cls in iter_rpc_wrapper_classes():
-        if command_id == cmd_cls.COMMAND_ID:
-            return cmd_cls
-    return None
 
 
 def iter_rpc_wrapper_classes() -> Iterator[tuple[str, Any]]:
@@ -130,3 +124,16 @@ class InfuseRpcCommand:
     def handle_json_response(cls, response: dict) -> None:
         """Handle json response from cloud"""
         raise NotImplementedError
+
+
+class InfuseRpcWrapper(InfuseRpcCommand, RPCDefinitionBase):
+    """Type helper for RPC wrappers, which subclass InfuseRpcCommand and a subclass of RPCDefinitionBase"""
+
+    pass
+
+
+def wrapper_from_command_id(command_id: int) -> type[InfuseRpcWrapper] | None:
+    for _, cmd_cls in iter_rpc_wrapper_classes():
+        if command_id == cmd_cls.COMMAND_ID:
+            return cmd_cls
+    return None
