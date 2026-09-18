@@ -271,3 +271,91 @@ def test_profile_dump_empty(tmp_path):
     output = subprocess.check_output(["infuse", "profile", "dump"], env=env).decode().strip()
 
     assert output == "No profiles configured"
+
+
+def banner_probe(env) -> subprocess.CompletedProcess:
+    """Run a command that is not 'infuse profile', which never prints the banner"""
+    return subprocess.run(
+        ["infuse", "credentials", "--api-key-print"],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+
+def test_profile_banner_disabled_by_default(tmp_path):
+    env = profile_test_env(tmp_path)
+
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+
+    assert "[profile: test]" not in banner_probe(env).stderr
+
+
+def test_profile_banner_not_shown_for_profile_commands(tmp_path):
+    env = profile_test_env(tmp_path)
+
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+    subprocess.check_output(["infuse", "profile", "banner", "--enable"], env=env)
+
+    result = subprocess.run(
+        ["infuse", "profile", "list"],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+    assert "[profile: test]" not in result.stderr
+
+
+def test_profile_banner_enable_and_disable(tmp_path):
+    env = profile_test_env(tmp_path)
+
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+
+    output = subprocess.check_output(["infuse", "profile", "banner", "--enable"], env=env).decode()
+    assert "Banner enabled for profile test" in output
+
+    store_path = profile_store_path(env)
+    with store_path.open("r", encoding="utf-8") as f:
+        profiles = json.load(f)
+    assert profiles["profiles"]["test"]["banner"] is True
+
+    assert "[profile: test]" in banner_probe(env).stderr
+
+    output = subprocess.check_output(["infuse", "profile", "banner", "--disable"], env=env).decode()
+    assert "Banner disabled for profile test" in output
+
+    with store_path.open("r", encoding="utf-8") as f:
+        profiles = json.load(f)
+    assert profiles["profiles"]["test"]["banner"] is False
+
+
+def test_profile_banner_survives_configure(tmp_path):
+    env = profile_test_env(tmp_path)
+
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+    subprocess.check_output(["infuse", "profile", "banner", "--enable"], env=env)
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+
+    store_path = profile_store_path(env)
+    with store_path.open("r", encoding="utf-8") as f:
+        profiles = json.load(f)
+
+    assert profiles["profiles"]["test"]["banner"] is True
+
+
+def test_profile_banner_without_active_profile_errors(tmp_path):
+    env = profile_test_env(tmp_path)
+
+    result = subprocess.run(
+        ["infuse", "profile", "banner", "--enable"],
+        check=False,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "no active profile" in result.stderr
