@@ -99,3 +99,18 @@ def test_vla_compat_struct():
         raise AssertionError()
     except TypeError:
         pass
+
+
+def test_vla_compat_struct_pretty_printing():
+    value = VLANested.vla_from_buffer_copy(b"\x02\x00\x00\x00\x03\x00\x00\x00\x04\x00\x00\x00")
+
+    assert str(value) == """VLANested(
+    first=2,
+    vla=VLABase(
+        first=3,
+        vla=[
+            4,
+        ],
+    ),
+)"""
+    assert repr(value) == str(value)

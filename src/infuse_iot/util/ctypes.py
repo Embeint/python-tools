@@ -110,3 +110,46 @@ class VLACompatLittleEndianStruct(ctypes.LittleEndianStructure):
                 yield from val.iter_fields(f"{vla_field[0]}.")
             else:
                 yield (f"{prefix}{vla_field[0]}", val)
+
+    def __str__(self) -> str:
+        """Return a readable, recursive representation of the struct's fields."""
+        return self._pretty_print()
+
+    def __repr__(self) -> str:
+        return self._pretty_print()
+
+    def _pretty_print(self, indent: int = 0) -> str:
+        field_lines = []
+        for field_name, _field_type in self._fields_:  # type: ignore
+            field_lines.append(
+                f"{' ' * (indent + 4)}{field_name}={self._pretty_value(getattr(self, field_name), indent + 4)},"
+            )
+
+        if self.vla_field and hasattr(self, self.vla_field[0]):
+            field_name = self.vla_field[0]
+            field_lines.append(
+                f"{' ' * (indent + 4)}{field_name}={self._pretty_value(getattr(self, field_name), indent + 4)},"
+            )
+
+        if not field_lines:
+            return f"{type(self).__name__}()"
+
+        fields = "\n".join(field_lines)
+        return f"{type(self).__name__}(\n{fields}\n{' ' * indent})"
+
+    @classmethod
+    def _pretty_value(cls, value: Any, indent: int) -> str:
+        if isinstance(value, VLACompatLittleEndianStruct):
+            return value._pretty_print(indent)
+
+        if isinstance(value, ctypes.Array):
+            value = list(value)
+
+        if isinstance(value, (list, tuple)):
+            if not value:
+                return "[]"
+            values = [f"{' ' * (indent + 4)}{cls._pretty_value(item, indent + 4)}," for item in value]
+            formatted_values = "\n".join(values)
+            return f"[\n{formatted_values}\n{' ' * indent}]"
+
+        return repr(value)
