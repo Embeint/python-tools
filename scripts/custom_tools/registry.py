@@ -11,7 +11,14 @@ def custom_device_id(value: str) -> int | None:
     return int(value.removeprefix("custom-"), 16)
 
 
+def custom_device_id_reverse(value: int) -> str | None:
+    if not 0 <= value <= 0xFFFFFFFF:
+        return None
+    return f"custom-{value:08x}"
+
+
 DEVICE_ID_CONVERTERS = (custom_device_id,)
+DEVICE_ID_REVERSE_CONVERTERS = (custom_device_id_reverse,)
 
 TOOLS = (
     ToolSpec(

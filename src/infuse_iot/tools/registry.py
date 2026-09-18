@@ -131,12 +131,24 @@ def _register_device_id_converters(module: types.ModuleType) -> None:
     if not isinstance(converters, (list, tuple)):
         raise TypeError("Custom tools registry DEVICE_ID_CONVERTERS must be a list or tuple of callables")
 
-    from infuse_iot.util.argparse import register_infuse_device_id_fallback
+    reverse_converters = getattr(module, "DEVICE_ID_REVERSE_CONVERTERS", ())
+    if not isinstance(reverse_converters, (list, tuple)):
+        raise TypeError("Custom tools registry DEVICE_ID_REVERSE_CONVERTERS must be a list or tuple of callables")
+
+    from infuse_iot.util.argparse import (
+        register_infuse_device_id_fallback,
+        register_infuse_device_id_reverse_fallback,
+    )
 
     for converter in converters:
         if not callable(converter):
             raise TypeError("Custom tools registry DEVICE_ID_CONVERTERS must contain only callables")
         register_infuse_device_id_fallback(converter)
+
+    for converter in reverse_converters:
+        if not callable(converter):
+            raise TypeError("Custom tools registry DEVICE_ID_REVERSE_CONVERTERS must contain only callables")
+        register_infuse_device_id_reverse_fallback(converter)
 
 
 TOOLS = (
