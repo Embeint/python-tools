@@ -15,6 +15,7 @@ from infuse_iot.profile import (
     load_profiles,
     load_raw_profile_config,
     set_active_profile,
+    set_active_profile_banner,
 )
 from infuse_iot.tools.registry import load_extension_tools
 from infuse_iot.util.argparse import ValidDir, add_subparsers_with_list, print_subcommands_if_missing
@@ -43,6 +44,12 @@ class SubCommand(InfuseCommand):
         set_parser.add_argument("--name", "-n", required=True, help="Profile name")
         set_parser.set_defaults(profile_command="set")
 
+        banner_parser = subcommands.add_parser("banner", help="Show or hide the active profile banner")
+        banner_group = banner_parser.add_mutually_exclusive_group(required=True)
+        banner_group.add_argument("--enable", action="store_true", help="Print the active profile before each command")
+        banner_group.add_argument("--disable", action="store_true", help="Do not print the active profile")
+        banner_parser.set_defaults(profile_command="banner")
+
         dump_parser = subcommands.add_parser("dump", help="Dump profile configuration")
         dump_parser.set_defaults(profile_command="dump")
 
@@ -59,6 +66,8 @@ class SubCommand(InfuseCommand):
             self._run_configure()
         elif self._args.profile_command == "set":
             self._run_set()
+        elif self._args.profile_command == "banner":
+            self._run_banner()
         elif self._args.profile_command == "dump":
             self._run_dump()
 
@@ -68,12 +77,13 @@ class SubCommand(InfuseCommand):
             [
                 name,
                 "yes" if name == active_profile else "no",
+                "yes" if profile.banner else "no",
                 profile.custom_tools if profile.custom_tools is not None else "",
                 profile.custom_definitions if profile.custom_definitions is not None else "",
             ]
             for name, profile in sorted(load_profiles().items())
         ]
-        print(tabulate(rows, headers=["Name", "Active", "Custom Tools", "Custom Definitions"]))
+        print(tabulate(rows, headers=["Name", "Active", "Banner", "Custom Tools", "Custom Definitions"]))
 
     def _run_configure(self) -> None:
         custom_tools, custom_definitions = self._profile_path_args()
@@ -94,6 +104,16 @@ class SubCommand(InfuseCommand):
             raise SystemExit(1) from None
 
         print(f"Active profile set to {self._args.name}")
+
+    def _run_banner(self) -> None:
+        try:
+            name = set_active_profile_banner(self._args.enable)
+        except ValueError as err:
+            print(f"error: {err}", file=sys.stderr)
+            raise SystemExit(1) from None
+
+        state = "enabled" if self._args.enable else "disabled"
+        print(f"Banner {state} for profile {name}")
 
     def _run_dump(self) -> None:
         raw_profile_config = load_raw_profile_config()
