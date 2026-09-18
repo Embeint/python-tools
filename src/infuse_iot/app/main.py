@@ -20,7 +20,11 @@ import argcomplete
 from argcomplete.lexers import split_line
 
 from infuse_iot.credentials import get_custom_tool_path
-from infuse_iot.profile import get_active_profile_custom_tool_path
+from infuse_iot.profile import (
+    get_active_profile_banner,
+    get_active_profile_custom_tool_path,
+    get_active_profile_name,
+)
 from infuse_iot.tools.registry import TOOLS, ToolSpec, load_extension_tools
 from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 from infuse_iot.version import __version__
@@ -56,8 +60,23 @@ class InfuseApp:
         if print_subcommands_if_missing(self.args):
             return
 
+        self._print_profile_banner(self.args)
+
         tool = self.args.tool_class(self.args)
         tool.run()
+
+    @staticmethod
+    def _print_profile_banner(args: argparse.Namespace):
+        """Print the active profile to stderr, if the profile opted in"""
+        # 'profile' commands report their own state, which the banner would contradict mid-change
+        if args._tool == "profile":
+            return
+        if not get_active_profile_banner():
+            return
+
+        # Dim only when stderr is a terminal, so pipes and logs stay clean
+        prefix, suffix = ("\033[2m", "\033[0m") if sys.stderr.isatty() else ("", "")
+        print(f"{prefix}[profile: {get_active_profile_name()}]{suffix}", file=sys.stderr)
 
     def _load_from_module(
         self,

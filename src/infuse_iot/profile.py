@@ -3,7 +3,7 @@
 """Infuse-IoT profile storage."""
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -19,6 +19,7 @@ class Profile:
     custom_tools: str | None = None
     custom_definitions: str | None = None
     api_key_id: str | None = None
+    banner: bool = False
 
 
 def profile_store_path() -> Path:
@@ -94,6 +95,7 @@ def configure_profile(
             custom_tools=custom_tools if custom_tools is not None else profile.custom_tools,
             custom_definitions=custom_definitions if custom_definitions is not None else profile.custom_definitions,
             api_key_id=api_key_id if api_key_id is not None else profile.api_key_id,
+            banner=profile.banner,
         )
         config.profiles[name] = updated_profile
         save_profile_config(config)
@@ -155,6 +157,28 @@ def get_active_profile_api_key_id() -> str | None:
         return None
 
     return active_profile.api_key_id
+
+
+def get_active_profile_banner() -> bool:
+    active_profile = get_active_profile()
+    if active_profile is None:
+        return False
+
+    return active_profile.banner
+
+
+def set_active_profile_banner(banner: bool) -> str:
+    """
+    Enable or disable the banner on the active profile, returning its name
+    """
+    config = load_profile_config()
+    if config.active_profile is None:
+        raise ValueError("no active profile")
+
+    profile = config.profiles[config.active_profile]
+    config.profiles[config.active_profile] = replace(profile, banner=banner)
+    save_profile_config(config)
+    return config.active_profile
 
 
 def _store_api_key(api_key: str | None, api_key_id: str | None = None) -> str | None:
