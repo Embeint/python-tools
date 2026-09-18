@@ -142,6 +142,14 @@ class SubCommand(InfuseCommand):
             elif rpc_rsp.params_encoded:
                 raw_rsp = base64.b64decode(rpc_rsp.params_encoded)
                 print(f"      Raw: {raw_rsp.hex()}")
+                if command_wrapper:
+                    try:
+                        resp = command_wrapper.response.vla_from_buffer_copy(raw_rsp)
+                        print("  Decoded")
+                        print(resp)
+                    except Exception as _e:
+                        print(f"Failed to decode {command_name} response")
+
             else:
                 # No response values
                 pass
