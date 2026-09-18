@@ -29,9 +29,14 @@ from infuse_iot.socket_comms import (
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import add_server_port_parser
+from infuse_iot.util.argparse import add_server_port_parser, infuse_device_id_to_vendor
 from infuse_iot.util.console import Console
 from infuse_iot.util.threading import SignaledThread
+
+
+def _display_device_id(infuse_id: int) -> str:
+    vendor_id = infuse_device_id_to_vendor(infuse_id)
+    return vendor_id if vendor_id is not None else f"0x{infuse_id:016x}"
 
 
 class SubCommand(InfuseCommand):
@@ -208,7 +213,7 @@ class SubCommand(InfuseCommand):
 
         if source.infuse_id not in self._data:
             self._data[source.infuse_id] = {
-                "infuse_id": f"0x{source.infuse_id:016x}",
+                "infuse_id": _display_device_id(source.infuse_id),
                 "application": "Unknown",
             }
 
