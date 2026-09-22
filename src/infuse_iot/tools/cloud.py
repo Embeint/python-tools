@@ -473,6 +473,7 @@ class Device(CloudSubCommand):
                 print(
                     tabulate(
                         [
+                            ["DFU ID", str(update.id)],
                             ["To Release", update.release_id],
                             ["Status", str(update.status)],
                             ["Attempts", str(update.attempt_count)],
