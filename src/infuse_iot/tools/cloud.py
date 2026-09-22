@@ -56,6 +56,7 @@ from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import (
     HexString,
     InfuseDeviceId,
+    ValidFile,
     ValidRelease,
     add_subparsers_with_list,
     print_subcommands_if_missing,
@@ -254,7 +255,13 @@ class Device(CloudSubCommand):
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
-        dfu_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
+        dfu_device = dfu_parser.add_mutually_exclusive_group(required=True)
+        dfu_device.add_argument("--id", type=InfuseDeviceId, help="Infuse-IoT device ID")
+        dfu_device.add_argument(
+            "--list",
+            type=ValidFile,
+            help="File containing a list of Infuse-IoT device IDs, one per line",
+        )
         dfu_action = dfu_parser.add_mutually_exclusive_group(required=True)
         dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
         dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
@@ -425,20 +432,31 @@ class Device(CloudSubCommand):
             print(f"Device {id_str} update scheduled with ID {rsp.id}")
 
     def dfu(self, client: Client):
-        id_str = f"{self.args.id:016x}"
+        if self.args.id is not None:
+            device_ids = [self.args.id]
+        else:
+            assert self.args.list is not None
+            with self.args.list.open(encoding="utf-8") as f:
+                device_ids = [InfuseDeviceId(line.strip()) for line in f]
+
+        for device_id in device_ids:
+            self._dfu_device(client, device_id)
+
+    def _dfu_device(self, client: Client, device_id: int):
+        id_str = f"{device_id:016x}"
 
         if self.args.schedule:
             body = models.NewDeviceApplicationUpdate(self.args.schedule)
             rsp = create_device_application_update_by_device_id.sync(client=client, device_id=id_str, body=body)
 
             if rsp is None:
-                sys.exit("Create application updates: No response")
+                print(f"{id_str}: Create application updates: No response")
             elif isinstance(rsp, models.Error):
-                sys.exit(f"<{rsp.code}>: {rsp.message}")
+                print(f"{id_str}: <{rsp.code}> {rsp.message}")
             elif isinstance(rsp, models.DeviceApplicationState):
-                print(f"Device already on release {self.args.schedule}")
+                print(f"{id_str}: Device already on release {self.args.schedule}")
             elif isinstance(rsp, models.DeviceApplicationUpdate):
-                print(f"DFU scheduled with ID {rsp.id}")
+                print(f"{id_str}: DFU scheduled with ID {rsp.id}")
             else:
                 raise NotImplementedError(f"Unknown response ({rsp})")
         elif self.args.status:
