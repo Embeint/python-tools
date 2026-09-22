@@ -566,6 +566,7 @@ class Applications(CloudSubCommand):
         upload_parser = tool_parser.add_parser("upload", help="Upload application release")
         upload_parser.add_argument("--org", "-o", type=str, help="Organisation ID")
         upload_parser.add_argument("--board", "-b", type=str, help="Board ID")
+        upload_parser.add_argument("--name", "-n", type=str, help="Application name override")
         upload_parser.add_argument("--release", "-r", type=ValidRelease, required=True, help="Release to upload")
         upload_parser.set_defaults(command_fn=cls.upload)
 
@@ -750,7 +751,7 @@ class Applications(CloudSubCommand):
 
         release: ValidRelease = self.args.release
         release_app_meta = release.metadata["application"]
-        name = release_app_meta["primary"]
+        name = self.args.name or release_app_meta["primary"]
         app_id = release_app_meta["id"]
         board_target = release_app_meta["board"]
         version = Version.from_string(release_app_meta["version"])
