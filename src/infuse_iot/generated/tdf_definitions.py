@@ -1790,7 +1790,7 @@ class readings:
         ID = 66
         NAME = "DEVICE_INIT_ERROR"
         _fields_ = [
-            ("code", ctypes.c_int8),
+            ("_code", ctypes.c_uint8),
             ("name", 0 * ctypes.c_char),
         ]
         _pack_ = 1
@@ -1802,6 +1802,10 @@ class readings:
             "code": "{}",
             "name": "{}",
         }
+
+        @property
+        def code(self):
+            return self._code * -1
 
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {

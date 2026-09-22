@@ -1197,6 +1197,27 @@ class file_write(RPCDefinitionBase):
         _pack_ = 1
 
 
+class nrf93m1_fota(RPCDefinitionBase):
+    """Perform a firmware update of the nRF93M1 modem"""
+
+    NAME = "nrf93m1_fota"
+    HELP = "Perform a firmware update of the nRF93M1 modem"
+    DESCRIPTION = "Perform a firmware update of the nRF93M1 modem"
+    COMMAND_ID = 45
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = []
+        vla_field = ("url", 0 * ctypes.c_char)
+        _pack_ = 1
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("cause", ctypes.c_uint8),
+            ("detail", ctypes.c_int32),
+        ]
+        _pack_ = 1
+
+
 class bt_connect_infuse(RPCDefinitionBase):
     """Connect to an Infuse-IoT Bluetooth device"""
 
@@ -1578,6 +1599,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     tdf_data_logger_flush.COMMAND_ID: tdf_data_logger_flush,
     shipping_mode.COMMAND_ID: shipping_mode,
     file_write.COMMAND_ID: file_write,
+    nrf93m1_fota.COMMAND_ID: nrf93m1_fota,
     bt_connect_infuse.COMMAND_ID: bt_connect_infuse,
     bt_disconnect.COMMAND_ID: bt_disconnect,
     bt_file_copy_basic.COMMAND_ID: bt_file_copy_basic,
@@ -1663,6 +1685,7 @@ __all__ = [
     "tdf_data_logger_flush",
     "shipping_mode",
     "file_write",
+    "nrf93m1_fota",
     "bt_connect_infuse",
     "bt_disconnect",
     "bt_file_copy_basic",
