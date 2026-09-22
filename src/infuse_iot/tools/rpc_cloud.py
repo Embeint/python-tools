@@ -25,7 +25,12 @@ from infuse_iot.commands import (
 )
 from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import id_type_mapping
-from infuse_iot.util.argparse import InfuseDeviceId, add_subparsers_with_list, print_subcommands_if_missing
+from infuse_iot.util.argparse import (
+    InfuseDeviceId,
+    add_subparsers_with_list,
+    infuse_device_id_to_vendor,
+    print_subcommands_if_missing,
+)
 
 
 class SubCommand(InfuseCommand):
@@ -110,8 +115,13 @@ class SubCommand(InfuseCommand):
         except Exception:
             command_wrapper = None
 
+        id_int = int(rsp.device.device_id, 16)
+        to_str = rsp.device.device_id
+        if vendor_id := infuse_device_id_to_vendor(id_int):
+            to_str += f" ({vendor_id})"
+
         print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
-        print(f"       To: {rsp.device.device_id}")
+        print(f"       To: {to_str}")
         # Manually detect downlink expiry, as the API doesn't do it
         if downlink.status == DownlinkMessageStatus.WAITING and downlink.expires_at and now > downlink.expires_at:
             print("    State: expired")
