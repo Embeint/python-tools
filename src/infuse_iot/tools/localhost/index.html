@@ -136,20 +136,21 @@
             ]
         });
 
-        // Connect to the WebSocket server
-        const ws = new WebSocket("ws://localhost:" + location.port + "/ws");
+        // WebSocket connection and polling state
+        let ws = null;
         let shownTDFs = {};
         let currentTDFs = [];
         let current_num_columns = 0;
         let currentApps = [];
         let currentNetworks = []
-        let dataRequestId = 0;
+        let dataRequestId = null;
+        let reconnectId = null;
 
         const arraysEqual = (a, b) =>
             a.length === b.length &&
             a.every((element, index) => element === b[index]);
 
-        ws.onmessage = function (event) {
+        function handleMessage(event) {
             const { columns, rows, tdfs, apps, networks } = JSON.parse(event.data);
 
             if (!arraysEqual(currentTDFs, tdfs)) {
@@ -245,25 +246,82 @@
 
                 filtering_update = false;
             }
-        };
-
-        function dataUpdateRequest() {
-            ws.send("dataUpdateRequest");
         }
 
-        ws.onopen = function () {
-            console.log("WebSocket connected");
-            // Initial data request
-            dataUpdateRequest();
-            // Setup data request interval
-            dataRequestId = setInterval(dataUpdateRequest, 1000);
-        };
+        function dataUpdateRequest() {
+            if (!document.hidden && ws?.readyState === WebSocket.OPEN) {
+                ws.send("dataUpdateRequest");
+            }
+        }
 
-        ws.onerror = function (error) {
-            console.error("WebSocket error:", error);
-            // Cancel data requests
-            clearInterval(dataRequestId);
-        };
+        function stopDataRequests() {
+            if (dataRequestId !== null) {
+                clearInterval(dataRequestId);
+                dataRequestId = null;
+            }
+        }
+
+        function startDataRequests() {
+            stopDataRequests();
+            if (document.hidden) {
+                return;
+            }
+
+            // Refresh immediately instead of waiting for the next interval.
+            dataUpdateRequest();
+            dataRequestId = setInterval(dataUpdateRequest, 1000);
+        }
+
+        function connectWebSocket() {
+            if (document.hidden || ws?.readyState === WebSocket.CONNECTING || ws?.readyState === WebSocket.OPEN) {
+                return;
+            }
+
+            const socket = new WebSocket("ws://" + location.host + "/ws");
+            ws = socket;
+
+            socket.onmessage = handleMessage;
+            socket.onopen = function () {
+                if (ws !== socket) {
+                    return;
+                }
+                console.log("WebSocket connected");
+                startDataRequests();
+            };
+            socket.onerror = function (error) {
+                console.error("WebSocket error:", error);
+            };
+            socket.onclose = function () {
+                if (ws !== socket) {
+                    return;
+                }
+                ws = null;
+                stopDataRequests();
+                if (!document.hidden && reconnectId === null) {
+                    reconnectId = setTimeout(function () {
+                        reconnectId = null;
+                        connectWebSocket();
+                    }, 1000);
+                }
+            };
+        }
+
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+                stopDataRequests();
+                if (reconnectId !== null) {
+                    clearTimeout(reconnectId);
+                    reconnectId = null;
+                }
+                const socket = ws;
+                ws = null;
+                socket?.close();
+            } else {
+                connectWebSocket();
+            }
+        });
+
+        connectWebSocket();
     </script>
 </body>
 
