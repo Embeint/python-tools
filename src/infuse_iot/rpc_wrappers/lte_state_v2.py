@@ -66,8 +66,8 @@ class lte_state_v2(InfuseRpcCommand, defs.lte_state_v2):
             freq_string = ""
         country = z_lte.MobileCountryCodes.name_from_mcc(lte.mcc)
         active_str = f"{lte.psm_active_time} s" if lte.psm_active_time != 65535 else "N/A"
-        edrx_interval_str = f"{lte.edrx_interval} s" if lte.edrx_interval != -1.0 else "N/A"
-        edrx_window_str = f"{lte.edrx_paging_window} s" if lte.edrx_paging_window != -1.0 else "N/A"
+        edrx_interval_str = f"{lte.edrx_interval:.2f} s" if lte.edrx_interval != -1.0 else "N/A"
+        edrx_window_str = f"{lte.edrx_paging_window:.2f} s" if lte.edrx_paging_window != -1.0 else "N/A"
         as_rai = defs.rpc_enum_support_status(lte.as_rai)
         cp_rai = defs.rpc_enum_support_status(lte.cp_rai)
 
