@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+
 import keyring
 import yaml
 
@@ -35,8 +37,12 @@ def set_api_key(api_key: str) -> None:
 
 def get_api_key() -> str:
     """
-    Retrieve the Infuse-IoT API key from the keyring module
+    Retrieve the Infuse-IoT API key from the environment or OS keyring.
     """
+    environment_key = os.environ.get("INFUSE_API_KEY", "").strip()
+    if environment_key:
+        return environment_key
+
     from infuse_iot.profile import get_active_profile_api_key_id
 
     profile_api_key_id = get_active_profile_api_key_id()
