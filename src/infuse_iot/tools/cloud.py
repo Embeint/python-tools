@@ -817,7 +817,7 @@ class Applications(CloudSubCommand):
         if len(ota_files) != 1:
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
-        def get_all_releases(org: UUID, app_id: int) -> dict[Version, models.ApplicationRelease]:
+        def get_all_releases(org: UUID, board: UUID, app_id: int) -> dict[Version, models.ApplicationRelease]:
             releases = fetch_all(
                 get_releases_by_organisation_id_and_application_id,
                 client=client,
@@ -829,11 +829,13 @@ class Applications(CloudSubCommand):
 
             by_version: dict[Version, models.ApplicationRelease] = {}
             for r in releases:
+                if r.board_id != board:
+                    continue
                 v = Version(r.version.major, r.version.minor, r.version.revision, r.version.build_num)
                 by_version[v] = r
             return by_version
 
-        cloud_releases_by_version = get_all_releases(self._org, app_id)
+        cloud_releases_by_version = get_all_releases(self._org, self._board, app_id)
         cloud_release = cloud_releases_by_version.get(version)
         if cloud_release is not None:
             print(f"Found release for application '0x{app_id:08x} {str(version)}' ({cloud_release.id})")
@@ -875,6 +877,7 @@ class Applications(CloudSubCommand):
 
         def upload_diffs_from_application(
             org: UUID,
+            board: UUID,
             application: models.Application,
             releases_from_version: dict[Version, models.ApplicationRelease],
             diff_folder: pathlib.Path,
@@ -892,8 +895,8 @@ class Applications(CloudSubCommand):
                     if not isinstance(other_application, models.Application):
                         print(f"Could not retrieve application with ID {path.stem}")
                         continue
-                    other_application_releases = get_all_releases(org, other_application.id)
-                    upload_diffs_from_application(org, other_application, other_application_releases, path)
+                    other_application_releases = get_all_releases(org, board, other_application.id)
+                    upload_diffs_from_application(org, board, other_application, other_application_releases, path)
                     continue
                 elif path.suffix != ".bin":
                     continue
@@ -930,7 +933,7 @@ class Applications(CloudSubCommand):
         diff_folder = release.dir / "diffs"
         if not diff_folder.exists():
             return
-        upload_diffs_from_application(self._org, application, cloud_releases_by_version, diff_folder)
+        upload_diffs_from_application(self._org, self._board, application, cloud_releases_by_version, diff_folder)
 
 
 class SubCommand(InfuseCommand):
