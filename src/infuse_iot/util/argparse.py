@@ -56,6 +56,16 @@ class ValidFile:
         else:
             raise argparse.ArgumentTypeError(f"{string} does not exist")
 
+class ValidOutputFile:
+    """Filesystem file that may (or may not) exist, but the file can be created/overwritten"""
+
+    def __new__(cls, string: str, must_not_exist: bool = False) -> pathlib.Path:  # type: ignore
+        p = pathlib.Path(string)
+        if must_not_exist and p.exists():
+            raise argparse.ArgumentTypeError(f"{string} already exists")
+        # Ensure the parent directory exists
+        ValidDir(str(p.parent.absolute()))
+        return p
 
 class ValidDir:
     """Filesystem directory that exists"""
