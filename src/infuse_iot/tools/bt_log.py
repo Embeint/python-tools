@@ -21,7 +21,7 @@ from infuse_iot.socket_comms import (
 )
 from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
-from infuse_iot.util.argparse import InfuseDeviceId, ValidDir, add_server_port_parser
+from infuse_iot.util.argparse import InfuseDeviceId, OutputFolder, add_server_port_parser
 from infuse_iot.util.console import Console
 
 
@@ -37,15 +37,17 @@ class SubCommand(InfuseCommand):
         self._files = {}
 
         if args.csv and not self._data:
-            raise ArgumentError(None, "Cannot log CSV export without subscribing to the data characteristic"
-                                "(`--data`)")
+            raise ArgumentError(None, "Cannot log CSV export without subscribing to the data characteristic(`--data`)")
 
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse ID to receive logs for")
         parser.add_argument("--data", action="store_true", help="Subscribe to the data characteristic as well")
-        parser.add_argument("--csv", type=ValidDir, help="Save received TDFs from the data characteristic to CSV files"
-                            " in the specified folder")
+        parser.add_argument(
+            "--csv",
+            type=OutputFolder,
+            help="Save received TDFs from the data characteristic to CSV files in the specified folder",
+        )
         parser.add_argument("--unix", action="store_true", help="Save timestamps as unix")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"

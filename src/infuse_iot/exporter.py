@@ -12,6 +12,8 @@ class Exporter:
         """Initialize the Exporter with a save path.
         :param save_path: The directory where exported files will be saved.
         """
+        if not save_path.exists():
+            save_path.mkdir()
         self.save_path = save_path
 
     def write_lines(self, filename: Path, lines: list[str], header: Callable[[], str] | None = None):
