@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import os
 from collections.abc import Callable
 from io import TextIOWrapper
 from pathlib import Path
@@ -27,7 +26,9 @@ class Exporter:
                 print(f"Opening new {full_path}")
                 self._files[full_path] = open(full_path, "w", encoding="utf-8")  # noqa: SIM115
                 if header:
-                    self._files[full_path].write(header() + os.linesep)
-        for line in lines:
-            self._files[full_path].write(line + os.linesep)
+                    self._files[full_path].write(header() + '\n')
+
+        # Join lines here so only one `write` syscall is needed
+        output = '\n'.join(lines) + '\n'
+        self._files[full_path].write(output)
         self._files[full_path].flush()
