@@ -9,7 +9,8 @@ import colorama
 try:
     from simple_term_menu import TerminalMenu
 except NotImplementedError:
-    pass
+    TerminalMenu = None
+
 
 _lock = threading.Lock()
 
