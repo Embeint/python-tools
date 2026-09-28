@@ -69,6 +69,18 @@ class ValidDir:
         return p
 
 
+class OutputFolder:
+    """Filesystem output folder. Parent must exist."""
+
+    def __new__(cls, string: str) -> pathlib.Path:  # type: ignore
+        p = pathlib.Path(string)
+        if not p.parent.exists():
+            raise argparse.ArgumentTypeError(f"{p.parent} does not exist")
+        if p.exists() and p.is_file():
+            raise argparse.ArgumentTypeError(f"{p.parent} is not a folder")
+        return p
+
+
 class ValidRelease:
     """Infuse-IoT release folder"""
 
