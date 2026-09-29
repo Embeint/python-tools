@@ -266,6 +266,12 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
+        parser.add_argument(
+            "--report-interval",
+            type=float,
+            default=5.0,
+            help="Interval in seconds to output Bluetooth report counts (0 disables)",
+        )
         add_server_port_parser(parser)
 
     def __init__(self, args: argparse.Namespace):
@@ -274,6 +280,9 @@ class SubCommand(InfuseCommand):
         self.server = LocalServer(args.server_sock)
         self.bleak_mapping: dict[int, BLEDevice] = {}
         self.unknown_networks: set[int] = set()
+        self.report_interval: float = args.report_interval
+        self.report_count = 0
+        self.infuse_report_count = 0
         Console.init()
 
     async def server_handler(self):
@@ -292,8 +301,10 @@ class SubCommand(InfuseCommand):
             transport.close()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
+        self.report_count += 1
         if self.infuse_manu not in data.manufacturer_data:
             return
+        self.infuse_report_count += 1
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
@@ -330,9 +341,20 @@ class SubCommand(InfuseCommand):
         except OSError as e:
             Console.log_error(f"Failed to broadcast notification: {str(e)}")
 
+    async def report_counter(self):
+        while True:
+            await asyncio.sleep(self.report_interval)
+            count = self.report_count
+            infuse_count = self.infuse_report_count
+            self.report_count = 0
+            self.infuse_report_count = 0
+            Console.log_info(f"Observed {count} Bluetooth packets ({infuse_count} Infuse)")
+
     async def async_bt_receiver(self):
         loop = asyncio.get_event_loop()
         handler = loop.create_task(self.server_handler())
+        if self.report_interval > 0.0:
+            loop.create_task(self.report_counter())
 
         # MacOS does not support passive scanning
         scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
