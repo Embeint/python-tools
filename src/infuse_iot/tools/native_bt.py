@@ -336,7 +336,12 @@ class SubCommand(InfuseCommand):
 
         # MacOS does not support passive scanning
         scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
-        scanner = BleakScanner(self.simple_callback, scanning_mode=scanning_mode, cb=dict(use_bdaddr=True))
+        scanner = BleakScanner(
+            self.simple_callback,
+            scanning_mode=scanning_mode,
+            bluez={"filters": {"DuplicateData": True}},
+            cb=dict(use_bdaddr=True),
+        )
 
         while True:
             Console.log_info("Starting scanner")
