@@ -23,7 +23,7 @@ from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
-from infuse_iot.util.soc import nrf, soc, stm
+from infuse_iot.util.soc import nrf, rpi, soc, stm
 
 
 class SubCommand(InfuseCommand):
@@ -36,6 +36,10 @@ class SubCommand(InfuseCommand):
         vendor_group.add_argument(
             "--stm", dest="vendor", action="store_const", const="stm", help="ST Microelectronics SoC"
         )
+        vendor_group.add_argument(
+            "--rpi", dest="vendor", action="store_const", const="rpi", help="Raspberry Pi Pico over USB BOOTSEL"
+        )
+        parser.add_argument("--usb-serial", help="Select one Pico by its BOOTSEL USB serial number")
         parser.add_argument(
             "--snr",
             type=int,
@@ -65,6 +69,11 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._vendor: str = args.vendor
         self._snr: int | None = args.snr
+        self._usb_serial: str | None = args.usb_serial
+        if self._usb_serial and self._vendor != "rpi":
+            sys.exit("--usb-serial is only supported with --rpi")
+        if self._snr is not None and self._vendor == "rpi":
+            sys.exit("Use --usb-serial, not --snr, to select a Pico")
         try:
             self._board = UUID(args.board) if args.board else None
         except ValueError:
@@ -74,6 +83,13 @@ class SubCommand(InfuseCommand):
         except ValueError:
             sys.exit(f"Organisation ID: '{args.organisation}' is not a valid UUID")
         self._id: int | None = args.id
+        if self._vendor == "rpi" and self._id is not None:
+            if not 0 <= self._id <= rpi.UINT64_MAX:
+                sys.exit("Infuse ID must fit in an unsigned 64-bit integer")
+            try:
+                rpi.encode_record(self._id.to_bytes(8, "little"))
+            except ValueError as exc:
+                sys.exit(str(exc))
         self._dry_run: bool | None = args.dry_run
         self._metadata = {}
         if args.metadata:
@@ -128,11 +144,27 @@ class SubCommand(InfuseCommand):
             interface = nrf.Interface(self._snr)
         elif self._vendor == "stm":
             interface = stm.Interface()
+        elif self._vendor == "rpi":
+            interface = rpi.Interface(self._usb_serial)
         else:
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
 
+        try:
+            self._run(interface)
+        except ValueError as exc:
+            sys.exit(f"Provisioning failed: {exc}")
+        finally:
+            interface.close(reset=not self._dry_run)
+
+    def _run(self, interface: soc.ProvisioningInterface):
         hardware_id = interface.unique_device_id()
         hardware_id_str = f"{hardware_id:0{2 * interface.unique_device_id_len}x}"
+        # Validate local storage before creating a cloud device. In particular,
+        # Pico must not provision over an occupied or damaged flash sector.
+        current_bytes = interface.read_provisioned_data(ctypes.sizeof(interface.DefaultProvisioningStruct))
+        stored_id = None if current_bytes == b"\xff" * len(current_bytes) else int.from_bytes(current_bytes, "little")
+        if stored_id is not None and self._id is not None and stored_id != self._id:
+            sys.exit(f"Hardware already stores Infuse ID 0x{stored_id:016x}; refusing to replace it")
 
         client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
 
@@ -155,6 +187,8 @@ class SubCommand(InfuseCommand):
                 pass
             elif response.status_code == HTTPStatus.NOT_FOUND:
                 # Create new device here
+                if self._id is None and stored_id is not None:
+                    self._id = stored_id
                 self.create_device(client, interface.soc_name, hardware_id_str)
                 # Exit if dry run only
                 if self._dry_run:
@@ -179,7 +213,6 @@ class SubCommand(InfuseCommand):
         assert isinstance(response.parsed.device_id, str)
         # Compare current flash contents to desired flash contents
         cloud_id = int(response.parsed.device_id, 16)
-        current_bytes = interface.read_provisioned_data(ctypes.sizeof(interface.DefaultProvisioningStruct))
         desired = interface.DefaultProvisioningStruct(cloud_id)
         desired_bytes = bytes(desired)
 
@@ -187,13 +220,15 @@ class SubCommand(InfuseCommand):
             print(f"HW ID 0x{hardware_id:016x} already provisioned as 0x{desired.device_id:016x}")
         else:
             if current_bytes != len(current_bytes) * b"\xff":
-                print(f"HW ID 0x{hardware_id:016x} already has incorrect provisioning info, recover device")
+                sys.exit(
+                    f"HW ID 0x{hardware_id:016x} already has different provisioning info; refusing to overwrite it"
+                )
+
+            if self._dry_run:
+                print(f"Would provision HW ID 0x{hardware_id:016x} as 0x{desired.device_id:016x}; no data written")
                 return
-
-            interface.write_provisioning_data(bytes(desired))
+            interface.write_provisioning_data(desired_bytes)
             print(f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}")
-
-        interface.close()
 
         example_cmd = f"infuse provision --organisation {self._org} --board {self._board} --{self._vendor}"
         print("To provision more devices like this:")
