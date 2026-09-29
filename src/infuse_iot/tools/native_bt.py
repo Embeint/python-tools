@@ -291,6 +291,8 @@ class SubCommand(InfuseCommand):
             transport.close()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
+        if self.infuse_manu not in data.manufacturer_data:
+            return
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
@@ -331,7 +333,7 @@ class SubCommand(InfuseCommand):
         loop = asyncio.get_event_loop()
         handler = loop.create_task(self.server_handler())
 
-        scanner = BleakScanner(self.simple_callback, [str(InfuseBluetoothUUID.SERVICE_UUID)], cb=dict(use_bdaddr=True))
+        scanner = BleakScanner(self.simple_callback, cb=dict(use_bdaddr=True))
 
         while True:
             Console.log_info("Starting scanner")
