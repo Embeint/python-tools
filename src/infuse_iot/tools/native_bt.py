@@ -10,7 +10,8 @@ import asyncio
 import ctypes
 import json
 import random
-from typing import Any
+import sys
+from typing import Any, Literal
 
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -333,7 +334,9 @@ class SubCommand(InfuseCommand):
         loop = asyncio.get_event_loop()
         handler = loop.create_task(self.server_handler())
 
-        scanner = BleakScanner(self.simple_callback, cb=dict(use_bdaddr=True))
+        # MacOS does not support passive scanning
+        scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
+        scanner = BleakScanner(self.simple_callback, scanning_mode=scanning_mode, cb=dict(use_bdaddr=True))
 
         while True:
             Console.log_info("Starting scanner")
