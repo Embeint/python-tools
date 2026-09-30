@@ -2,7 +2,9 @@
 
 import os
 import subprocess
+from unittest.mock import patch
 
+import keyring.errors
 import pytest
 
 import infuse_iot.credentials as cred
@@ -51,6 +53,25 @@ def test_credentials():
 
     output = subprocess.check_output(["infuse", "credentials", "--api-key-print"]).decode()
     assert "API Key: N/A" in output
+
+
+def test_get_api_key_falls_back_to_env_when_keyring_backend_unavailable(monkeypatch):
+    monkeypatch.setenv("INFUSE_API_KEY", "env-key")
+
+    with (
+        patch("infuse_iot.credentials.keyring.get_password", side_effect=keyring.errors.NoKeyringError),
+    ):
+        assert cred.get_api_key() == "env-key"
+
+
+def test_get_api_key_missing_key_does_not_fall_back_to_env(monkeypatch):
+    monkeypatch.setenv("INFUSE_API_KEY", "env-key")
+
+    with (
+        patch("infuse_iot.credentials.keyring.get_password", return_value=None),
+        pytest.raises(FileNotFoundError),
+    ):
+        cred.get_api_key()
 
 
 def test_credentials_deprecated_messages(tmp_path):

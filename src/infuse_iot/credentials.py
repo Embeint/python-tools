@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import os
+
 import keyring
 import yaml
 
@@ -39,11 +41,18 @@ def get_api_key() -> str:
     """
     from infuse_iot.profile import get_active_profile_api_key_id
 
-    profile_api_key_id = get_active_profile_api_key_id()
-    if profile_api_key_id is not None:
-        return get_profile_api_key(profile_api_key_id)
+    try:
+        profile_api_key_id = get_active_profile_api_key_id()
+        if profile_api_key_id is not None:
+            return get_profile_api_key(profile_api_key_id)
 
-    key = keyring.get_password("infuse-iot", "api-key")
+        key = keyring.get_password("infuse-iot", "api-key")
+    except keyring.errors.NoKeyringError as error:
+        key = os.environ.get("INFUSE_API_KEY")
+        if key is None:
+            raise FileNotFoundError("API key does not exist in keyring") from error
+        return key
+
     if key is None:
         raise FileNotFoundError("API key does not exist in keyring")
     return key
