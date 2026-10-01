@@ -13,8 +13,64 @@ from infuse_iot.commands import Auth, InfuseRpcCommand
 from infuse_iot.definitions.rpc import rpc_enum_file_action
 
 
-class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
+class FileWriteTransfer(InfuseRpcCommand):
+    """Shared payload, progress, and response handling for file write RPCs."""
+
     RPC_DATA_SEND = True
+
+    def __init__(self, args):
+        self.file = args.file
+        self.action = args.action
+        self.progress = Progress(
+            *Progress.get_default_columns(),
+            DownloadColumn(),
+            TransferSpeedColumn(),
+        )
+        self.task = None
+
+        with open(self.file, "rb") as f:
+            self.payload = f.read()
+        self._expected_crc = binascii.crc32(self.payload)
+
+    def auth_level(self):
+        return Auth.NETWORK
+
+    def data_payload(self):
+        print("Preparing for file upload...")
+        return self.payload
+
+    def data_progress_cb(self, offset):
+        if self.task is None:
+            self.progress.start()
+            self.task = self.progress.add_task("Writing...", total=len(self.payload))
+        self.progress.update(self.task, completed=offset)
+
+    def handle_response(self, return_code, response):
+        self.progress.stop()
+
+        if return_code != 0:
+            print(f"Failed to write file ({self.return_code_str(return_code)})")
+            return
+        len_match = response.recv_len == len(self.payload)
+        crc_match = response.recv_crc == self._expected_crc
+
+        if (response.recv_len == 0) and crc_match:
+            print("File already existed")
+            print(f"\tLength: {len(self.payload)}")
+            print(f"\t   CRC: 0x{response.recv_crc:08x}")
+        elif (not len_match) or (not crc_match):
+            print("Unexpected write contents")
+            print(f"\tLength: {response.recv_len} (Expected {len(self.payload)})")
+            print(f"\t   CRC: 0x{response.recv_crc:08x} (Expected 0x{self._expected_crc:08x})")
+        else:
+            print("File written")
+            print(f"\tLength: {response.recv_len}")
+            print(f"\t   CRC: 0x{response.recv_crc:08x}")
+
+
+class file_write_basic(FileWriteTransfer, defs.file_write_basic):
+    def request_struct(self):
+        return self.request(self.action, self._expected_crc)
 
     @classmethod
     def add_parser(cls, parser):
@@ -75,55 +131,3 @@ class file_write_basic(InfuseRpcCommand, defs.file_write_basic):
             const=rpc_enum_file_action.FILE_FOR_COPY,
             help="File to copy to other device",
         )
-
-    def __init__(self, args):
-        self.file = args.file
-        self.action = args.action
-        self.progress = Progress(
-            *Progress.get_default_columns(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-        )
-        self.task = None
-
-        with open(self.file, "rb") as f:
-            self.payload = f.read()
-        self._expected_crc = binascii.crc32(self.payload)
-
-    def auth_level(self):
-        return Auth.NETWORK
-
-    def request_struct(self):
-        return self.request(self.action, self._expected_crc)
-
-    def data_payload(self):
-        print("Preparing for file upload...")
-        return self.payload
-
-    def data_progress_cb(self, offset):
-        if self.task is None:
-            self.progress.start()
-            self.task = self.progress.add_task("Writing...", total=len(self.payload))
-        self.progress.update(self.task, completed=offset)
-
-    def handle_response(self, return_code, response):
-        self.progress.stop()
-
-        if return_code != 0:
-            print(f"Failed to write file ({self.return_code_str(return_code)})")
-            return
-        len_match = response.recv_len == len(self.payload)
-        crc_match = response.recv_crc == self._expected_crc
-
-        if (response.recv_len == 0) and crc_match:
-            print("File already existed")
-            print(f"\tLength: {len(self.payload)}")
-            print(f"\t   CRC: 0x{response.recv_crc:08x}")
-        elif (not len_match) or (not crc_match):
-            print("Unexpected write contents")
-            print(f"\tLength: {response.recv_len} (Expected {len(self.payload)})")
-            print(f"\t   CRC: 0x{response.recv_crc:08x} (Expected 0x{self._expected_crc:08x})")
-        else:
-            print("File written")
-            print(f"\tLength: {response.recv_len}")
-            print(f"\t   CRC: 0x{response.recv_crc:08x}")
