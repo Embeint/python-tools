@@ -27,7 +27,7 @@ class SubCommand(InfuseCommand):
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.2)
         for col in self.df.columns[1:]:
             fig.add_trace(
-                go.Scatter(x=self.df["time"], y=self.df[col], name=col),
+                go.Scatter(x=self.df["time"].to_list(), y=self.df[col].to_list(), name=col),
                 row=2 if col == "labels" else 1,
                 col=1,
             )
@@ -36,13 +36,16 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         import polars as pl
-        from dash import Dash, Input, Output, State, callback, dcc, html
+        from dash import Dash, Input, Output, State, dcc, html
         from dateutil import parser as date_parser
 
         # Read data, add label column
         self.df = pl.read_csv(self.file, try_parse_dates=True).with_columns(
             pl.lit(self.labels[0]).alias("labels")
         )
+        if self.df.is_empty():
+            raise ValueError("CSV file contains no readings to annotate")
+        self.selection = [self.df["time"][0], self.df["time"][-1]]
 
         app = Dash()
         app.layout = html.Div(
@@ -55,12 +58,12 @@ class SubCommand(InfuseCommand):
                         html.Button("Add new label", id="button-label-add"),
                     ]
                 ),
-                dcc.RadioItems(id="label-current", options=self.labels),
+                dcc.RadioItems(id="label-current", options=self.labels, value=self.labels[0]),
                 html.Button("Remove label", id="button-label-remove"),
             ]
         )
 
-        @callback(
+        @app.callback(
             Output("label-current", "options", True),
             Input("button-label-add", "n_clicks"),
             State("input-on-submit", "value"),
@@ -70,7 +73,7 @@ class SubCommand(InfuseCommand):
             self.labels.append(value)
             return self.labels
 
-        @callback(
+        @app.callback(
             Output("label-current", "options", True),
             Input("button-label-remove", "n_clicks"),
             State("label-current", "value"),
@@ -83,20 +86,22 @@ class SubCommand(InfuseCommand):
                 pass
             return self.labels
 
-        @callback(Input("graph", "relayoutData"))
+        @app.callback(Input("graph", "relayoutData"))
         def store_relayout_data(relayoutData):
+            if not relayoutData:
+                return
             if relayoutData.get("autosize", False) or relayoutData.get("xaxis.autorange", False):
                 self.selection = [
                     self.df["time"][0],
                     self.df["time"][self.df.shape[0] - 1],
                 ]
-            else:
+            elif "xaxis.range[0]" in relayoutData and "xaxis.range[1]" in relayoutData:
                 self.selection = [
                     date_parser.parse(relayoutData["xaxis.range[0]"]),
                     date_parser.parse(relayoutData["xaxis.range[1]"]),
                 ]
 
-        @callback(
+        @app.callback(
             Output("graph", "figure"),
             Input("button-label-selection", "n_clicks"),
             State("label-current", "value"),
@@ -111,4 +116,4 @@ class SubCommand(InfuseCommand):
             )
             return self.make_plots()
 
-        app.run_server(debug=True)
+        app.run(debug=False)
