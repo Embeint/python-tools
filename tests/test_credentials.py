@@ -2,14 +2,42 @@
 
 import os
 import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import patch
 
+import keyring
 import keyring.errors
 import pytest
+from keyrings.alt.file import PlaintextKeyring  # type: ignore[import-untyped]
 
 import infuse_iot.credentials as cred
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
+
+
+def test_keyring_is_isolated():
+    backend = keyring.get_keyring()
+    assert isinstance(backend, PlaintextKeyring)
+    assert Path(backend.file_path).resolve().is_relative_to(Path(os.environ["TOXTEMPDIR"]).resolve())
+
+
+@pytest.mark.parametrize("setting", ["backend", "path"])
+def test_unsafe_test_environment_is_rejected(setting):
+    env = os.environ.copy()
+    if setting == "backend":
+        env["PYTHON_KEYRING_BACKEND"] = "keyring.backends.null.Keyring"
+    else:
+        env["KEYRING_PROPERTY_FILE_PATH"] = str(Path(env["TOXTEMPDIR"]).parent / "outside-keyring.cfg")
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", __file__],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 4
+    assert "credential storage" in result.stderr if setting == "backend" else "TOXTEMPDIR" in result.stderr
 
 
 def _run_credentials(*args):
