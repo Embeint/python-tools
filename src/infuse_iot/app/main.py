@@ -63,7 +63,12 @@ class InfuseApp:
         self._print_profile_banner(self.args)
 
         tool = self.args.tool_class(self.args)
-        tool.run()
+        try:
+            tool.run()
+        finally:
+            # Older extension tools may not inherit InfuseCommand or implement close().
+            if close := getattr(tool, "close", None):
+                close()
 
     @staticmethod
     def _print_profile_banner(args: argparse.Namespace):

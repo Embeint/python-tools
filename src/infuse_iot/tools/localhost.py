@@ -63,75 +63,74 @@ class SubCommand(InfuseCommand):
         return web.FileResponse(this_folder / "localhost" / "index.html")
 
     def websocket_message(self) -> dict:
-        self._data_lock.acquire(blocking=True)
-        columns = [
-            {
-                "title": "Metadata",
-                "headerHozAlign": "center",
-                "frozen": True,
-                "columns": [
-                    {
-                        "title": "Device",
-                        "field": "infuse_id",
-                        "headerHozAlign": "center",
-                    },
-                    {
-                        "title": "App ID",
-                        "field": "application",
-                        "headerHozAlign": "center",
-                    },
-                    {
-                        "title": "Network",
-                        "field": "network_id",
-                        "headerHozAlign": "center",
-                    },
-                    {
-                        "title": "Last Heard",
-                        "field": "time",
-                        "headerHozAlign": "center",
-                    },
-                    {
-                        "title": "Bluetooth",
-                        "headerHozAlign": "center",
-                        "columns": [
-                            {
-                                "title": "Address",
-                                "field": "bt_addr",
-                                "headerHozAlign": "center",
-                            },
-                            {
-                                "title": "RSSI (dBm)",
-                                "field": "bt_rssi",
-                                "headerVertical": "flip",
-                                "hozAlign": "right",
-                            },
-                        ],
-                    },
-                ],
-            }
-        ]
-        # Put the announce TDFs first for clarity
-        priorities = {"ANNOUNCE_V2": 0, "ANNOUNCE": 1}
-        sorted_tdfs = sorted(self._columns, key=lambda x: priorities.get(x, 2))
-
-        for tdf_name in sorted_tdfs:
-            columns.append(
+        with self._data_lock:
+            columns = [
                 {
-                    "title": tdf_name,
-                    "field": tdf_name,
-                    "columns": self._columns[tdf_name],
+                    "title": "Metadata",
                     "headerHozAlign": "center",
+                    "frozen": True,
+                    "columns": [
+                        {
+                            "title": "Device",
+                            "field": "infuse_id",
+                            "headerHozAlign": "center",
+                        },
+                        {
+                            "title": "App ID",
+                            "field": "application",
+                            "headerHozAlign": "center",
+                        },
+                        {
+                            "title": "Network",
+                            "field": "network_id",
+                            "headerHozAlign": "center",
+                        },
+                        {
+                            "title": "Last Heard",
+                            "field": "time",
+                            "headerHozAlign": "center",
+                        },
+                        {
+                            "title": "Bluetooth",
+                            "headerHozAlign": "center",
+                            "columns": [
+                                {
+                                    "title": "Address",
+                                    "field": "bt_addr",
+                                    "headerHozAlign": "center",
+                                },
+                                {
+                                    "title": "RSSI (dBm)",
+                                    "field": "bt_rssi",
+                                    "headerVertical": "flip",
+                                    "hozAlign": "right",
+                                },
+                            ],
+                        },
+                    ],
                 }
-            )
-        devices = sorted(self._data.keys())
-        message = {
-            "columns": columns,
-            "rows": [self._data[d] for d in devices],
-            "tdfs": sorted(list(self._columns.keys())),
-            "apps": sorted(list(self._apps)),
-            "networks": sorted(list(self._networks)),
-        }
-        self._data_lock.release()
+            ]
+            # Put the announce TDFs first for clarity
+            priorities = {"ANNOUNCE_V2": 0, "ANNOUNCE": 1}
+            sorted_tdfs = sorted(self._columns, key=lambda x: priorities.get(x, 2))
+
+            for tdf_name in sorted_tdfs:
+                columns.append(
+                    {
+                        "title": tdf_name,
+                        "field": tdf_name,
+                        "columns": self._columns[tdf_name],
+                        "headerHozAlign": "center",
+                    }
+                )
+            devices = sorted(self._data.keys())
+            message = {
+                "columns": columns,
+                "rows": [self._data[d] for d in devices],
+                "tdfs": sorted(list(self._columns.keys())),
+                "apps": sorted(list(self._apps)),
+                "networks": sorted(list(self._networks)),
+            }
         return message
 
     async def websocket_handler(self, request: BaseRequest):
@@ -209,50 +208,49 @@ class SubCommand(InfuseCommand):
 
         source = msg.epacket.route[0]
 
-        self._data_lock.acquire(blocking=True)
+        with self._data_lock:
 
-        if source.infuse_id not in self._data:
-            self._data[source.infuse_id] = {
-                "infuse_id": _display_device_id(source.infuse_id),
-                "application": "Unknown",
-            }
+            if source.infuse_id not in self._data:
+                self._data[source.infuse_id] = {
+                    "infuse_id": _display_device_id(source.infuse_id),
+                    "application": "Unknown",
+                }
 
-        self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
-        if source.interface == interface.ID.BT_ADV:
-            addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
-            addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
-            self._data[source.infuse_id]["bt_addr"] = addr_str
-            self._data[source.infuse_id]["bt_rssi"] = source.rssi
+            self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
+            if source.interface == interface.ID.BT_ADV:
+                addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
+                addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
+                self._data[source.infuse_id]["bt_addr"] = addr_str
+                self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
-        if source.auth == packet.Auth.NETWORK:
-            key_id_str = f"0x{source.key_identifier:06x}"
-            self._data[source.infuse_id]["network_id"] = key_id_str
-            self._networks.add(key_id_str)
+            if source.auth == packet.Auth.NETWORK:
+                key_id_str = f"0x{source.key_identifier:06x}"
+                self._data[source.infuse_id]["network_id"] = key_id_str
+                self._networks.add(key_id_str)
 
-        for tdf in self._decoder.decode(msg.epacket.payload):
-            t = tdf.data[-1]
-            if t.NAME not in self._columns:
-                self._columns[t.NAME] = self.tdf_columns(t)
-            if t.NAME not in self._data[source.infuse_id]:
-                self._data[source.infuse_id][t.NAME] = {}
-            if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
-                app_str = f"0x{t.application:08x}"
-                self._data[source.infuse_id]["application"] = app_str
-                self._apps.add(app_str)
+            for tdf in self._decoder.decode(msg.epacket.payload):
+                t = tdf.data[-1]
+                if t.NAME not in self._columns:
+                    self._columns[t.NAME] = self.tdf_columns(t)
+                if t.NAME not in self._data[source.infuse_id]:
+                    self._data[source.infuse_id][t.NAME] = {}
+                if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
+                    app_str = f"0x{t.application:08x}"
+                    self._data[source.infuse_id]["application"] = app_str
+                    self._apps.add(app_str)
 
-            for field in t.iter_fields(nested_iter=False):
-                if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
-                    # Special case version struct to make reading versions easier
-                    val = f"{field.val.major}.{field.val.minor}.{field.val.revision}+{field.val.build_num:08x}"
-                    self._data[source.infuse_id][t.NAME][field.field] = val
-                elif isinstance(field.val, TdfStructBase):
-                    for s in field.val.iter_fields(field.field):
-                        if s.field not in self._data[source.infuse_id][t.NAME]:
-                            self._data[source.infuse_id][t.NAME][s.field] = {}
-                        self._data[source.infuse_id][t.NAME][s.field][s.subfield] = s.val_fmt()
-                else:
-                    self._data[source.infuse_id][t.NAME][field.field] = field.val_fmt()
-        self._data_lock.release()
+                for field in t.iter_fields(nested_iter=False):
+                    if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
+                        # Special case version struct to make reading versions easier
+                        val = f"{field.val.major}.{field.val.minor}.{field.val.revision}+{field.val.build_num:08x}"
+                        self._data[source.infuse_id][t.NAME][field.field] = val
+                    elif isinstance(field.val, TdfStructBase):
+                        for s in field.val.iter_fields(field.field):
+                            if s.field not in self._data[source.infuse_id][t.NAME]:
+                                self._data[source.infuse_id][t.NAME][s.field] = {}
+                            self._data[source.infuse_id][t.NAME][s.field][s.subfield] = s.val_fmt()
+                    else:
+                        self._data[source.infuse_id][t.NAME][field.field] = field.val_fmt()
 
     def run(self):
         if not self._client.comms_check():
@@ -275,4 +273,7 @@ class SubCommand(InfuseCommand):
             pass
         finally:
             rx_thread.stop()
-        rx_thread.join(1.0)
+            rx_thread.join()
+
+    def close(self):
+        self._client.close()
