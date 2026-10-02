@@ -527,16 +527,17 @@ class SubCommand(InfuseCommand):
         finally:
             rx_thread.stop()
             tx_thread.stop()
+            rx_thread.join(1.0)
+            tx_thread.join(1.0)
 
-        # Wait for threads to terminate
-        rx_thread.join(1.0)
-        tx_thread.join(1.0)
-
-        # Cleanup serial port
+    def close(self):
         try:
             self.port.close()
         except Exception:
             pass
-
-        if self.log:
-            self.log.flush()
+        try:
+            if self.log is not None:
+                self.log.close()
+        finally:
+            if self.server is not None:
+                self.server.close()

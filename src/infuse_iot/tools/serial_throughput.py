@@ -112,3 +112,6 @@ class SubCommand(InfuseCommand):
         self.run_send_test(self._iterations, 32, 5)
         self.run_send_test(self._iterations, 128, 5)
         self.run_send_test(self._iterations, 512, 5)
+
+    def close(self):
+        self._client.close()
