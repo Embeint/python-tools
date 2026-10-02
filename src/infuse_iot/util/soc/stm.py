@@ -183,6 +183,7 @@ class Interface(ProvisioningInterface):
         cmd_write = cmd_base + ["-w32", hex(self._family.OTP_ADDRESS)] + [f"0x{w:08x}" for w in words]
         subprocess.run(cmd_write, capture_output=True, check=True)
 
-    def close(self):
-        cmd_reset = [str(self._cli), "--connect", "port=SWD", "-rst"]
-        subprocess.run(cmd_reset, capture_output=True, check=True)
+    def close(self, *, reset: bool = True):
+        if reset:
+            cmd_reset = [str(self._cli), "--connect", "port=SWD", "-rst"]
+            subprocess.run(cmd_reset, capture_output=True, check=True)

@@ -133,8 +133,9 @@ class Interface(ProvisioningInterface):
 
         return jout_all
 
-    def close(self):
-        self._exec(["reset"])
+    def close(self, *, reset: bool = True):
+        if reset:
+            self._exec(["reset"])
 
     @property
     def soc_name(self) -> str:
