@@ -9,10 +9,36 @@ from pathlib import Path
 from unittest.mock import patch
 
 import platformdirs
+import pytest
 
 import infuse_iot.credentials as cred
+from infuse_iot.profile import ProfileConfig, save_profile_config
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
+
+
+@pytest.mark.parametrize("failure", ["write", "replace"])
+def test_failed_profile_save_preserves_existing_store(tmp_path, monkeypatch, failure):
+    path = tmp_path / "profiles.json"
+    original = '{"active_profile": null, "profiles": {}}\n'
+    path.write_text(original, encoding="utf-8")
+    monkeypatch.setattr("infuse_iot.profile.profile_store_path", lambda: path)
+
+    def fail_write(_data, file, **_kwargs):
+        file.write('{"incomplete":')
+        raise OSError("Interrupted write")
+
+    def fail_replace(*_args):
+        raise OSError("Replacement failed")
+
+    if failure == "write":
+        monkeypatch.setattr("infuse_iot.profile.json.dump", fail_write)
+    else:
+        monkeypatch.setattr(Path, "replace", fail_replace)
+    with pytest.raises(OSError):
+        save_profile_config(ProfileConfig(active_profile=None, profiles={}))
+    assert path.read_text(encoding="utf-8") == original
+    assert list(tmp_path.iterdir()) == [path]
 
 
 def profile_test_env(tmp_path, monkeypatch=None) -> dict[str, str]:
