@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
 import platformdirs
@@ -49,17 +50,25 @@ def load_profile_config() -> ProfileConfig:
 def save_profile_config(config: ProfileConfig) -> None:
     path = profile_store_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "active_profile": config.active_profile,
-                "profiles": {name: asdict(profile) for name, profile in config.profiles.items()},
-            },
-            f,
-            indent=2,
-            sort_keys=True,
-        )
-        f.write("\n")
+    temporary_path: Path | None = None
+    try:
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as f:
+            temporary_path = Path(f.name)
+            json.dump(
+                {
+                    "active_profile": config.active_profile,
+                    "profiles": {name: asdict(profile) for name, profile in config.profiles.items()},
+                },
+                f,
+                indent=2,
+                sort_keys=True,
+            )
+            f.write("\n")
+        # Close the temporary file before replacing the store, including on Windows.
+        temporary_path.replace(path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def load_raw_profile_config() -> dict | None:
