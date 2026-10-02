@@ -131,8 +131,8 @@ class SubCommand(InfuseCommand):
                     trace_name = f"{trace_prefix}: {column}" if trace_prefix else column
                     figure.add_trace(
                         go.Scattergl(
-                            x=x_data,
-                            y=y_data,
+                            x=x_data.to_list(),
+                            y=y_data.to_list(),
                             name=trace_name,
                             mode="lines",
                         )
