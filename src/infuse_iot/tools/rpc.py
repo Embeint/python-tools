@@ -87,7 +87,7 @@ class SubCommand(InfuseCommand):
             with self._client.connection(self._id, types, self._args.conn_timeout) as mtu:
                 self._max_payload = mtu
                 rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler)
-                rpc_client.set_timeout(self._command.command_timeout_ms())
+                rpc_client.set_timeout(self._command.command_timeout_ms() / 1000)
                 params = bytes(self._command.request_struct())
 
                 if hasattr(self._command.response, "vla_from_buffer_copy"):  # type: ignore
@@ -137,5 +137,11 @@ class SubCommand(InfuseCommand):
                     while True:
                         if notification := self._client.receive():
                             self.rx_handler(notification)
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, TimeoutError):
             print(f"Unable to connect to {self._id:016x}")
+        except ConnectionAbortedError:
+            print(f"Connection to {self._id:016x} lost")
+
+    def close(self):
+        if not self._missing_subcommand:
+            self._client.close()

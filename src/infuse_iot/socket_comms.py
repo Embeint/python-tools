@@ -326,18 +326,25 @@ class LocalClient:
     def send(self, request: GatewayRequest):
         self._output_sock.sendto(json.dumps(request.to_json()).encode("utf-8"), self._output_addr)
 
-    def receive(self) -> ClientNotification | None:
+    def receive(self, timeout: float | None = None) -> ClientNotification | None:
+        """Receive a notification, optionally limiting the configured socket timeout."""
+        original_timeout = self._input_sock.gettimeout()
+        if timeout is not None:
+            self._input_sock.settimeout(timeout if original_timeout is None else min(timeout, original_timeout))
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
+        finally:
+            if timeout is not None:
+                self._input_sock.settimeout(original_timeout)
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
     def comms_check(self, timeout: float = 0.5) -> bool:
-        expiry = time.time() + timeout
+        expiry = time.monotonic() + timeout
         self.send(GatewayRequestCommsCheck())
-        while time.time() < expiry:
-            rsp = self.receive()
+        while (remaining := expiry - time.monotonic()) > 0:
+            rsp = self.receive(timeout=remaining)
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationCommsCheck):
@@ -348,44 +355,56 @@ class LocalClient:
     def connection_create(
         self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int
     ) -> int:
+        if self._connection_id is not None:
+            raise RuntimeError("Client already has a connection context")
         self._connection_id = infuse_id
 
         # Send the request for the connection
         req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms)
-        self.send(req)
-        # Wait for response from the server
-        while True:
-            if rsp := self.receive():
+        try:
+            self.send(req)
+            expiry = time.monotonic() + timeout_ms / 1000
+            # Notifications are broadcast to every client, including other devices' connection results.
+            while (remaining := expiry - time.monotonic()) > 0:
+                rsp = self.receive(timeout=remaining)
+                if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
+                    continue
+                if rsp.infuse_id != infuse_id:
+                    continue
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
-                elif isinstance(rsp, ClientNotificationConnectionFailed):
-                    raise ConnectionRefusedError
+                self._connection_id = None
+                raise ConnectionRefusedError(f"Unable to connect to {infuse_id:016x}")
+            raise TimeoutError(f"Timed out connecting to {infuse_id:016x}")
+        except BaseException:
+            # Cancel requests that may still be pending on the gateway. A rejected request has no context to release.
+            try:
+                self.connection_release()
+            except OSError:
+                pass
+            raise
 
     def connection_release(self):
-        assert self._connection_id is not None
-
-        req = GatewayRequestConnectionRelease(
-            self._connection_id,
-        )
-        self.send(req)
+        if self._connection_id is None:
+            return
+        req = GatewayRequestConnectionRelease(self._connection_id)
         self._connection_id = None
+        self.send(req)
 
     @contextmanager
     def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int = 10000):
+        max_payload = self.connection_create(infuse_id, data_types, timeout_ms)
         try:
-            yield self.connection_create(infuse_id, data_types, timeout_ms)
+            yield max_payload
         finally:
             self.connection_release()
 
     def close(self):
-        # Cleanup any lingering connection context
-        if self._connection_id:
-            req = GatewayRequestConnectionRelease(
-                self._connection_id,
-            )
-            self.send(req)
-        # Close the socket
-        self._input_sock.close()
+        try:
+            self.connection_release()
+        finally:
+            self._input_sock.close()
+            self._output_sock.close()
 
     def receive_tdf(self) -> ClientNotificationEpacketReceived | None:
         msg = self.receive()
