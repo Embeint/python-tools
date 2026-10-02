@@ -7,7 +7,6 @@ __copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"
 
 import binascii
 import glob
-import os
 import pathlib
 import sys
 
@@ -43,13 +42,19 @@ class DeviceState:
         if not self.path.exists():
             self.path.touch()
         else:
-            self.on_disk = os.path.getsize(self.path) // self.BLOCK_SIZE
+            size = self.path.stat().st_size
+            if size % self.BLOCK_SIZE:
+                raise ValueError(
+                    f"Cannot resume {self.path}: file length {size} is not a multiple of {self.BLOCK_SIZE}"
+                )
+            self.on_disk = size // self.BLOCK_SIZE
 
     def observe(self, announce: readings.announce | readings.announce_v2):
         self.on_device = announce.blocks
 
     def append_data(self, data: bytes):
-        assert len(data) % self.BLOCK_SIZE == 0
+        if len(data) % self.BLOCK_SIZE:
+            raise ValueError("Logger data must contain complete blocks")
         new_blocks = len(data) // self.BLOCK_SIZE
 
         with self.path.open("+ba") as f:
@@ -60,7 +65,6 @@ class DeviceState:
 
 class SubCommand(InfuseCommand):
     def __init__(self, args):
-        self._client = LocalClient(args.server_sock, 1.0)
         self._min_rssi: int | None = args.rssi
         self._app = args.app
         self._out = args.out
@@ -84,6 +88,9 @@ class SubCommand(InfuseCommand):
             device_id = int(name_parts[0], 16)
 
             self._device_state[device_id] = DeviceState(file_path)
+        if self._blocks_max <= 0:
+            raise ValueError("Number of blocks per connection must be positive")
+        self._client = LocalClient(args.server_sock, 1.0)
 
     @classmethod
     def add_parser(cls, parser):
@@ -117,7 +124,12 @@ class SubCommand(InfuseCommand):
         table.add_column("Downloaded", justify="right")
         for device, state in self._device_state.items():
             on_device = str(state.on_device) if state.on_device is not None else "?"
-            percent = f"{100 * state.on_disk / state.on_device:.0f}" if state.on_device is not None else "?"
+            if state.on_device is None:
+                percent = "?"
+            elif state.on_device == 0:
+                percent = "100" if state.on_disk == 0 else "?"
+            else:
+                percent = f"{100 * state.on_disk / state.on_device:.0f}"
             table.add_row(f"{device:016x}", f"{state.on_disk} ({percent:>3s}%)", on_device, str(state.downloaded))
 
         meta = Table(box=None)
@@ -160,18 +172,20 @@ class SubCommand(InfuseCommand):
                     self.data_progress_cb,
                     data_logger_read.response.from_buffer_copy,
                 )
-                if hdr.return_code == 0:
-                    assert isinstance(rsp, data_logger_read.response)
-                    if rsp.sent_len == len(self.pending_bytes) and rsp.sent_crc == binascii.crc32(self.pending_bytes):
-                        state.append_data(self.pending_bytes)
-                if self.task is not None:
-                    self.progress.remove_task(self.task)
-                    self.task = None
-
-        except ConnectionRefusedError:
+                if (
+                    hdr is not None
+                    and hdr.return_code == 0
+                    and isinstance(rsp, data_logger_read.response)
+                    and rsp.sent_len == len(self.pending_bytes)
+                    and rsp.sent_crc == binascii.crc32(self.pending_bytes)
+                ):
+                    state.append_data(self.pending_bytes)
+        except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
             self.state_update(live, "Scanning")
-        except ConnectionAbortedError:
-            self.state_update(live, "Scanning")
+        finally:
+            if self.task is not None:
+                self.progress.remove_task(self.task)
+                self.task = None
 
     def run(self):
         if not self._client.comms_check():
@@ -201,3 +215,6 @@ class SubCommand(InfuseCommand):
                 assert state.on_device is not None
                 if state.on_disk < state.on_device:
                     self.handle_sync(live, source.infuse_id, state)
+
+    def close(self):
+        self._client.close()

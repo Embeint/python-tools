@@ -660,10 +660,8 @@ class SubCommand(InfuseCommand):
         finally:
             rx_thread.stop()
             tx_thread.stop()
-
-        # Wait for threads to terminate
-        rx_thread.join(1.0)
-        tx_thread.join(1.0)
+            rx_thread.join(1.0)
+            tx_thread.join(1.0)
 
         if self.log:
             self.log.flush()
@@ -673,3 +671,12 @@ class SubCommand(InfuseCommand):
             self.port.close()
         except Exception:
             pass
+
+    def close(self):
+        self._close_port()
+        try:
+            if self.log is not None:
+                self.log.close()
+        finally:
+            if self.server is not None:
+                self.server.close()

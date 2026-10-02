@@ -30,7 +30,7 @@ class Exporter:
             else:
                 print(f"Opening new {full_path}")
                 self._files[full_path] = self._stack.enter_context(
-                    open(full_path, "w", encoding="utf-8")  # noqa: SIM115
+                    open(full_path, "a", encoding="utf-8")  # noqa: SIM115
                 )
                 if header:
                     self._files[full_path].write(header() + '\n')
