@@ -77,10 +77,13 @@ class SubCommand(InfuseCommand):
     def handle_connection(self):
         with ExitStack() as stack:
             Console.log_info("Waiting for frequency information...")
-            while evt := self._client.receive():
+            while True:
+                evt = self._client.receive()
                 if evt is None:
                     continue
                 if isinstance(evt, ClientNotificationConnectionDropped):
+                    if evt.infuse_id != self._id:
+                        continue
                     Console.log_error(f"Connection to {self._id:016x} lost")
                     break
                 if not isinstance(evt, ClientNotificationEpacketReceived):
@@ -117,7 +120,7 @@ class SubCommand(InfuseCommand):
 
         except KeyboardInterrupt:
             Console.log_error(f"Disconnecting from {self._id:016x}")
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, TimeoutError):
             Console.log_error(f"Unable to connect to {self._id:016x}")
 
         if self._left:
@@ -126,3 +129,6 @@ class SubCommand(InfuseCommand):
         if self._right:
             assert self._freq
             Console.log_text(f"Right Channel Recorded: {self._right.getnframes() / self._freq} Seconds")
+
+    def close(self):
+        self._client.close()
