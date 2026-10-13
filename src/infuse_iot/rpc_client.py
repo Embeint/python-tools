@@ -49,18 +49,16 @@ class RpcClient:
             rsp_data = None
         return (rsp_header, rsp_data)
 
-    def _client_recv(self, timeout: float | None = None) -> ClientNotification | None:
-        rsp = self._client.receive(timeout=timeout)
+    def _client_recv(self) -> ClientNotification | None:
+        rsp = self._client.receive()
         if rsp is not None and self._rx_cb is not None:
             self._rx_cb(rsp)
         return rsp
 
     def _wait_data_ack(self) -> PacketReceived | None:
-        timeout = time.monotonic() + self._timeout
-        while (remaining := timeout - time.monotonic()) > 0:
-            rsp = self._client_recv(remaining)
-            if isinstance(rsp, ClientNotificationConnectionDropped) and rsp.infuse_id == self._id:
-                raise ConnectionAbortedError
+        timeout = time.time() + self._timeout
+        while time.time() < timeout:
+            rsp = self._client_recv()
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
@@ -79,12 +77,10 @@ class RpcClient:
         return None
 
     def _wait_rpc_rsp(self) -> PacketReceived | None:
-        timeout = time.monotonic() + self._timeout
+        timeout = time.time() + self._timeout
         # Wait for responses
-        while (remaining := timeout - time.monotonic()) > 0:
-            rsp = self._client_recv(remaining)
-            if isinstance(rsp, ClientNotificationConnectionDropped) and rsp.infuse_id == self._id:
-                raise ConnectionAbortedError
+        while time.time() < timeout:
+            rsp = self._client_recv()
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
@@ -206,8 +202,7 @@ class RpcClient:
         size: int,
         recv_cb: Callable[[int, bytes], None],
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
-        """Receive data until the response, returning (None, None) after an inactivity timeout."""
+    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)
         data_hdr = rpc.RequestDataHeader(size, 0)
@@ -222,12 +217,11 @@ class RpcClient:
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
 
-        expiry = time.monotonic() + self._timeout
-        while (remaining := expiry - time.monotonic()) > 0:
-            rsp = self._client_recv(remaining)
+        while True:
+            rsp = self._client_recv()
             if rsp is None:
                 continue
-            if isinstance(rsp, ClientNotificationConnectionDropped) and rsp.infuse_id == self._id:
+            if isinstance(rsp, ClientNotificationConnectionDropped):
                 raise ConnectionAbortedError
             if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
@@ -236,7 +230,10 @@ class RpcClient:
                 # Response to the request we sent
                 if rsp_header.request_id != self._request_id:
                     continue
-                return self._finalise_command(rsp.epacket, rsp_decoder)
+                # Convert response bytes back to struct form
+                rsp_payload = rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
+                rsp_data = rsp_decoder(rsp_payload)
+                return (rsp_header, rsp_data)
 
             if rsp.epacket.ptype != InfuseType.RPC_DATA:
                 continue
@@ -246,8 +243,6 @@ class RpcClient:
                 continue
 
             recv_cb(data.offset, rsp.epacket.payload[ctypes.sizeof(rpc.DataHeader) :])
-            expiry = time.monotonic() + self._timeout
-        return None, None
 
     def run_standard_cmd(
         self, cmd_id: int, auth: Auth, params: bytes, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]

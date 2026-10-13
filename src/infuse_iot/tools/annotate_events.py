@@ -164,7 +164,6 @@ class SubCommand(InfuseCommand):
         self.rpc_client: RpcClient | None = None
         self.connected = False
         self.complete = False
-        self._listener: Thread | None = None
 
     def get_tags_current_gps_time(self) -> float:
         now = datetime.now()
@@ -289,8 +288,8 @@ class SubCommand(InfuseCommand):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 
-        self._listener = Thread(target=self.connection_listener, daemon=True)
-        self._listener.start()
+        cl = Thread(target=self.connection_listener, daemon=True)
+        cl.start()
 
         while not self.complete:
             with (
@@ -326,9 +325,3 @@ class SubCommand(InfuseCommand):
                         print("Failed to send annotation event to tag")
                         continue
                     annotate_wrapper.handle_response_generic(hdr.return_code, self._logger, now, label)
-
-    def close(self):
-        self.complete = True
-        if self._listener is not None:
-            self._listener.join()
-        self._client.close()

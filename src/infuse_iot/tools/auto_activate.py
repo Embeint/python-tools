@@ -83,7 +83,7 @@ class SubCommand(InfuseCommand):
                 if hdr.return_code == 0:
                     self.updated.add(infuse_id)
 
-        except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
+        except ConnectionRefusedError:
             self.state_update(live, "Scanning")
             return
         self.state_update(live, "Scanning")
@@ -99,6 +99,3 @@ class SubCommand(InfuseCommand):
                 else:
                     self.update_active_state(live, source.infuse_id, self.active)
                 live.update(self.progress_table())
-
-    def close(self):
-        self.client.close()

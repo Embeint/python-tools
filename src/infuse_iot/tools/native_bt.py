@@ -38,7 +38,6 @@ from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
     ClientNotificationConnectionCreated,
-    ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
     GatewayRequest,
@@ -72,7 +71,6 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._mapping = bleak_mapping
         self._queues: dict[int, asyncio.Queue] = {}
         self._tasks: dict[int, asyncio.Task] = {}
-        self._connected: set[int] = set()
         self._rpc = LocalRpcServer(database, native_bt=True)
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
@@ -114,26 +112,9 @@ class MulticastHandler(asyncio.DatagramProtocol):
     async def create_connection_internal(
         self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
     ):
-        subscribed = request.DataType(0)
-
-        async def subscribe(types):
-            nonlocal subscribed
-            characteristics = (
-                (request.DataType.COMMAND, InfuseBluetoothUUID.COMMAND_CHAR),
-                (request.DataType.DATA, InfuseBluetoothUUID.DATA_CHAR),
-                (request.DataType.LOGGING, InfuseBluetoothUUID.LOGGING_CHAR),
-            )
-            for flag, uuid in characteristics:
-                if types & flag and not subscribed & flag:
-                    await client.start_notify(uuid, self.notification_handler)
-                    subscribed |= flag
-
+        command_notify_enabled = False
         Console.log_info(f"{request.infuse_id:016x}: Initiating connection")
-        async with BleakClient(
-            dev,
-            timeout=request.timeout_ms / 1000,
-            disconnected_callback=lambda _: queue.put_nowait(None),
-        ) as client:
+        async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
                 await client._backend._acquire_mtu()  # type: ignore
@@ -153,7 +134,8 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
             if not have_shared_key:
                 # Always need the command characteristic to get the response
-                await subscribe(request.DataType.COMMAND)
+                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
+                command_notify_enabled = True
 
                 security_state_received = asyncio.Event()
 
@@ -192,28 +174,26 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):
                     await client.stop_notify(InfuseBluetoothUUID.COMMAND_CHAR)
-                    subscribed &= ~request.DataType.COMMAND
 
-            await subscribe(request.data_types)
+            if (request.data_types & request.DataType.COMMAND) and not command_notify_enabled:
+                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
+            if request.data_types & request.DataType.DATA:
+                await client.start_notify(InfuseBluetoothUUID.DATA_CHAR, self.notification_handler)
+            if request.data_types & request.DataType.LOGGING:
+                await client.start_notify(InfuseBluetoothUUID.LOGGING_CHAR, self.notification_handler)
 
-            # ATT header uses 3 bytes of the MTU.
-            max_payload = client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16
-            self._connected.add(request.infuse_id)
-            self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
+            self.wrapped_broadcast(
+                ClientNotificationConnectionCreated(
+                    request.infuse_id,
+                    # ATT header uses 3 bytes of the MTU
+                    client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16,
+                )
+            )
 
             req: GatewayRequest
-            users = 1
             while req := await queue.get():
-                if isinstance(req, GatewayRequestConnectionRequest):
-                    await subscribe(req.data_types)
-                    users += 1
-                    self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
-                    continue
                 if isinstance(req, GatewayRequestConnectionRelease):
-                    users -= 1
-                    if users == 0:
-                        break
-                    continue
+                    break
                 assert isinstance(req, GatewayRequestEpacketSend)
                 pkt: PacketOutput = req.epacket
 
@@ -228,22 +208,20 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 Console.log_tx(pkt.ptype, len(encr))
                 await client.write_gatt_char(uuid, encr, response=False)
 
+        # Queue no longer being handled
+        self._queues.pop(request.infuse_id)
+        self._tasks.pop(request.infuse_id)
+        Console.log_info(f"{dev}: Terminating connection")
+
     async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
         try:
             await self.create_connection_internal(request, dev, queue)
         except BleakError as e:
             Console.log_info(f"Bleak Error: {str(e)}")
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
         except TimeoutError as e:
             Console.log_info(f"Timeout: {str(e)}")
-        finally:
-            self._queues.pop(request.infuse_id, None)
-            self._tasks.pop(request.infuse_id, None)
-            if request.infuse_id in self._connected:
-                self._connected.remove(request.infuse_id)
-                self.wrapped_broadcast(ClientNotificationConnectionDropped(request.infuse_id))
-            else:
-                self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
-            Console.log_info(f"{dev}: Terminating connection")
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
@@ -263,12 +241,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 raise RuntimeError
             q: asyncio.Queue | None = self._queues.get(queue_id, None)
             if q is not None:
-                q.put_nowait(request)
-            return
-
-        # Share one connection and queue per device, including while connection setup is pending.
-        if request.infuse_id in self._queues:
-            self._queues[request.infuse_id].put_nowait(request)
+                loop.call_soon(lambda: q.put_nowait(request))  # type: ignore
             return
 
         ble_dev = self._mapping.get(request.infuse_id, None)
@@ -287,16 +260,6 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
     def connection_lost(self, exc):
         Console.log_error("Connection closed")
-        for task in self._tasks.values():
-            task.cancel()
-
-    async def shutdown(self):
-        tasks = list(self._tasks.values())
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        self._tasks.clear()
-        self._queues.clear()
 
 
 class SubCommand(InfuseCommand):
@@ -327,7 +290,7 @@ class SubCommand(InfuseCommand):
         sock.setblocking(False)
         # Wrap the socket with an asyncio Datagram protocol
         loop = asyncio.get_running_loop()
-        transport, protocol = await loop.create_datagram_endpoint(
+        transport, _protocol = await loop.create_datagram_endpoint(
             lambda: MulticastHandler(self.database, self.server, self.bleak_mapping),
             sock=sock,
         )
@@ -335,7 +298,6 @@ class SubCommand(InfuseCommand):
         try:
             await asyncio.Future()  # Run forever
         finally:
-            await protocol.shutdown()
             transport.close()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
@@ -415,6 +377,3 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         asyncio.run(self.async_bt_receiver())
-
-    def close(self):
-        self.server.close()

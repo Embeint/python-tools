@@ -141,7 +141,7 @@ class SubCommand(InfuseCommand):
         with self._single_diff.open("rb") as f:
             patch_file = f.read()
 
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND) as _mtu:
+        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as _mtu:
             rpc_client = RpcClient(self._client, _mtu, InfuseID.GATEWAY)
             params = file_write_basic.request(rpc_enum_file_action.FILE_FOR_COPY, binascii.crc32(patch_file))
 
@@ -227,7 +227,7 @@ class SubCommand(InfuseCommand):
             self.gateway_diff_load()
 
         # Set the gateways time at script startup
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
+        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as mtu:
             if not self.set_device_time(mtu, InfuseID.GATEWAY):
                 sys.exit("Failed to set time on local gateway")
 
@@ -326,7 +326,9 @@ class SubCommand(InfuseCommand):
                             else:
                                 self.run_file_upload(live, mtu, source)
 
-                except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
+                except ConnectionRefusedError:
+                    self.state_update(live, "Scanning")
+                except ConnectionAbortedError:
                     self.state_update(live, "Scanning")
 
                 if self.task is not None:
@@ -334,10 +336,3 @@ class SubCommand(InfuseCommand):
                     self.task = None
 
                 self.state_update(live, "Scanning")
-
-    def close(self):
-        try:
-            if self._log is not None:
-                self._log.close()
-        finally:
-            self._client.close()

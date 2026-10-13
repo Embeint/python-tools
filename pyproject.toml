@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "infuse_iot"
-version = "0.10.5"
+version = "0.10.4"
 authors = [{name = "Embeint Holdings Pty Ltd", email = "support@embeint.com"}]
 description = "Infuse-IoT Platform python package"
 classifiers = [
@@ -21,7 +21,7 @@ dependencies = [
     "bleak",
     "cryptography",
     "colorama",
-    "dash>=2.17",
+    "dash",
     "httpx",
     "numpy",
     "plotly",

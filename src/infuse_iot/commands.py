@@ -62,10 +62,6 @@ class InfuseCommand(metaclass=ABCMeta):
     def run(self) -> None:
         """Run the subcommand"""
 
-    def close(self) -> None:
-        """Release resources owned by the subcommand."""
-        return
-
 
 class InfuseRpcCommand:
     RPC_DATA_SEND: bool = False
