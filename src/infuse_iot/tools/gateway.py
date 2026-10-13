@@ -78,7 +78,10 @@ class CommonThreadState:
             self.server.broadcast(notification)
 
     def query_device_key(
-        self, infuse_id: int, cb_event: threading.Event | None = None, cb: Callable[[], None] | None = None
+        self,
+        infuse_id: int,
+        cb_event: threading.Event | None = None,
+        cb: Callable[[bool], None] | None = None,
     ) -> bool:
         """Query device key, returns True on success, False on failure"""
 
@@ -96,11 +99,13 @@ class CommonThreadState:
                 )
             except DeviceKeyQueryFailed as e:
                 Console.log_error(f"Failed to query key for {e.infuse_id:016x}: {e.content}")
+                if cb is not None:
+                    cb(False)
                 return
             if cb_event is not None:
                 cb_event.set()
             if cb is not None:
-                cb()
+                cb(True)
 
         def public_keys_done(pkt: PacketReceived, rc: int, response: bytes, _):
             if rc != 0:
@@ -302,6 +307,10 @@ class SerialTxThread(SignaledThread):
         rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.notification_broadcast(rsp)
 
+    def _key_query_failed(self, infuse_id: int):
+        self._handle_conn_release(GatewayRequestConnectionRelease(infuse_id))
+        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id))
+
     def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
         infuse_id = pkt.route[0].infuse_id
         if rc == 0:
@@ -348,8 +357,11 @@ class SerialTxThread(SignaledThread):
             self._connected_notification(infuse_id)
         else:
             # Pro-actively query key information before notifying
-            def notification() -> None:
-                self._connected_notification(infuse_id)
+            def notification(success: bool) -> None:
+                if success:
+                    self._connected_notification(infuse_id)
+                else:
+                    self._key_query_failed(infuse_id)
 
             self._common.query_device_key(infuse_id, cb=notification)
 
