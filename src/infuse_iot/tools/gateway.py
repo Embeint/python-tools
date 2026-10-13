@@ -283,7 +283,7 @@ class SerialTxThread(SignaledThread):
             if hop.auth == Auth.DEVICE and not self._common.ddb.has_shared_key(hop.infuse_id):
                 cb_event = threading.Event()
                 if not self._common.query_device_key(hop.infuse_id, cb_event):
-                    Console.log_error("Failed to query device key for {infuse_id:016x}")
+                    Console.log_error(f"Failed to query device key for {hop.infuse_id:016x}")
                     return
 
         # Encode and encrypt payload
