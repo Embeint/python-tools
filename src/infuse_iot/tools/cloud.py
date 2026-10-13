@@ -35,6 +35,7 @@ from infuse_iot.api_client.api.board import (
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
     cancel_pending_device_application_updates_by_device_id,
+    cancel_pending_device_kv_entry_updates_by_device_id_and_key_id,
     create_device_application_update_by_device_id,
     create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_application_state_by_device_id,
@@ -253,7 +254,9 @@ class Device(CloudSubCommand):
         kv_update.set_defaults(command_fn=cls.kv_update)
         kv_update.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         kv_update.add_argument("--key", "-k", type=int, required=True, help="Key ID to update")
-        kv_update.add_argument("--val", "-v", type=HexString, required=True, help="Key value as a hex string")
+        kv_action = kv_update.add_mutually_exclusive_group(required=True)
+        kv_action.add_argument("--val", "-v", type=HexString, help="Key value as a hex string")
+        kv_action.add_argument("--cancel", action="store_true", help="Cancel pending key update")
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
@@ -414,6 +417,20 @@ class Device(CloudSubCommand):
 
     def kv_update(self, client: Client):
         id_str = f"{self.args.id:016x}"
+
+        if self.args.cancel:
+            cancel_rsp = cancel_pending_device_kv_entry_updates_by_device_id_and_key_id.sync_detailed(
+                client=client,
+                device_id=id_str,
+                key_id=self.args.key,
+            )
+            if isinstance(cancel_rsp.parsed, models.DeviceKVEntryUpdate):
+                print(f"Cancelled device {id_str} key {self.args.key} update {cancel_rsp.parsed.id}")
+            elif cancel_rsp.status_code == 204:
+                print(f"Device {id_str} key {self.args.key} has no pending update")
+            else:
+                sys.exit(f"<{cancel_rsp.status_code}>: {cancel_rsp.content.decode('utf-8')}")
+            return
 
         val_encoded = base64.b64encode(self.args.val).decode("utf-8")
         update = models.NewDeviceKVEntryUpdate(data=val_encoded)
