@@ -14,6 +14,7 @@ import random
 import sys
 import threading
 import time
+from collections.abc import Callable
 
 import cryptography
 import cryptography.exceptions
@@ -76,7 +77,9 @@ class CommonThreadState:
         if self.server:
             self.server.broadcast(notification)
 
-    def query_device_key(self, infuse_id: int, cb_event: threading.Event | None = None) -> bool:
+    def query_device_key(
+        self, infuse_id: int, cb_event: threading.Event | None = None, cb: Callable[[], None] | None = None
+    ) -> bool:
         """Query device key, returns True on success, False on failure"""
 
         def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
@@ -96,6 +99,8 @@ class CommonThreadState:
                 return
             if cb_event is not None:
                 cb_event.set()
+            if cb is not None:
+                cb()
 
         def public_keys_done(pkt: PacketReceived, rc: int, response: bytes, _):
             if rc != 0:
@@ -278,7 +283,7 @@ class SerialTxThread(SignaledThread):
                 pkt.payload,
             )
 
-        # Do we have the device public keys we need?
+        # Do we have the device keys we need?
         for hop in routed.route:
             if hop.auth == Auth.DEVICE and not self._common.ddb.has_shared_key(hop.infuse_id):
                 cb_event = threading.Event()
@@ -338,13 +343,15 @@ class SerialTxThread(SignaledThread):
 
         self._common.ddb.observe_device(infuse_id, device_public_key=bytes(resp.device_public_key))
 
-        if not self._common.ddb.has_shared_key(infuse_id):
-            # Pro-actively query key information
-            cb_event = threading.Event()
-            self._common.query_device_key(infuse_id, cb_event)
+        if self._common.ddb.has_shared_key(infuse_id):
+            # Notify connection success immediately
+            self._connected_notification(infuse_id)
+        else:
+            # Pro-actively query key information before notifying
+            def notification() -> None:
+                self._connected_notification(infuse_id)
 
-        # Notify connection success
-        self._connected_notification(infuse_id)
+            self._common.query_device_key(infuse_id, cb=notification)
 
     def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
         assert self._common.server is not None
