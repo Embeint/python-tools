@@ -20,6 +20,7 @@ from infuse_iot.api_client.api.application import (
     create_application,
     create_release,
     create_release_diff,
+    delete_release_by_organisation_id_and_application_id_and_release_id,
     get_application_by_organisation_id_and_application_id,
     get_applications_by_organisation_id,
     get_diffs_by_organisation_id_and_application_id_and_release_id,
@@ -570,6 +571,14 @@ class Applications(CloudSubCommand):
         upload_parser.add_argument("--release", "-r", type=ValidRelease, required=True, help="Release to upload")
         upload_parser.set_defaults(command_fn=cls.upload)
 
+        delete_release_parser = tool_parser.add_parser("delete_release", help="Delete an application release")
+        delete_release_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
+        delete_release_parser.add_argument(
+            "--app", "-a", type=lambda x: int(x, 16), required=True, help="Application ID (hex)"
+        )
+        delete_release_parser.add_argument("--rel", "-r", type=str, required=True, help="Release ID")
+        delete_release_parser.set_defaults(command_fn=cls.delete_release)
+
     def run(self):
         if print_subcommands_if_missing(self.args):
             return
@@ -738,6 +747,30 @@ class Applications(CloudSubCommand):
             self._info_one(client)
         else:
             self._info_all(client)
+
+    def delete_release(self, client: Client):
+        release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if release is None:
+            sys.exit("Get release: No response")
+        elif isinstance(release, models.Error):
+            sys.exit(f"<{release.code}>: {release.message}")
+
+        version = release.version
+        version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
+        dialog = f"Delete release '0x{self.args.app:08x} {version_str}' ({release.board_target}, {release.id})?"
+        if not user_confirm(dialog):
+            return
+
+        rsp = delete_release_by_organisation_id_and_application_id_and_release_id.sync_detailed(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if isinstance(rsp.parsed, models.Error):
+            sys.exit(f"<{rsp.parsed.code}>: {rsp.parsed.message}")
+        elif rsp.status_code != 204:
+            sys.exit(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
+        print(f"Deleted release '{self.args.rel}'")
 
     def upload(self, client: Client):
         try:
