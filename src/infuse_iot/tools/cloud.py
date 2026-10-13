@@ -34,6 +34,7 @@ from infuse_iot.api_client.api.board import (
 )
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
+    cancel_pending_device_application_updates_by_device_id,
     create_device_application_update_by_device_id,
     create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_application_state_by_device_id,
@@ -266,6 +267,7 @@ class Device(CloudSubCommand):
         dfu_action = dfu_parser.add_mutually_exclusive_group(required=True)
         dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
         dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
+        dfu_action.add_argument("--cancel", action="store_true", help="Cancel pending DFU")
 
         logger_parser = tool_parser.add_parser("logger", help="Configure logger download state")
         logger_parser.set_defaults(command_fn=cls.logger)
@@ -483,6 +485,19 @@ class Device(CloudSubCommand):
                         ]
                     )
                 )
+        elif self.args.cancel:
+            cancel_rsp = cancel_pending_device_application_updates_by_device_id.sync_detailed(
+                client=client,
+                device_id=id_str,
+            )
+            if isinstance(cancel_rsp.parsed, models.Error):
+                sys.exit(f"<{cancel_rsp.parsed.code}>: {cancel_rsp.parsed.message}")
+            elif isinstance(cancel_rsp.parsed, models.DeviceApplicationUpdate):
+                print(f"Cancelled DFU {cancel_rsp.parsed.id} to release {cancel_rsp.parsed.release_id}")
+            elif cancel_rsp.status_code == 204:
+                print(f"Device {id_str} has no pending DFU")
+            else:
+                sys.exit(f"<{cancel_rsp.status_code}>: {cancel_rsp.content.decode('utf-8')}")
         else:
             raise NotImplementedError("Unknown DFU subcommand")
 
