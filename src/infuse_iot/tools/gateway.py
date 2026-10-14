@@ -205,8 +205,14 @@ class CommonThreadState:
 class SerialRxThread(SignaledThread):
     """Receive serial frames from the serial port"""
 
-    def __init__(self, common: CommonThreadState, log: io.TextIOWrapper):
+    def __init__(
+        self,
+        common: CommonThreadState,
+        log: io.TextIOWrapper,
+        connection_dropped: Callable[[int], None],
+    ):
         self._common = common
+        self._connection_dropped = connection_dropped
         self._reconstructor = SerialFrame.reconstructor()
         self._reconstructor.send(None)
         self._line = ""
@@ -259,6 +265,7 @@ class SerialRxThread(SignaledThread):
                 if_addr = interface.Address.BluetoothLeAddr.from_tdf_struct(reading.data[0].address)
                 infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
                 if infuse_id:
+                    self._connection_dropped(infuse_id)
                     self._common.notification_broadcast(ClientNotificationConnectionDropped(infuse_id))
 
     def _handle_serial_frame(self, frame: bytearray):
@@ -366,6 +373,10 @@ class SerialTxThread(SignaledThread):
     def _connected_notification(self, infuse_id: int):
         rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.notification_broadcast(rsp)
+
+    def _connection_dropped(self, infuse_id: int):
+        with self._connected_lock:
+            self._connected.pop(infuse_id, None)
 
     def _key_query_failed(self, infuse_id: int, reason: str):
         self._handle_conn_release(GatewayRequestConnectionRelease(infuse_id))
@@ -607,8 +618,8 @@ class SubCommand(InfuseCommand):
         self.port.ping()
 
         # Start threads
-        rx_thread = SerialRxThread(self._common, self.log)
         tx_thread = SerialTxThread(self._common)
+        rx_thread = SerialRxThread(self._common, self.log, tx_thread._connection_dropped)
         rx_thread.start()
         tx_thread.start()
 
