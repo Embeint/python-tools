@@ -62,6 +62,8 @@ from infuse_iot.util.threading import SignaledThread
 
 
 class CommonThreadState:
+    KEY_QUERY_TIMEOUT_S = 1.0
+
     def __init__(
         self,
         server: LocalServer | None,
@@ -86,12 +88,46 @@ class CommonThreadState:
     ) -> bool:
         """Query device key, returns True on success, False on failure"""
 
-        def query_failed(reason: str) -> None:
-            Console.log_error(reason)
+        completion_lock = threading.Lock()
+        complete = False
+        response_received = False
+        timeout: threading.Timer | None = None
+
+        def query_complete(success: bool, reason: str | None, require_pending_response: bool = False) -> bool:
+            nonlocal complete
+
+            with completion_lock:
+                if complete or (require_pending_response and response_received):
+                    return False
+                complete = True
+
+            if timeout is not None:
+                timeout.cancel()
+            if success and cb_event is not None:
+                cb_event.set()
             if cb is not None:
-                cb(False, reason)
+                cb(success, reason)
+            return True
+
+        def query_failed(reason: str) -> None:
+            if query_complete(False, reason):
+                Console.log_error(reason)
+
+        def query_timed_out() -> None:
+            reason = "Device shared key query timed out"
+            if query_complete(False, reason, require_pending_response=True):
+                Console.log_error(reason)
 
         def security_state_done(pkt: PacketReceived, rc: int, response: bytes, challenge):
+            nonlocal response_received
+
+            with completion_lock:
+                if complete:
+                    return
+                response_received = True
+            if timeout is not None:
+                timeout.cancel()
+
             if rc != 0:
                 query_failed(f"Device shared key query failed (RPC error {rc})")
                 return
@@ -119,10 +155,7 @@ class CommonThreadState:
                     reason += f": {e}"
                 query_failed(reason)
                 return
-            if cb_event is not None:
-                cb_event.set()
-            if cb is not None:
-                cb(True, None)
+            query_complete(True, None)
 
         def public_keys_done(pkt: PacketReceived, rc: int, response: bytes, _):
             if rc != 0:
@@ -147,6 +180,10 @@ class CommonThreadState:
         cmd_pkt = self.rpc.generate_addressed(
             infuse_id, defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
         )
+        if cb is not None and cb_event is None:
+            timeout = threading.Timer(self.KEY_QUERY_TIMEOUT_S, query_timed_out)
+            timeout.daemon = True
+            timeout.start()
         if not run_cmd_pkt(cmd_pkt):
             return False
 
