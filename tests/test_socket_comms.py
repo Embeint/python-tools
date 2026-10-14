@@ -37,3 +37,13 @@ def test_socket_comms():
     # Client receives the response
     recv_rsp = client.receive()
     assert isinstance(recv_rsp, comms.ClientNotificationCommsCheck)
+
+
+def test_connection_failed_notification_json_round_trip():
+    notification = comms.ClientNotificationConnectionFailed(0x0123456789ABCDEF, "Failed to query device shared keys")
+
+    decoded = comms.ClientNotification.from_json(notification.to_json())
+
+    assert isinstance(decoded, comms.ClientNotificationConnectionFailed)
+    assert decoded.infuse_id == notification.infuse_id
+    assert decoded.reason == notification.reason
