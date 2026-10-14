@@ -137,5 +137,5 @@ class SubCommand(InfuseCommand):
                     while True:
                         if notification := self._client.receive():
                             self.rx_handler(notification)
-        except ConnectionRefusedError:
-            print(f"Unable to connect to {self._id:016x}")
+        except ConnectionRefusedError as e:
+            print(f"Unable to connect to {self._id:016x}: ({e})")
