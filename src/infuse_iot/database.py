@@ -2,6 +2,7 @@
 
 import base64
 import binascii
+import json
 import pathlib
 import shelve
 import threading
@@ -226,7 +227,14 @@ class DeviceDatabase:
             body = GetDeviceSharedSecretBody(f"{infuse_id:016x}", security_state)
             response = get_device_shared_secret.sync_detailed(client=client, body=body)
             if response.parsed is None:
-                raise DeviceKeyQueryFailed(infuse_id, response.status_code, response.content.decode("utf-8"))
+                content = response.content.decode("utf-8", errors="replace")
+                try:
+                    content_json = json.loads(response.content)
+                    if isinstance(content_json, dict) and "message" in content_json:
+                        content = str(content_json["message"])
+                except json.JSONDecodeError:
+                    pass
+                raise DeviceKeyQueryFailed(infuse_id, response.status_code, content)
             else:
                 key = base64.b64decode(response.parsed.key)
                 self.devices[infuse_id].shared_key = key
