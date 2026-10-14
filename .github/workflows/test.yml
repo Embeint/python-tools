@@ -17,7 +17,7 @@ jobs:
       matrix:
         # Test the extreme Python versions for now to reduce CI runtime
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.10', '3.12', '3.14']
+        python-version: ['3.11', '3.12', '3.15']
     steps:
       - uses: actions/checkout@v4
         # This is enough to find many quoting issues
@@ -30,6 +30,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Display Python version
         run: python -c "import sys; print(sys.version); print(sys.platform)"
+      - name: Use short Windows temporary directory
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Native dependencies without wheels can exceed Windows' path limit.
+          New-Item -ItemType Directory -Force -Path 'D:\t'
+          'TEMP=D:\t' >> $env:GITHUB_ENV
+          'TMP=D:\t' >> $env:GITHUB_ENV
       - name: install tox
         run: pip3 install tox
       - name: tox
