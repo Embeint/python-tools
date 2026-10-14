@@ -120,6 +120,17 @@ class ClientNotificationConnectionFailed(ClientNotificationConnection):
 
     TYPE = ClientNotificationConnection.Type.CONNECTION_FAILED
 
+    def __init__(self, infuse_id: int, reason: str):
+        super().__init__(infuse_id)
+        self.reason = reason
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "reason": self.reason}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"], values["reason"])
+
 
 class ClientNotificationConnectionCreated(ClientNotificationConnection):
     """Connection to device has been created"""
@@ -359,7 +370,7 @@ class LocalClient:
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
                 elif isinstance(rsp, ClientNotificationConnectionFailed):
-                    raise ConnectionRefusedError
+                    raise ConnectionRefusedError(rsp.reason)
 
     def connection_release(self):
         assert self._connection_id is not None

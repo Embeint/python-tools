@@ -218,10 +218,11 @@ class MulticastHandler(asyncio.DatagramProtocol):
             await self.create_connection_internal(request, dev, queue)
         except BleakError as e:
             Console.log_info(f"Bleak Error: {str(e)}")
-            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, f"Bluetooth error: {e}"))
         except TimeoutError as e:
             Console.log_info(f"Timeout: {str(e)}")
-            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
+            reason = f"Connection timed out: {e}" if str(e) else "Connection timed out"
+            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, reason))
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
@@ -246,7 +247,9 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
         ble_dev = self._mapping.get(request.infuse_id, None)
         if ble_dev is None:
-            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id))
+            self.wrapped_broadcast(
+                ClientNotificationConnectionFailed(request.infuse_id, "Device has not been observed over Bluetooth")
+            )
             return
 
         # Create queue for further data transfer

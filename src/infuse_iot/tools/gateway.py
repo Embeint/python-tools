@@ -309,7 +309,9 @@ class SerialTxThread(SignaledThread):
 
     def _key_query_failed(self, infuse_id: int):
         self._handle_conn_release(GatewayRequestConnectionRelease(infuse_id))
-        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id))
+        self._common.notification_broadcast(
+            ClientNotificationConnectionFailed(infuse_id, "Failed to query device shared keys")
+        )
 
     def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
         infuse_id = pkt.route[0].infuse_id
@@ -331,7 +333,7 @@ class SerialTxThread(SignaledThread):
         assert self._common.server is not None
 
         if rc != 0:
-            rsp = ClientNotificationConnectionFailed(infuse_id)
+            rsp = ClientNotificationConnectionFailed(infuse_id, f"Bluetooth connection failed (RPC error {rc})")
             self._common.notification_broadcast(rsp)
             return
 
@@ -375,7 +377,9 @@ class SerialTxThread(SignaledThread):
 
         state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
-            self._common.notification_broadcast(ClientNotificationConnectionFailed(req.infuse_id))
+            self._common.notification_broadcast(
+                ClientNotificationConnectionFailed(req.infuse_id, "Device has not been observed over Bluetooth")
+            )
             return
 
         subs = 0
