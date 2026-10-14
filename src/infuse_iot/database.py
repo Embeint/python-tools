@@ -6,6 +6,7 @@ import json
 import pathlib
 import shelve
 import threading
+from collections.abc import Mapping
 from contextlib import contextmanager
 
 from cryptography.hazmat.primitives import serialization
@@ -60,10 +61,17 @@ class DeviceKeyChangedError(KeyError):
 class DeviceKeyQueryFailed(Exception):
     """Querying a device key from the cloud failed"""
 
-    def __init__(self, infuse_id: int, status_code: int, content: str):
+    def __init__(
+        self,
+        infuse_id: int,
+        status_code: int,
+        content: str,
+        parameters: Mapping[str, object] | None = None,
+    ):
         self.infuse_id = infuse_id
         self.status_code = status_code
         self.content = content
+        self.parameters = parameters
 
     def __str__(self):
         return f"{self.infuse_id:016x}: <{self.status_code}> {self.content}"
@@ -234,7 +242,7 @@ class DeviceDatabase:
                         content = str(content_json["message"])
                 except json.JSONDecodeError:
                     pass
-                raise DeviceKeyQueryFailed(infuse_id, response.status_code, content)
+                raise DeviceKeyQueryFailed(infuse_id, response.status_code, content, body.to_dict())
             else:
                 key = base64.b64decode(response.parsed.key)
                 self.devices[infuse_id].shared_key = key

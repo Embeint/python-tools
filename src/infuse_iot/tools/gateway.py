@@ -9,6 +9,7 @@ import argparse
 import base64
 import ctypes
 import io
+import json
 import queue
 import random
 import sys
@@ -70,11 +71,13 @@ class CommonThreadState:
         port: SerialLike,
         ddb: DeviceDatabase,
         rpc_server: LocalRpcServer,
+        print_key_params: bool = False,
     ):
         self.server = server
         self.port = port
         self.ddb = ddb
         self.rpc = rpc_server
+        self.print_key_params = print_key_params
 
     def notification_broadcast(self, notification: ClientNotification):
         if self.server:
@@ -144,6 +147,8 @@ class CommonThreadState:
                     bytes(decoded.challenge_response),
                 )
             except DeviceKeyQueryFailed as e:
+                if self.print_key_params and e.parameters is not None:
+                    print(f"get_device_shared_secret parameters:\n{json.dumps(e.parameters, indent=2)}")
                 reason = f"Cloud error while querying device shared keys (HTTP {e.status_code})"
                 if e.content:
                     reason += f": {e.content}"
@@ -554,6 +559,11 @@ class SubCommand(InfuseCommand):
         )
         parser.add_argument("--baud", type=int, default=115200, help="Baudrate for serial port")
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
+        parser.add_argument(
+            "--print-key-params",
+            action="store_true",
+            help=argparse.SUPPRESS,
+        )
         add_server_port_parser(parser)
 
     def __init__(self, args: argparse.Namespace):
@@ -572,7 +582,13 @@ class SubCommand(InfuseCommand):
         else:
             self.server = LocalServer(args.server_sock)
         self.rpc_server = LocalRpcServer(self.ddb)
-        self._common = CommonThreadState(self.server, self.port, self.ddb, self.rpc_server)
+        self._common = CommonThreadState(
+            self.server,
+            self.port,
+            self.ddb,
+            self.rpc_server,
+            print_key_params=args.print_key_params,
+        )
         self.log = args.log
         Console.init()
 
