@@ -316,6 +316,7 @@ class SerialTxThread(SignaledThread):
     ):
         self._common = common
         self._connected: dict[int, int] = {}
+        self._connected_lock = threading.Lock()
         self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
 
@@ -394,10 +395,8 @@ class SerialTxThread(SignaledThread):
             self._common.notification_broadcast(rsp)
             return
 
-        if infuse_id in self._connected:
-            self._connected[infuse_id] += 1
-        else:
-            self._connected[infuse_id] = 1
+        with self._connected_lock:
+            self._connected[infuse_id] = self._connected.get(infuse_id, 0) + 1
 
         if self._common.ddb.has_local_root:
             # Query public keys before running callback
@@ -450,7 +449,9 @@ class SerialTxThread(SignaledThread):
             subs |= bt_char.LOGGING
 
         # Multiple connection users, subscribe all
-        if req.infuse_id in self._connected:
+        with self._connected_lock:
+            connected = req.infuse_id in self._connected
+        if connected:
             subs = bt_char.COMMAND | bt_char.DATA | bt_char.LOGGING
 
         connect_args = defs.bt_connect_infuse.request(
@@ -476,13 +477,14 @@ class SerialTxThread(SignaledThread):
             # Unknown device, nothing to do
             return
 
-        if req.infuse_id in self._connected:
-            # Decrement reference count
-            self._connected[req.infuse_id] -= 1
-            if self._connected[req.infuse_id] > 0:
-                # Someone is still using the connection
-                return
-            self._connected.pop(req.infuse_id)
+        with self._connected_lock:
+            if req.infuse_id in self._connected:
+                # Decrement reference count
+                self._connected[req.infuse_id] -= 1
+                if self._connected[req.infuse_id] > 0:
+                    # Someone is still using the connection
+                    return
+                self._connected.pop(req.infuse_id)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
         cmd = self._common.rpc.generate_serial(
