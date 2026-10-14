@@ -219,6 +219,7 @@ class SerialRxThread(SignaledThread):
         self._line = ""
         self._log = log
         self._next_ping = 0.0
+        self._startup_disconnect_sent = False
         self._tdf_decoder = tdf.TDF()
         super().__init__(self._iter)
 
@@ -256,6 +257,20 @@ class SerialRxThread(SignaledThread):
             chunk = p[3 : 3 + hdr.len]
             p = p[3 + hdr.len :]
             print(f"Memfault Chunk {hdr.cnt:3d}: {base64.b64encode(chunk).decode('utf-8')}")
+
+    def _disconnect_existing_connections(self):
+        gateway = self._common.ddb.gateway
+        if self._startup_disconnect_sent or gateway is None or not self._common.ddb.has_shared_key(gateway):
+            return
+
+        disconnect_args = defs.bt_disconnect.request(defs.rpc_struct_bt_addr_le())
+        cmd = self._common.rpc.generate_serial(
+            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None
+        )
+        encrypted = cmd.to_serial(self._common.ddb)
+        Console.log_tx(cmd.ptype, len(encrypted))
+        self._common.port.write(encrypted)
+        self._startup_disconnect_sent = True
 
     def _handle_local_tdf(self, pkt: PacketReceived):
         if self._common.server is None:
@@ -307,6 +322,11 @@ class SerialRxThread(SignaledThread):
                 elif pkt.ptype == InfuseType.KEY_IDS:
                     assert self._common.ddb.gateway is not None
                     self._common.query_device_key(self._common.ddb.gateway, None)
+                if pkt.ptype != InfuseType.KEY_IDS:
+                    # Clear connections left active by a previous gateway process once
+                    # the local device credentials are available. Wait for a pending key
+                    # refresh rather than potentially using stale cached credentials.
+                    self._disconnect_existing_connections()
 
                 # Forward to clients
                 notification = ClientNotificationEpacketReceived(pkt)
