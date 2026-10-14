@@ -2,6 +2,7 @@
 
 import time
 from abc import ABCMeta, abstractmethod
+from contextlib import ExitStack
 from io import BufferedWriter
 
 import pylink
@@ -119,6 +120,7 @@ class RttPort(SerialLike):
         self._jlink = pylink.JLink()
         self._name = rtt_device
         self._serial_number = serial_number
+        self._stack = ExitStack()
         self._modem_trace: BufferedWriter | None = None
         self._modem_trace_buf = 0
 
@@ -162,7 +164,7 @@ class RttPort(SerialLike):
             if desc.name == "modem_trace":
                 f = f"{int(time.time())}_nrf_modem_trace.bin"
                 print(f"Found nRF LTE modem trace channel (opening {f:s})")
-                self._modem_trace = open(f, mode="wb")  # noqa: SIM115
+                self._modem_trace = self._stack.enter_context(open(f, mode="wb"))  # noqa: SIM115
                 self._modem_trace_buf = desc.BufferIndex
 
     def read_bytes(self, num):
@@ -190,11 +192,11 @@ class RttPort(SerialLike):
             time.sleep(0.1)
 
     def close(self):
-        self._jlink.rtt_stop()
-        self._jlink.close()
-        if self._modem_trace is not None:
-            self._modem_trace.flush()
-            self._modem_trace.close()
+        try:
+            self._jlink.rtt_stop()
+            self._jlink.close()
+        finally:
+            self._stack.close()
 
     def __str__(self) -> str:
         return f"RTT: {self._name}"

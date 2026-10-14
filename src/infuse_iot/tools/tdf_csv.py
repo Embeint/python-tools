@@ -6,6 +6,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2026, Embeint Holdings Pty Ltd"
 
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 from infuse_iot.commands import InfuseCommand
@@ -31,11 +32,16 @@ class SubCommand(InfuseCommand):
         self._client = LocalClient(args.server_sock, 1.0)
         self._decoder = TDF()
         print(f"Exporting to {Path(args.dir)}")
-        self._exporter = Exporter(Path(args.dir))
+        self._save_path = Path(args.dir)
         self._time_format = str if args.unix else InfuseTime.utc_time_string_log
         self.args = args
 
     def run(self):
+        with ExitStack() as stack:
+            self._exporter = Exporter(self._save_path, stack)
+            self._run()
+
+    def _run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 

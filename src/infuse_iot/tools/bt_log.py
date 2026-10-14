@@ -7,6 +7,7 @@ __copyright__ = "Copyright 2026, Embeint Holdings Pty Ltd"
 
 import sys
 from argparse import ArgumentError
+from contextlib import ExitStack
 from pathlib import Path
 
 from infuse_iot.commands import InfuseCommand
@@ -32,7 +33,7 @@ class SubCommand(InfuseCommand):
         self._id = args.id
         self._data = args.data
         self._conn_timeout = args.conn_timeout
-        self._exporter = Exporter(Path(args.csv)) if args.csv else None
+        self._csv = Path(args.csv) if args.csv else None
         self._time_format = str if args.unix else InfuseTime.utc_time_string_log
         self._files = {}
 
@@ -55,6 +56,11 @@ class SubCommand(InfuseCommand):
         add_server_port_parser(parser)
 
     def run(self):
+        with ExitStack() as stack:
+            self._exporter = Exporter(self._csv, stack) if self._csv else None
+            self._run()
+
+    def _run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 

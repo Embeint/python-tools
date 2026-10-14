@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 
 import cryptography
 import cryptography.exceptions
@@ -606,6 +607,13 @@ class SubCommand(InfuseCommand):
         Console.init()
 
     def run(self):
+        with ExitStack() as stack:
+            if self.log is not None:
+                stack.enter_context(self.log)
+            stack.callback(self._close_port)
+            self._run()
+
+    def _run(self):
         # Open the serial port
         try:
             self.port.open()
@@ -637,11 +645,11 @@ class SubCommand(InfuseCommand):
         rx_thread.join(1.0)
         tx_thread.join(1.0)
 
-        # Cleanup serial port
+        if self.log:
+            self.log.flush()
+
+    def _close_port(self):
         try:
             self.port.close()
         except Exception:
             pass
-
-        if self.log:
-            self.log.flush()

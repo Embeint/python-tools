@@ -2,6 +2,7 @@
 
 import binascii
 import sys
+from io import BytesIO
 
 import tabulate
 from elftools.dwarf.die import DIE
@@ -24,8 +25,7 @@ class sym_read(InfuseRpcCommand, defs.mem_read):
         read_type.add_argument("--addr", type=lambda x: int(x, 0), help="Address to read")
 
     def __init__(self, args):
-        # Ignore context-manager warning since ELFFile requires the file to remain opened
-        self.elf_file = open(args.elf, "rb")  # noqa: SIM115
+        self.elf_file = BytesIO(args.elf.read_bytes())
         self.elf = ELFFile(self.elf_file)
         self.symbol_die: DIE | None = None
         self.symbol_info: elftools.dwarf_field | None = None
