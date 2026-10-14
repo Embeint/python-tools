@@ -18,6 +18,7 @@ from collections.abc import Callable
 
 import cryptography
 import cryptography.exceptions
+import httpx
 
 import infuse_iot.definitions.rpc as defs
 import infuse_iot.definitions.tdf as tdf_defs
@@ -81,11 +82,20 @@ class CommonThreadState:
         self,
         infuse_id: int,
         cb_event: threading.Event | None = None,
-        cb: Callable[[bool], None] | None = None,
+        cb: Callable[[bool, str | None], None] | None = None,
     ) -> bool:
         """Query device key, returns True on success, False on failure"""
 
-        def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
+        def query_failed(reason: str) -> None:
+            Console.log_error(reason)
+            if cb is not None:
+                cb(False, reason)
+
+        def security_state_done(pkt: PacketReceived, rc: int, response: bytes, challenge):
+            if rc != 0:
+                query_failed(f"Device shared key query failed (RPC error {rc})")
+                return
+
             decoded = defs.security_state.response.vla_from_buffer_copy(response)
             try:
                 self.ddb.observe_security_state(
@@ -98,14 +108,21 @@ class CommonThreadState:
                     bytes(decoded.challenge_response),
                 )
             except DeviceKeyQueryFailed as e:
-                Console.log_error(f"Failed to query key for {e.infuse_id:016x}: {e.content}")
-                if cb is not None:
-                    cb(False)
+                reason = f"Cloud error while querying device shared keys (HTTP {e.status_code})"
+                if e.content:
+                    reason += f": {e.content}"
+                query_failed(reason)
+                return
+            except httpx.RequestError as e:
+                reason = "No response from cloud while querying device shared keys"
+                if str(e):
+                    reason += f": {e}"
+                query_failed(reason)
                 return
             if cb_event is not None:
                 cb_event.set()
             if cb is not None:
-                cb(True)
+                cb(True, None)
 
         def public_keys_done(pkt: PacketReceived, rc: int, response: bytes, _):
             if rc != 0:
@@ -307,11 +324,9 @@ class SerialTxThread(SignaledThread):
         rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.notification_broadcast(rsp)
 
-    def _key_query_failed(self, infuse_id: int):
+    def _key_query_failed(self, infuse_id: int, reason: str):
         self._handle_conn_release(GatewayRequestConnectionRelease(infuse_id))
-        self._common.notification_broadcast(
-            ClientNotificationConnectionFailed(infuse_id, "Failed to query device shared keys")
-        )
+        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason))
 
     def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
         infuse_id = pkt.route[0].infuse_id
@@ -359,11 +374,12 @@ class SerialTxThread(SignaledThread):
             self._connected_notification(infuse_id)
         else:
             # Pro-actively query key information before notifying
-            def notification(success: bool) -> None:
+            def notification(success: bool, reason: str | None) -> None:
                 if success:
                     self._connected_notification(infuse_id)
                 else:
-                    self._key_query_failed(infuse_id)
+                    assert reason is not None
+                    self._key_query_failed(infuse_id, reason)
 
             self._common.query_device_key(infuse_id, cb=notification)
 
