@@ -241,6 +241,7 @@ class Device(CloudSubCommand):
         kv_parser.set_defaults(command_fn=cls.kv_state)
         kv_parser.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         kv_parser.add_argument("--schedules", action="store_true", help="Display task schedules")
+        kv_parser.add_argument("--devstate", action="store_true", help="Display Z_DEVSTATE")
         kv_display = kv_parser.add_mutually_exclusive_group()
         kv_display.add_argument("--hex", action="store_true", help="Display values as hex strings instead of decoding")
         kv_display.add_argument(
@@ -387,8 +388,10 @@ class Device(CloudSubCommand):
             key = element.key_name if isinstance(element.key_name, str) else ""
             key_id = str(element.key_id)
 
-            # Don't display task schedules unless requested
+            # Don't display some keys unless explicitly requested
             if key == "TASK_SCHEDULES" and not self.args.schedules:
+                continue
+            if key == "Z_DEVSTATE" and not self.args.devstate:
                 continue
 
             if isinstance(element.data, Unset):
