@@ -20,6 +20,7 @@ from infuse_iot.api_client.api.application import (
     create_application,
     create_release,
     create_release_diff,
+    delete_release_by_organisation_id_and_application_id_and_release_id,
     get_application_by_organisation_id_and_application_id,
     get_applications_by_organisation_id,
     get_diffs_by_organisation_id_and_application_id_and_release_id,
@@ -33,6 +34,8 @@ from infuse_iot.api_client.api.board import (
 )
 from infuse_iot.api_client.api.coap import get_coap_files
 from infuse_iot.api_client.api.device import (
+    cancel_pending_device_application_updates_by_device_id,
+    cancel_pending_device_kv_entry_updates_by_device_id_and_key_id,
     create_device_application_update_by_device_id,
     create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_application_state_by_device_id,
@@ -252,7 +255,9 @@ class Device(CloudSubCommand):
         kv_update.set_defaults(command_fn=cls.kv_update)
         kv_update.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         kv_update.add_argument("--key", "-k", type=int, required=True, help="Key ID to update")
-        kv_update.add_argument("--val", "-v", type=HexString, required=True, help="Key value as a hex string")
+        kv_action = kv_update.add_mutually_exclusive_group(required=True)
+        kv_action.add_argument("--val", "-v", type=HexString, help="Key value as a hex string")
+        kv_action.add_argument("--cancel", action="store_true", help="Cancel pending key update")
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
@@ -266,6 +271,7 @@ class Device(CloudSubCommand):
         dfu_action = dfu_parser.add_mutually_exclusive_group(required=True)
         dfu_action.add_argument("--schedule", type=str, help="Release ID to upgrade to")
         dfu_action.add_argument("--status", action="store_true", help="Check DFU status")
+        dfu_action.add_argument("--cancel", action="store_true", help="Cancel pending DFU")
 
         logger_parser = tool_parser.add_parser("logger", help="Configure logger download state")
         logger_parser.set_defaults(command_fn=cls.logger)
@@ -415,6 +421,20 @@ class Device(CloudSubCommand):
     def kv_update(self, client: Client):
         id_str = f"{self.args.id:016x}"
 
+        if self.args.cancel:
+            cancel_rsp = cancel_pending_device_kv_entry_updates_by_device_id_and_key_id.sync_detailed(
+                client=client,
+                device_id=id_str,
+                key_id=self.args.key,
+            )
+            if isinstance(cancel_rsp.parsed, models.DeviceKVEntryUpdate):
+                print(f"Cancelled device {id_str} key {self.args.key} update {cancel_rsp.parsed.id}")
+            elif cancel_rsp.status_code == 204:
+                print(f"Device {id_str} key {self.args.key} has no pending update")
+            else:
+                sys.exit(f"<{cancel_rsp.status_code}>: {cancel_rsp.content.decode('utf-8')}")
+            return
+
         val_encoded = base64.b64encode(self.args.val).decode("utf-8")
         update = models.NewDeviceKVEntryUpdate(data=val_encoded)
 
@@ -485,6 +505,19 @@ class Device(CloudSubCommand):
                         ]
                     )
                 )
+        elif self.args.cancel:
+            cancel_rsp = cancel_pending_device_application_updates_by_device_id.sync_detailed(
+                client=client,
+                device_id=id_str,
+            )
+            if isinstance(cancel_rsp.parsed, models.Error):
+                sys.exit(f"<{cancel_rsp.parsed.code}>: {cancel_rsp.parsed.message}")
+            elif isinstance(cancel_rsp.parsed, models.DeviceApplicationUpdate):
+                print(f"Cancelled DFU {cancel_rsp.parsed.id} to release {cancel_rsp.parsed.release_id}")
+            elif cancel_rsp.status_code == 204:
+                print(f"Device {id_str} has no pending DFU")
+            else:
+                sys.exit(f"<{cancel_rsp.status_code}>: {cancel_rsp.content.decode('utf-8')}")
         else:
             raise NotImplementedError("Unknown DFU subcommand")
 
@@ -572,6 +605,14 @@ class Applications(CloudSubCommand):
         upload_parser.add_argument("--name", "-n", type=str, help="Application name override")
         upload_parser.add_argument("--release", "-r", type=ValidRelease, required=True, help="Release to upload")
         upload_parser.set_defaults(command_fn=cls.upload)
+
+        delete_release_parser = tool_parser.add_parser("delete_release", help="Delete an application release")
+        delete_release_parser.add_argument("--org", "-o", type=str, required=True, help="Organisation ID")
+        delete_release_parser.add_argument(
+            "--app", "-a", type=lambda x: int(x, 16), required=True, help="Application ID (hex)"
+        )
+        delete_release_parser.add_argument("--rel", "-r", type=str, required=True, help="Release ID")
+        delete_release_parser.set_defaults(command_fn=cls.delete_release)
 
     def run(self):
         if print_subcommands_if_missing(self.args):
@@ -741,6 +782,30 @@ class Applications(CloudSubCommand):
             self._info_one(client)
         else:
             self._info_all(client)
+
+    def delete_release(self, client: Client):
+        release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if release is None:
+            sys.exit("Get release: No response")
+        elif isinstance(release, models.Error):
+            sys.exit(f"<{release.code}>: {release.message}")
+
+        version = release.version
+        version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
+        dialog = f"Delete release '0x{self.args.app:08x} {version_str}' ({release.board_target}, {release.id})?"
+        if not user_confirm(dialog):
+            return
+
+        rsp = delete_release_by_organisation_id_and_application_id_and_release_id.sync_detailed(
+            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        )
+        if isinstance(rsp.parsed, models.Error):
+            sys.exit(f"<{rsp.parsed.code}>: {rsp.parsed.message}")
+        elif rsp.status_code != 204:
+            sys.exit(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
+        print(f"Deleted release '{self.args.rel}'")
 
     def upload(self, client: Client):
         try:
