@@ -36,5 +36,5 @@ class ProvisioningInterface(metaclass=ABCMeta):
         """Write provisioning data to device"""
 
     @abstractmethod
-    def close(self) -> None:
-        "Close any interfaces opened"
+    def close(self, *, reset: bool = True) -> None:
+        "Close any interfaces opened, optionally resetting the target."
