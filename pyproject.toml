@@ -21,7 +21,7 @@ dependencies = [
     "bleak",
     "cryptography",
     "colorama",
-    "dash",
+    "dash>=2.17",
     "httpx",
     "numpy",
     "plotly",

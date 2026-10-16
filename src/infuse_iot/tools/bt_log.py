@@ -75,6 +75,8 @@ class SubCommand(InfuseCommand):
                     if evt is None:
                         continue
                     if isinstance(evt, ClientNotificationConnectionDropped):
+                        if evt.infuse_id != self._id:
+                            continue
                         Console.log_error(f"Connection to {self._id:016x} lost")
                         break
                     if not isinstance(evt, ClientNotificationEpacketReceived):
@@ -103,5 +105,8 @@ class SubCommand(InfuseCommand):
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, TimeoutError):
             print(f"Unable to connect to {self._id:016x}")
+
+    def close(self):
+        self._client.close()

@@ -130,3 +130,6 @@ class SubCommand(InfuseCommand):
             print(f"  Address: {source.interface_address}")
             print(f"     RSSI: {source.rssi} dBm")
             print(tabulate.tabulate(table, tablefmt="simple"))
+
+    def close(self):
+        self._client.close()

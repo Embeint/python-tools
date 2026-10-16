@@ -59,3 +59,6 @@ class SubCommand(InfuseCommand):
                 filename = Path(f"{source.infuse_id:016x}_{tdf.name}.csv")
                 lines = tdf.csv_lines(time_fmt=self._time_format)
                 self._exporter.write_lines(filename, lines, header=tdf.csv_header)
+
+    def close(self):
+        self._client.close()
