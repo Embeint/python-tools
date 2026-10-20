@@ -172,16 +172,20 @@ class SubCommand(InfuseCommand):
                     self.data_progress_cb,
                     data_logger_read.response.from_buffer_copy,
                 )
-                if hdr is not None and hdr.return_code == 0:
-                    assert isinstance(rsp, data_logger_read.response)
-                    if rsp.sent_len == len(self.pending_bytes) and rsp.sent_crc == binascii.crc32(self.pending_bytes):
-                        state.append_data(self.pending_bytes)
-                if self.task is not None:
-                    self.progress.remove_task(self.task)
-                    self.task = None
-
+                if (
+                    hdr is not None
+                    and hdr.return_code == 0
+                    and isinstance(rsp, data_logger_read.response)
+                    and rsp.sent_len == len(self.pending_bytes)
+                    and rsp.sent_crc == binascii.crc32(self.pending_bytes)
+                ):
+                    state.append_data(self.pending_bytes)
         except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
             self.state_update(live, "Scanning")
+        finally:
+            if self.task is not None:
+                self.progress.remove_task(self.task)
+                self.task = None
 
     def run(self):
         if not self._client.comms_check():
