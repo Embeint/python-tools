@@ -160,7 +160,7 @@ class SubCommand(InfuseCommand):
                     self.data_progress_cb,
                     data_logger_read.response.from_buffer_copy,
                 )
-                if hdr.return_code == 0:
+                if hdr is not None and hdr.return_code == 0:
                     assert isinstance(rsp, data_logger_read.response)
                     if rsp.sent_len == len(self.pending_bytes) and rsp.sent_crc == binascii.crc32(self.pending_bytes):
                         state.append_data(self.pending_bytes)

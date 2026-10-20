@@ -202,7 +202,8 @@ class RpcClient:
         size: int,
         recv_cb: Callable[[int, bytes], None],
         rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure],
-    ) -> tuple[rpc.ResponseHeader, ctypes.LittleEndianStructure | None]:
+    ) -> tuple[rpc.ResponseHeader | None, ctypes.LittleEndianStructure | None]:
+        """Receive data until the response, returning (None, None) after an inactivity timeout."""
         self._request_id += 1
         header = rpc.RequestHeader(self._request_id, cmd_id)
         data_hdr = rpc.RequestDataHeader(size, 0)
@@ -217,8 +218,9 @@ class RpcClient:
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
 
-        while True:
-            rsp = self._client_recv()
+        expiry = time.monotonic() + self._timeout
+        while (remaining := expiry - time.monotonic()) > 0:
+            rsp = self._client_recv(remaining)
             if rsp is None:
                 continue
             if isinstance(rsp, ClientNotificationConnectionDropped):
@@ -243,6 +245,8 @@ class RpcClient:
                 continue
 
             recv_cb(data.offset, rsp.epacket.payload[ctypes.sizeof(rpc.DataHeader) :])
+            expiry = time.monotonic() + self._timeout
+        return None, None
 
     def run_standard_cmd(
         self, cmd_id: int, auth: Auth, params: bytes, rsp_decoder: Callable[[bytes], ctypes.LittleEndianStructure]
