@@ -15,7 +15,6 @@ from infuse_iot.common import InfuseType
 from infuse_iot.epacket import interface
 from infuse_iot.exporter import Exporter
 from infuse_iot.socket_comms import (
-    ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
     GatewayRequestConnectionRequest,
     LocalClient,
@@ -74,7 +73,7 @@ class SubCommand(InfuseCommand):
                     evt = self._client.receive()
                     if evt is None:
                         continue
-                    if isinstance(evt, ClientNotificationConnectionDropped):
+                    if self._client.connection_dropped(evt):
                         Console.log_error(f"Connection to {self._id:016x} lost")
                         break
                     if not isinstance(evt, ClientNotificationEpacketReceived):
