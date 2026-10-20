@@ -297,6 +297,16 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
     def connection_lost(self, exc):
         Console.log_error("Connection closed")
+        for task in self._tasks.values():
+            task.cancel()
+
+    async def shutdown(self):
+        tasks = list(self._tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._tasks.clear()
+        self._queues.clear()
 
 
 class SubCommand(InfuseCommand):
@@ -327,7 +337,7 @@ class SubCommand(InfuseCommand):
         sock.setblocking(False)
         # Wrap the socket with an asyncio Datagram protocol
         loop = asyncio.get_running_loop()
-        transport, _protocol = await loop.create_datagram_endpoint(
+        transport, protocol = await loop.create_datagram_endpoint(
             lambda: MulticastHandler(self.database, self.server, self.bleak_mapping),
             sock=sock,
         )
@@ -335,6 +345,7 @@ class SubCommand(InfuseCommand):
         try:
             await asyncio.Future()  # Run forever
         finally:
+            await protocol.shutdown()
             transport.close()
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
