@@ -390,13 +390,16 @@ class LocalClient:
         # Send the request for the connection
         req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms)
         self.send(req)
-        # Wait for response from the server
+        # Notifications are broadcast to every client, including other devices' connection results.
         while True:
-            if rsp := self.receive():
-                if isinstance(rsp, ClientNotificationConnectionCreated):
-                    return rsp.max_payload
-                elif isinstance(rsp, ClientNotificationConnectionFailed):
-                    raise ConnectionRefusedError(rsp.reason)
+            rsp = self.receive()
+            if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
+                continue
+            if rsp.infuse_id != infuse_id:
+                continue
+            if isinstance(rsp, ClientNotificationConnectionCreated):
+                return rsp.max_payload
+            raise ConnectionRefusedError(rsp.reason)
 
     def connection_release(self):
         assert self._connection_id is not None

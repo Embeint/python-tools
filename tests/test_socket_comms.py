@@ -4,6 +4,8 @@ import os
 import threading
 from unittest.mock import Mock
 
+import pytest
+
 import infuse_iot.socket_comms as comms
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -39,6 +41,29 @@ def test_socket_comms():
     # Client receives the response
     recv_rsp = client.receive()
     assert isinstance(recv_rsp, comms.ClientNotificationCommsCheck)
+
+
+@pytest.fixture
+def client(monkeypatch):
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._connection_id = None
+    monkeypatch.setattr(client, "send", Mock())
+    monkeypatch.setattr(client, "receive", Mock())
+    return client
+
+
+def test_connection_ignores_other_devices(client):
+    client.receive.side_effect = [
+        comms.ClientNotificationConnectionFailed(999, "Other device failure"),
+        comms.ClientNotificationConnectionCreated(999, 12),
+        comms.ClientNotificationConnectionCreated(123, 128),
+    ]
+    with client.connection(123, comms.GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
+        assert mtu == 128
+    requests = [call.args[0] for call in client.send.call_args_list]
+    assert len(requests) == 2
+    assert isinstance(requests[1], comms.GatewayRequestConnectionRelease)
+    assert requests[1].infuse_id == 123
 
 
 def test_receive_deadline_leaves_shared_socket_timeout_unchanged(monkeypatch):
