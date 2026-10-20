@@ -43,6 +43,9 @@ class SubCommand(InfuseCommand):
         self.df = pl.read_csv(self.file, try_parse_dates=True).with_columns(
             pl.lit(self.labels[0]).alias("labels")
         )
+        if self.df.is_empty():
+            raise ValueError("CSV file contains no readings to annotate")
+        self.selection = [self.df["time"][0], self.df["time"][-1]]
 
         app = Dash()
         app.layout = html.Div(
