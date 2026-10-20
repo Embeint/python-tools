@@ -8,6 +8,7 @@ import pytest
 from infuse_iot.common import InfuseBluetoothUUID
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionCreated,
+    ClientNotificationConnectionFailed,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
 )
@@ -81,3 +82,29 @@ def test_repeated_requests_share_connection_and_subscriptions(handler, monkeypat
     ]
     assert not handler._queues
     assert not handler._tasks
+
+
+def test_setup_steps_share_request_timeout(handler, monkeypatch):
+    clients = []
+
+    async def never_completes(*_args):
+        await asyncio.Event().wait()
+
+    def factory(*args, **kwargs):
+        client = FakeBleakClient(*args, **kwargs)
+        # Subscribing never completes after the connection has been established.
+        client.start_notify = AsyncMock(side_effect=never_completes)
+        clients.append(client)
+        return client
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 50))
+        await asyncio.wait_for(handler._tasks[123], timeout=1.0)
+
+    asyncio.run(run())
+    assert clients[0].closed
+    notification = handler._server.broadcast.call_args.args[0]
+    assert isinstance(notification, ClientNotificationConnectionFailed)
+    assert "timed out" in notification.reason

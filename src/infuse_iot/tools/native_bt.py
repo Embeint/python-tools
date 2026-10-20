@@ -113,6 +113,11 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
     ):
         subscribed = request.DataType(0)
+        # The whole setup, not just the Bluetooth connection, must complete within the requested timeout.
+        deadline = asyncio.get_running_loop().time() + request.timeout_ms / 1000
+
+        async def before_deadline(aw):
+            return await asyncio.wait_for(aw, timeout=max(0, deadline - asyncio.get_running_loop().time()))
 
         async def subscribe(types):
             nonlocal subscribed
@@ -130,14 +135,14 @@ class MulticastHandler(asyncio.DatagramProtocol):
         async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
-                await client._backend._acquire_mtu()  # type: ignore
+                await before_deadline(client._backend._acquire_mtu())  # type: ignore
 
             Console.log_info(f"{request.infuse_id:016x}: Connected (MTU {client.mtu_size})")
 
             have_shared_key = self._db.has_shared_key(request.infuse_id)
             if have_shared_key:
                 # Read the current keys back to confirm they haven't changed
-                security_info = await client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR)
+                security_info = await before_deadline(client.read_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR))
                 resp = InfuseGattReadResponse.from_buffer_copy(security_info)
                 key_id = self._db.get_device_key_id(bytes(resp.cloud_public_key), bytes(resp.device_public_key))
                 if self._db.devices[request.infuse_id].device_key_id != key_id:
@@ -147,7 +152,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
             if not have_shared_key:
                 # Always need the command characteristic to get the response
-                await subscribe(request.DataType.COMMAND)
+                await before_deadline(subscribe(request.DataType.COMMAND))
 
                 security_state_received = asyncio.Event()
 
@@ -178,17 +183,17 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 # Encrypt command and write to remote
                 encr = CtypeBtGattFrame.encrypt(self._db, request.infuse_id, ss_pkt.ptype, Auth.NETWORK, ss_pkt.payload)
                 Console.log_tx(ss_pkt.ptype, len(encr))
-                await client.write_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR, encr, response=False)
+                await before_deadline(client.write_gatt_char(InfuseBluetoothUUID.COMMAND_CHAR, encr, response=False))
 
                 # Wait for a response
-                await asyncio.wait_for(security_state_received.wait(), timeout=request.timeout_ms / 1000)
+                await before_deadline(security_state_received.wait())
 
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):
-                    await client.stop_notify(InfuseBluetoothUUID.COMMAND_CHAR)
+                    await before_deadline(client.stop_notify(InfuseBluetoothUUID.COMMAND_CHAR))
                     subscribed &= ~request.DataType.COMMAND
 
-            await subscribe(request.data_types)
+            await before_deadline(subscribe(request.data_types))
 
             # ATT header uses 3 bytes of the MTU.
             max_payload = client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16
