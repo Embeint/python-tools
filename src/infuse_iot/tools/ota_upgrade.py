@@ -341,3 +341,10 @@ class SubCommand(InfuseCommand):
                     self.task = None
 
                 self.state_update(live, "Scanning")
+
+    def close(self):
+        try:
+            if self._log is not None:
+                self._log.close()
+        finally:
+            super().close()
