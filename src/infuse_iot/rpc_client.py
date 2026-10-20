@@ -48,16 +48,16 @@ class RpcClient:
             rsp_data = None
         return (rsp_header, rsp_data)
 
-    def _client_recv(self) -> ClientNotification | None:
-        rsp = self._client.receive()
+    def _client_recv(self, timeout: float | None = None) -> ClientNotification | None:
+        rsp = self._client.receive(timeout=timeout)
         if rsp is not None and self._rx_cb is not None:
             self._rx_cb(rsp)
         return rsp
 
     def _wait_data_ack(self) -> PacketReceived | None:
-        timeout = time.time() + self._timeout
-        while time.time() < timeout:
-            rsp = self._client_recv()
+        timeout = time.monotonic() + self._timeout
+        while (remaining := timeout - time.monotonic()) > 0:
+            rsp = self._client_recv(remaining)
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
@@ -76,10 +76,10 @@ class RpcClient:
         return None
 
     def _wait_rpc_rsp(self) -> PacketReceived | None:
-        timeout = time.time() + self._timeout
+        timeout = time.monotonic() + self._timeout
         # Wait for responses
-        while time.time() < timeout:
-            rsp = self._client_recv()
+        while (remaining := timeout - time.monotonic()) > 0:
+            rsp = self._client_recv(remaining)
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationEpacketReceived):
