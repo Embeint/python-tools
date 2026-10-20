@@ -231,10 +231,7 @@ class RpcClient:
                 # Response to the request we sent
                 if rsp_header.request_id != self._request_id:
                     continue
-                # Convert response bytes back to struct form
-                rsp_payload = rsp.epacket.payload[ctypes.sizeof(rpc.ResponseHeader) :]
-                rsp_data = rsp_decoder(rsp_payload)
-                return (rsp_header, rsp_data)
+                return self._finalise_command(rsp.epacket, rsp_decoder)
 
             if rsp.epacket.ptype != InfuseType.RPC_DATA:
                 continue
