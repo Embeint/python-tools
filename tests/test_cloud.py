@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from infuse_iot.api_client.models import Error
 from infuse_iot.app.main import InfuseApp
 from infuse_iot.tools import cloud
 from infuse_iot.tools.cloud import CloudSubCommand
@@ -43,6 +44,16 @@ def test_cloud_resource_dispatch(cloud_list, monkeypatch):
     response: Any = SimpleNamespace(filenames=[]) if argv[1] == "coap" else []
     monkeypatch.setattr(endpoint, attribute, lambda *_args, **_kwargs: response)
     InfuseApp().run(argv)
+
+
+@pytest.mark.parametrize("response", [None, Error(code=503, message="Unavailable")])
+def test_cloud_request_failure_exits_nonzero(cloud_list, monkeypatch, response):
+    argv, endpoint, attribute = cloud_list
+    monkeypatch.setattr(endpoint, attribute, lambda *_args, **_kwargs: response)
+    with pytest.raises(SystemExit) as error:
+        InfuseApp().run(argv)
+    assert isinstance(error.value.code, str)
+    assert "No response" in error.value.code if response is None else "503" in error.value.code
 
 
 def _run_cloud_list(resource: str) -> str:

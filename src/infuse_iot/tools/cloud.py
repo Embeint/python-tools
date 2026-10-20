@@ -49,7 +49,7 @@ from infuse_iot.api_client.api.organisation import (
     get_all_organisations,
     get_organisation_by_id,
 )
-from infuse_iot.api_client.types import File, Unset
+from infuse_iot.api_client.types import File, Response, Unset
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.util.api import fetch_all
@@ -63,6 +63,19 @@ from infuse_iot.util.argparse import (
 )
 from infuse_iot.util.console import choose_one, user_confirm, user_response
 from infuse_iot.util.version import Version
+
+
+def require_response(response: Any, action: str) -> Any:
+    """Report failed API requests with a nonzero exit status."""
+    if isinstance(response, Response):
+        if response.parsed is None:
+            sys.exit(f"{action}: <{response.status_code}> {response.content.decode('utf-8', errors='replace')}")
+        response = response.parsed
+    if response is None:
+        sys.exit(f"{action}: No response")
+    if isinstance(response, models.Error):
+        sys.exit(f"{action}: <{response.code}> {response.message}")
+    return response
 
 
 class CloudSubCommand:
@@ -98,8 +111,7 @@ class Organisations(CloudSubCommand):
         org_list = []
 
         orgs = fetch_all(get_all_organisations, client=client)
-        if isinstance(orgs, models.Error) or orgs is None:
-            sys.exit(f"Organisation query failed {orgs}")
+        orgs = require_response(orgs, "Organisation query")
         for o in orgs:
             org_list.append([o.name, o.id])
 
@@ -116,12 +128,8 @@ class Organisations(CloudSubCommand):
             body=models.NewOrganisation(self.args.name),
         )
 
-        if rsp.parsed is None:
-            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
-        elif isinstance(rsp.parsed, models.Error):
-            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
-        else:
-            print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
+        organisation = require_response(rsp, "Create organisation")
+        print(f"Created organisation {organisation.name} with ID {organisation.id}")
 
 
 class Boards(CloudSubCommand):
@@ -150,8 +158,7 @@ class Boards(CloudSubCommand):
 
     def list(self, client: Client):
         orgs = fetch_all(get_all_organisations, client=client)
-        if isinstance(orgs, models.Error) or orgs is None:
-            sys.exit(f"Organisation query failed {orgs}")
+        orgs = require_response(orgs, "Organisation query")
         org_names = {o.id: o.name for o in orgs}
 
         boards: dict[UUID, models.Board] = {}
@@ -162,8 +169,7 @@ class Boards(CloudSubCommand):
                 organisation_id=org.id,
                 include_public=not self.args.no_public,
             )
-            if isinstance(found, models.Error) or found is None:
-                sys.exit(f"Boards query failed {found}")
+            found = require_response(found, "Boards query")
             # `include_public` also returns other organisations' public boards,
             # so the same board comes back once per organisation queried
             boards.update({b.id: b for b in found})
@@ -200,12 +206,8 @@ class Boards(CloudSubCommand):
             ),
         )
 
-        if rsp.parsed is None:
-            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
-        elif isinstance(rsp.parsed, models.Error):
-            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
-        else:
-            print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
+        board = require_response(rsp, "Create board")
+        print(f"Created board {board.name} with ID {board.id}")
 
 
 class Device(CloudSubCommand):
@@ -361,9 +363,7 @@ class Device(CloudSubCommand):
         id_str = f"{self.args.id:016x}"
 
         kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
-        if not isinstance(kv_state, list):
-            print(f"Unable to query KV state for {id_str}")
-            return
+        kv_state = require_response(kv_state, f"KV state query for {id_str}")
 
         table: list[tuple[str, str, Any]] = []
         for element in kv_state:
@@ -406,11 +406,8 @@ class Device(CloudSubCommand):
             key_id=self.args.key,
             body=update,
         )
-        if rsp is None:
-            sys.exit("KV update: No response")
-        elif isinstance(rsp, models.Error):
-            sys.exit(f"<{rsp.code}>: {rsp.message}")
-        elif isinstance(rsp, models.DeviceKVEntry):
+        rsp = require_response(rsp, "KV update")
+        if isinstance(rsp, models.DeviceKVEntry):
             print(f"Device {id_str} key {self.args.key} already has value {self.args.val.hex()}")
         else:
             assert isinstance(rsp, models.DeviceKVEntryUpdate)
@@ -449,10 +446,7 @@ class Device(CloudSubCommand):
                 client=client,
                 device_id=id_str,
             )
-            if updates is None:
-                sys.exit("Get application updates: No response")
-            elif isinstance(updates, models.Error):
-                sys.exit(f"<{updates.code}>: {updates.message}")
+            updates = require_response(updates, "Get application updates")
 
             for update in updates:
                 print(
@@ -479,24 +473,20 @@ class Device(CloudSubCommand):
             index=self.args.logger_idx,
             body=models.DeviceLoggerStateUpdate(self.args.enable),
         )
-        if resp is None:
-            sys.exit("Update logger state: No response")
-        elif isinstance(resp, models.Error):
-            sys.exit(f"<{resp.code}>: {resp.message}")
-        else:
-            name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
-            table = [
-                (f"~~~{name} Logger Sync~~~", ""),
-                ("Enabled", resp.download_enabled),
-                ("Last Report Time", self._val_or_na(resp.last_reported_time)),
-                ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
-                ("Reported Block", self._val_or_na(resp.last_reported_block)),
-                ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
-            ]
-            if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
-                table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
+        resp = require_response(resp, "Update logger state")
+        name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
+        table = [
+            (f"~~~{name} Logger Sync~~~", ""),
+            ("Enabled", resp.download_enabled),
+            ("Last Report Time", self._val_or_na(resp.last_reported_time)),
+            ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
+            ("Reported Block", self._val_or_na(resp.last_reported_block)),
+            ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
+        ]
+        if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
+            table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
 
-            print(tabulate(table))
+        print(tabulate(table))
 
 
 class Coap(CloudSubCommand):
@@ -513,14 +503,10 @@ class Coap(CloudSubCommand):
     def list(self, client: Client):
         files = get_coap_files.sync(client=client)
 
-        if files is None:
-            print("Failed to retrieve file list (No response)")
-        elif isinstance(files, models.Error):
-            print(f"<{files.code}>: {files.message}")
-        else:
-            sorted_list: list[str] = sorted(files.filenames)
-            print("CoAP Files:")
-            print("\t" + "\n\t".join(sorted_list))
+        files = require_response(files, "CoAP file query")
+        sorted_list: list[str] = sorted(files.filenames)
+        print("CoAP Files:")
+        print("\t" + "\n\t".join(sorted_list))
 
 
 class Applications(CloudSubCommand):
@@ -553,8 +539,7 @@ class Applications(CloudSubCommand):
         org: UUID
         if self.args.org is None:
             orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = require_response(orgs, "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
@@ -565,9 +550,7 @@ class Applications(CloudSubCommand):
 
         applications = fetch_all(get_applications_by_organisation_id, client=client, id=org)
 
-        if not isinstance(applications, list):
-            print(f"Failed to retrieve application list {applications}")
-            return
+        applications = require_response(applications, "Application query")
 
         app_list = []
         for app in applications:
@@ -591,17 +574,11 @@ class Applications(CloudSubCommand):
             id=UUID(self.args.org),
             application_id=self.args.app,
         )
-        if application is None:
-            sys.exit("Get application: No response")
-        elif isinstance(application, models.Error):
-            sys.exit(f"<{application.code}>: {application.message}")
+        application = require_response(application, "Get application")
         release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
             client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
         )
-        if release is None:
-            sys.exit("Get release: No response")
-        elif isinstance(release, models.Error):
-            sys.exit(f"<{release.code}>: {release.message}")
+        release = require_response(release, "Get release")
         diffs = fetch_all(
             get_diffs_by_organisation_id_and_application_id_and_release_id,
             client=client,
@@ -609,10 +586,7 @@ class Applications(CloudSubCommand):
             application_id=self.args.app,
             release_id=self.args.rel,
         )
-        if diffs is None:
-            sys.exit("Get diffs: No response")
-        elif isinstance(diffs, models.Error):
-            sys.exit(f"<{diffs.code}>: {diffs.message}")
+        diffs = require_response(diffs, "Get diffs")
 
         version = release.version
         version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
@@ -630,7 +604,7 @@ class Applications(CloudSubCommand):
         )
 
         other_apps = fetch_all(get_applications_by_organisation_id, client=client, id=UUID(self.args.org))
-        assert isinstance(other_apps, list)
+        other_apps = require_response(other_apps, "Application query")
 
         diff_info = []
         for diff in diffs:
@@ -673,10 +647,7 @@ class Applications(CloudSubCommand):
             application_id=self.args.app,
         )
 
-        if releases is None:
-            sys.exit("Failed to retrieve release list (No response)")
-        elif isinstance(releases, models.Error):
-            sys.exit(f"<{releases.code}>: {releases.message}")
+        releases = require_response(releases, "Release query")
 
         release_list = []
         for release in releases:
@@ -731,8 +702,7 @@ class Applications(CloudSubCommand):
 
         if self._org is None:
             orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = require_response(orgs, "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
@@ -746,8 +716,7 @@ class Applications(CloudSubCommand):
 
         if self._board is None:
             boards = fetch_all(get_boards, client=client, organisation_id=self._org)
-            if isinstance(boards, models.Error) or boards is None:
-                sys.exit(f"Board query failed {boards}")
+            boards = require_response(boards, "Board query")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
             idx, _val = choose_one("Board", options)
@@ -797,8 +766,7 @@ class Applications(CloudSubCommand):
                 id=org,
                 application_id=app_id,
             )
-            if not isinstance(releases, list):
-                sys.exit(f"Unexpected release query result {releases}")
+            releases = require_response(releases, "Release query")
 
             by_version: dict[Version, models.ApplicationRelease] = {}
             for r in releases:
@@ -840,13 +808,9 @@ class Applications(CloudSubCommand):
                     application_id=app_id,
                     body=release_obj,
                 )
-                if rsp is None:
-                    sys.exit("Create release: No response")
-                elif isinstance(rsp, models.Error):
-                    sys.exit(f"<{rsp.code}>: {rsp.message}")
-                else:
-                    print(f"Release created with ID '{rsp.id}'")
-                    cloud_release = rsp
+                rsp = require_response(rsp, "Create release")
+                print(f"Release created with ID '{rsp.id}'")
+                cloud_release = rsp
 
         def upload_diffs_from_application(
             org: UUID,
