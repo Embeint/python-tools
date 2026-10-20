@@ -66,6 +66,34 @@ def test_connection_ignores_other_devices(client):
     assert requests[1].infuse_id == 123
 
 
+def test_rejected_connection_is_not_released(client):
+    client.receive.return_value = comms.ClientNotificationConnectionFailed(123, "Device key query failed")
+    with (
+        pytest.raises(ConnectionRefusedError, match="Device key query failed"),
+        client.connection(123, comms.GatewayRequestConnectionRequest.DataType.DATA),
+    ):
+        pytest.fail("Rejected connection must not enter the context")
+    assert client._connection_id is None
+    assert client.send.call_count == 1
+
+
+def test_connection_timeout_cancels_pending_request(client, monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(comms.time, "monotonic", lambda: clock[0])
+
+    def receive(timeout):
+        clock[0] += timeout
+        return None
+
+    client.receive.side_effect = receive
+    with pytest.raises(TimeoutError):
+        client.connection_create(123, comms.GatewayRequestConnectionRequest.DataType.DATA, 50)
+    # Gateways may finish security setup after the Bluetooth connection timeout.
+    assert clock[0] == pytest.approx(0.05 + client.CONNECTION_RESPONSE_MARGIN_S)
+    assert client._connection_id is None
+    assert isinstance(client.send.call_args.args[0], comms.GatewayRequestConnectionRelease)
+
+
 def test_receive_deadline_leaves_shared_socket_timeout_unchanged(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._input_sock = Mock()

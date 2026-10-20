@@ -117,7 +117,7 @@ class SubCommand(InfuseCommand):
 
         except KeyboardInterrupt:
             Console.log_error(f"Disconnecting from {self._id:016x}")
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, TimeoutError):
             Console.log_error(f"Unable to connect to {self._id:016x}")
 
         if self._left:

@@ -333,9 +333,7 @@ class SubCommand(InfuseCommand):
                             else:
                                 self.run_file_upload(live, mtu, source)
 
-                except ConnectionRefusedError:
-                    self.state_update(live, "Scanning")
-                except ConnectionAbortedError:
+                except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
                     self.state_update(live, "Scanning")
 
                 if self.task is not None:
