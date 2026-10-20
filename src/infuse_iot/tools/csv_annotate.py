@@ -36,7 +36,7 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         import polars as pl
-        from dash import Dash, Input, Output, State, callback, dcc, html
+        from dash import Dash, Input, Output, State, dcc, html
         from dateutil import parser as date_parser
 
         # Read data, add label column
@@ -60,7 +60,7 @@ class SubCommand(InfuseCommand):
             ]
         )
 
-        @callback(
+        @app.callback(
             Output("label-current", "options", True),
             Input("button-label-add", "n_clicks"),
             State("input-on-submit", "value"),
@@ -70,7 +70,7 @@ class SubCommand(InfuseCommand):
             self.labels.append(value)
             return self.labels
 
-        @callback(
+        @app.callback(
             Output("label-current", "options", True),
             Input("button-label-remove", "n_clicks"),
             State("label-current", "value"),
@@ -83,7 +83,7 @@ class SubCommand(InfuseCommand):
                 pass
             return self.labels
 
-        @callback(Input("graph", "relayoutData"))
+        @app.callback(Input("graph", "relayoutData"))
         def store_relayout_data(relayoutData):
             if relayoutData.get("autosize", False) or relayoutData.get("xaxis.autorange", False):
                 self.selection = [
@@ -96,7 +96,7 @@ class SubCommand(InfuseCommand):
                     date_parser.parse(relayoutData["xaxis.range[1]"]),
                 ]
 
-        @callback(
+        @app.callback(
             Output("graph", "figure"),
             Input("button-label-selection", "n_clicks"),
             State("label-current", "value"),
