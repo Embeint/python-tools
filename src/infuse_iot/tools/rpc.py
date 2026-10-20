@@ -139,3 +139,6 @@ class SubCommand(InfuseCommand):
                             self.rx_handler(notification)
         except ConnectionRefusedError as e:
             print(f"Unable to connect to {self._id:016x}: ({e})")
+
+    def close(self):
+        self._client.close()

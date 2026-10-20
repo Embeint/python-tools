@@ -99,3 +99,6 @@ class SubCommand(InfuseCommand):
                 else:
                     self.update_active_state(live, source.infuse_id, self.active)
                 live.update(self.progress_table())
+
+    def close(self):
+        self.client.close()

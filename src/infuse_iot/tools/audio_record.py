@@ -126,3 +126,6 @@ class SubCommand(InfuseCommand):
         if self._right:
             assert self._freq
             Console.log_text(f"Right Channel Recorded: {self._right.getnframes() / self._freq} Seconds")
+
+    def close(self):
+        self._client.close()

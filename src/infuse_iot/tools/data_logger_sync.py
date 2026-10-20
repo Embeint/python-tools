@@ -201,3 +201,6 @@ class SubCommand(InfuseCommand):
                 assert state.on_device is not None
                 if state.on_disk < state.on_device:
                     self.handle_sync(live, source.infuse_id, state)
+
+    def close(self):
+        self._client.close()
