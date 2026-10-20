@@ -58,7 +58,7 @@ class SubCommand(InfuseCommand):
                         html.Button("Add new label", id="button-label-add"),
                     ]
                 ),
-                dcc.RadioItems(id="label-current", options=self.labels),
+                dcc.RadioItems(id="label-current", options=self.labels, value=self.labels[0]),
                 html.Button("Remove label", id="button-label-remove"),
             ]
         )
