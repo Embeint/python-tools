@@ -139,3 +139,5 @@ class SubCommand(InfuseCommand):
                             self.rx_handler(notification)
         except (ConnectionRefusedError, TimeoutError) as e:
             print(f"Unable to connect to {self._id:016x}: ({e})")
+        except ConnectionAbortedError:
+            print(f"Connection to {self._id:016x} lost")

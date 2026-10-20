@@ -7,7 +7,7 @@ from infuse_iot import rpc
 from infuse_iot.common import InfuseType
 from infuse_iot.epacket.packet import Auth, PacketReceived
 from infuse_iot.rpc_client import RpcClient
-from infuse_iot.socket_comms import ClientNotificationEpacketReceived, LocalClient
+from infuse_iot.socket_comms import ClientNotificationConnectionDropped, ClientNotificationEpacketReceived, LocalClient
 
 
 class Response(ctypes.LittleEndianStructure):
@@ -89,3 +89,12 @@ def test_unrelated_data_does_not_extend_timeout(rpc_client, monkeypatch):
     callback = Mock()
     assert rpc_client.run_data_recv_cmd(1, Auth.DEVICE, b"", 0, callback, Response.from_buffer_copy) == (None, None)
     callback.assert_not_called()
+
+
+def test_only_target_disconnect_aborts_download(rpc_client):
+    rpc_client._client.receive.side_effect = [
+        ClientNotificationConnectionDropped(999),
+        ClientNotificationConnectionDropped(123),
+    ]
+    with pytest.raises(ConnectionAbortedError):
+        rpc_client.run_data_recv_cmd(1, Auth.DEVICE, b"", 0, Mock(), Response.from_buffer_copy)
