@@ -112,7 +112,20 @@ class MulticastHandler(asyncio.DatagramProtocol):
     async def create_connection_internal(
         self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue
     ):
-        command_notify_enabled = False
+        subscribed = request.DataType(0)
+
+        async def subscribe(types):
+            nonlocal subscribed
+            characteristics = (
+                (request.DataType.COMMAND, InfuseBluetoothUUID.COMMAND_CHAR),
+                (request.DataType.DATA, InfuseBluetoothUUID.DATA_CHAR),
+                (request.DataType.LOGGING, InfuseBluetoothUUID.LOGGING_CHAR),
+            )
+            for flag, uuid in characteristics:
+                if types & flag and not subscribed & flag:
+                    await client.start_notify(uuid, self.notification_handler)
+                    subscribed |= flag
+
         Console.log_info(f"{request.infuse_id:016x}: Initiating connection")
         async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
             # Modified from bleak example code
@@ -134,8 +147,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
             if not have_shared_key:
                 # Always need the command characteristic to get the response
-                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
-                command_notify_enabled = True
+                await subscribe(request.DataType.COMMAND)
 
                 security_state_received = asyncio.Event()
 
@@ -174,26 +186,27 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):
                     await client.stop_notify(InfuseBluetoothUUID.COMMAND_CHAR)
+                    subscribed &= ~request.DataType.COMMAND
 
-            if (request.data_types & request.DataType.COMMAND) and not command_notify_enabled:
-                await client.start_notify(InfuseBluetoothUUID.COMMAND_CHAR, self.notification_handler)
-            if request.data_types & request.DataType.DATA:
-                await client.start_notify(InfuseBluetoothUUID.DATA_CHAR, self.notification_handler)
-            if request.data_types & request.DataType.LOGGING:
-                await client.start_notify(InfuseBluetoothUUID.LOGGING_CHAR, self.notification_handler)
+            await subscribe(request.data_types)
 
-            self.wrapped_broadcast(
-                ClientNotificationConnectionCreated(
-                    request.infuse_id,
-                    # ATT header uses 3 bytes of the MTU
-                    client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16,
-                )
-            )
+            # ATT header uses 3 bytes of the MTU.
+            max_payload = client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16
+            self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
 
             req: GatewayRequest
+            users = 1
             while req := await queue.get():
+                if isinstance(req, GatewayRequestConnectionRequest):
+                    await subscribe(req.data_types)
+                    users += 1
+                    self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
+                    continue
                 if isinstance(req, GatewayRequestConnectionRelease):
-                    break
+                    users -= 1
+                    if users == 0:
+                        break
+                    continue
                 assert isinstance(req, GatewayRequestEpacketSend)
                 pkt: PacketOutput = req.epacket
 
@@ -242,7 +255,12 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 raise RuntimeError
             q: asyncio.Queue | None = self._queues.get(queue_id, None)
             if q is not None:
-                loop.call_soon(lambda: q.put_nowait(request))  # type: ignore
+                q.put_nowait(request)
+            return
+
+        # Share one connection and queue per device, including while connection setup is pending.
+        if request.infuse_id in self._queues:
+            self._queues[request.infuse_id].put_nowait(request)
             return
 
         ble_dev = self._mapping.get(request.infuse_id, None)
