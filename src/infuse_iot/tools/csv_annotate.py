@@ -88,16 +88,22 @@ class SubCommand(InfuseCommand):
 
         @app.callback(Input("graph", "relayoutData"))
         def store_relayout_data(relayoutData):
-            if relayoutData.get("autosize", False) or relayoutData.get("xaxis.autorange", False):
-                self.selection = [
-                    self.df["time"][0],
-                    self.df["time"][self.df.shape[0] - 1],
-                ]
-            else:
-                self.selection = [
-                    date_parser.parse(relayoutData["xaxis.range[0]"]),
-                    date_parser.parse(relayoutData["xaxis.range[1]"]),
-                ]
+            if not relayoutData:
+                return
+            # The subplots share an x-axis, but zooming either one reports its own axis ("xaxis" or "xaxis2").
+            for axis in ("xaxis", "xaxis2"):
+                if relayoutData.get("autosize", False) or relayoutData.get(f"{axis}.autorange", False):
+                    self.selection = [
+                        self.df["time"][0],
+                        self.df["time"][self.df.shape[0] - 1],
+                    ]
+                    return
+                if f"{axis}.range[0]" in relayoutData and f"{axis}.range[1]" in relayoutData:
+                    self.selection = [
+                        date_parser.parse(relayoutData[f"{axis}.range[0]"]),
+                        date_parser.parse(relayoutData[f"{axis}.range[1]"]),
+                    ]
+                    return
 
         @app.callback(
             Output("graph", "figure"),
