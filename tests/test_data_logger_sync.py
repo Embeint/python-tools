@@ -1,6 +1,12 @@
-import pytest
+from io import StringIO
+from types import SimpleNamespace
+from unittest.mock import Mock
 
-from infuse_iot.tools.data_logger_sync import DeviceState
+import pytest
+from rich.console import Console
+
+from infuse_iot.definitions.rpc import rpc_enum_data_logger
+from infuse_iot.tools.data_logger_sync import DeviceState, SubCommand
 
 
 def test_resume_rejects_partial_block_without_changing_file(tmp_path):
@@ -24,3 +30,17 @@ def test_resume_appends_complete_blocks(tmp_path):
     with pytest.raises(ValueError, match="complete blocks"):
         state.append_data(b"partial")
     assert path.stat().st_size == 1536
+
+
+def test_progress_with_empty_logger(tmp_path, monkeypatch):
+    monkeypatch.setattr("infuse_iot.tools.data_logger_sync.LocalClient", Mock())
+    args = SimpleNamespace(
+        server_sock=None, rssi=None, app=None, out=tmp_path, blocks=500, logger=rpc_enum_data_logger.FLASH_ONBOARD
+    )
+    command = SubCommand(args)
+    state = DeviceState(tmp_path / "empty.bin")
+    state.on_device = 0
+    command._device_state[123] = state
+    output = StringIO()
+    Console(file=output, width=120).print(command.progress_table())
+    assert "100%" in output.getvalue()
