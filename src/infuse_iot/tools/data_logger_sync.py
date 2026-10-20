@@ -65,7 +65,6 @@ class DeviceState:
 
 class SubCommand(InfuseCommand):
     def __init__(self, args):
-        self._client = LocalClient(args.server_sock, 1.0)
         self._min_rssi: int | None = args.rssi
         self._app = args.app
         self._out = args.out
@@ -89,6 +88,9 @@ class SubCommand(InfuseCommand):
             device_id = int(name_parts[0], 16)
 
             self._device_state[device_id] = DeviceState(file_path)
+        if self._blocks_max <= 0:
+            raise ValueError("Number of blocks per connection must be positive")
+        self._client = LocalClient(args.server_sock, 1.0)
 
     @classmethod
     def add_parser(cls, parser):
