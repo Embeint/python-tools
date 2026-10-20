@@ -18,6 +18,7 @@ from infuse_iot.credentials import get_custom_tool_path
 from infuse_iot.epacket.packet import Auth
 from infuse_iot.generated.rpc_definitions import RPCDefinitionBase
 from infuse_iot.generated.rpc_errors import RPCError
+from infuse_iot.socket_comms import LocalClient
 from infuse_iot.tools.registry import import_extension_rpc_wrapper, load_extension_rpc_wrappers
 from infuse_iot.zephyr.errno import errno
 
@@ -61,6 +62,12 @@ class InfuseCommand(metaclass=ABCMeta):
     @abstractmethod
     def run(self) -> None:
         """Run the subcommand"""
+
+    def close(self) -> None:
+        """Release resources owned by the subcommand, including its gateway clients."""
+        for value in list(vars(self).values()):
+            if isinstance(value, LocalClient):
+                value.close()
 
 
 class InfuseRpcCommand:
