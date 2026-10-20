@@ -38,6 +38,7 @@ from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
     ClientNotificationConnectionCreated,
+    ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
     GatewayRequest,
@@ -71,6 +72,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._mapping = bleak_mapping
         self._queues: dict[int, asyncio.Queue] = {}
         self._tasks: dict[int, asyncio.Task] = {}
+        self._connected: set[int] = set()
         self._rpc = LocalRpcServer(database, native_bt=True)
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
@@ -197,6 +199,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
             # ATT header uses 3 bytes of the MTU.
             max_payload = client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16
+            self._connected.add(request.infuse_id)
             self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
 
             req: GatewayRequest
@@ -226,21 +229,25 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 Console.log_tx(pkt.ptype, len(encr))
                 await client.write_gatt_char(uuid, encr, response=False)
 
-        # Queue no longer being handled
-        self._queues.pop(request.infuse_id)
-        self._tasks.pop(request.infuse_id)
-        Console.log_info(f"{dev}: Terminating connection")
-
     async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
+        reason = "Connection setup interrupted"
         try:
             await self.create_connection_internal(request, dev, queue)
         except BleakError as e:
             Console.log_info(f"Bleak Error: {str(e)}")
-            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, f"Bluetooth error: {e}"))
+            reason = f"Bluetooth error: {e}"
         except TimeoutError as e:
             Console.log_info(f"Timeout: {str(e)}")
             reason = f"Connection timed out: {e}" if str(e) else "Connection timed out"
-            self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, reason))
+        finally:
+            self._queues.pop(request.infuse_id, None)
+            self._tasks.pop(request.infuse_id, None)
+            if request.infuse_id in self._connected:
+                self._connected.remove(request.infuse_id)
+                self.wrapped_broadcast(ClientNotificationConnectionDropped(request.infuse_id))
+            else:
+                self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, reason))
+            Console.log_info(f"{dev}: Terminating connection")
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         loop = asyncio.get_event_loop()
