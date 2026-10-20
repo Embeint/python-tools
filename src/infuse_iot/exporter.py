@@ -22,18 +22,11 @@ class Exporter:
         full_path = self.save_path / filename
 
         if full_path not in self._files:
-            if full_path.exists():
-                print(f"Appending to existing {full_path}")
-                self._files[full_path] = self._stack.enter_context(
-                    open(full_path, "a", encoding="utf-8")  # noqa: SIM115
-                )
-            else:
-                print(f"Opening new {full_path}")
-                self._files[full_path] = self._stack.enter_context(
-                    open(full_path, "w", encoding="utf-8")  # noqa: SIM115
-                )
-                if header:
-                    self._files[full_path].write(header() + '\n')
+            exists = full_path.exists()
+            print(f"Appending to existing {full_path}" if exists else f"Opening new {full_path}")
+            self._files[full_path] = self._stack.enter_context(open(full_path, "a", encoding="utf-8"))  # noqa: SIM115
+            if header and not exists:
+                self._files[full_path].write(header() + '\n')
 
         # Join lines here so only one `write` syscall is needed
         output = '\n'.join(lines) + '\n'
