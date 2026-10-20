@@ -70,12 +70,12 @@ class CloudSubCommand:
         self.args = args
 
     def run(self):
-        """Run cloud sub-command"""
         if print_subcommands_if_missing(self.args):
             return
+        with self.client() as client:
+            self.args.command_fn(self, client)
 
     def client(self):
-        """Get API client object ready to use"""
         return Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header(self.args.api_key))
 
 
@@ -93,12 +93,6 @@ class Organisations(CloudSubCommand):
         create_parser = tool_parser.add_parser("create", help="Create new organisation")
         create_parser.add_argument("--name", "-n", type=str, required=True)
         create_parser.set_defaults(command_fn=cls.create)
-
-    def run(self):
-        if print_subcommands_if_missing(self.args):
-            return
-        with self.client() as client:
-            self.args.command_fn(self, client)
 
     def list(self, client: Client):
         org_list = []
@@ -153,12 +147,6 @@ class Boards(CloudSubCommand):
         create_parser.add_argument("--desc", "-d", type=str, required=True, help="Board description")
         create_parser.add_argument("--public", action="store_true", help="Public board (globally visible)")
         create_parser.set_defaults(command_fn=cls.create)
-
-    def run(self):
-        if print_subcommands_if_missing(self.args):
-            return
-        with self.client() as client:
-            self.args.command_fn(self, client)
 
     def list(self, client: Client):
         orgs = fetch_all(get_all_organisations, client=client)
@@ -277,12 +265,6 @@ class Device(CloudSubCommand):
         logger_choice.add_argument(
             "--onboard", dest="logger_idx", action="store_const", const=0, help="Onboard flash logger"
         )
-
-    def run(self):
-        if print_subcommands_if_missing(self.args):
-            return
-        with self.client() as client:
-            self.args.command_fn(self, client)
 
     @staticmethod
     def _val_or_na(value) -> str:
@@ -528,12 +510,6 @@ class Coap(CloudSubCommand):
         list_parser = tool_parser.add_parser("list", help="List all CoAP files")
         list_parser.set_defaults(command_fn=cls.list)
 
-    def run(self):
-        if print_subcommands_if_missing(self.args):
-            return
-        with self.client() as client:
-            self.args.command_fn(self, client)
-
     def list(self, client: Client):
         files = get_coap_files.sync(client=client)
 
@@ -572,12 +548,6 @@ class Applications(CloudSubCommand):
         upload_parser.add_argument("--name", "-n", type=str, help="Application name override")
         upload_parser.add_argument("--release", "-r", type=ValidRelease, required=True, help="Release to upload")
         upload_parser.set_defaults(command_fn=cls.upload)
-
-    def run(self):
-        if print_subcommands_if_missing(self.args):
-            return
-        with self.client() as client:
-            self.args.command_fn(self, client)
 
     def list(self, client: Client):
         org: UUID
