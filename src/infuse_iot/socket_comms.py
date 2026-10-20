@@ -316,6 +316,9 @@ class LocalServer:
 
 
 class LocalClient:
+    # Gateways finish security setup after the Bluetooth connection timeout expires.
+    CONNECTION_RESPONSE_MARGIN_S = 5.0
+
     def __init__(self, multicast_address, rx_timeout=0.2):
         # Multicast input socket
         self._input_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -385,25 +388,38 @@ class LocalClient:
     def connection_create(
         self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int
     ) -> int:
+        if self._connection_id is not None:
+            raise RuntimeError("Client already has a connection context")
         self._connection_id = infuse_id
 
         # Send the request for the connection
         req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms)
-        self.send(req)
-        # Notifications are broadcast to every client, including other devices' connection results.
-        while True:
-            rsp = self.receive()
-            if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
-                continue
-            if rsp.infuse_id != infuse_id:
-                continue
-            if isinstance(rsp, ClientNotificationConnectionCreated):
-                return rsp.max_payload
-            raise ConnectionRefusedError(rsp.reason)
+        try:
+            self.send(req)
+            expiry = time.monotonic() + timeout_ms / 1000 + self.CONNECTION_RESPONSE_MARGIN_S
+            # Notifications are broadcast to every client, including other devices' connection results.
+            while (remaining := expiry - time.monotonic()) > 0:
+                rsp = self.receive(timeout=remaining)
+                if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
+                    continue
+                if rsp.infuse_id != infuse_id:
+                    continue
+                if isinstance(rsp, ClientNotificationConnectionCreated):
+                    return rsp.max_payload
+                self._connection_id = None
+                raise ConnectionRefusedError(rsp.reason)
+            raise TimeoutError(f"Timed out connecting to {infuse_id:016x}")
+        except BaseException:
+            # Cancel requests that may still be pending on the gateway. A rejected request has no context to release.
+            try:
+                self.connection_release()
+            except OSError:
+                pass
+            raise
 
     def connection_release(self):
-        assert self._connection_id is not None
-
+        if self._connection_id is None:
+            return
         req = GatewayRequestConnectionRelease(
             self._connection_id,
         )
@@ -412,8 +428,9 @@ class LocalClient:
 
     @contextmanager
     def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int = 10000):
+        max_payload = self.connection_create(infuse_id, data_types, timeout_ms)
         try:
-            yield self.connection_create(infuse_id, data_types, timeout_ms)
+            yield max_payload
         finally:
             self.connection_release()
 
