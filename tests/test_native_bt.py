@@ -4,10 +4,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from bleak.exc import BleakError
 
 from infuse_iot.common import InfuseBluetoothUUID
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionCreated,
+    ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
@@ -79,9 +81,26 @@ def test_repeated_requests_share_connection_and_subscriptions(handler, monkeypat
     assert [type(message) for message in notifications] == [
         ClientNotificationConnectionCreated,
         ClientNotificationConnectionCreated,
+        ClientNotificationConnectionDropped,
     ]
     assert not handler._queues
     assert not handler._tasks
+
+
+@pytest.mark.parametrize("error", [BleakError("failed"), TimeoutError("failed")])
+def test_failed_setup_cleans_up_connection(handler, monkeypatch, error):
+    monkeypatch.setattr(handler, "create_connection_internal", AsyncMock(side_effect=error))
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 1000))
+        await handler._tasks[123]
+
+    asyncio.run(run())
+    assert not handler._queues
+    assert not handler._tasks
+    notification = handler._server.broadcast.call_args.args[0]
+    assert isinstance(notification, ClientNotificationConnectionFailed)
+    assert "failed" in notification.reason
 
 
 def test_setup_steps_share_request_timeout(handler, monkeypatch):
