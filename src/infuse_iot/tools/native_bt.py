@@ -134,7 +134,11 @@ class MulticastHandler(asyncio.DatagramProtocol):
                     subscribed |= flag
 
         Console.log_info(f"{request.infuse_id:016x}: Initiating connection")
-        async with BleakClient(dev, timeout=request.timeout_ms / 1000) as client:
+        async with BleakClient(
+            dev,
+            timeout=request.timeout_ms / 1000,
+            disconnected_callback=lambda _: queue.put_nowait(None),
+        ) as client:
             # Modified from bleak example code
             if client._backend.__class__.__name__ == "BleakClientBlueZDBus":
                 await before_deadline(client._backend._acquire_mtu())  # type: ignore
