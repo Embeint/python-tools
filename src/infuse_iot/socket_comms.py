@@ -417,6 +417,14 @@ class LocalClient:
                 pass
             raise
 
+    def connection_dropped(self, notification: ClientNotification | None) -> bool:
+        """Whether a notification reports the loss of this client's connection."""
+        return (
+            isinstance(notification, ClientNotificationConnectionDropped)
+            and self._connection_id is not None
+            and notification.infuse_id == self._connection_id
+        )
+
     def connection_release(self):
         if self._connection_id is None:
             return
