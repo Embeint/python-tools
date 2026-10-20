@@ -27,7 +27,7 @@ class SubCommand(InfuseCommand):
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.2)
         for col in self.df.columns[1:]:
             fig.add_trace(
-                go.Scatter(x=self.df["time"], y=self.df[col], name=col),
+                go.Scatter(x=self.df["time"].to_list(), y=self.df[col].to_list(), name=col),
                 row=2 if col == "labels" else 1,
                 col=1,
             )
