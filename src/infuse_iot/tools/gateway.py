@@ -16,7 +16,6 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from contextlib import ExitStack
 
 import cryptography
 import cryptography.exceptions
@@ -610,6 +609,8 @@ class SerialTxThread(SignaledThread):
 
 
 class SubCommand(InfuseCommand):
+    THREAD_EXIT_TIMEOUT_S = 2.0
+
     @classmethod
     def add_parser(cls, parser):
         # COM ports are not valid files
@@ -666,14 +667,15 @@ class SubCommand(InfuseCommand):
             print_key_params=args.print_key_params,
         )
         self.log = args.log
+        self._threads: list[SignaledThread] = []
         Console.init()
 
     def run(self):
-        with ExitStack() as stack:
-            if self.log is not None:
-                stack.enter_context(self.log)
-            stack.callback(self._close_port)
+        # The log and server are closed by close() once the threads using them have exited.
+        try:
             self._run()
+        finally:
+            self._close_port()
 
     def _run(self):
         # Open the serial port
@@ -690,6 +692,7 @@ class SubCommand(InfuseCommand):
         # Start threads
         tx_thread = SerialTxThread(self._common)
         rx_thread = SerialRxThread(self._common, self.log, tx_thread._connection_dropped)
+        self._threads = [rx_thread, tx_thread]
         rx_thread.start()
         tx_thread.start()
 
@@ -702,10 +705,8 @@ class SubCommand(InfuseCommand):
         finally:
             rx_thread.stop()
             tx_thread.stop()
-
-        # Wait for threads to terminate
-        rx_thread.join(1.0)
-        tx_thread.join(1.0)
+            rx_thread.join(1.0)
+            tx_thread.join(1.0)
 
         if self.log:
             self.log.flush()
@@ -715,3 +716,18 @@ class SubCommand(InfuseCommand):
             self.port.close()
         except Exception:
             pass
+
+    def close(self):
+        self._close_port()
+        # Closing the port unblocks pending reads; threads must exit before the resources they use are closed.
+        for thread in self._threads:
+            thread.join(self.THREAD_EXIT_TIMEOUT_S)
+        if alive := [thread.name for thread in self._threads if thread.is_alive()]:
+            Console.log_error(f"Threads still running, leaving server and log open: {', '.join(alive)}")
+            return
+        try:
+            if self.log is not None:
+                self.log.close()
+        finally:
+            if self.server is not None:
+                self.server.close()
