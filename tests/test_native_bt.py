@@ -149,3 +149,21 @@ def test_setup_steps_share_request_timeout(handler, monkeypatch):
     notification = handler._server.broadcast.call_args.args[0]
     assert isinstance(notification, ClientNotificationConnectionFailed)
     assert "timed out" in notification.reason
+
+
+def test_shutdown_cancels_live_connections(handler, monkeypatch):
+    async def run():
+        started = asyncio.Event()
+
+        async def wait_forever(*_args):
+            started.set()
+            await asyncio.Future()
+
+        monkeypatch.setattr(handler, "create_connection_internal", wait_forever)
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 1000))
+        await started.wait()
+        await handler.shutdown()
+
+    asyncio.run(run())
+    assert not handler._tasks
+    assert not handler._queues
