@@ -23,7 +23,7 @@ from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.util.api import fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
-from infuse_iot.util.soc import nrf, soc, stm
+from infuse_iot.util.soc import esp, nrf, soc, stm
 
 
 class SubCommand(InfuseCommand):
@@ -36,6 +36,10 @@ class SubCommand(InfuseCommand):
         vendor_group.add_argument(
             "--stm", dest="vendor", action="store_const", const="stm", help="ST Microelectronics SoC"
         )
+        vendor_group.add_argument(
+            "--esp32", dest="vendor", action="store_const", const="esp32", help="Espressif ESP32-C6/S3 over USB"
+        )
+        parser.add_argument("--port", help="ESP32 serial port")
         parser.add_argument(
             "--snr",
             type=int,
@@ -65,6 +69,7 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._vendor: str = args.vendor
         self._snr: int | None = args.snr
+        self._port: str | None = args.port
         try:
             self._board = UUID(args.board) if args.board else None
         except ValueError:
@@ -124,13 +129,24 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         interface: soc.ProvisioningInterface
-        if self._vendor == "nrf":
-            interface = nrf.Interface(self._snr)
-        elif self._vendor == "stm":
-            interface = stm.Interface()
-        else:
-            raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
+        try:
+            if self._vendor == "nrf":
+                interface = nrf.Interface(self._snr)
+            elif self._vendor == "stm":
+                interface = stm.Interface()
+            elif self._vendor == "esp32":
+                interface = esp.Interface(self._port)
+            else:
+                raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
 
+            try:
+                return self.provision(interface)
+            finally:
+                interface.close()
+        except soc.ProvisioningError as e:
+            sys.exit(str(e))
+
+    def provision(self, interface: soc.ProvisioningInterface):
         hardware_id = interface.unique_device_id()
         hardware_id_str = f"{hardware_id:0{2 * interface.unique_device_id_len}x}"
 
@@ -144,6 +160,10 @@ class SubCommand(InfuseCommand):
             if isinstance(response.parsed, Device):
                 # Device found, fall through
                 assert isinstance(response.parsed.device_id, str)
+                if self._org is not None and self._org != response.parsed.organisation_id:
+                    sys.exit("Hardware already belongs to a different organisation")
+                if self._board is not None and self._board != response.parsed.board_id:
+                    sys.exit("Hardware already belongs to a different board")
                 self._org = response.parsed.organisation_id
                 self._board = response.parsed.board_id
                 cloud_id = int(response.parsed.device_id, 16)
@@ -154,6 +174,8 @@ class SubCommand(InfuseCommand):
                     sys.exit(err)
                 pass
             elif response.status_code == HTTPStatus.NOT_FOUND:
+                if interface.provisioned_device_id is not None:
+                    sys.exit("Provisioned ID has no matching cloud hardware record")
                 # Create new device here
                 self.create_device(client, interface.soc_name, hardware_id_str)
                 # Exit if dry run only
@@ -179,6 +201,8 @@ class SubCommand(InfuseCommand):
         assert isinstance(response.parsed.device_id, str)
         # Compare current flash contents to desired flash contents
         cloud_id = int(response.parsed.device_id, 16)
+        if interface.provisioned_device_id is not None and interface.provisioned_device_id != cloud_id:
+            sys.exit("Device Infuse ID differs from the cloud record")
         current_bytes = interface.read_provisioned_data(ctypes.sizeof(interface.DefaultProvisioningStruct))
         desired = interface.DefaultProvisioningStruct(cloud_id)
         desired_bytes = bytes(desired)
@@ -186,15 +210,18 @@ class SubCommand(InfuseCommand):
         if current_bytes == desired_bytes:
             print(f"HW ID 0x{hardware_id:016x} already provisioned as 0x{desired.device_id:016x}")
         else:
-            if current_bytes != len(current_bytes) * b"\xff":
+            if not interface.provisioning_data_is_blank(current_bytes):
                 print(f"HW ID 0x{hardware_id:016x} already has incorrect provisioning info, recover device")
                 return
 
+            if self._dry_run:
+                print(f"Would provision HW ID 0x{hardware_id:016x} as 0x{cloud_id:016x}")
+                return
             interface.write_provisioning_data(bytes(desired))
             print(f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}")
 
-        interface.close()
-
         example_cmd = f"infuse provision --organisation {self._org} --board {self._board} --{self._vendor}"
+        if self._vendor == "esp32":
+            example_cmd += " --port <serial-port>"
         print("To provision more devices like this:")
         print(f"\t {example_cmd}")

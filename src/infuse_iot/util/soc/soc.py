@@ -4,8 +4,17 @@ import ctypes
 from abc import ABCMeta, abstractmethod
 
 
+class ProvisioningError(RuntimeError):
+    "Provisioning failure reported to the user without a traceback"
+
+
 class ProvisioningInterface(metaclass=ABCMeta):
     "Generic SoC provisioning interface"
+
+    provisioned_device_id: int | None = None
+
+    def provisioning_data_is_blank(self, data: bytes) -> bool:
+        return data == b"\xff" * len(data)
 
     class DefaultProvisioningStruct(ctypes.LittleEndianStructure):
         _fields_ = [
