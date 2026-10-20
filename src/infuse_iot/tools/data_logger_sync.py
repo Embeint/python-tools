@@ -180,9 +180,7 @@ class SubCommand(InfuseCommand):
                     self.progress.remove_task(self.task)
                     self.task = None
 
-        except ConnectionRefusedError:
-            self.state_update(live, "Scanning")
-        except ConnectionAbortedError:
+        except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
             self.state_update(live, "Scanning")
 
     def run(self):

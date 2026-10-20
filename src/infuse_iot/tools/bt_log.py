@@ -103,7 +103,7 @@ class SubCommand(InfuseCommand):
 
         except KeyboardInterrupt:
             print(f"Disconnecting from {self._id:016x}")
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, TimeoutError):
             print(f"Unable to connect to {self._id:016x}")
 
     def close(self):
