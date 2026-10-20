@@ -10,7 +10,6 @@ from infuse_iot.common import InfuseType
 from infuse_iot.epacket.packet import Auth, PacketOutput, PacketReceived
 from infuse_iot.socket_comms import (
     ClientNotification,
-    ClientNotificationConnectionDropped,
     ClientNotificationEpacketReceived,
     GatewayRequestEpacketSend,
     LocalClient,
@@ -221,7 +220,7 @@ class RpcClient:
             rsp = self._client_recv()
             if rsp is None:
                 continue
-            if isinstance(rsp, ClientNotificationConnectionDropped):
+            if self._client.connection_dropped(rsp):
                 raise ConnectionAbortedError
             if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue

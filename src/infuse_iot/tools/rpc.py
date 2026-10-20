@@ -135,8 +135,13 @@ class SubCommand(InfuseCommand):
 
                 if self._args.conn_log:
                     while True:
-                        if notification := self._client.receive():
-                            self.rx_handler(notification)
+                        evt = self._client.receive()
+                        if evt is None:
+                            continue
+                        if self._client.connection_dropped(evt):
+                            print(f"Connection to {self._id:016x} lost")
+                            break
+                        self.rx_handler(evt)
         except (ConnectionRefusedError, TimeoutError) as e:
             print(f"Unable to connect to {self._id:016x}: ({e})")
 

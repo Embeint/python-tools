@@ -147,6 +147,15 @@ def test_receive_deadline_waits_for_concurrent_reader(monkeypatch):
     client._input_sock.recvfrom.assert_not_called()
 
 
+def test_connection_dropped_matches_only_current_connection(client):
+    assert not client.connection_dropped(comms.ClientNotificationConnectionDropped(123))
+    client._connection_id = 123
+    assert client.connection_dropped(comms.ClientNotificationConnectionDropped(123))
+    assert not client.connection_dropped(comms.ClientNotificationConnectionDropped(999))
+    assert not client.connection_dropped(comms.ClientNotificationConnectionCreated(123, 128))
+    assert not client.connection_dropped(None)
+
+
 def test_connection_failed_notification_json_round_trip():
     notification = comms.ClientNotificationConnectionFailed(0x0123456789ABCDEF, "Failed to query device shared keys")
 
