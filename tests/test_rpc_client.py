@@ -46,6 +46,13 @@ def test_rpc_inactivity_timeout(rpc_client, monkeypatch, mode):
     assert clock[0] == 1.0
 
 
+def test_download_error_preserves_return_code(rpc_client):
+    rpc_client._client.receive.return_value = notification(InfuseType.RPC_RSP, bytes(rpc.ResponseHeader(11, 1, -22)))
+    header, response = rpc_client.run_data_recv_cmd(1, Auth.DEVICE, b"", 0, Mock(), Response.from_buffer_copy)
+    assert header.return_code == -22
+    assert response is None
+
+
 def test_download_timeout_resets_on_matching_data(rpc_client, monkeypatch):
     clock = [0.0]
     monkeypatch.setattr("infuse_iot.rpc_client.time.monotonic", lambda: clock[0])
