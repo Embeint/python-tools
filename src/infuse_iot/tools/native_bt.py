@@ -380,3 +380,6 @@ class SubCommand(InfuseCommand):
 
     def run(self):
         asyncio.run(self.async_bt_receiver())
+
+    def close(self):
+        self.server.close()

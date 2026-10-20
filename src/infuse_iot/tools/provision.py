@@ -75,6 +75,7 @@ class SubCommand(InfuseCommand):
             sys.exit(f"Organisation ID: '{args.organisation}' is not a valid UUID")
         self._id: int | None = args.id
         self._dry_run: bool | None = args.dry_run
+        self._interface: soc.ProvisioningInterface | None = None
         self._metadata = {}
         if args.metadata:
             for meta in args.metadata:
@@ -130,6 +131,7 @@ class SubCommand(InfuseCommand):
             interface = stm.Interface()
         else:
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
+        self._interface = interface
 
         hardware_id = interface.unique_device_id()
         hardware_id_str = f"{hardware_id:0{2 * interface.unique_device_id_len}x}"
@@ -193,8 +195,10 @@ class SubCommand(InfuseCommand):
             interface.write_provisioning_data(bytes(desired))
             print(f"HW ID 0x{hardware_id:016x} now provisioned as 0x{desired.device_id:016x}")
 
-        interface.close()
-
         example_cmd = f"infuse provision --organisation {self._org} --board {self._board} --{self._vendor}"
         print("To provision more devices like this:")
         print(f"\t {example_cmd}")
+
+    def close(self):
+        if self._interface is not None:
+            self._interface.close()

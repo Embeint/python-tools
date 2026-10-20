@@ -9,7 +9,6 @@ import argparse
 import binascii
 import sys
 import time
-from contextlib import ExitStack
 
 from rich.live import Live
 from rich.progress import (
@@ -219,14 +218,6 @@ class SubCommand(InfuseCommand):
             self._pending[source.infuse_id] = time.time() + 60
 
     def run(self):
-        with ExitStack() as stack:
-            if self._log_path is not None:
-                self._log = stack.enter_context(
-                    open(self._log_path, "+a", encoding="utf-8")  # noqa: SIM115
-                )
-            self._run()
-
-    def _run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 
@@ -343,3 +334,10 @@ class SubCommand(InfuseCommand):
                     self.task = None
 
                 self.state_update(live, "Scanning")
+
+    def close(self):
+        try:
+            if self._log is not None:
+                self._log.close()
+        finally:
+            self._client.close()

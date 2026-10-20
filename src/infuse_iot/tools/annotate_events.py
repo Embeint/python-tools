@@ -55,20 +55,32 @@ class SubCommand(InfuseCommand):
         # Logger Selection parameters.
         logger_parser = parser.add_mutually_exclusive_group(required=True)
         logger_parser.add_argument(
-            "--onboard", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_ONBOARD,
-            help="Save the annotation to Onboard Flash"
+            "--onboard",
+            dest="logger",
+            action="store_const",
+            const=rpc_enum_data_logger.FLASH_ONBOARD,
+            help="Save the annotation to Onboard Flash",
         )
         logger_parser.add_argument(
-            "--external", dest="logger", action="store_const", const=rpc_enum_data_logger.FLASH_REMOVABLE,
-            help="Store the annotation to External Flash"
+            "--external",
+            dest="logger",
+            action="store_const",
+            const=rpc_enum_data_logger.FLASH_REMOVABLE,
+            help="Store the annotation to External Flash",
         )
         logger_parser.add_argument(
-            "--serial", dest="logger", action="store_const", const=rpc_enum_data_logger.SERIAL,
-            help="Send the annotation via the Serial interface"
+            "--serial",
+            dest="logger",
+            action="store_const",
+            const=rpc_enum_data_logger.SERIAL,
+            help="Send the annotation via the Serial interface",
         )
         logger_parser.add_argument(
-            "--gatt", dest="logger", action="store_const", const=rpc_enum_data_logger.BT_PERIPHERAL,
-            help="Send the annotation via the Bluetooth GATT interface"
+            "--gatt",
+            dest="logger",
+            action="store_const",
+            const=rpc_enum_data_logger.BT_PERIPHERAL,
+            help="Send the annotation via the Bluetooth GATT interface",
         )
         logger_parser.add_argument(
             "--logger", "-l", type=annotate_wrapper.parse_logger, help="Other TDF Data Logger to write the event to"
@@ -164,6 +176,7 @@ class SubCommand(InfuseCommand):
         self.rpc_client: RpcClient | None = None
         self.connected = False
         self.complete = False
+        self._listener: Thread | None = None
 
     def get_tags_current_gps_time(self) -> float:
         now = datetime.now()
@@ -288,8 +301,8 @@ class SubCommand(InfuseCommand):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 
-        cl = Thread(target=self.connection_listener, daemon=True)
-        cl.start()
+        self._listener = Thread(target=self.connection_listener, daemon=True)
+        self._listener.start()
 
         while not self.complete:
             with (
@@ -325,3 +338,12 @@ class SubCommand(InfuseCommand):
                         print("Failed to send annotation event to tag")
                         continue
                     annotate_wrapper.handle_response_generic(hdr.return_code, self._logger, now, label)
+
+    def close(self):
+        self.complete = True
+        if self._listener is not None:
+            # The listener blocks on the client for up to its receive timeout
+            self._listener.join(2.0)
+            if self._listener.is_alive():
+                return
+        self._client.close()
