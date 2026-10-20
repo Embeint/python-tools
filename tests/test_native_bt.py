@@ -18,7 +18,8 @@ from infuse_iot.tools.native_bt import InfuseGattReadResponse, MulticastHandler
 
 
 class FakeBleakClient:
-    def __init__(self, *_args, **_kwargs):
+    def __init__(self, *_args, **kwargs):
+        self.disconnected_callback = kwargs["disconnected_callback"]
         self._backend = object()
         self.mtu_size = 247
         self.start_notify = AsyncMock()
@@ -101,6 +102,27 @@ def test_failed_setup_cleans_up_connection(handler, monkeypatch, error):
     notification = handler._server.broadcast.call_args.args[0]
     assert isinstance(notification, ClientNotificationConnectionFailed)
     assert "failed" in notification.reason
+
+
+def test_remote_disconnect_wakes_connection_loop(handler, monkeypatch):
+    clients = []
+
+    def factory(*args, **kwargs):
+        client = FakeBleakClient(*args, **kwargs)
+        clients.append(client)
+        asyncio.get_running_loop().call_soon(client.disconnected_callback, client)
+        return client
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 1000))
+        await asyncio.wait_for(handler._tasks[123], timeout=1.0)
+
+    asyncio.run(run())
+    assert clients[0].closed
+    assert isinstance(handler._server.broadcast.call_args.args[0], ClientNotificationConnectionDropped)
+    assert not handler._tasks
 
 
 def test_setup_steps_share_request_timeout(handler, monkeypatch):
