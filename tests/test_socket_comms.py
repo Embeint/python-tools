@@ -41,6 +41,8 @@ def test_socket_comms():
     # Client receives the response
     recv_rsp = client.receive()
     assert isinstance(recv_rsp, comms.ClientNotificationCommsCheck)
+    client.close()
+    server.close()
 
 
 @pytest.fixture
@@ -129,6 +131,18 @@ def test_receive_deadline_waits_for_concurrent_reader(monkeypatch):
         assert client.receive(timeout=0.05) is None
     select.assert_not_called()
     client._input_sock.recvfrom.assert_not_called()
+
+
+def test_client_close_releases_zero_id_and_closes_both_sockets(client):
+    client._connection_id = 0
+    client._input_sock = Mock()
+    client._output_sock = Mock()
+    client.send.side_effect = OSError
+    with pytest.raises(OSError):
+        client.close()
+    assert client.send.call_args.args[0].infuse_id == 0
+    client._input_sock.close.assert_called_once()
+    client._output_sock.close.assert_called_once()
 
 
 def test_connection_failed_notification_json_round_trip():
