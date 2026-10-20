@@ -111,4 +111,4 @@ class SubCommand(InfuseCommand):
             )
             return self.make_plots()
 
-        app.run(debug=True)
+        app.run(debug=False)
