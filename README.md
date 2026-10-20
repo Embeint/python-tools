@@ -8,6 +8,9 @@ Install from PyPI with ``pip`` or ``pipx``:
 pip install infuse-iot
 ```
 
+For a checkout, `pip install .` installs the project and its dependencies from
+`pyproject.toml`.
+
 ## Register Autocomplete
 
 To register for autocompletion (tab complete).
