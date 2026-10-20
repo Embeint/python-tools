@@ -124,7 +124,12 @@ class SubCommand(InfuseCommand):
         table.add_column("Downloaded", justify="right")
         for device, state in self._device_state.items():
             on_device = str(state.on_device) if state.on_device is not None else "?"
-            percent = f"{100 * state.on_disk / state.on_device:.0f}" if state.on_device is not None else "?"
+            if state.on_device is None:
+                percent = "?"
+            elif state.on_device == 0:
+                percent = "100" if state.on_disk == 0 else "?"
+            else:
+                percent = f"{100 * state.on_disk / state.on_device:.0f}"
             table.add_row(f"{device:016x}", f"{state.on_disk} ({percent:>3s}%)", on_device, str(state.downloaded))
 
         meta = Table(box=None)
