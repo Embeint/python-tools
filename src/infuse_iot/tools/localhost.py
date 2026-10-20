@@ -273,4 +273,4 @@ class SubCommand(InfuseCommand):
             pass
         finally:
             rx_thread.stop()
-        rx_thread.join(1.0)
+            rx_thread.join()
