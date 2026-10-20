@@ -7,7 +7,6 @@ __copyright__ = "Copyright 2025, Embeint Holdings Pty Ltd"
 
 import binascii
 import glob
-import os
 import pathlib
 import sys
 
@@ -43,13 +42,19 @@ class DeviceState:
         if not self.path.exists():
             self.path.touch()
         else:
-            self.on_disk = os.path.getsize(self.path) // self.BLOCK_SIZE
+            size = self.path.stat().st_size
+            if size % self.BLOCK_SIZE:
+                raise ValueError(
+                    f"Cannot resume {self.path}: file length {size} is not a multiple of {self.BLOCK_SIZE}"
+                )
+            self.on_disk = size // self.BLOCK_SIZE
 
     def observe(self, announce: readings.announce | readings.announce_v2):
         self.on_device = announce.blocks
 
     def append_data(self, data: bytes):
-        assert len(data) % self.BLOCK_SIZE == 0
+        if len(data) % self.BLOCK_SIZE:
+            raise ValueError("Logger data must contain complete blocks")
         new_blocks = len(data) // self.BLOCK_SIZE
 
         with self.path.open("+ba") as f:
