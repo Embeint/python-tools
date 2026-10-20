@@ -63,6 +63,18 @@ from infuse_iot.util.os import is_wsl
 from infuse_iot.util.threading import SignaledThread
 
 
+def _decrement(counts: dict[int, int], key: int) -> bool:
+    """Decrement a positive count, removing it at zero. Returns whether a count was decremented."""
+    count = counts.get(key, 0)
+    if count == 0:
+        return False
+    if count == 1:
+        counts.pop(key)
+    else:
+        counts[key] = count - 1
+    return True
+
+
 class CommonThreadState:
     KEY_QUERY_TIMEOUT_S = 1.0
 
@@ -344,6 +356,9 @@ class SerialTxThread(SignaledThread):
     ):
         self._common = common
         self._connected: dict[int, int] = {}
+        # Connection requests awaiting a gateway response, and releases sent by clients that stopped waiting.
+        self._pending: dict[int, int] = {}
+        self._deferred_releases: dict[int, int] = {}
         self._connected_lock = threading.Lock()
         self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
@@ -392,6 +407,10 @@ class SerialTxThread(SignaledThread):
         self._common.port.write(encrypted)
 
     def _connected_notification(self, infuse_id: int):
+        with self._connected_lock:
+            if infuse_id not in self._connected:
+                # Released or dropped while the connection was being validated
+                return
         rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
         self._common.notification_broadcast(rsp)
 
@@ -400,7 +419,7 @@ class SerialTxThread(SignaledThread):
             self._connected.pop(infuse_id, None)
 
     def _key_query_failed(self, infuse_id: int, reason: str):
-        self._handle_conn_release(GatewayRequestConnectionRelease(infuse_id))
+        self._release(infuse_id)
         self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason))
 
     def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
@@ -422,13 +441,26 @@ class SerialTxThread(SignaledThread):
         assert infuse_id is not None, "ID was required to initiate connection?"
         assert self._common.server is not None
 
+        with self._connected_lock:
+            _decrement(self._pending, infuse_id)
+            deferred_release = _decrement(self._deferred_releases, infuse_id)
+            if rc == 0:
+                self._connected[infuse_id] = self._connected.get(infuse_id, 0) + 1
+            connected = infuse_id in self._connected
+
         if rc != 0:
             rsp = ClientNotificationConnectionFailed(infuse_id, f"Bluetooth connection failed (RPC error {rc})")
             self._common.notification_broadcast(rsp)
+            if deferred_release and connected:
+                # Users are interchangeable, so the release applies to an existing user of the connection.
+                self._release(infuse_id)
             return
 
-        with self._connected_lock:
-            self._connected[infuse_id] = self._connected.get(infuse_id, 0) + 1
+        if deferred_release:
+            self._release(infuse_id)
+            with self._connected_lock:
+                if infuse_id not in self._connected:
+                    return
 
         if self._common.ddb.has_local_root:
             # Query public keys before running callback
@@ -495,28 +527,38 @@ class SerialTxThread(SignaledThread):
         cmd = self._common.rpc.generate_serial(
             defs.bt_connect_infuse.COMMAND_ID, bytes(connect_args), Auth.DEVICE, self._bt_connect_cb, None
         )
+        with self._connected_lock:
+            self._pending[req.infuse_id] = self._pending.get(req.infuse_id, 0) + 1
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
     def _handle_conn_release(self, req: GatewayRequestConnectionRelease):
-        if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
+        with self._connected_lock:
+            if self._pending.get(req.infuse_id, 0) > self._deferred_releases.get(req.infuse_id, 0):
+                # The client may have stopped waiting for its request, apply the release once the request completes.
+                self._deferred_releases[req.infuse_id] = self._deferred_releases.get(req.infuse_id, 0) + 1
+                return
+        self._release(req.infuse_id)
+
+    def _release(self, infuse_id: int):
+        if infuse_id == InfuseID.GATEWAY or infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
             return
 
-        state = self._common.ddb.devices.get(req.infuse_id, None)
+        state = self._common.ddb.devices.get(infuse_id, None)
         if state is None or state.bt_addr is None:
             # Unknown device, nothing to do
             return
 
         with self._connected_lock:
-            if req.infuse_id in self._connected:
+            if infuse_id in self._connected:
                 # Decrement reference count
-                self._connected[req.infuse_id] -= 1
-                if self._connected[req.infuse_id] > 0:
+                self._connected[infuse_id] -= 1
+                if self._connected[infuse_id] > 0:
                     # Someone is still using the connection
                     return
-                self._connected.pop(req.infuse_id)
+                self._connected.pop(infuse_id)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
         cmd = self._common.rpc.generate_serial(
