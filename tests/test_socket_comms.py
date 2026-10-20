@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import threading
 from unittest.mock import Mock
 
 import pytest
@@ -56,6 +57,43 @@ def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
     assert send.call_args.args[0].infuse_id == 0
     client._input_sock.close.assert_called_once()
     client._output_sock.close.assert_called_once()
+
+
+def test_receive_deadline_leaves_shared_socket_timeout_unchanged(monkeypatch):
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._input_sock = Mock()
+    client._rx_lock = threading.Lock()
+    client._input_sock.gettimeout.return_value = 1.0
+    select = Mock(return_value=([], [], []))
+    monkeypatch.setattr(comms.select, "select", select)
+    assert client.receive(timeout=0.05) is None
+    assert 0 < select.call_args.args[3] <= 0.05
+    client._input_sock.settimeout.assert_not_called()
+    client._input_sock.recvfrom.assert_not_called()
+
+
+def test_receive_deadline_is_capped_by_socket_timeout(monkeypatch):
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._input_sock = Mock()
+    client._rx_lock = threading.Lock()
+    client._input_sock.gettimeout.return_value = 0.2
+    select = Mock(return_value=([], [], []))
+    monkeypatch.setattr(comms.select, "select", select)
+    assert client.receive(timeout=5.0) is None
+    assert select.call_args.args[3] == 0.2
+
+
+def test_receive_deadline_waits_for_concurrent_reader(monkeypatch):
+    # A reader holding the socket could consume the datagram that select reported.
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._input_sock = Mock()
+    client._rx_lock = threading.Lock()
+    select = Mock(return_value=([client._input_sock], [], []))
+    monkeypatch.setattr(comms.select, "select", select)
+    with client._rx_lock:
+        assert client.receive(timeout=0.05) is None
+    select.assert_not_called()
+    client._input_sock.recvfrom.assert_not_called()
 
 
 def test_connection_failed_notification_json_round_trip():

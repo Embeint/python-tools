@@ -2,9 +2,11 @@
 
 import enum
 import json
+import select
 import socket
 import struct
 import sys
+import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -328,6 +330,7 @@ class LocalClient:
         # Unicast output socket
         self._output_addr = ("localhost", multicast_address[1] + 1)
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self._rx_lock = threading.Lock()
         # Connection context
         self._connection_id = None
 
@@ -337,7 +340,30 @@ class LocalClient:
     def send(self, request: GatewayRequest):
         self._output_sock.sendto(json.dumps(request.to_json()).encode("utf-8"), self._output_addr)
 
-    def receive(self) -> ClientNotification | None:
+    def receive(self, timeout: float | None = None) -> ClientNotification | None:
+        """Receive a notification, optionally limiting the configured socket timeout."""
+        if timeout is None:
+            with self._rx_lock:
+                return self._recv()
+        timeout = max(timeout, 0)
+        expiry = time.monotonic() + timeout
+        # Another thread could read the datagram between select and recvfrom, so readers are serialised.
+        if not self._rx_lock.acquire(timeout=timeout):
+            return None
+        try:
+            # Wait with select rather than changing the timeout shared by threads using this socket.
+            # Clamp to the requested timeout, as coarse clocks can round the remaining time above it.
+            remaining = min(timeout, max(expiry - time.monotonic(), 0))
+            configured = self._input_sock.gettimeout()
+            limit = remaining if configured is None else min(remaining, configured)
+            readable, _, _ = select.select([self._input_sock], [], [], limit)
+            if not readable:
+                return None
+            return self._recv()
+        finally:
+            self._rx_lock.release()
+
+    def _recv(self) -> ClientNotification | None:
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
@@ -345,10 +371,10 @@ class LocalClient:
         return ClientNotification.from_json(json.loads(data.decode("utf-8")))
 
     def comms_check(self, timeout: float = 0.5) -> bool:
-        expiry = time.time() + timeout
+        expiry = time.monotonic() + timeout
         self.send(GatewayRequestCommsCheck())
-        while time.time() < expiry:
-            rsp = self.receive()
+        while (remaining := expiry - time.monotonic()) > 0:
+            rsp = self.receive(timeout=remaining)
             if rsp is None:
                 continue
             if not isinstance(rsp, ClientNotificationCommsCheck):
