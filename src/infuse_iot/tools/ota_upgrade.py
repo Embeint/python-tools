@@ -140,7 +140,7 @@ class SubCommand(InfuseCommand):
         with self._single_diff.open("rb") as f:
             patch_file = f.read()
 
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as _mtu:
+        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND) as _mtu:
             rpc_client = RpcClient(self._client, _mtu, InfuseID.GATEWAY)
             params = file_write_basic.request(rpc_enum_file_action.FILE_FOR_COPY, binascii.crc32(patch_file))
 
@@ -234,7 +234,7 @@ class SubCommand(InfuseCommand):
             self.gateway_diff_load()
 
         # Set the gateways time at script startup
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as mtu:
+        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
             if not self.set_device_time(mtu, InfuseID.GATEWAY):
                 sys.exit("Failed to set time on local gateway")
 
