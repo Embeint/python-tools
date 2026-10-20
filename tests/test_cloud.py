@@ -2,10 +2,47 @@
 
 import os
 import subprocess
+from contextlib import nullcontext
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
+from infuse_iot.app.main import InfuseApp
+from infuse_iot.tools import cloud
+from infuse_iot.tools.cloud import CloudSubCommand
+
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
+
+
+@pytest.fixture(params=["orgs", "boards", "device", "coap", "apps"])
+def cloud_list(request, monkeypatch):
+    resource = request.param
+    argv = ["cloud", resource]
+    endpoint: Any
+    if resource == "device":
+        argv += ["kv_state", "--id", "1"]
+        endpoint = cloud.get_device_kv_entries_by_device_id
+        attribute = "sync"
+    elif resource == "coap":
+        argv += ["list"]
+        endpoint = cloud.get_coap_files
+        attribute = "sync"
+    else:
+        argv += ["list"]
+        if resource == "apps":
+            argv += ["--org", "00000000-0000-0000-0000-000000000001"]
+        endpoint = cloud
+        attribute = "fetch_all"
+    monkeypatch.setattr(CloudSubCommand, "client", lambda _: nullcontext(None))
+    return argv, endpoint, attribute
+
+
+def test_cloud_resource_dispatch(cloud_list, monkeypatch):
+    argv, endpoint, attribute = cloud_list
+    response: Any = SimpleNamespace(filenames=[]) if argv[1] == "coap" else []
+    monkeypatch.setattr(endpoint, attribute, lambda *_args, **_kwargs: response)
+    InfuseApp().run(argv)
 
 
 def _run_cloud_list(resource: str) -> str:
