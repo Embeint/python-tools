@@ -77,7 +77,8 @@ class SubCommand(InfuseCommand):
     def handle_connection(self):
         with ExitStack() as stack:
             Console.log_info("Waiting for frequency information...")
-            while evt := self._client.receive():
+            while True:
+                evt = self._client.receive()
                 if evt is None:
                     continue
                 if isinstance(evt, ClientNotificationConnectionDropped):
