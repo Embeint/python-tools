@@ -235,6 +235,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
     async def create_connection(self, request: GatewayRequestConnectionRequest, dev: BLEDevice, queue: asyncio.Queue):
         reason = "Connection setup interrupted"
+        cancelled = False
         try:
             await self.create_connection_internal(request, dev, queue)
         except BleakError as e:
@@ -243,19 +244,46 @@ class MulticastHandler(asyncio.DatagramProtocol):
         except TimeoutError as e:
             Console.log_info(f"Timeout: {str(e)}")
             reason = f"Connection timed out: {e}" if str(e) else "Connection timed out"
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
         finally:
             self._queues.pop(request.infuse_id, None)
             self._tasks.pop(request.infuse_id, None)
-            if request.infuse_id in self._connected:
+            established = request.infuse_id in self._connected
+            if established:
                 self._connected.remove(request.infuse_id)
                 self.wrapped_broadcast(ClientNotificationConnectionDropped(request.infuse_id))
             else:
                 self.wrapped_broadcast(ClientNotificationConnectionFailed(request.infuse_id, reason))
             Console.log_info(f"{dev}: Terminating connection")
+            if established and not cancelled:
+                # Failed setup was reported to queued requests; requests received as the connection closed need a new
+                # one. Shutdown cancels connections and must not start new ones.
+                self._redispatch(queue)
+
+    def _redispatch(self, queue: asyncio.Queue):
+        pending = []
+        while not queue.empty():
+            if (item := queue.get_nowait()) is not None:
+                pending.append(item)
+        first = next((i for i, r in enumerate(pending) if isinstance(r, GatewayRequestConnectionRequest)), None)
+        if first is None:
+            return
+        pending = pending[first:]
+        requests = sum(isinstance(r, GatewayRequestConnectionRequest) for r in pending)
+        releases = sum(isinstance(r, GatewayRequestConnectionRelease) for r in pending)
+        if requests <= releases:
+            # Every client that requested the connection has already given up on it.
+            return
+        for item in pending:
+            self._dispatch(item)
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
+        self._dispatch(GatewayRequest.from_json(json.loads(data.decode("utf-8"))))
+
+    def _dispatch(self, request: GatewayRequest):
         loop = asyncio.get_event_loop()
-        request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
 
         if isinstance(request, GatewayRequestCommsCheck):
             self.wrapped_broadcast(ClientNotificationCommsCheck())
