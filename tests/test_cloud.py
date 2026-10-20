@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import importlib
 import os
 import subprocess
 from contextlib import nullcontext
@@ -9,8 +10,7 @@ from typing import Any
 import pytest
 
 from infuse_iot.app.main import InfuseApp
-from infuse_iot.tools import cloud
-from infuse_iot.tools.cloud import CloudSubCommand
+from infuse_iot.tools.cloud_commands.base import CloudSubCommand
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -18,21 +18,28 @@ assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 @pytest.fixture(params=["orgs", "boards", "device", "coap", "apps"])
 def cloud_list(request, monkeypatch):
     resource = request.param
+    module_name = {
+        "orgs": "organisations",
+        "apps": "applications",
+        "boards": "boards",
+        "device": "device",
+        "coap": "coap",
+    }
+    module = importlib.import_module(f"infuse_iot.tools.cloud_commands.{module_name[resource]}")
     argv = ["cloud", resource]
-    endpoint: Any
     if resource == "device":
         argv += ["kv_state", "--id", "1"]
-        endpoint = cloud.get_device_kv_entries_by_device_id
+        endpoint = module.get_device_kv_entries_by_device_id
         attribute = "sync"
     elif resource == "coap":
         argv += ["list"]
-        endpoint = cloud.get_coap_files
+        endpoint = module.get_coap_files
         attribute = "sync"
     else:
         argv += ["list"]
         if resource == "apps":
             argv += ["--org", "00000000-0000-0000-0000-000000000001"]
-        endpoint = cloud
+        endpoint = module
         attribute = "fetch_all"
     monkeypatch.setattr(CloudSubCommand, "client", lambda _: nullcontext(None))
     return argv, endpoint, attribute
@@ -71,3 +78,18 @@ def test_cloud_boards_list():
     output = _run_cloud_list("boards")
 
     assert "nRF52840dk" in output
+
+
+@pytest.mark.parametrize("show_devstate", [False, True])
+def test_device_kv_state_preserves_devstate_filter(monkeypatch, capsys, show_devstate):
+    from infuse_iot.api_client.types import UNSET
+    from infuse_iot.tools.cloud_commands import device
+
+    monkeypatch.setattr(CloudSubCommand, "client", lambda _: nullcontext(None))
+    entries = [SimpleNamespace(key_id=1, key_name="Z_DEVSTATE", data="AQ==", decoded=UNSET)]
+    monkeypatch.setattr(device.get_device_kv_entries_by_device_id, "sync", lambda **_kwargs: entries)
+    argv = ["cloud", "device", "kv_state", "--id", "1", "--hex"]
+    if show_devstate:
+        argv.append("--devstate")
+    InfuseApp().run(argv)
+    assert ("Z_DEVSTATE" in capsys.readouterr().out) == show_devstate
