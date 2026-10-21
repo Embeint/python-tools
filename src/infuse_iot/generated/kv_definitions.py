@@ -286,6 +286,28 @@ class slots:
         ]
         _pack_ = 1
 
+    class network_id_primary(VLACompatLittleEndianStruct):
+        """Identifier of the primary network"""
+
+        NAME = "NETWORK_ID_PRIMARY"
+        BASE_ID = 14
+        RANGE = 1
+        _fields_ = [
+            ("id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
+    class network_id_secondary(VLACompatLittleEndianStruct):
+        """Identifier of the secondary network"""
+
+        NAME = "NETWORK_ID_SECONDARY"
+        BASE_ID = 15
+        RANGE = 1
+        _fields_ = [
+            ("id", ctypes.c_uint32),
+        ]
+        _pack_ = 1
+
     class wifi_ssid(VLACompatLittleEndianStruct):
         """WiFi network name"""
 
@@ -651,6 +673,8 @@ class slots:
         11: broadcast_fixed_indoors,
         12: littlefs_fs_state,
         13: littlefs_algorithms_state,
+        14: network_id_primary,
+        15: network_id_secondary,
         20: wifi_ssid,
         21: wifi_psk,
         22: wifi_channels,
