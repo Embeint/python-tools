@@ -44,3 +44,29 @@ jobs:
         env:
           INFUSE_PLATFORM_TEST_API_KEY: ${{ secrets.INFUSE_PLATFORM_TEST_API_KEY }}
         run: tox -c 'check out'
+
+  mcp:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        # The oldest supported by the MCP extra, and the version Zephyr uses
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: "./check out"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Use short Windows temporary directory
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path 'D:\t'
+          'TEMP=D:\t' >> $env:GITHUB_ENV
+          'TMP=D:\t' >> $env:GITHUB_ENV
+      - run: python -m pip install tox
+      - name: MCP protocol and regression tests
+        run: tox -c 'check out' -e mcp
