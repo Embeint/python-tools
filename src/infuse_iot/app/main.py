@@ -7,6 +7,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
+import contextlib
 import importlib
 import importlib.util
 import logging
@@ -158,11 +159,15 @@ class InfuseApp:
         for tool in TOOLS:
             self._register_tool(tool)
 
-        # Load custom tools, if configured
-        if extension_tools := (get_active_profile_custom_tool_path() or get_custom_tool_path()):
+        # Profile lookup and extension imports can emit diagnostics. Keep them off command stdout.
+        with contextlib.redirect_stdout(sys.stderr):
+            extension_tools = get_active_profile_custom_tool_path() or get_custom_tool_path()
+            if not extension_tools:
+                return
             extension_path = pathlib.Path(extension_tools)
-            for tool in load_extension_tools(extension_path):
-                self._register_tool(tool, extension_path)
+            tools = load_extension_tools(extension_path)
+        for tool in tools:
+            self._register_tool(tool, extension_path)
 
     def _register_tool(self, tool: ToolSpec, extension_path: pathlib.Path | None = None):
         if tool.name in self._tools:
