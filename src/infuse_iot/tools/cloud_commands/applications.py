@@ -5,7 +5,6 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
-import glob
 import pathlib
 import sys
 from uuid import UUID
@@ -39,6 +38,7 @@ from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
 from infuse_iot.util.console import choose_one, user_confirm, user_response
+from infuse_iot.util.release import ota_image_paths
 from infuse_iot.util.version import Version
 
 from .base import CloudSubCommand, require_response
@@ -279,18 +279,11 @@ class Applications(CloudSubCommand):
         if not isinstance(application, models.Application):
             sys.exit(f"Unexpected internal type {type(application)}")
 
-        ota_files = glob.glob(str(release.dir / "ota-*.bin"))
-        if len(ota_files) == 0:
-            # Old release folder, try and find the right file
-            app_folder = release.dir / release_app_meta["primary"] / "zephyr"
-            tfm_file = app_folder / "tfm_s_zephyr_ns_signed.bin"
-            std_file = app_folder / "zephyr.signed.bin"
-            if tfm_file.exists():
-                ota_files = [str(tfm_file)]
-            elif std_file.exists():
-                ota_files = [str(std_file)]
-            if len(ota_files) == 1 and not user_confirm(f"Use file {ota_files[0]} for upload?"):
-                sys.exit()
+        names, legacy = ota_image_paths(release.dir, release_app_meta["primary"])
+        ota_files = [str(release.dir / name) for name in names]
+        # Old release folder, confirm the file that was found
+        if legacy and len(ota_files) == 1 and not user_confirm(f"Use file {ota_files[0]} for upload?"):
+            sys.exit()
         if len(ota_files) != 1:
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
