@@ -593,6 +593,43 @@ def test_cli_plans_from_announcements_and_verifies_later_announcement(release, t
     assert not (tmp_path / "cli-cache" / "plans").exists()
 
 
+def test_cli_keeps_scanning_through_idle_periods_for_later_devices(release, tmp_path, monkeypatch):
+    from itertools import chain, islice
+
+    from infuse_iot.socket_comms import LocalClient
+
+    def arrivals(*packets):
+        # Exercise the real announcement iterator: quiet socket polls must not
+        # finish the fleet session, including after every known device is done.
+        receiver = Mock(spec=LocalClient)
+        receiver.receive.side_effect = chain.from_iterable([None] * 120 + [packet] for packet in packets)
+        yield from islice(LocalClient.observe_announce(receiver), len(packets))
+
+    other = DEVICE + 1
+    transfer = Mock(return_value={"status": "transferred"})
+    result = run_cli(
+        release,
+        tmp_path,
+        monkeypatch,
+        [
+            arrivals(ClientNotificationEpacketReceived(announcement(PREVIOUS))),
+            arrivals(
+                ClientNotificationEpacketReceived(announcement(TARGET)),
+                ClientNotificationEpacketReceived(announcement(PREVIOUS)),
+                ClientNotificationEpacketReceived(announcement(PREVIOUS, device=other)),
+            ),
+            arrivals(ClientNotificationEpacketReceived(announcement(TARGET, device=other))),
+        ],
+        transfer=transfer,
+    )
+    assert [call.args[0]["device_id"] for call in transfer.call_args_list] == [
+        f"0x{DEVICE:016x}",
+        f"0x{other:016x}",
+    ]
+    assert result.command._updated == 2 and result.command._pending == {}
+    assert result.rows == [[TARGET, "upgraded"], [TARGET, "upgraded"]]
+
+
 @pytest.mark.parametrize(
     "current,board,arguments,expected",
     [

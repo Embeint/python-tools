@@ -295,21 +295,42 @@ verified, so check each device in `result.devices`. Inspect fresh device state
 before replanning.
 
 `infuse ota_upgrade --release <directory>` uses the same inspection, planning
-and transfer service, while keeping its fleet behavior. It writes patches only,
-including application migration patches for explicit `--id` or `--list`
-devices, and counts devices without a matching diff as "No Diff". `--full-image`
-allows the signed image for those devices, given board CRC telemetry or `--board`,
-which asserts the board of the explicit devices. Older releases are skipped
-unless `--allow-downgrade` is given. After each transfer the device is pending
-while other devices are upgraded, and later announcements of the new version
-within `--verification-seconds` (default 60) record it as upgraded; otherwise it
-is logged as `failed` with the observed version. The `--log` CSV keeps its five
-columns, so failure reasons such as `verification_timeout` or `rpc_rejected` are
-listed in the console summary instead. Devices that could not be connected to are
-retried on a later announcement. Its existing RSSI, connection timeout and CSV
-log options remain available. Serial and protocol v1 gateways still have their
-time set, and the existing `--single` gateway-copy mode retains its
-transport-specific implementation.
+and transfer service, while keeping its fleet behavior. It inspects the release
+once at startup, exiting if it is rejected, and plans each announcement against
+that inspection; each transfer rechecks the staged bytes it sends. Staged bytes
+that were pruned are staged again, but if the release itself changed the scan
+stops. A device whose plan fails is skipped with the reason.
+
+Leave it running without `--id` or `--list` to upgrade matching devices as they
+come into range, even after quiet periods or after all devices seen so far have
+been handled. It keeps scanning until Ctrl+C; `--verification-seconds` limits
+each device's verification window, not the scanning session. Handled devices are
+not written again during that run. With `--id` or `--list`, it exits once those
+devices have been handled.
+
+For example, start a gateway in one terminal, then leave this running in another:
+
+```sh
+infuse ota_upgrade --release /path/to/release --log updates.csv
+```
+
+It writes patches only, including application migration patches for explicit
+`--id` or `--list` devices, and counts devices without a matching diff as "No
+Diff". `--full-image` allows the signed image for those devices, given board CRC
+telemetry or `--board`, which asserts the board of the explicit devices. Older
+releases are skipped unless `--allow-downgrade` is given. After each transfer
+the device is pending while other devices are upgraded, and later announcements
+of the new version within `--verification-seconds` (default 60) record it as
+upgraded; otherwise it is logged as `failed` with the observed version. Devices
+still awaiting verification when the scan stops, for example on Ctrl+C, are
+logged as `unverified` with the version they ran before the transfer. The
+`--log` CSV keeps its five columns, so failure reasons such as
+`verification_timeout` or `rpc_rejected` are listed in the console summary
+instead. Devices that could not be connected to are retried on a later
+announcement. Its existing RSSI, connection timeout and CSV log options remain
+available. Serial and protocol v1 gateways still have their time set, and the
+existing `--single` gateway-copy mode retains its transport-specific
+implementation.
 
 Release acceptance still includes hardware update testing and real MCP host
 configuration on the intended platforms. Automated coverage uses simulated
