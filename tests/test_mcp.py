@@ -46,7 +46,7 @@ TOOLS = {
     "infuse_firmware_inspect",
     "infuse_update_plan",
 }
-ACTION_TOOLS = {"infuse_reboot", "infuse_kv_write", "infuse_job_status", "infuse_job_cancel"}
+ACTION_TOOLS = {"infuse_reboot", "infuse_kv_write", "infuse_update_start", "infuse_job_status", "infuse_job_cancel"}
 
 
 def packet(device: int = DEVICE) -> PacketReceived:
@@ -860,6 +860,35 @@ def test_action_tools_require_opt_in_and_reuse_persisted_jobs(tmp_path, monkeypa
     assert mutate.call_count == 1
 
 
+def test_update_start_reuses_job_even_when_plan_expires(tmp_path, monkeypatch):
+    validate = Mock(return_value={"devices": []})
+    update = Mock(return_value={"success": True, "devices": []})
+    monkeypatch.setattr("infuse_iot.mcp_server.server.FirmwareService.validate_start", validate)
+    monkeypatch.setattr("infuse_iot.mcp_server.server.FirmwareService.run", update)
+    service = ReadService(default_multicast_address(28943))
+
+    async def calls(client):
+        arguments = {"plan_id": "a" * 64, "request_key": "approved-update"}
+        initial = data(await client.call_tool("infuse_update_start", arguments))
+        validate.side_effect = mcp_server.DeviceError("plan_expired", "Plan is older than 15 minutes")
+        duplicate = data(await client.call_tool("infuse_update_start", arguments))
+        conflict = await client.call_tool("infuse_update_start", {**arguments, "plan_id": "b" * 64})
+        expired = await client.call_tool("infuse_update_start", {**arguments, "request_key": "late"})
+        malformed = await client.call_tool("infuse_update_start", {**arguments, "plan_id": "A" * 64})
+        return initial, duplicate, conflict, expired, malformed
+
+    async def main():
+        async with Client(create_server(service.address, service, allow_writes=True, state_directory=tmp_path)) as c:
+            return await calls(c)
+
+    initial, duplicate, conflict, expired, malformed = asyncio.run(main())
+    assert duplicate["id"] == initial["id"] and validate.call_count == 2
+    assert [error(result)["code"] for result in (conflict, expired, malformed)] == [
+        "idempotency_conflict",
+        "plan_expired",
+        "invalid_request",
+    ]
+
 
 def test_update_plans_need_a_gateway_and_strict_arguments(tmp_path):
     cases = [
@@ -888,6 +917,41 @@ def test_update_plans_need_a_gateway_and_strict_arguments(tmp_path):
         "details": None,
     }
 
+
+def test_update_start_runs_a_stored_plan_to_verified_version(loopback_gateway, tmp_path, monkeypatch):
+    from test_firmware import DEVICE, PREVIOUS, announcement, fake_transport, make_release
+
+    release = make_release(tmp_path)
+    gateway = loopback_gateway(28947)
+    service = ReadService(gateway.address)
+
+    async def calls(client):
+        service.collector.state.observe(announcement(PREVIOUS))
+        arguments = {"release": str(release.root), "device_ids": [f"0x{DEVICE:016x}"], "verification_seconds": 5}
+        plan = data(await client.call_tool("infuse_update_plan", arguments))
+        assert plan["devices"][0]["status"] == "ready" and plan["allow_downgrade"] is False
+        assert plan["devices"][0]["firmware_age_seconds"] < 60
+        transport = fake_transport(monkeypatch, plan["devices"][0], [ClientNotificationEpacketReceived(announcement())])
+        started = data(await client.call_tool("infuse_update_start", {"plan_id": plan["plan_id"], "request_key": "a"}))
+        for _ in range(200):
+            job = data(await client.call_tool("infuse_job_status", {"job_id": started["id"]}))
+            if job["state"] not in ("queued", "running"):
+                break
+            await asyncio.sleep(0.02)
+        missing = await client.call_tool("infuse_update_start", {"plan_id": "0" * 64, "request_key": "b"})
+        return job, transport, missing
+
+    async def main():
+        state = tmp_path / "state"
+        async with Client(create_server(service.address, service, allow_writes=True, state_directory=state)) as c:
+            return await calls(c)
+
+    job, transport, missing = asyncio.run(main())
+    assert job["state"] == "completed", job
+    assert job["result"]["devices"][0]["status"] == "version_verified"
+    assert transport.sent == [release.patch]
+    assert (error(missing)["code"], error(missing)["retryable"]) == ("plan_not_found", False)
+    assert str(tmp_path) not in error(missing)["message"]
 
 
 def test_release_inspection_never_delays_quick_tools(tmp_path, monkeypatch):

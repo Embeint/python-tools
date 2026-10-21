@@ -85,6 +85,7 @@ RequestKey = Annotated[
 ]
 JobId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 LocalPath = Annotated[str, Field(min_length=1, max_length=4096)]
+PlanId = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Board = Annotated[str, Field(min_length=1, max_length=128)]
 
 
@@ -555,7 +556,7 @@ def create_server(
                 specification["device_id"], specification["action"], specification["parameters"], context
             )
 
-        service.jobs.handlers.update(reboot=mutate, kv_write=mutate)
+        service.jobs.handlers.update(reboot=mutate, kv_write=mutate, firmware_update=firmware.run)
 
     @asynccontextmanager
     async def lifespan(server):
@@ -733,6 +734,22 @@ def create_server(
     if allow_writes:
         jobs = service.jobs
         assert jobs is not None
+
+        def start_update(plan_id: str, request_key: str) -> dict:
+            specification = {"action": "firmware_update", "plan_id": plan_id}
+            # A repeated request key returns its job, even once the plan has expired.
+            existing = jobs.existing(request_key, specification)
+            if existing is not None:
+                return existing
+            firmware.validate_start(plan_id)
+            return jobs.submit(request_key, specification)
+
+        @server.tool(annotations=ACTION)
+        async def infuse_update_start(
+            plan_id: PlanId, request_key: RequestKey
+        ) -> Annotated[CallToolResult, Envelope[Job]]:
+            """Execute a reviewed plan within 15 minutes of planning as a persistent job, verifying running firmware."""
+            return await execute(start_update, plan_id, request_key)
 
         @server.tool(annotations=ACTION)
         async def infuse_reboot(

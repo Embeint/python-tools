@@ -123,7 +123,7 @@ normal tox environment skips them when the extra is absent.
 ## Targeted actions and jobs
 
 Start with `infuse mcp --allow-writes` to additionally expose `infuse_reboot`,
-`infuse_kv_write`, `infuse_job_status` and
+`infuse_kv_write`, `infuse_update_start`, `infuse_job_status` and
 `infuse_job_cancel`. No per-call terminal prompt is added. The host supplies
 user authorization, and each action requires an explicit device ID and a stable
 `request_key` of 1 to 128 characters.
@@ -177,7 +177,7 @@ uses `jobs_v1` and leaves that table untouched, so a pre-release server still
 running on the profile cannot claim or overwrite its jobs. Jobs accepted by a
 pre-release server are not reported, and their request keys start new jobs.
 
-## Firmware inspection and planning
+## Firmware inspection, planning and execution
 
 `infuse_firmware_inspect(release, trusted_public_key)` accepts a local release
 directory or `.7z`. Archives need `7zz`, `7z` or `7za` on PATH; otherwise supply an
@@ -251,6 +251,48 @@ before applying; the host cannot verify this. A full image requires
 `caller_assertion` in `device_boards`. That is your statement of each device's
 board from your own inventory: the plan records it, but cannot observe it, so
 never copy the release's board into it.
+
+Review that result, then use `infuse_update_start(plan_id, request_key)` on a
+write-enabled server. A plan must be started, and its job must begin executing,
+within 15 minutes of planning; otherwise it fails with `plan_expired` before any
+device is contacted. Missing plans fail with `plan_not_found`, and blocked plans
+cannot start. The service rechecks release contents and each device's application
+and version before transfer. The plan's package hashes, selected devices, board
+assertions and verification window are bound together; changing them requires a
+new plan. A repeated request key returns its original job even after the plan
+expires. Use the same `--state-directory` when moving between read-only planning
+and write-enabled execution. Without that override the package/plan cache is
+shared between those modes, while job records remain scoped to the active profile.
+
+Transfers run sequentially under gateway operation ownership. Like other device
+operations, a connection and transfer waits for this server's reads; verification
+does not. Only failures before a firmware write, including a disconnect during
+the precondition reads, are retried automatically, and a busy gateway is retried
+for up to 20 seconds. Length/CRC acknowledgement is transfer evidence.
+Successful update status requires a new post-transfer announcement for the exact
+device, application, full version and build hash. The verification subscription
+opens after transfer so queued earlier packets cannot satisfy this check. The
+gateway operation stays owned during verification, renewed every 20 seconds, so
+other device reads report `device_busy`. If ownership renewal fails, for example
+after a gateway restart, verification continues and the result reports
+`ownership_lost`. A lost acknowledgement or disconnect may still be verified from
+a fresh announcement; otherwise the outcome is `unknown`, never automatically
+replayed. The verification window is configurable from 5 to 600 seconds,
+defaulting to 180.
+
+A job counts as sent once it sets a device's time, just before the first
+firmware write. Cancellation stops queued devices and safely abortable
+transfers. Once the last bytes have been sent, progress reports
+`cancellation_deferred`: the device may already be applying the image, so
+verification continues before cancellation can stop the next target. Per-device
+results are checkpointed to the job record, including failures and uncertain
+outcomes. A job is `completed` only when every device is `version_verified` or
+`already_current`. A job with any `unknown` device ends `unknown` with
+`outcome_unknown`, even if it was cancelled afterwards; a job cancelled or stopped
+after sending ends `unknown` with `interrupted`. Otherwise a failed device makes
+the job `failed` with `update_failed`, even if earlier devices were written and
+verified, so check each device in `result.devices`. Inspect fresh device state
+before replanning.
 
 Release acceptance still includes hardware update testing and real MCP host
 configuration on the intended platforms. Automated coverage uses simulated

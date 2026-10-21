@@ -250,6 +250,19 @@ class JobManager:
             self._worker = threading.Thread(target=self._run, name="infuse-jobs", daemon=True)
             self._worker.start()
 
+    def existing(self, request_key: str, specification: dict) -> dict | None:
+        """The job already accepted for `request_key`, so a repeated request needs no new validation."""
+        encoded = json.dumps(specification, sort_keys=True, allow_nan=False)
+        with self._storage(), self._lock:
+            row = self._connection.execute(
+                "SELECT id,specification FROM jobs_v1 WHERE request_key=?", (request_key,)
+            ).fetchone()
+        if row is None:
+            return None
+        if row["specification"] != encoded:
+            raise DeviceError("idempotency_conflict", "request_key was already used for a different operation")
+        return self.status(row["id"])
+
     def submit(self, request_key: str, specification: dict) -> dict:
         if not 1 <= len(request_key) <= 128:
             raise ValueError("request_key must contain 1..128 characters")
