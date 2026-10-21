@@ -30,6 +30,11 @@ MAX_WAITERS = 2
 CONNECT_TIMEOUT_S = 15.0
 # The gateway releases an abandoned operation this long after the owner's last traffic.
 LEASE_MARGIN_S = 10.0
+# Another MCP server or CLI client may own the gateway operation; nothing is sent while an action waits.
+ACTION_WAIT_S = 60.0
+# Lock attempts within an action's wait are short, so cancelling the job takes effect promptly.
+ACTION_LOCK_POLL_S = 0.5
+ACTION_TIMEOUT_S = 10.0
 
 
 class DeviceError(RuntimeError):
@@ -118,6 +123,7 @@ class DeviceOperations:
         self.lock = threading.Lock()
         self.busy_wait_seconds = BUSY_WAIT_S
         self.connect_timeout_seconds = CONNECT_TIMEOUT_S
+        self.action_wait_seconds = ACTION_WAIT_S
         self._waiters = threading.Semaphore(MAX_WAITERS)
 
     @contextmanager
@@ -250,9 +256,7 @@ class DeviceOperations:
         if "operation_ownership" not in capabilities.get("features", []):
             # Older gateways cannot coordinate clients, but are still readable.
             return
-        # Traffic renews the lease, so it covers the longest silent phase rather than the whole read.
-        silent = max(self.connect_timeout_seconds + LocalClient.CONNECTION_RESPONSE_MARGIN_S, timeout_seconds)
-        lease = silent + LEASE_MARGIN_S
+        lease = self._lease(timeout_seconds)
         while True:
             try:
                 stack.enter_context(client.operation(target, lease))
@@ -262,6 +266,11 @@ class DeviceOperations:
                     raise
             self._check(cancelled)
             time.sleep(0.5)
+
+    def _lease(self, timeout_seconds: float) -> float:
+        # Traffic renews the lease, so it covers the longest silent phase rather than the whole operation.
+        silent = max(self.connect_timeout_seconds + LocalClient.CONNECTION_RESPONSE_MARGIN_S, timeout_seconds)
+        return silent + LEASE_MARGIN_S
 
     @staticmethod
     def _request(command: str, parameters: dict) -> tuple[Any, bytes]:
@@ -294,3 +303,119 @@ class DeviceOperations:
             request = bytes(defs.kv_read.request(len(keys))) + bytes((ctypes.c_uint16 * len(keys))(*key_ids))
             return defs.kv_read, request
         raise ValueError(f"Supported read commands: {', '.join(READ_COMMANDS)}")
+
+    @staticmethod
+    def action_request(action: str, parameters: dict) -> tuple[Any, bytes]:
+        """Validate and encode a targeted action, so that invalid requests are rejected before queueing."""
+        if not isinstance(parameters, dict):
+            raise ValueError("parameters must be an object")
+        if action == "reboot":
+            delay = parameters.get("delay_ms", 0)
+            if set(parameters) - {"delay_ms"} or isinstance(delay, bool) or not isinstance(delay, int):
+                raise ValueError("reboot takes an integer delay_ms")
+            if not 0 <= delay <= 60000:
+                raise ValueError("delay_ms must be an integer in 0..60000")
+            return defs.reboot, bytes(defs.reboot.request(delay))
+        if action == "kv_write":
+            from infuse_iot.rpc_wrappers.kv_write import kv_write
+
+            value = parameters.get("value")
+            if set(parameters) != {"key", "value"} or parameters["key"] != "DEVICE_NAME" or not isinstance(value, str):
+                raise ValueError("Only DEVICE_NAME string writes are supported")
+            encoded = value.encode("utf-8")
+            if not 1 <= len(encoded) <= 128 or b"\x00" in encoded:
+                raise ValueError("Device name must contain 1..128 UTF-8 bytes without nulls")
+            payload = bytes([len(encoded) + 1]) + encoded + b"\x00"
+            request = bytes(kv_write.request(1)) + bytes(
+                kv_write.kv_store_value_factory(kv.slots.device_name.BASE_ID, payload)
+            )
+            return kv_write, request
+        raise ValueError("Unsupported device action")
+
+    def mutate(self, identifier: str, action: str, parameters: dict, context) -> dict:
+        """Run a targeted action for a job, calling `context.sending()` immediately before the request is sent.
+
+        Waits at most `action_wait_seconds` in cancellable steps, for this server's other operations
+        and for another gateway client, then fails with `device_busy` with nothing sent.
+        """
+        target = device_id(identifier)
+        definition, request = self.action_request(action, parameters)
+        deadline = time.monotonic() + self.action_wait_seconds
+        delay = 0.25
+        while True:
+            context.check_cancelled()
+            try:
+                with self.exclusive(timeout=min(ACTION_LOCK_POLL_S, max(deadline - time.monotonic(), 0))):
+                    return self._mutate_once(target, action, definition, request, context)
+            except DeviceError as error:
+                # Only raised before anything is sent, so waiting and retrying cannot repeat an action.
+                remaining = deadline - time.monotonic()
+                if error.code != "device_busy":
+                    raise
+                if remaining <= 0:
+                    message = f"Device stayed busy for {self.action_wait_seconds:g} s; nothing was sent"
+                    raise DeviceError("device_busy", message, True) from None
+            context.progress("waiting", device_id=f"0x{target:016x}", reason="device_busy")
+            context.wait(min(delay, remaining))
+            delay = min(delay * 2, 5)
+
+    def _mutate_once(self, target: int, action: str, definition: Any, request: bytes, context) -> dict:
+        identifier = f"0x{target:016x}"
+        sent = False
+        context.check_cancelled()
+        client = self._client()
+        try:
+            with ExitStack() as stack:
+                # Requires the gateway's operation ownership, so actions never downgrade to a legacy gateway.
+                stack.enter_context(client.operation(target, self._lease(ACTION_TIMEOUT_S)))
+                context.progress("connecting", device_id=identifier)
+                try:
+                    mtu = stack.enter_context(
+                        client.connection(
+                            target,
+                            GatewayRequestConnectionRequest.DataType.COMMAND,
+                            int(self.connect_timeout_seconds * 1000),
+                        )
+                    )
+                except ConnectionRefusedError as error:
+                    raise DeviceError("connection_failed", f"Gateway could not connect: {error}", True) from None
+                except TimeoutError:
+                    raise DeviceError("connection_timeout", "Timed out connecting to the device", True) from None
+                rpc = RpcClient(client, mtu, target)
+                rpc.set_timeout(ACTION_TIMEOUT_S)
+                context.progress("executing", device_id=identifier, action=action)
+                decoder = getattr(definition.response, "vla_from_buffer_copy", definition.response.from_buffer_copy)
+                context.sending()
+                sent = True
+                header, response = rpc.run_standard_cmd(definition.COMMAND_ID, Auth.DEVICE, request, decoder)
+                if header is None:
+                    raise DeviceError("outcome_unknown", "No action acknowledgement; inspect state before retrying")
+                if header.return_code:
+                    raise DeviceError("rpc_rejected", rpc_return_code_str(header.return_code))
+                if response is None:
+                    raise DeviceError("outcome_unknown", "Action response could not be decoded")
+                if action == "kv_write" and (not response.rc or response.rc[0] < 0):
+                    raise DeviceError("rpc_rejected", "Device rejected the KV write")
+                return {
+                    "device_id": identifier,
+                    "action": action,
+                    "status": "acknowledged",
+                    "response": struct_data(response),
+                    "observed_at": time.time(),
+                }
+        except DeviceError:
+            raise
+        except Exception as error:
+            if sent:
+                raise DeviceError("outcome_unknown", "Connection failed after sending; inspect state") from error
+            if isinstance(error, GatewayControlError):
+                retryable = error.code in ("device_busy", "operation_expired", "gateway_unavailable")
+                raise DeviceError(error.code, error.message or error.code, retryable) from None
+            if isinstance(error, ConnectionAbortedError):
+                raise DeviceError("connection_dropped", "Device disconnected before sending", True) from None
+            if isinstance(error, OSError):
+                # Includes timeouts waiting for the gateway's capability and ownership replies
+                raise DeviceError("gateway_unavailable", "Gateway stopped answering; nothing was sent", True) from None
+            raise
+        finally:
+            client.close()
