@@ -1,5 +1,9 @@
+import ctypes
 import os
 
+import pytest
+
+from infuse_iot.definitions.tdf import readings
 from infuse_iot.tdf import TDF, unknown_tdf_factory
 
 # assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -78,3 +82,25 @@ def test_unknown_tdf():
         assert unknown_id == unknown_inst.ID
         assert str(unknown_id) == unknown_inst.NAME
         assert unknown_len == len(unknown_inst.data)
+
+
+def untimestamped_array(array_type):
+    temperature = readings.ambient_temperature(23000)
+    header = TDF.CoreHeader(temperature.ID | array_type, ctypes.sizeof(temperature))
+    if array_type == TDF.flags.TIME_ARRAY:
+        return bytes(header) + bytes(TDF.ArrayHeader(3, 32768)) + bytes(temperature) * 3
+    # Four 8 bit differences from a 32 bit base value
+    diff_header = TDF.ArrayHeader((TDF.DiffType.DIFF_32_8 << 6) | 4, 32768)
+    return bytes(header) + bytes(diff_header) + bytes(temperature) + bytes([1, 2, 3, 4])
+
+
+@pytest.mark.parametrize("array_type", [TDF.flags.TIME_ARRAY, TDF.flags.DIFF_ARRAY])
+def test_untimestamped_array_has_no_time(array_type, monkeypatch):
+    monkeypatch.setattr("infuse_iot.tdf.time.time", lambda: 1761000000.0)
+    (reading,) = TDF().decode(untimestamped_array(array_type))
+    # The device provided no time, so none is invented
+    assert reading.time is None
+    assert reading.period == 0.5
+    # CSV output falls back to the local time, as for other untimestamped readings
+    lines = reading.csv_lines(time_fmt=str)
+    assert {line.split(",")[0] for line in lines} == {"1761000000.0"}
