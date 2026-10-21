@@ -153,6 +153,18 @@ def _register_device_id_converters(module: types.ModuleType) -> None:
 
 TOOLS = (
     ToolSpec(
+        name="scan",
+        help="Observe raw Bluetooth advertisements",
+        description="Collect bounded raw Bluetooth evidence",
+        module="infuse_iot.tools.scan",
+    ),
+    ToolSpec(
+        name="snapshot",
+        help="Collect typed device telemetry",
+        description="Collect decoded telemetry with freshness",
+        module="infuse_iot.tools.snapshot",
+    ),
+    ToolSpec(
         name="annotate_events",
         help="Annotate events on Infuse Tags",
         description="Save labelled event annotations live on Infuse Tags",
