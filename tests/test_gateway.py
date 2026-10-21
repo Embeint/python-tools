@@ -4,31 +4,43 @@ from unittest.mock import Mock
 import pytest
 
 import infuse_iot.definitions.rpc as defs
+from infuse_iot.common import InfuseID
 from infuse_iot.epacket import interface
+from infuse_iot.gateway_control import LOCAL_IDLE_S, GatewayControl
 from infuse_iot.socket_comms import (
     ClientNotificationConnectionCreated,
+    ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
+    GatewayRequestControl,
 )
 from infuse_iot.tools.gateway import SerialTxThread, SubCommand
 
 DEVICE = 123
+GATEWAY = 1
 
 
-@pytest.fixture
-def tx():
+def make_tx(server=None):
     ddb = Mock()
-    ddb.gateway = 1
+    ddb.gateway = GATEWAY
     ddb.has_local_root = False
     ddb.has_shared_key.return_value = True
     ddb.devices = {DEVICE: SimpleNamespace(bt_addr=interface.Address.BluetoothLeAddr(0, 0x010203040506))}
     ddb.infuse_id_from_bluetooth.return_value = DEVICE
     common = Mock(ddb=ddb)
+    if server is not None:
+        common.server = server
+        common.notification_broadcast.side_effect = server.broadcast
     common.rpc.generate_serial.return_value.to_serial.return_value = b"frame"
     common.rpc.generate_remote_bt.return_value.to_serial.return_value = b"frame"
     thread = SerialTxThread(common)
     return thread
+
+
+@pytest.fixture
+def tx():
+    return make_tx()
 
 
 def request(tx):
@@ -105,6 +117,89 @@ def test_release_during_public_key_query_suppresses_success(tx):
     tx._pub_keys_cb(SimpleNamespace(route=[SimpleNamespace(infuse_id=DEVICE)]), -1, b"", None)
     assert len(disconnects(tx)) == 1
     assert ClientNotificationConnectionCreated not in notifications(tx)
+
+
+class ObservingServer:
+    """Updates gateway control from each broadcast, as `LocalServer` does."""
+
+    def __init__(self):
+        self.sent: list = []
+        self.control = GatewayControl(self.sent.append)
+
+    def broadcast(self, notification):
+        self.control.observe(notification)
+        self.sent.append(notification)
+
+
+@pytest.fixture
+def owned():
+    return make_tx(ObservingServer())
+
+
+def deliver(tx, request, owner=None):
+    """Authorize and handle a request, as `LocalServer.receive` and the transmit thread do."""
+    request.operation_id = owner
+    control = tx._common.server.control
+    if control.accept(request):
+        if isinstance(request, GatewayRequestConnectionRequest):
+            tx._handle_conn_request(request)
+        elif isinstance(request, GatewayRequestConnectionRelease):
+            tx._handle_conn_release(request)
+    for release in control.cleanup():
+        tx._handle_conn_release(release)
+    return tx._common.server.sent[-1] if tx._common.server.sent else None
+
+
+def connection(device):
+    return GatewayRequestConnectionRequest(device, GatewayRequestConnectionRequest.DataType.COMMAND, 1000)
+
+
+def acquire(tx, owner, device):
+    parameters = {"device_id": f"0x{device:016x}", "owner": owner}
+    return deliver(tx, GatewayRequestControl("acquire_operation", parameters))
+
+
+def test_operation_on_gateway_device_needs_no_teardown(owned):
+    assert acquire(owned, "A", GATEWAY).ok
+    created = deliver(owned, connection(GATEWAY), "A")
+    assert isinstance(created, ClientNotificationConnectionCreated)
+    assert created.operation_id == "A"
+    deliver(owned, GatewayRequestConnectionRelease(GATEWAY), "A")
+    assert deliver(owned, GatewayRequestControl("release_operation", {"owner": "A"})).ok
+    # The gateway never reports its own device dropped.
+    assert acquire(owned, "B", DEVICE).ok
+    assert not disconnects(owned)
+
+
+def test_killed_legacy_client_of_gateway_device_expires(owned, monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr("infuse_iot.gateway_control.time.monotonic", lambda: clock[0])
+    deliver(owned, connection(InfuseID.GATEWAY))
+    assert acquire(owned, "A", DEVICE).code == "device_busy"
+    clock[0] = LOCAL_IDLE_S
+    assert acquire(owned, "A", DEVICE).ok
+
+
+def test_deferred_legacy_release_does_not_disconnect_new_owner(owned):
+    # A client stops waiting for its pending connection and releases it.
+    deliver(owned, connection(DEVICE))
+    deliver(owned, GatewayRequestConnectionRelease(DEVICE))
+    assert acquire(owned, "A", DEVICE).code == "device_busy"
+    # The connection completes and the deferred release disconnects it, which the gateway later reports.
+    complete(owned)
+    assert len(disconnects(owned)) == 1
+    owned._connection_dropped(DEVICE)
+    owned._common.notification_broadcast(ClientNotificationConnectionDropped(DEVICE))
+    assert acquire(owned, "A", DEVICE).ok
+    deliver(owned, connection(DEVICE), "A")
+    complete(owned)
+    created = owned._common.server.sent[-1]
+    assert isinstance(created, ClientNotificationConnectionCreated)
+    assert created.operation_id == "A"
+    assert owned._connected == {DEVICE: 1}
+    assert len(disconnects(owned)) == 1
+    deliver(owned, GatewayRequestConnectionRelease(DEVICE), "A")
+    assert len(disconnects(owned)) == 2
 
 
 def make_command(log=None):

@@ -2,6 +2,7 @@
 
 import enum
 import json
+import logging
 import select
 import socket
 import struct
@@ -10,7 +11,8 @@ import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import cast
+from typing import Any, cast
+from uuid import uuid4
 
 from typing_extensions import Self
 
@@ -22,6 +24,19 @@ from infuse_iot.tdf import TDF
 
 def default_multicast_address(port: int = 8751) -> tuple[str, int]:
     return ("224.1.1.1", port)
+
+
+# Operations are renewed by their traffic, so a short idle lease limits how long a crashed owner blocks the gateway.
+DEFAULT_OPERATION_DURATION_S = 60.0
+
+
+class GatewayControlError(RuntimeError):
+    """A gateway control request failed with a stable error code."""
+
+    def __init__(self, code: str, message: str | None = None):
+        super().__init__(code)
+        self.code = code
+        self.message = message
 
 
 class ClientNotification:
@@ -41,14 +56,19 @@ class ClientNotification:
     def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
 
+        if values["type"] == cls.Type.COMMS_CHECK and values.get("control") is True:
+            return cast(Self, ClientNotificationControl.from_json(values))
+        if values["type"] in (cls.Type.CONNECTION_CREATED, cls.Type.CONNECTION_FAILED, cls.Type.CONNECTION_DROPPED):
+            classes: dict[int, type[ClientNotificationConnection]] = {
+                cls.Type.CONNECTION_CREATED: ClientNotificationConnectionCreated,
+                cls.Type.CONNECTION_FAILED: ClientNotificationConnectionFailed,
+                cls.Type.CONNECTION_DROPPED: ClientNotificationConnectionDropped,
+            }
+            notification = classes[values["type"]].from_json(values)
+            notification.operation_id = values.get("operation_id")
+            return cast(Self, notification)
         if values["type"] == cls.Type.EPACKET_RECV:
             return cast(Self, ClientNotificationEpacketReceived.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_FAILED:
-            return cast(Self, ClientNotificationConnectionFailed.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_CREATED:
-            return cast(Self, ClientNotificationConnectionCreated.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_DROPPED:
-            return cast(Self, ClientNotificationConnectionDropped.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, ClientNotificationObservedDevices.from_json(values))
         elif values["type"] == cls.Type.COMMS_CHECK:
@@ -88,29 +108,58 @@ class ClientNotificationObservedDevices(ClientNotification):
         return cls(decoded)
 
 
+class ClientNotificationControl(ClientNotification):
+    # Older clients safely ignore the additional fields on a comms-check notification.
+    TYPE = ClientNotification.Type.COMMS_CHECK
+
+    def __init__(self, request_id: str, ok: bool, result: dict | None = None, code: str | None = None):
+        self.request_id = request_id
+        self.ok = ok
+        self.result = result or {}
+        self.code = code
+
+    def to_json(self) -> dict:
+        return {
+            "type": int(self.TYPE),
+            "request_id": self.request_id,
+            "control": True,
+            "ok": self.ok,
+            "result": self.result,
+            "code": self.code,
+        }
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["request_id"], values["ok"], values.get("result"), values.get("code"))
+
+
 class ClientNotificationCommsCheck(ClientNotification):
     TYPE = ClientNotification.Type.COMMS_CHECK
 
-    def __init__(self):
-        pass
+    def __init__(self, capabilities: dict | None = None, request_id: str | None = None):
+        self.capabilities = capabilities
+        self.request_id = request_id
 
     def to_json(self) -> dict:
-        """Convert class to json dictionary"""
-        return {"type": int(self.TYPE)}
+        values: dict[str, Any] = {"type": int(self.TYPE)}
+        if self.capabilities is not None:
+            values.update(capabilities=self.capabilities, request_id=self.request_id)
+        return values
 
     @classmethod
-    def from_json(cls, _values: dict) -> Self:
-        return cls()
+    def from_json(cls, values: dict) -> Self:
+        return cls(values.get("capabilities"), values.get("request_id"))
 
 
 class ClientNotificationConnection(ClientNotification):
     TYPE = 0
+    operation_id: str | None = None
 
     def __init__(self, infuse_id: int):
         self.infuse_id = infuse_id
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id}
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "operation_id": self.operation_id}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -127,7 +176,7 @@ class ClientNotificationConnectionFailed(ClientNotificationConnection):
         self.reason = reason
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "reason": self.reason}
+        return {**super().to_json(), "reason": self.reason}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -144,7 +193,7 @@ class ClientNotificationConnectionCreated(ClientNotificationConnection):
         self.max_payload = max_payload
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "max_payload": self.max_payload}
+        return {**super().to_json(), "max_payload": self.max_payload}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -158,12 +207,15 @@ class ClientNotificationConnectionDropped(ClientNotificationConnection):
 
 
 class GatewayRequest:
+    operation_id: str | None = None
+
     class Type(enum.IntEnum):
         EPACKET_SEND = 0
         CONNECTION_REQUEST = 1
         CONNECTION_RELEASE = 2
         KNOWN_DEVICES = 3
         COMMS_CHECK = 4
+        CONTROL = 5
 
     def to_json(self) -> dict:
         """Convert class to json dictionary"""
@@ -172,17 +224,20 @@ class GatewayRequest:
     @classmethod
     def from_json(cls, values: dict) -> Self:
         """Reconstruct class from json dictionary"""
-        if values["type"] == cls.Type.EPACKET_SEND:
-            return cast(Self, GatewayRequestEpacketSend.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_REQUEST:
-            return cast(Self, GatewayRequestConnectionRequest.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_RELEASE:
-            return cast(Self, GatewayRequestConnectionRelease.from_json(values))
-        elif values["type"] == cls.Type.KNOWN_DEVICES:
-            return cast(Self, GatewayRequestObservedDevices.from_json(values))
-        elif values["type"] == cls.Type.COMMS_CHECK:
-            return cast(Self, GatewayRequestCommsCheck.from_json(values))
-        raise NotImplementedError(f"Unknown request: {values}")
+        classes: dict[int, type[GatewayRequest]] = {
+            cls.Type.EPACKET_SEND: GatewayRequestEpacketSend,
+            cls.Type.CONNECTION_REQUEST: GatewayRequestConnectionRequest,
+            cls.Type.CONNECTION_RELEASE: GatewayRequestConnectionRelease,
+            cls.Type.KNOWN_DEVICES: GatewayRequestObservedDevices,
+            cls.Type.COMMS_CHECK: GatewayRequestCommsCheck,
+            cls.Type.CONTROL: GatewayRequestControl,
+        }
+        request = classes[values["type"]].from_json(values)
+        owner = values.get("operation_id")
+        if owner is not None and (not isinstance(owner, str) or not 1 <= len(owner) <= 128):
+            raise ValueError("Invalid operation ID")
+        request.operation_id = owner
+        return cast(Self, request)
 
 
 class GatewayRequestEpacketSend(GatewayRequest):
@@ -217,20 +272,41 @@ class GatewayRequestObservedDevices(GatewayRequest):
         return cls()
 
 
-class GatewayRequestCommsCheck(GatewayRequest):
-    """Request packet to be forwarded to device"""
+class GatewayRequestControl(GatewayRequest):
+    TYPE = GatewayRequest.Type.CONTROL
 
-    TYPE = GatewayRequest.Type.COMMS_CHECK
-
-    def __init__(self):
-        pass
+    def __init__(self, method: str, parameters: dict, request_id: str | None = None):
+        self.method = method
+        self.parameters = parameters
+        self.request_id = request_id or uuid4().hex
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE)}
+        return {
+            "type": int(self.TYPE),
+            "method": self.method,
+            "parameters": self.parameters,
+            "request_id": self.request_id,
+        }
 
     @classmethod
-    def from_json(cls, _values: dict) -> Self:
-        return cls()
+    def from_json(cls, values: dict) -> Self:
+        if not isinstance(values["method"], str) or not isinstance(values["parameters"], dict):
+            raise ValueError("Invalid control request")
+        return cls(values["method"], values["parameters"], values["request_id"])
+
+
+class GatewayRequestCommsCheck(GatewayRequest):
+    TYPE = GatewayRequest.Type.COMMS_CHECK
+
+    def __init__(self, request_id: str | None = None):
+        self.request_id = request_id
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "request_id": self.request_id}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values.get("request_id"))
 
 
 class GatewayRequestConnection(GatewayRequest):
@@ -283,6 +359,10 @@ class GatewayRequestConnectionRelease(GatewayRequestConnection):
 
 class LocalServer:
     def __init__(self, multicast_address):
+        from infuse_iot.gateway_control import GatewayControl
+
+        self.control = GatewayControl(self._broadcast_raw)
+        self._pending_control: list[GatewayRequest] = []
         # Multicast output socket
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
@@ -301,14 +381,26 @@ class LocalServer:
         self._input_sock.settimeout(0.2)
 
     def broadcast(self, notification: ClientNotification):
+        self.control.observe(notification)
+        self._broadcast_raw(notification)
+
+    def _broadcast_raw(self, notification: ClientNotification):
         self._output_sock.sendto(json.dumps(notification.to_json()).encode("utf-8"), self._output_addr)
 
     def receive(self) -> GatewayRequest | None:
+        self._pending_control.extend(self.control.cleanup())
+        if self._pending_control:
+            return self._pending_control.pop(0)
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+        try:
+            request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+            return request if self.control.accept(request) else None
+        except (ValueError, TypeError, KeyError, AttributeError, NotImplementedError):
+            logging.getLogger(__name__).warning("Ignoring malformed gateway request")
+            return None
 
     def close(self):
         self._input_sock.close()
@@ -334,35 +426,50 @@ class LocalClient:
         self._output_addr = ("localhost", multicast_address[1] + 1)
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._rx_lock = threading.Lock()
+        self.ignored_notifications = 0
         # Connection context
         self._connection_id = None
+        self._operation_id: str | None = None
 
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
 
     def send(self, request: GatewayRequest):
-        self._output_sock.sendto(json.dumps(request.to_json()).encode("utf-8"), self._output_addr)
+        values = request.to_json()
+        if self._operation_id is not None:
+            values["operation_id"] = self._operation_id
+        self._output_sock.sendto(json.dumps(values).encode("utf-8"), self._output_addr)
 
     def receive(self, timeout: float | None = None) -> ClientNotification | None:
-        """Receive a notification, optionally limiting the configured socket timeout."""
-        if timeout is None:
-            with self._rx_lock:
-                return self._recv()
-        timeout = max(timeout, 0)
-        expiry = time.monotonic() + timeout
+        """Receive a notification, optionally limiting the configured socket timeout.
+
+        Gateway notifications are additive, so datagrams this client cannot decode are skipped
+        and the wait continues until it would otherwise end.
+        """
+        deadline = None
+        if timeout is not None:
+            timeout = max(timeout, 0)
+            deadline = time.monotonic() + timeout
         # Another thread could read the datagram between select and recvfrom, so readers are serialised.
-        if not self._rx_lock.acquire(timeout=timeout):
+        if not self._rx_lock.acquire(timeout=-1 if timeout is None else timeout):
             return None
         try:
-            # Wait with select rather than changing the timeout shared by threads using this socket.
-            # Clamp to the requested timeout, as coarse clocks can round the remaining time above it.
-            remaining = min(timeout, max(expiry - time.monotonic(), 0))
             configured = self._input_sock.gettimeout()
-            limit = remaining if configured is None else min(remaining, configured)
-            readable, _, _ = select.select([self._input_sock], [], [], limit)
-            if not readable:
-                return None
-            return self._recv()
+            limit = timeout
+            if configured is not None:
+                limit = configured if timeout is None else min(timeout, configured)
+                socket_deadline = time.monotonic() + configured
+                deadline = socket_deadline if deadline is None else min(deadline, socket_deadline)
+            while True:
+                # Wait with select rather than changing the timeout shared by threads using this socket.
+                # Clamp to the limit, as coarse clocks can round the remaining time above it.
+                wait = None if deadline is None or limit is None else min(limit, max(deadline - time.monotonic(), 0))
+                readable, _, _ = select.select([self._input_sock], [], [], wait)
+                if not readable:
+                    return None
+                notification = self._recv()
+                if notification is not None:
+                    return notification
         finally:
             self._rx_lock.release()
 
@@ -371,7 +478,13 @@ class LocalClient:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
             return None
-        return ClientNotification.from_json(json.loads(data.decode("utf-8")))
+        try:
+            return ClientNotification.from_json(json.loads(data.decode("utf-8")))
+        except (ValueError, TypeError, LookupError, AttributeError, NotImplementedError):
+            # Newer gateways may send notification types or fields this client does not know.
+            self.ignored_notifications += 1
+            logging.getLogger(__name__).debug("Ignoring undecodable gateway notification")
+            return None
 
     def comms_check(self, timeout: float = 0.5) -> bool:
         expiry = time.monotonic() + timeout
@@ -402,7 +515,7 @@ class LocalClient:
                 rsp = self.receive(timeout=remaining)
                 if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
                     continue
-                if rsp.infuse_id != infuse_id:
+                if rsp.infuse_id != infuse_id or rsp.operation_id != self._operation_id:
                     continue
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
@@ -416,6 +529,69 @@ class LocalClient:
             except OSError:
                 pass
             raise
+
+    def capabilities(self, timeout: float = 1.0) -> dict:
+        # Discard stale notifications, which may fill the socket buffer and drop the reply.
+        drain_expiry = time.monotonic() + 0.1
+        while time.monotonic() < drain_expiry and self.receive(timeout=0) is not None:
+            pass
+        request_id = uuid4().hex
+        self.send(GatewayRequestCommsCheck(request_id))
+        deadline = time.monotonic() + timeout
+        legacy = False
+        while (remaining := deadline - time.monotonic()) > 0:
+            notification = self.receive(timeout=remaining)
+            if isinstance(notification, ClientNotificationCommsCheck):
+                # Capabilities in a reply to another client's query are equally valid.
+                if notification.capabilities is not None:
+                    return notification.capabilities
+                # A plain reply may answer another client's comms check, so only an unanswered query is legacy.
+                legacy = True
+        if legacy:
+            return {"protocol_version": 1, "features": []}
+        raise TimeoutError("Gateway did not answer capability query")
+
+    def control_request(self, method: str, parameters: dict, timeout: float = 2.0) -> dict:
+        request = GatewayRequestControl(method, parameters)
+        self.send(request)
+        deadline = time.monotonic() + timeout
+        while (remaining := deadline - time.monotonic()) > 0:
+            notification = self.receive(timeout=remaining)
+            if isinstance(notification, ClientNotificationControl) and notification.request_id == request.request_id:
+                if not notification.ok:
+                    result = notification.result if isinstance(notification.result, dict) else {}
+                    message = result.get("message")
+                    raise GatewayControlError(
+                        notification.code or "gateway_error", None if message is None else str(message)
+                    )
+                return notification.result
+        raise TimeoutError(f"Gateway did not answer {method}")
+
+    @contextmanager
+    def operation(self, infuse_id: int, duration_seconds: float = DEFAULT_OPERATION_DURATION_S):
+        """Own operations on a device, until released or idle for the duration."""
+        if self._operation_id is not None or self._connection_id is not None:
+            raise RuntimeError("Client already has an operation or connection")
+        if not 0 <= infuse_id < 2**64:
+            raise ValueError("Operations need a device ID, use the gateway's own ID rather than InfuseID.GATEWAY")
+        if "operation_ownership" not in self.capabilities().get("features", []):
+            raise GatewayControlError("unsupported_capability", "Gateway does not support operation ownership")
+        owner = uuid4().hex
+        try:
+            self.control_request(
+                "acquire_operation",
+                {"device_id": f"0x{infuse_id:016x}", "owner": owner, "duration_seconds": duration_seconds},
+            )
+            self._operation_id = owner
+            yield owner
+        finally:
+            try:
+                self.connection_release()
+                # Also release an acquisition whose response was lost.
+                self.control_request("release_operation", {"owner": owner})
+            except (OSError, RuntimeError, TimeoutError):
+                pass
+            self._operation_id = None
 
     def connection_dropped(self, notification: ClientNotification | None) -> bool:
         """Whether a notification reports the loss of this client's connection."""
