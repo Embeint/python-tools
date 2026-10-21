@@ -104,7 +104,12 @@ class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser):
         upgrade_type = parser.add_mutually_exclusive_group(required=True)
-        upgrade_type.add_argument("--release", "-r", type=ValidRelease, help="Application release to upgrade to")
+        upgrade_type.add_argument(
+            "--release",
+            "-r",
+            type=ValidRelease,
+            help="Application release to upgrade to; without --id/--list, keep scanning until interrupted",
+        )
         upgrade_type.add_argument("--single", type=ValidFile, help="Single diff")
         parser.add_argument(
             "--full-image",

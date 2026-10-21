@@ -266,7 +266,20 @@ verified, so check each device in `result.devices`. Inspect fresh device state
 before replanning.
 
 `infuse ota_upgrade --release <directory>` uses the same inspection, planning
-and transfer service, while keeping its fleet behavior. It writes patches only,
+and transfer service, while keeping its fleet behavior. Leave it running without
+`--id` or `--list` to upgrade matching devices as they come into range, even after
+quiet periods or after all devices seen so far have been handled. It keeps
+scanning until Ctrl+C; `--verification-seconds` limits each device's verification
+window, not the scanning session. Handled devices are not written again during
+that run. With `--id` or `--list`, it exits once those devices have been handled.
+
+For example, start a gateway in one terminal, then leave this running in another:
+
+```sh
+infuse ota_upgrade --release /path/to/release --log updates.csv
+```
+
+It writes patches only,
 including application migration patches for explicit `--id` or `--list`
 devices, and counts devices without a matching diff as "No Diff". `--full-image`
 allows the signed image for those devices, given board CRC telemetry or `--board`,
