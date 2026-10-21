@@ -136,6 +136,11 @@ class CredentialStatus(Open):
     reason: str | None = None
 
 
+class JobWorker(Open):
+    worker_running: bool = Field(description="Whether this server is running the jobs it accepted")
+    last_error: str | None = Field(description="The worker's last storage or recovery failure")
+
+
 class Status(Open):
     version: str
     profile: str | None
@@ -143,6 +148,7 @@ class Status(Open):
     collector: CollectorStatus
     credentials: CredentialStatus
     writes_enabled: bool
+    jobs: JobWorker | None = Field(None, description="This server's job worker; null without --allow-writes")
 
 
 class DeviceEvidence(Open):
@@ -168,3 +174,20 @@ class Radio(Open):
 class Diagnostics(Status):
     radio: Radio
     devices: list[DeviceEvidence] | None
+
+
+class Job(Open):
+    id: str
+    request_key: str
+    specification: dict[str, Any] = Field(description="The action, full device ID and parameters")
+    state: Literal["queued", "running", "completed", "failed", "cancelled", "unknown"] = Field(
+        description="unknown means the action may have reached the device; inspect it before a new request"
+    )
+    created: float
+    updated: float
+    progress: dict[str, Any] = Field(description="The latest phase, such as waiting, connecting or executing")
+    result: dict[str, Any] | None = Field(description="The device's acknowledgement once completed")
+    error: ErrorResult | None
+    cancel_requested: bool
+    gateway: str | None
+    worker: JobWorker

@@ -13,6 +13,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -34,6 +35,7 @@ from infuse_iot.tdf import TDF
 DEVICE = 0xCE7E42571A000099
 DEVICE_ID = f"0x{DEVICE:016x}"
 TOOLS = {"infuse_status", "infuse_scan", "infuse_devices", "infuse_device", "infuse_rpc_read", "infuse_diagnostics"}
+ACTION_TOOLS = {"infuse_reboot", "infuse_kv_write", "infuse_job_status", "infuse_job_cancel"}
 
 
 def packet(device: int = DEVICE) -> PacketReceived:
@@ -358,6 +360,7 @@ def test_status_and_diagnostics_report_an_absent_gateway():
 
     status, diagnostics = run(ReadService(default_multicast_address(28931)), calls)
     for result in (data(status), data(diagnostics)):
+        assert (result["writes_enabled"], result["jobs"]) == (False, None)
         assert result["gateway"]["available"] is False
         assert result["gateway"]["error"]["code"] == "gateway_unavailable"
         assert result["collector"]["running"] is False
@@ -536,3 +539,69 @@ def test_sdk_clients_use_the_installed_command(device_gateway, tmp_path, mode):
         raise AssertionError("Telemetry was not collected")
 
     assert asyncio.run(main())["items"][0]["id"] == DEVICE_ID
+
+
+def test_action_tools_require_opt_in_and_reuse_persisted_jobs(tmp_path, monkeypatch):
+    service = ReadService(default_multicast_address(28941))
+    mutate = Mock(return_value={"status": "acknowledged"})
+    monkeypatch.setattr(service.operations, "mutate", mutate)
+
+    async def calls(client):
+        tools = {tool.name: tool for tool in (await client.list_tools()).tools}
+        assert set(tools) == TOOLS | ACTION_TOOLS
+        for name in ACTION_TOOLS:
+            assert tools[name].input_schema["additionalProperties"] is False
+            assert "cancel_requested" in json.dumps(tools[name].output_schema)
+        assert tools["infuse_reboot"].annotations.destructive_hint
+        assert tools["infuse_job_status"].annotations.read_only_hint
+        assert tools["infuse_reboot"].input_schema["properties"]["device_id"]["pattern"] == "^(0x)?[0-9a-fA-F]{1,16}$"
+        args = {"device_id": "0x123", "request_key": "one-reboot"}
+        first = data(await client.call_tool("infuse_reboot", args))
+        assert data(await client.call_tool("infuse_reboot", args))["id"] == first["id"]
+        for _ in range(100):
+            job = data(await client.call_tool("infuse_job_status", {"job_id": first["id"]}))
+            if job["state"] == "completed":
+                break
+            await asyncio.sleep(0.01)
+        padded = data(await client.call_tool("infuse_reboot", {**args, "device_id": "0x0000000000000123"}))
+        rejected = [
+            await client.call_tool(name, arguments)
+            for name, arguments in [
+                ("infuse_reboot", {**args, "delay_ms": 5}),
+                ("infuse_reboot", {**args, "request_key": "late", "delay_ms": 60001}),
+                ("infuse_reboot", {"device_id": "12_34", "request_key": "bad-id"}),
+                ("infuse_kv_write", {**args, "request_key": "secret", "key": "API_KEY", "value": "secret"}),
+                ("infuse_kv_write", {**args, "request_key": "null", "key": "DEVICE_NAME", "value": "a\x00b"}),
+                ("infuse_job_status", {"job_id": "0" * 32}),
+                ("infuse_job_status", {"job_id": "../jobs"}),
+            ]
+        ]
+        cancelled = data(await client.call_tool("infuse_job_cancel", {"job_id": first["id"]}))
+        status = data(await client.call_tool("infuse_status"))
+        return job, padded, rejected, cancelled, status
+
+    async def main():
+        async with Client(create_server(service.address, service, allow_writes=True, state_directory=tmp_path)) as c:
+            return await calls(c)
+
+    job, padded, rejected, cancelled, status = asyncio.run(main())
+    assert (job["state"], job["result"], job["specification"]["device_id"]) == (
+        "completed",
+        {"status": "acknowledged"},
+        "0x0000000000000123",
+    )
+    assert mutate.call_count == 1
+    assert padded["id"] == job["id"]
+    assert [(error(result)["code"], error(result)["retryable"]) for result in rejected] == [
+        ("idempotency_conflict", False),
+        ("invalid_request", False),
+        ("invalid_request", False),
+        ("invalid_request", False),
+        ("invalid_request", False),
+        ("job_not_found", False),
+        ("invalid_request", False),
+    ]
+    # Finished jobs are immutable, and invalid requests never created one
+    assert (cancelled["state"], cancelled["cancel_requested"]) == ("completed", False)
+    assert status["writes_enabled"] and status["jobs"] == {"worker_running": True, "last_error": None}
+    assert mutate.call_count == 1

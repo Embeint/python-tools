@@ -8,7 +8,14 @@ import pytest
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.common import InfuseID
 from infuse_iot.services.device_operations import DeviceError, DeviceOperations, device_id, kv_values
-from infuse_iot.socket_comms import GatewayRequestConnectionRequest, LocalClient, default_multicast_address
+from infuse_iot.services.jobs import JobCancelled
+from infuse_iot.socket_comms import (
+    GatewayControlError,
+    GatewayRequestConnectionRequest,
+    GatewayRequestEpacketSend,
+    LocalClient,
+    default_multicast_address,
+)
 
 DEVICE = 0xCE7E42571A000099
 DEVICE_ID = f"0x{DEVICE:016x}"
@@ -264,4 +271,183 @@ def test_cancelled_read_stops_and_releases_the_device(device_gateway):
     assert failure(operations.read, DEVICE_ID, "application_info", cancelled=cancelled).code == "cancelled"
     assert cancelled.checks == 2
     assert not any(isinstance(request, GatewayRequestConnectionRequest) for request in gateway.requests)
+    assert gateway.server.control._operation is None
+
+
+class Context:
+    """Record job checkpoints, optionally cancelling while waiting."""
+
+    def __init__(self, cancel_waits=False):
+        self.events: list[str] = []
+        self.cancel_waits = cancel_waits
+
+    def check_cancelled(self):
+        pass
+
+    def progress(self, phase, **values):
+        self.events.append(phase)
+
+    def sending(self):
+        self.events.append("sending")
+
+    def wait(self, seconds):
+        self.events.append("wait")
+        if self.cancel_waits:
+            raise JobCancelled
+        time.sleep(seconds)
+
+
+@pytest.fixture
+def scripted_gateway(monkeypatch):
+    """Drive the real `LocalClient` ownership and connection logic over a scripted gateway."""
+
+    class Gateway(LocalClient):
+        features = ["operation_ownership"]
+        busy = 0
+        log: list[str] = []
+        rpc = Mock()
+
+        def __init__(self, address):
+            self._operation_id = None
+            self._connection_id = None
+
+        def capabilities(self, timeout=1.0):
+            return {"protocol_version": 2, "features": list(self.features)}
+
+        def control_request(self, method, parameters, timeout=2.0):
+            self.log.append(method)
+            if method == "acquire_operation" and Gateway.busy:
+                Gateway.busy -= 1
+                raise GatewayControlError("device_busy", "Another operation is active")
+            return {}
+
+        def connection_create(self, infuse_id, data_types, timeout_ms):
+            self._connection_id = infuse_id
+            self.log.append("connect")
+            return 205
+
+        def send(self, request):
+            self.log.append(type(request).__name__)
+
+        def close(self):
+            self.log.append("close")
+
+    Gateway.rpc.run_standard_cmd.return_value = (None, None)
+    monkeypatch.setattr("infuse_iot.services.device_operations.LocalClient", Gateway)
+    monkeypatch.setattr("infuse_iot.services.device_operations.RpcClient", lambda *args: Gateway.rpc)
+    return Gateway
+
+
+def reboot(context, action_wait_seconds=60.0, operations=None):
+    """Reboot through the gateway, returning the `DeviceError` it raises."""
+    operations = operations or DeviceOperations(("224.1.1.1", 19851))
+    operations.action_wait_seconds = action_wait_seconds
+    return failure(operations.mutate, "0x123", "reboot", {"delay_ms": 0}, context)
+
+
+@pytest.mark.parametrize(
+    "action,parameters",
+    [
+        ("reboot", {"delay_ms": 60001}),
+        ("reboot", {"delay_ms": True}),
+        ("reboot", {"delay_ms": 0, "force": True}),
+        ("kv_write", {"key": "API_KEY", "value": "secret"}),
+        ("kv_write", {"key": "DEVICE_NAME", "value": "a\x00b"}),
+        ("kv_write", {"key": "DEVICE_NAME", "value": "x" * 129}),
+        ("kv_write", {"key": "DEVICE_NAME"}),
+        ("erase", {}),
+    ],
+)
+def test_invalid_actions_do_not_open_a_connection(monkeypatch, action, parameters):
+    factory = Mock()
+    monkeypatch.setattr("infuse_iot.services.device_operations.LocalClient", factory)
+    with pytest.raises(ValueError):
+        DeviceOperations(("224.1.1.1", 19851)).mutate("0x123", action, parameters, Context())
+    factory.assert_not_called()
+
+
+def test_actions_never_downgrade_to_a_gateway_without_ownership(scripted_gateway):
+    scripted_gateway.features = []
+    context = Context()
+    error = reboot(context)
+    assert (error.code, error.retryable) == ("unsupported_capability", False)
+    assert "connect" not in scripted_gateway.log and "sending" not in context.events
+    scripted_gateway.rpc.run_standard_cmd.assert_not_called()
+
+
+def test_missing_action_acknowledgement_is_not_reported_as_success(scripted_gateway):
+    context = Context()
+    assert reboot(context).code == "outcome_unknown"
+    assert context.events[-1] == "sending"
+    assert scripted_gateway.log[:2] == ["acquire_operation", "connect"]
+    assert "release_operation" in scripted_gateway.log
+    scripted_gateway.rpc.run_standard_cmd.assert_called_once()
+
+
+def test_transport_failure_after_sending_is_unknown(scripted_gateway):
+    scripted_gateway.rpc.run_standard_cmd.side_effect = TimeoutError("receive timed out")
+    error = reboot(Context())
+    assert (error.code, error.retryable) == ("outcome_unknown", False)
+
+
+def test_busy_gateway_is_awaited_before_anything_is_sent(scripted_gateway):
+    scripted_gateway.busy = 2
+    context = Context()
+    assert reboot(context).code == "outcome_unknown"
+    assert context.events.count("wait") == 2
+    assert scripted_gateway.log.count("acquire_operation") == 3
+    scripted_gateway.rpc.run_standard_cmd.assert_called_once()
+
+
+def test_busy_gateway_wait_is_bounded_and_retryable(scripted_gateway):
+    scripted_gateway.busy = 1000
+    context = Context()
+    start = time.monotonic()
+    error = reboot(context, action_wait_seconds=0.3)
+    assert (error.code, error.retryable) == ("device_busy", True)
+    assert time.monotonic() - start < 1.5
+    assert "sending" not in context.events and "connect" not in scripted_gateway.log
+    scripted_gateway.rpc.run_standard_cmd.assert_not_called()
+
+
+def test_busy_gateway_wait_is_cancellable(scripted_gateway):
+    scripted_gateway.busy = 1000
+    with pytest.raises(JobCancelled):
+        reboot(Context(cancel_waits=True))
+    scripted_gateway.rpc.run_standard_cmd.assert_not_called()
+
+
+def test_actions_wait_for_this_servers_reads_in_cancellable_steps(scripted_gateway):
+    operations = DeviceOperations(("224.1.1.1", 19851))
+    with operations.exclusive():
+        start = time.monotonic()
+        error = reboot(Context(), action_wait_seconds=1.0, operations=operations)
+        assert (error.code, error.retryable) == ("device_busy", True)
+        # The whole wait is bounded by the action's own deadline, not stacked lock waits.
+        assert time.monotonic() - start < 2
+        start = time.monotonic()
+        with pytest.raises(JobCancelled):
+            reboot(Context(cancel_waits=True), operations=operations)
+        assert time.monotonic() - start < 1.5
+    assert "acquire_operation" not in scripted_gateway.log
+    # Once the lock is free the action proceeds
+    assert reboot(Context(), operations=operations).code == "outcome_unknown"
+
+
+def test_action_through_a_gateway(device_gateway):
+    gateway = device_gateway(28905)
+    leases = []
+
+    def respond(device, command, request):
+        leases.append(gateway.server.control._operation.duration)
+        return 0, bytes(defs.reboot.response(250))
+
+    gateway.respond = respond
+    context = Context()
+    result = DeviceOperations(gateway.address).mutate(DEVICE_ID, "reboot", {"delay_ms": 250}, context)
+    assert (result["device_id"], result["status"], result["response"]) == (DEVICE_ID, "acknowledged", {"delay_ms": 250})
+    assert context.events == ["connecting", "executing", "sending"]
+    # The same short lease as reads, renewed by traffic
+    assert leases == [30.0]
+    assert sum(isinstance(request, GatewayRequestEpacketSend) for request in gateway.requests) == 1
     assert gateway.server.control._operation is None
