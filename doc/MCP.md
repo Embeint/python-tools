@@ -102,5 +102,6 @@ returned. No firmware writes, provisioning, shell execution or unrestricted RPC
 commands are available.
 
 Run `tox -e mcp` for the protocol tests, which use fake gateways, SDK clients in
-current and legacy modes, and the installed `infuse` command over stdio. The
+current and legacy modes, and the installed `infuse` command over stdio, and
+`tox -e mcp-lowest` to run them with the oldest supported SDK, `mcp` 2.3. The
 normal tox environment skips them when the extra is absent.
