@@ -60,9 +60,10 @@ class InfuseApp:
         # Load tools
         self._load_tools(self.parser)
 
-    def run(self, argv):
+    def run(self, argv: list[str] | None = None) -> None:
         """Run the chosen subtool handler"""
-        argv = argv or sys.argv[1:]
+        if argv is None:
+            argv = sys.argv[1:]
         self._load_selected_tool(argv)
         self._load_selected_completion_tool()
         # Handle CLI tab completion
@@ -176,11 +177,10 @@ class InfuseApp:
         )
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> None:
     """Create the InfuseApp instance and let it run"""
-    app = InfuseApp()
     try:
-        app.run(argv or sys.argv[1:])
+        InfuseApp().run(argv)
     except KeyboardInterrupt:
         pass
 
