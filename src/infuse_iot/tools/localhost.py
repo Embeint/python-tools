@@ -8,8 +8,6 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import asyncio
 import pathlib
 import sys
-import threading
-import time
 from typing import Any
 
 from aiohttp import web
@@ -17,18 +15,13 @@ from aiohttp.client_exceptions import WSMessageTypeError
 from aiohttp.web_request import BaseRequest
 from aiohttp.web_runner import GracefulExit
 
-import infuse_iot.epacket.interface as interface
-import infuse_iot.epacket.packet as packet
 from infuse_iot.commands import InfuseCommand
-from infuse_iot.common import InfuseType
 from infuse_iot.definitions.tdf import structs
-from infuse_iot.generated.tdf_base import TdfStructBase
+from infuse_iot.services.device_state import DeviceState
 from infuse_iot.socket_comms import (
     ClientNotificationEpacketReceived,
     LocalClient,
 )
-from infuse_iot.tdf import TDF
-from infuse_iot.time import InfuseTime
 from infuse_iot.util.argparse import add_server_port_parser, infuse_device_id_to_vendor
 from infuse_iot.util.console import Console
 from infuse_iot.util.threading import SignaledThread
@@ -46,15 +39,14 @@ class SubCommand(InfuseCommand):
         add_server_port_parser(parser)
 
     def __init__(self, args):
-        self._data_lock = threading.Lock()
+        self._state = DeviceState()
+        self._data_lock = self._state.lock
         self._columns: dict[str, dict] = {}
-        self._apps: set[str] = set()
-        self._networks: set[str] = set()
-        self._data: dict[int, dict] = {}
+        self._apps = self._state.applications
+        self._networks = self._state.networks
+        self._data = self._state.display_rows
         self._port: int = args.port
-
         self._client = LocalClient(args.server_sock, 1.0)
-        self._decoder = TDF()
 
     # Serve the HTML file
     async def handle_index(self, _request):
@@ -199,58 +191,11 @@ class SubCommand(InfuseCommand):
 
     def recv_thread(self) -> None:
         msg = self._client.receive()
-        if msg is None:
-            return
-        if not isinstance(msg, ClientNotificationEpacketReceived):
-            return
-        if msg.epacket.ptype != InfuseType.TDF:
-            return
-
-        source = msg.epacket.route[0]
-
-        with self._data_lock:
-
-            if source.infuse_id not in self._data:
-                self._data[source.infuse_id] = {
-                    "infuse_id": _display_device_id(source.infuse_id),
-                    "application": "Unknown",
-                }
-
-            self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
-            if source.interface == interface.ID.BT_ADV:
-                addr_bytes = source.interface_address.val.addr_val.to_bytes(6, "big")
-                addr_str = ":".join([f"{x:02x}" for x in addr_bytes])
-                self._data[source.infuse_id]["bt_addr"] = addr_str
-                self._data[source.infuse_id]["bt_rssi"] = source.rssi
-
-            if source.auth == packet.Auth.NETWORK:
-                key_id_str = f"0x{source.key_identifier:06x}"
-                self._data[source.infuse_id]["network_id"] = key_id_str
-                self._networks.add(key_id_str)
-
-            for tdf in self._decoder.decode(msg.epacket.payload):
-                t = tdf.data[-1]
-                if t.NAME not in self._columns:
-                    self._columns[t.NAME] = self.tdf_columns(t)
-                if t.NAME not in self._data[source.infuse_id]:
-                    self._data[source.infuse_id][t.NAME] = {}
-                if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
-                    app_str = f"0x{t.application:08x}"
-                    self._data[source.infuse_id]["application"] = app_str
-                    self._apps.add(app_str)
-
-                for field in t.iter_fields(nested_iter=False):
-                    if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
-                        # Special case version struct to make reading versions easier
-                        val = f"{field.val.major}.{field.val.minor}.{field.val.revision}+{field.val.build_num:08x}"
-                        self._data[source.infuse_id][t.NAME][field.field] = val
-                    elif isinstance(field.val, TdfStructBase):
-                        for s in field.val.iter_fields(field.field):
-                            if s.field not in self._data[source.infuse_id][t.NAME]:
-                                self._data[source.infuse_id][t.NAME][s.field] = {}
-                            self._data[source.infuse_id][t.NAME][s.field][s.subfield] = s.val_fmt()
-                    else:
-                        self._data[source.infuse_id][t.NAME][field.field] = field.val_fmt()
+        if isinstance(msg, ClientNotificationEpacketReceived) and self._state.observe(msg.epacket):
+            with self._data_lock:
+                for name, reading in self._state.tdf_types.items():
+                    if name not in self._columns:
+                        self._columns[name] = self.tdf_columns(reading)
 
     def run(self):
         if not self._client.comms_check():

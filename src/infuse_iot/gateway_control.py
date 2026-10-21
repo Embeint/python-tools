@@ -7,6 +7,7 @@ from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+from uuid import uuid4
 
 from infuse_iot.common import InfuseType
 from infuse_iot.epacket.interface import ID as Interface
@@ -28,6 +29,7 @@ from infuse_iot.socket_comms import (
     GatewayRequestControl,
     GatewayRequestEpacketSend,
 )
+from infuse_iot.version import __version__
 
 # A released link reports its teardown within this time of any pending setup completing.
 TEARDOWN_TIMEOUT_S = 15.0
@@ -60,6 +62,7 @@ class GatewayControl:
 
     def __init__(self, broadcast: Callable[[ClientNotification], None], kind: str = "serial"):
         self.kind = kind
+        self.instance_id = uuid4().hex
         self._broadcast = broadcast
         self._lock = threading.RLock()
         self._operation: _Operation | None = None
@@ -81,6 +84,8 @@ class GatewayControl:
     def capabilities(self) -> dict[str, Any]:
         return {
             "protocol_version": 2,
+            "version": __version__,
+            "instance_id": self.instance_id,
             "gateway_kind": self.kind,
             "features": ["operation_ownership", *sorted(self.handlers)],
         }

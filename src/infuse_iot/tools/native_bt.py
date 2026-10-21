@@ -36,6 +36,8 @@ from infuse_iot.epacket.packet import (
     PacketReceived,
 )
 from infuse_iot.gateway_control import GatewayControl
+from infuse_iot.services.ble_observations import BleObservations
+from infuse_iot.services.collector import gateway_identity
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
@@ -54,6 +56,9 @@ from infuse_iot.socket_comms import (
 from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
 from infuse_iot.util.local_rpc_server import LocalRpcServer
+
+# Raw observation pages stay well below the 8 kB datagrams that clients receive.
+RAW_OBSERVATION_BYTES = 5000
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -381,11 +386,45 @@ class SubCommand(InfuseCommand):
         self.database = DeviceDatabase(args.root)
         self.server = LocalServer(args.server_sock)
         self.bleak_mapping: dict[int, BLEDevice] = {}
+        self.observations = BleObservations()
+        self.scan_statistics = {
+            "infuse_advertisements": 0,
+            "decrypted_packets": 0,
+            "unknown_network_packets": 0,
+            "invalid_tag_packets": 0,
+        }
+        self.server.control.kind = "native_bt"
+        self.server.control.handlers["raw_observations"] = self.raw_observations
+        self.server.control.handlers["diagnostics"] = self.diagnostics
         self.unknown_networks: set[int] = set()
         self.report_interval: float = args.report_interval
         self.report_count = 0
         self.infuse_report_count = 0
         Console.init()
+
+    @staticmethod
+    def _check_parameters(params: dict[str, Any], known: tuple[str, ...]) -> None:
+        unknown = sorted(set(params) - set(known))
+        if unknown:
+            raise ValueError(f"Unknown parameters: {', '.join(unknown)}")
+
+    def raw_observations(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Answer a paginated query of raw advertisement observations, whose values the service validates"""
+        self._check_parameters(params, ("max_age_seconds", "cursor", "limit", "infuse_only"))
+        return self.observations.snapshot(
+            **params,
+            max_bytes=RAW_OBSERVATION_BYTES,
+            metadata={"gateway": gateway_identity(self.server.control.capabilities())},
+        )
+
+    def diagnostics(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Radio and decryption counters since the gateway started"""
+        self._check_parameters(params, ())
+        return {
+            **self.scan_statistics,
+            "advertisements": self.observations.advertisements,
+            "gateway_kind": "native_bt",
+        }
 
     async def server_handler(self):
         sock = self.server._input_sock
@@ -405,9 +444,13 @@ class SubCommand(InfuseCommand):
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
         self.report_count += 1
+        self.observations.observe(
+            device.address, data.local_name or device.name, data.rssi, data.manufacturer_data, data.service_uuids
+        )
         if self.infuse_manu not in data.manufacturer_data:
             return
         self.infuse_report_count += 1
+        self.scan_statistics["infuse_advertisements"] += 1
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
@@ -415,14 +458,17 @@ class SubCommand(InfuseCommand):
         try:
             hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
         except UnknownNetworkError as e:
+            self.scan_statistics["unknown_network_packets"] += 1
             network_id = e.args[0]
             if network_id not in self.unknown_networks:
                 self.unknown_networks.add(network_id)
                 Console.log_info(f"Unknown network 0x{network_id:06x}")
             return
         except InvalidTag as _e:
+            self.scan_statistics["invalid_tag_packets"] += 1
             Console.log_info(f"Failed to decrypt packet from {device}")
             return
+        self.scan_statistics["decrypted_packets"] += 1
         self.bleak_mapping[hdr.device_id] = device
 
         hop = HopReceived(
