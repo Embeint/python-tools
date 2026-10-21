@@ -1,0 +1,173 @@
+"""Published result schemas. Extra fields are allowed, so additive service changes remain valid."""
+
+from typing import Any, Generic, Literal, TypeVar
+
+from pydantic import BaseModel, ConfigDict, Field
+
+T = TypeVar("T")
+
+
+class Open(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class ErrorResult(Open):
+    code: str = Field(description="Stable error code, such as gateway_unavailable or device_busy")
+    message: str
+    retryable: bool = Field(False, description="Whether repeating the same call later may succeed")
+    details: dict[str, Any] | None = None
+
+
+class Envelope(BaseModel, Generic[T]):
+    schema_version: Literal[1] = 1
+    data: T | None = None
+    error: ErrorResult | None = None
+
+
+class Window(Open):
+    start: float
+    end: float
+
+
+class Reading(Open):
+    values: dict[str, Any]
+    units: dict[str, str]
+    received_at: float
+    sampled_at: float | None = Field(description="The device's own sample time, when the reading has one")
+    age_seconds: float
+    sample_age_seconds: float | None = Field(None, description="Age of sampled_at, when the reading has one")
+    stale: bool | None = Field(
+        description="Received or sampled longer ago than max_age_seconds; null without an age limit"
+    )
+
+
+class Bluetooth(Open):
+    address: str
+    rssi_dbm: int
+
+
+class Device(Open):
+    id: str
+    first_seen_at: float
+    last_seen_at: float
+    age_seconds: float
+    application_id: str | None
+    network_id: str | None
+    firmware_version: str | None
+    firmware_observed_at: float | None
+    firmware_age_seconds: float | None = Field(description="Age of the firmware announcement itself")
+    firmware_stale: bool | None
+    bluetooth: Bluetooth | None = None
+    readings: dict[str, Reading]
+
+
+class DevicePage(Open):
+    snapshot_id: str | None
+    generated_at: float
+    collector_started_at: float
+    filters: dict[str, Any]
+    observation_window: Window
+    gateway: dict[str, Any] | None
+    decode_errors: int
+    evictions: int
+    total: int
+    items: list[Device]
+    next_cursor: str | None
+
+
+class DeviceResult(Open):
+    device: Device
+    max_age_seconds: float | None
+    generated_at: float
+    collector_started_at: float
+    observation_window: Window
+    gateway: dict[str, Any] | None
+
+
+class RawObservation(Open):
+    identifier: str
+    name: str | None = None
+    rssi: int | None = None
+    first_seen_at: float | None = None
+    last_seen_at: float | None = None
+    manufacturer_ids: list[str] = []
+    service_uuids: list[str] = []
+    infuse_candidate: bool = False
+    truncated: bool = False
+
+
+class RawPage(Open):
+    snapshot_id: str | None = None
+    generated_at: float | None = None
+    filters: dict[str, Any] | None = None
+    observation_window: Window | None = None
+    gateway: dict[str, Any] | None = None
+    total: int
+    items: list[RawObservation]
+    next_cursor: str | None = None
+
+
+class RpcRead(Open):
+    device_id: str
+    command: str
+    observed_at: float
+    response: dict[str, Any] = Field(
+        description="Decoded response fields; kv_read returns values with a per-key status of ok, not_set, "
+        "error or invalid"
+    )
+
+
+class GatewayStatus(Open):
+    available: bool
+    capabilities: dict[str, Any] | None
+    error: ErrorResult | None
+
+
+class CollectorStatus(Open):
+    running: bool
+    started_at: float = Field(description="When this server began collecting; observations accumulate from here")
+    error_code: str | None
+    error: str | None
+    skipped_notifications: int
+    decode_errors: int
+    evictions: int
+    devices: int
+
+
+class CredentialStatus(Open):
+    status: Literal["available", "unavailable", "unknown", "not_checked"]
+    reason: str | None = None
+
+
+class Status(Open):
+    version: str
+    profile: str | None
+    gateway: GatewayStatus
+    collector: CollectorStatus
+    credentials: CredentialStatus
+    writes_enabled: bool
+
+
+class DeviceEvidence(Open):
+    id: str
+    observed: bool = Field(description="Telemetry was decoded from the device during the observation window")
+    last_seen_at: float | None
+    age_seconds: float | None
+    application_id: str | None
+    network_id: str | None
+    firmware_version: str | None
+
+
+class Radio(Open):
+    counters: dict[str, int] | None = Field(description="Gateway radio and decryption counters since it started")
+    window_seconds: float
+    window_counters: dict[str, int] | None = Field(description="Counter increments during the observation window")
+    findings: list[str] = Field(
+        description="no_counters, no_radio_traffic, no_infuse_advertisements, unknown_network, "
+        "decryption_failures or decrypting"
+    )
+
+
+class Diagnostics(Status):
+    radio: Radio
+    devices: list[DeviceEvidence] | None

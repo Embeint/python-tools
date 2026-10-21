@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
+import importlib.util
 import os
 import subprocess
 import sys
+from argparse import Namespace
+
+import pytest
 
 from infuse_iot.app.main import InfuseApp
 
@@ -79,3 +83,50 @@ def test_completion_loads_selected_tool(monkeypatch):
 
     app._load_selected_completion_tool()
     assert "infuse_iot.tools.profile" in sys.modules
+
+
+def test_mcp_help_does_not_require_the_optional_sdk():
+    output = subprocess.check_output(["infuse", "mcp", "--help"]).decode()
+    assert "--transport" in output
+    assert "--server-port" in output
+
+
+def mcp_command():
+    from infuse_iot.tools.mcp import SubCommand
+
+    return SubCommand(
+        Namespace(server_sock=("127.0.0.1", 1), transport="stdio", allow_writes=False, state_directory=None)
+    )
+
+
+def test_mcp_explains_an_unsupported_python_or_sdk(monkeypatch):
+    find_spec = importlib.util.find_spec
+    monkeypatch.setattr(sys, "version_info", (3, 10, 14, "final", 0))
+    with pytest.raises(SystemExit, match=r"Python 3\.11 or newer, but this is Python 3\.10"):
+        mcp_command().run()
+    monkeypatch.undo()
+
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name, *args: None if name == "mcp" else find_spec(name, *args)
+    )
+    with pytest.raises(SystemExit, match=r'optional extra: pip install "infuse-iot\[mcp\]"$'):
+        mcp_command().run()
+    monkeypatch.undo()
+
+    # An SDK outside the supported range lacks what the server imports
+    monkeypatch.setattr(
+        importlib.util, "find_spec", lambda name, *args: object() if name == "mcp" else find_spec(name, *args)
+    )
+    monkeypatch.delitem(sys.modules, "infuse_iot.mcp_server.server", raising=False)
+    monkeypatch.setitem(sys.modules, "mcp.server", None)
+    with pytest.raises(SystemExit, match=r"needs mcp>=2\.3,<3, but version \S+ is installed"):
+        mcp_command().run()
+
+
+def test_mcp_does_not_blame_the_sdk_for_other_import_failures(monkeypatch):
+    pytest.importorskip("mcp")
+    monkeypatch.delitem(sys.modules, "infuse_iot.mcp_server.server", raising=False)
+    monkeypatch.setitem(sys.modules, "infuse_iot.mcp_server.schemas", None)
+    with pytest.raises(ImportError) as failure:
+        mcp_command().run()
+    assert failure.value.name == "infuse_iot.mcp_server.schemas"
