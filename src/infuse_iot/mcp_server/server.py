@@ -27,10 +27,12 @@ from infuse_iot.mcp_server.schemas import (
     DeviceResult,
     Diagnostics,
     Envelope,
+    FirmwareRelease,
     Job,
     RawPage,
     RpcRead,
     Status,
+    UpdatePlan,
 )
 from infuse_iot.profile import get_active_profile_name
 from infuse_iot.services.collector import (
@@ -47,6 +49,7 @@ from infuse_iot.services.device_operations import (
     device_id,
 )
 from infuse_iot.services.device_state import DeviceState
+from infuse_iot.services.firmware import FirmwareService
 from infuse_iot.services.jobs import JobManager
 from infuse_iot.socket_comms import GatewayControlError, LocalClient
 from infuse_iot.version import __version__
@@ -66,6 +69,8 @@ NON_INTERACTIVE_KEYRINGS = (
     "keyring.backends.fail.Keyring",
 )
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
+# Release tools contact no device, but stage files and plans in the local cache.
+LOCAL_CACHE = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
 # Repeating a request key returns its existing job, so an action is never sent twice.
 ACTION = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False)
 CANCEL = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
@@ -79,6 +84,9 @@ RequestKey = Annotated[
     str, Field(min_length=1, max_length=128, description="Stable key; repeating it returns the existing job")
 ]
 JobId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+LocalPath = Annotated[str, Field(min_length=1, max_length=4096)]
+PlanId = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+Board = Annotated[str, Field(min_length=1, max_length=128)]
 
 
 class ReadParameters(BaseModel):
@@ -148,6 +156,8 @@ class Workers:
 
 # Unlike `asyncio.to_thread`, neither a cancelled call nor server exit waits for this blocking work.
 CALLS = Workers(16, "infuse-mcp-call")
+# Release extraction can take minutes, so it has its own slots and never delays status or job tools.
+RELEASES = Workers(2, "infuse-mcp-release")
 
 
 async def execute(function: Callable[..., dict], *args, workers: Workers = CALLS, **kwargs) -> CallToolResult:
@@ -461,6 +471,17 @@ class ReadService:
         }
 
 
+class ReleaseService(FirmwareService):
+    """Firmware tools that report a release the inspector rejects as the caller's invalid request."""
+
+    def inspect(self, *args, **kwargs) -> dict:
+        try:
+            return super().inspect(*args, **kwargs)
+        except ValueError as error:
+            # Inspection raises these only for the supplied release or key, with messages that describe it.
+            raise InvalidRequest(str(error)) from error
+
+
 class InfuseServer(MCPServer):
     """Report every failure, including rejected arguments, as a structured error result."""
 
@@ -504,6 +525,26 @@ def create_server(
 ) -> MCPServer:
     service = service or ReadService(address)
     service.allow_writes = allow_writes
+    firmware_cache = (
+        state_directory / "firmware"
+        if state_directory
+        else (Path(platformdirs.user_cache_dir("infuse-iot", "Embeint")) / "firmware")
+    )
+    firmware = ReleaseService(address, service.collector.state, firmware_cache, service.operations)
+
+    def plan_update(
+        release: str, device_ids: list[str], device_boards: dict[str, str] | None = None, **options
+    ) -> dict:
+        targets = {f"0x{device_id(value):016x}" for value in device_ids}
+        boards = {f"0x{device_id(value):016x}" for value in device_boards or {}}
+        if len(targets) != len(device_ids):
+            raise InvalidRequest("device_ids must name distinct devices")
+        if len(boards) != len(device_boards or {}) or not boards <= targets:
+            raise InvalidRequest("device_boards must map distinct device IDs from device_ids to board names")
+        # Plans need fresh announcements, so the collector attaches first, failing without a gateway.
+        service.attach()
+        return firmware.plan(release, device_ids, device_boards=device_boards, **options)
+
     if allow_writes:
         if state_directory is None:
             profile = hashlib.sha256((get_active_profile_name() or "default").encode()).hexdigest()[:16]
@@ -515,7 +556,7 @@ def create_server(
                 specification["device_id"], specification["action"], specification["parameters"], context
             )
 
-        service.jobs.handlers.update(reboot=mutate, kv_write=mutate)
+        service.jobs.handlers.update(reboot=mutate, kv_write=mutate, firmware_update=firmware.run)
 
     @asynccontextmanager
     async def lifespan(server):
@@ -643,9 +684,72 @@ def create_server(
             await asyncio.sleep(observation_seconds)
         return await execute(service.diagnostics, device_ids, observation_seconds, before, since, instance)
 
+    @server.tool(annotations=LOCAL_CACHE)
+    async def infuse_firmware_inspect(
+        release: LocalPath, trusted_public_key: LocalPath | None = None
+    ) -> Annotated[CallToolResult, Envelope[FirmwareRelease]]:
+        """Inspect a release directory or .7z, reporting image integrity and trusted-key signature verification.
+
+        Selected files are staged in a local cache; no device is contacted.
+        """
+        cancelled = threading.Event()
+        try:
+            return await execute(firmware.inspect, release, trusted_public_key, cancelled, workers=RELEASES)
+        finally:
+            # Set once the call ends or is cancelled, for extraction that can stop early
+            cancelled.set()
+
+    @server.tool(annotations=LOCAL_CACHE)
+    async def infuse_update_plan(
+        release: LocalPath,
+        device_ids: Annotated[list[DeviceId], Field(min_length=1, max_length=100)],
+        device_boards: Annotated[dict[DeviceId, Board], Field(max_length=100)] | None = None,
+        allow_downgrade: bool = False,
+        trusted_public_key: LocalPath | None = None,
+        verification_seconds: Annotated[float, Field(ge=5, le=600)] = 180,
+    ) -> Annotated[CallToolResult, Envelope[UpdatePlan]]:
+        """Plan exact targets from fresh firmware announcements; older releases are blocked unless allow_downgrade.
+
+        device_boards maps device IDs to boards from your own inventory. It is a caller assertion, required
+        for a full image to devices whose announcements carry no board CRC; never copy the release's board.
+        Plans are stored locally and must start within 15 minutes; no device is contacted.
+        """
+        cancelled = threading.Event()
+        try:
+            return await execute(
+                plan_update,
+                release,
+                device_ids,
+                device_boards=device_boards,
+                trusted_public_key=trusted_public_key,
+                verification_seconds=verification_seconds,
+                allow_downgrade=allow_downgrade,
+                cancel=cancelled,
+                workers=RELEASES,
+            )
+        finally:
+            # Set once the call ends or is cancelled, for extraction that can stop early
+            cancelled.set()
+
     if allow_writes:
         jobs = service.jobs
         assert jobs is not None
+
+        def start_update(plan_id: str, request_key: str) -> dict:
+            specification = {"action": "firmware_update", "plan_id": plan_id}
+            # A repeated request key returns its job, even once the plan has expired.
+            existing = jobs.existing(request_key, specification)
+            if existing is not None:
+                return existing
+            firmware.validate_start(plan_id)
+            return jobs.submit(request_key, specification)
+
+        @server.tool(annotations=ACTION)
+        async def infuse_update_start(
+            plan_id: PlanId, request_key: RequestKey
+        ) -> Annotated[CallToolResult, Envelope[Job]]:
+            """Execute a reviewed plan within 15 minutes of planning as a persistent job, verifying running firmware."""
+            return await execute(start_update, plan_id, request_key)
 
         @server.tool(annotations=ACTION)
         async def infuse_reboot(
