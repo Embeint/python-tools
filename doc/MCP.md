@@ -27,7 +27,8 @@ commands do not need the MCP extra.
 
 ## Tools
 
-These tools are read-only; device actions need `--allow-writes`, described below.
+These tools do not change devices; release inspection and update planning write
+only a local cache, and device actions need `--allow-writes`, described below.
 Unknown arguments are rejected, and device IDs are 1 to 16 hexadecimal digits
 with an optional `0x` prefix.
 
@@ -51,6 +52,10 @@ with an optional `0x` prefix.
   `observation_seconds` (up to 60), the gateway's counters are compared across
   that window, or `null` if the gateway restarted during it, and each device
   reports whether it was heard during it.
+- `infuse_firmware_inspect(release, trusted_public_key)` and
+  `infuse_update_plan(release, device_ids, device_boards, allow_downgrade,
+  trusted_public_key, verification_seconds)`: release validation and update
+  planning, described below. Neither contacts a device.
 
 Telemetry covers what this server observed since it started, not the lifetime
 fleet. The collector attaches in the background, retrying every 5 seconds, and
@@ -82,6 +87,9 @@ output schema for its `data`. Failures are MCP error results (`isError`) whose
 | `job_not_found` | No job has this ID | no |
 | `state_unavailable` | The job database is locked or unavailable | yes |
 | `server_stopped` | This server's job worker has stopped | yes |
+| `release_unavailable` | The release or key file is missing or unreadable | no |
+| `release_changed` | The release no longer matches its plan | no |
+| `plan_not_found`, `plan_invalid`, `plan_expired`, `plan_blocked` | Create a new plan | no |
 | `internal_error` | Unexpected failure, detailed only in the server log | no |
 
 Gateway control failures keep the gateway's code, such as `snapshot_expired`,
@@ -103,8 +111,9 @@ for RPC tool calls in a host that configures its own request timeout.
 Protocol stdout is reserved for MCP; logs and startup output go to stderr.
 Credential availability is read only from stores that cannot prompt, within 2
 seconds; stores such as the macOS Keychain report `not_checked`. Keys are never
-returned. No firmware writes, provisioning, shell execution or unrestricted RPC
-commands are available.
+returned. Read-only startup also exposes release inspection and update planning.
+Device writes require `--allow-writes`; provisioning, shell execution and
+unrestricted RPC commands are not available.
 
 Run `tox -e mcp` for the protocol tests, which use fake gateways, SDK clients in
 current and legacy modes, and the installed `infuse` command over stdio, and
@@ -114,9 +123,10 @@ normal tox environment skips them when the extra is absent.
 ## Targeted actions and jobs
 
 Start with `infuse mcp --allow-writes` to additionally expose `infuse_reboot`,
-`infuse_kv_write`, `infuse_job_status` and `infuse_job_cancel`. No per-call terminal
-prompt is added. The host supplies user authorization, and each action requires
-an explicit device ID and a stable `request_key` of 1 to 128 characters.
+`infuse_kv_write`, `infuse_job_status` and
+`infuse_job_cancel`. No per-call terminal prompt is added. The host supplies
+user authorization, and each action requires an explicit device ID and a stable
+`request_key` of 1 to 128 characters.
 
 KV writes initially support only DEVICE_NAME with 1..128 UTF-8 bytes. Reboot delay
 is an integer in 0..60000 milliseconds. Invalid actions fail with `invalid_request`
@@ -144,11 +154,12 @@ the device with the same short lease as reads. Cancelling queued work takes effe
 immediately; running work stops only at a checkpoint before sending. An action
 already sent to the device cannot be undone by cancellation.
 
-A job ends `completed` with the device's acknowledgement in `result`, or `failed`
-with an `error` when nothing was sent or the device rejected the action
-(`rpc_rejected`). It is `unknown` when the action may have reached the device: no
-acknowledgement arrived (`outcome_unknown`), or the server stopped after sending
-(`interrupted`). Finished jobs never change state.
+A device action job ends `completed` with the device's acknowledgement in
+`result`, or `failed` with an `error` when nothing was sent or the device rejected
+the action (`rpc_rejected`). It is `unknown` when the action may have reached the
+device: no acknowledgement arrived (`outcome_unknown`), or the server stopped
+after sending (`interrupted`). Firmware update jobs cover several devices and
+report each one, as described below. Finished jobs never change state.
 
 Jobs are never replayed. When a server stops, its queued jobs and any job that
 has not sent anything become `cancelled` with `server_stopped`. Shutdown waits up
@@ -165,3 +176,83 @@ Pre-release builds kept jobs in a `jobs` table of the same database. This versio
 uses `jobs_v1` and leaves that table untouched, so a pre-release server still
 running on the profile cannot claim or overwrite its jobs. Jobs accepted by a
 pre-release server are not reported, and their request keys start new jobs.
+
+## Firmware inspection and planning
+
+`infuse_firmware_inspect(release, trusted_public_key)` accepts a local release
+directory or `.7z`. Archives need `7zz`, `7z` or `7za` on PATH; otherwise supply an
+extracted directory. The inspector streams selected members without executing
+archive contents, rejects unsafe paths, and bounds archive size, expanded size,
+member counts, output and total extraction time (120 seconds). Inspection and
+planning never contact devices. They only write a local cache of selected files,
+identified by SHA-256, and of plans. Entries unused for a day are pruned, as are
+the oldest beyond 16 packages or 1024 plans once an hour old. Each transfer
+marks its package as used, so a running job or `ota_upgrade` keeps it for later
+devices, and a job starting after its package was pruned stages it again from
+the release. A cached package that is incomplete or modified, for example after
+an interrupted prune, is likewise discarded and staged again. Temporary files
+left by interrupted staging or plan writes are removed once an hour old.
+
+At most two inspections or plans run at once, on threads separate from the
+other tools, so `infuse_status` and the job tools still answer. A cancelled call
+returns at once and stops any extraction under way, freeing its place. The
+server exits without waiting for release work.
+
+The OTA image is selected like the cloud release upload: `ota-*.bin`, otherwise
+the primary application's `tfm_s_zephyr_ns_signed.bin`, otherwise its
+`zephyr.signed.bin`. A release must contain exactly one such image, since its
+diffs are checked against it. Inspection checks the manifest against the image's
+MCUboot version and digest. Images with MCUboot header flags, such as encrypted,
+compressed, RAM-load or ROM-fixed images, are rejected because the host cannot
+verify what the device will apply. Bytes after the TLV area are accepted only as
+erased padding (all `0xff` or all `0x00`), optionally ending in the MCUboot
+trailer magic, as `imgtool sign --pad` produces; other trailing bytes, such as a
+`--confirm` image state, reject the image. For each `diffs/<version>.bin` patch it
+checks the header and payload CRCs, and that the output length and CRC declared
+in the header match the selected image; patches are not applied on the host. A
+patch that fails these checks, for example one generated against an older build,
+is listed in `rejected_patches` with its reason and is not staged, without
+rejecting the release. Devices running its source version are planned with a
+full image when `full_image_fallback` and board evidence allow it, or blocked as
+`patch_rejected`; either way the device entry reports the `rejected_patch`.
+Files in `diffs/` that are not named after a version, such as `._*` metadata,
+are reported and ignored.
+`diffs/0x<application>/<version>.bin` patches are indexed as application
+migrations, which only `ota_upgrade` with explicit `--id` or `--list` devices uses.
+A signature's presence is reported as `present_unverified` unless a trusted
+public key was supplied and verification succeeds. Host verification currently
+supports MCUboot RSA-2048 and RSA-3072 PEM public keys. Bootloader signature
+enforcement still applies on the device.
+
+Planning attaches the collector, failing with `gateway_unavailable` without a
+gateway. After collecting fresh announcements, call:
+
+```text
+infuse_update_plan(
+  release="/absolute/path/to/release.7z",
+  device_ids=["0xce7e42571a000099", "0xce7e42571a0000ac"],
+  device_boards={"0xce7e42571a0000ac": "sr2202/nrf52840"},
+  verification_seconds=180
+)
+```
+
+The plan lists exact IDs, observed versions and timestamps, the version relation,
+compatibility evidence, selected patch or full signed image, sizes, hashes and
+blocked/skip reasons. Each device's evidence is its latest firmware announcement,
+which must be at most 60 seconds old (`firmware_age_seconds`); newer telemetry of
+another kind cannot refresh it. The device's application ID must match the
+release. A release older than the running `major.minor.revision` is blocked as
+`downgrade` unless `allow_downgrade` is set; a different build of the same
+version is a `rebuild`. A patch is selected only for the exact observed version
+and build, without board evidence (`patch_source_version`). Its header declares
+the source image length and CRC, which Infuse firmware is expected to check
+before applying; the host cannot verify this. A full image requires
+`announcement_crc` evidence, from an ANNOUNCE_V2 board CRC, or a
+`caller_assertion` in `device_boards`. That is your statement of each device's
+board from your own inventory: the plan records it, but cannot observe it, so
+never copy the release's board into it.
+
+Release acceptance still includes hardware update testing and real MCP host
+configuration on the intended platforms. Automated coverage uses simulated
+transfers and SDK clients; read-only macOS gateway attachment was exercised
+against live observations. Firmware bytes are not written by the test suite.
