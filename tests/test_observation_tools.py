@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import ctypes
 import errno
+import json
 import threading
 from unittest.mock import Mock
 
@@ -9,15 +11,34 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakBluetoothNotAvailableError, BleakBluetoothNotAvailableReason, BleakDBusError, BleakError
 
+from infuse_iot.common import InfuseType
+from infuse_iot.definitions.tdf import readings, structs
+from infuse_iot.epacket import interface
+from infuse_iot.epacket.packet import Auth, HopReceived, PacketReceived
 from infuse_iot.services.ble_observations import INFUSE_SERVICE
-from infuse_iot.socket_comms import GatewayControlError, default_multicast_address
-from infuse_iot.tools import scan
+from infuse_iot.services.device_state import DeviceState
+from infuse_iot.socket_comms import ClientNotificationEpacketReceived, GatewayControlError, default_multicast_address
+from infuse_iot.tdf import TDF
+from infuse_iot.tools import scan, snapshot
 from infuse_iot.tools.native_bt import SubCommand as NativeBt
+
+DEVICE = 0xCE7E42571A000099
 
 
 def advertisement(address, name=None, manufacturer=None, services=()):
     data = AdvertisementData(name, manufacturer or {}, {}, list(services), None, -60, ())
     return BLEDevice(address, name, None), data
+
+
+def packet(reading):
+    payload = bytes(TDF.CoreHeader(reading.ID, ctypes.sizeof(reading))) + bytes(reading)
+    address = interface.Address(interface.Address.BluetoothLeAddr(0, 0x60FCF1006161))
+    hop = HopReceived(DEVICE, interface.ID.BT_ADV, address, Auth.NETWORK, 0xCE7E50, 0, 0, -65)
+    return PacketReceived([hop], InfuseType.TDF, payload)
+
+
+def announce():
+    return readings.announce(0xCE710003, structs.tdf_struct_mcuboot_img_sem_ver(1, 3, 1, 0x7BEE09D5), 0, 0, 10, 0, 0)
 
 
 @pytest.fixture
@@ -166,3 +187,53 @@ def test_standalone_scan_failures_exit_cleanly(monkeypatch, capsys, failure, cod
         scan.SubCommand(args).run()
     assert str(exit_info.value.code).startswith(f"{code}: ")
     assert capsys.readouterr().out == ""
+
+
+def test_snapshot_text_gives_firmware_its_own_age(monkeypatch):
+    clock = [10.0]
+    monkeypatch.setattr("infuse_iot.services.device_state.time.monotonic", lambda: clock[0])
+    state = DeviceState()
+    state.observe(packet(announce()))
+    clock[0] = 110
+    state.observe(packet(readings.ambient_temperature(23000)))
+    (row,) = state.snapshot(fields=["AMBIENT_TEMPERATURE"], max_age_seconds=30)["items"]
+    assert snapshot.describe(row) == (
+        "0xce7e42571a000099 firmware 1.3.1+7bee09d5 (announced 100.0s ago, stale), last heard 0.0s ago"
+    )
+    unannounced = DeviceState()
+    unannounced.observe(packet(readings.ambient_temperature(23000)))
+    assert snapshot.describe(unannounced.snapshot()["items"][0]) == (
+        "0xce7e42571a000099 firmware unknown, last heard 0.0s ago"
+    )
+
+
+def test_snapshot_collects_telemetry_from_gateway(loopback_gateway, capsys):
+    gateway = loopback_gateway(28889)
+    stop = threading.Event()
+
+    def device():
+        # A device announcing periodically
+        while not stop.wait(0.05):
+            gateway.server.broadcast(ClientNotificationEpacketReceived(packet(announce())))
+
+    thread = threading.Thread(target=device)
+    thread.start()
+    try:
+        snapshot.SubCommand(argparse.Namespace(server_sock=gateway.address, duration=0.5, json=True)).run()
+    finally:
+        stop.set()
+        thread.join()
+    result = json.loads(capsys.readouterr().out)
+    (row,) = result["items"]
+    assert (row["id"], row["firmware_version"]) == ("0xce7e42571a000099", "1.3.1+7bee09d5")
+    assert result["gateway"]["instance_id"] == gateway.server.control.instance_id
+    # The gateway does not report counters
+    assert result["gateway"]["counters"] is None
+    assert result["next_cursor"] is None
+
+
+def test_snapshot_without_gateway_exits_cleanly():
+    args = argparse.Namespace(server_sock=default_multicast_address(28891), duration=0.1, json=False)
+    with pytest.raises(SystemExit) as exit_info:
+        snapshot.SubCommand(args).run()
+    assert str(exit_info.value.code).startswith("gateway_unavailable: ")

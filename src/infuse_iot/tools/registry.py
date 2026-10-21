@@ -159,6 +159,12 @@ TOOLS = (
         module="infuse_iot.tools.scan",
     ),
     ToolSpec(
+        name="snapshot",
+        help="Collect typed device telemetry",
+        description="Collect decoded telemetry with freshness",
+        module="infuse_iot.tools.snapshot",
+    ),
+    ToolSpec(
         name="annotate_events",
         help="Annotate events on Infuse Tags",
         description="Save labelled event annotations live on Infuse Tags",
