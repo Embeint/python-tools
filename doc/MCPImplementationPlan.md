@@ -126,3 +126,18 @@ Perform read-only smoke tests on macOS, Linux, and Windows: raw markers, decrypt
 Defer remote hosting, cloud provisioning, arbitrary shell commands, generic file upload, destructive logger erasure, automatic extension exposure, and unrestricted RPC execution. Custom tools can opt in later through an explicit schema and capability contract.
 
 The implementation is ready when an MCP host can answer which devices need an update, show the evidence and selected images, execute only the requested targets, and report verified versions without browser scraping or temporary scripts.
+
+## Implementation handoff
+
+The follow-up series is stacked directly on PR 206's reviewed head, keeping its
+branch unchanged. Gateway ownership, shared observations, stdio MCP, durable
+jobs and verified firmware services are separate draft PR layers. Newer main
+commits must be integrated when the dependency lands; that integration remains
+a stack maintenance step rather than a change to PR 206.
+
+See [MCP usage](MCP.md) for the implemented interface, installation, package
+validation evidence, board assertions and job recovery behavior. Snapshot/job
+resources and workflow prompts remain deferred. The hardware-independent tests
+cover the six-device update selection and failure paths; live read-only smoke
+tests cover macOS gateway attachment. Linux/Windows hardware acceptance and
+configured desktop MCP host acceptance remain release checks.

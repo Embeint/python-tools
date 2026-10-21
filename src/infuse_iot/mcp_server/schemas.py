@@ -191,3 +191,69 @@ class Job(Open):
     cancel_requested: bool
     gateway: str | None
     worker: JobWorker
+
+
+class FirmwareImage(Open):
+    file: str
+    version: str
+    size_bytes: int
+    sha256: str
+    image_digest_verified: bool
+    signature_status: Literal["verified", "present_unverified"] = Field(
+        description="verified only against a supplied trusted public key"
+    )
+    trusted_public_key_sha256: str | None
+
+
+class FirmwarePatch(Open):
+    file: str
+    size_bytes: int
+    sha256: str
+    source_length: int
+    source_crc32: str
+
+
+class FirmwareRelease(Open):
+    source: str
+    package_sha256: str
+    staged_directory: str
+    application_id: str
+    board: str
+    version: str
+    image: FirmwareImage
+    patches: dict[str, FirmwarePatch] = Field(description="Patches keyed by the exact source version")
+    migration_patches: dict[str, dict[str, FirmwarePatch]] = Field(
+        description="Patches from other applications, keyed by application ID and source version"
+    )
+    ignored_files: list[str]
+    file_hashes: dict[str, str]
+    trusted_public_key: str | None
+
+
+class PlannedDevice(Open):
+    device_id: str
+    status: Literal["ready", "already_current", "blocked"]
+    reason: str
+    current_application_id: str | None = None
+    current_version: str | None = None
+    version_observed_at: float | None = None
+    firmware_age_seconds: float | None = Field(None, description="Age of the announcement used as evidence")
+    version_relation: Literal["current", "upgrade", "downgrade", "rebuild", "application_change"] | None = None
+    board_evidence: Literal["announcement_crc", "caller_assertion", "patch_source_version"] | None = None
+    asserted_board: str | None = None
+    method: Literal["patch", "full_image"] | None = None
+    image: dict[str, Any] | None = Field(None, description="The selected patch or full image, with its hash")
+
+
+class UpdatePlan(Open):
+    plan_id: str
+    schema_version: int
+    created_at: float
+    expires_at: float
+    package: FirmwareRelease
+    device_boards: dict[str, str] = Field(description="Caller board assertions, by full device ID")
+    allow_downgrade: bool
+    full_image_fallback: bool
+    allow_application_change: bool
+    verification_seconds: float
+    devices: list[PlannedDevice]

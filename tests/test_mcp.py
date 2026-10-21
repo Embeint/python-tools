@@ -34,8 +34,17 @@ from infuse_iot.tdf import TDF
 
 DEVICE = 0xCE7E42571A000099
 DEVICE_ID = f"0x{DEVICE:016x}"
-TOOLS = {"infuse_status", "infuse_scan", "infuse_devices", "infuse_device", "infuse_rpc_read", "infuse_diagnostics"}
-ACTION_TOOLS = {"infuse_reboot", "infuse_kv_write", "infuse_job_status", "infuse_job_cancel"}
+TOOLS = {
+    "infuse_status",
+    "infuse_scan",
+    "infuse_devices",
+    "infuse_device",
+    "infuse_rpc_read",
+    "infuse_diagnostics",
+    "infuse_firmware_inspect",
+    "infuse_update_plan",
+}
+ACTION_TOOLS = {"infuse_reboot", "infuse_kv_write", "infuse_update_start", "infuse_job_status", "infuse_job_cancel"}
 
 
 def packet(device: int = DEVICE) -> PacketReceived:
@@ -84,6 +93,8 @@ def test_catalog_publishes_strict_inputs_and_typed_outputs():
     # Results are typed beyond the envelope
     assert "firmware_age_seconds" in json.dumps(tools["infuse_devices"].output_schema)
     assert "window_counters" in json.dumps(tools["infuse_diagnostics"].output_schema)
+    assert "board_evidence" in json.dumps(tools["infuse_update_plan"].output_schema)
+    assert "signature_status" in json.dumps(tools["infuse_firmware_inspect"].output_schema)
     command = tools["infuse_rpc_read"].input_schema["properties"]["command"]
     assert tuple(command["enum"]) == READ_COMMANDS
     keys = ReadParameters.model_json_schema()["properties"]["keys"]["anyOf"][0]["items"]["enum"]
@@ -605,3 +616,84 @@ def test_action_tools_require_opt_in_and_reuse_persisted_jobs(tmp_path, monkeypa
     assert (cancelled["state"], cancelled["cancel_requested"]) == ("completed", False)
     assert status["writes_enabled"] and status["jobs"] == {"worker_running": True, "last_error": None}
     assert mutate.call_count == 1
+
+
+def test_update_start_reuses_job_even_when_plan_expires(tmp_path, monkeypatch):
+    validate = Mock(return_value={"devices": []})
+    update = Mock(return_value={"success": True, "devices": []})
+    monkeypatch.setattr("infuse_iot.mcp_server.server.FirmwareService.validate_start", validate)
+    monkeypatch.setattr("infuse_iot.mcp_server.server.FirmwareService.run", update)
+    service = ReadService(default_multicast_address(28943))
+
+    async def calls(client):
+        arguments = {"plan_id": "a" * 64, "request_key": "approved-update"}
+        initial = data(await client.call_tool("infuse_update_start", arguments))
+        validate.side_effect = mcp_server.DeviceError("plan_expired", "Plan is older than 15 minutes")
+        duplicate = data(await client.call_tool("infuse_update_start", arguments))
+        conflict = await client.call_tool("infuse_update_start", {**arguments, "plan_id": "b" * 64})
+        expired = await client.call_tool("infuse_update_start", {**arguments, "request_key": "late"})
+        malformed = await client.call_tool("infuse_update_start", {**arguments, "plan_id": "A" * 64})
+        return initial, duplicate, conflict, expired, malformed
+
+    async def main():
+        async with Client(create_server(service.address, service, allow_writes=True, state_directory=tmp_path)) as c:
+            return await calls(c)
+
+    initial, duplicate, conflict, expired, malformed = asyncio.run(main())
+    assert duplicate["id"] == initial["id"] and validate.call_count == 2
+    assert [error(result)["code"] for result in (conflict, expired, malformed)] == [
+        "idempotency_conflict",
+        "plan_expired",
+        "invalid_request",
+    ]
+
+
+def test_update_plans_need_a_gateway_and_strict_arguments(tmp_path):
+    cases = [
+        ({"release": str(tmp_path), "device_ids": [DEVICE_ID]}, "gateway_unavailable"),
+        ({"release": str(tmp_path), "device_ids": []}, "invalid_request"),
+        ({"release": str(tmp_path), "device_ids": [DEVICE_ID], "device_boards": {"12_34": "board"}}, "invalid_request"),
+        ({"release": str(tmp_path), "device_ids": [DEVICE_ID], "verification_seconds": 4}, "invalid_request"),
+    ]
+
+    async def calls(client):
+        return [await client.call_tool("infuse_update_plan", arguments) for arguments, _ in cases]
+
+    results = run(ReadService(default_multicast_address(28945)), calls)
+    assert [error(result)["code"] for result in results] == [code for _, code in cases]
+
+
+def test_update_start_runs_a_stored_plan_to_verified_version(loopback_gateway, tmp_path, monkeypatch):
+    from test_firmware import DEVICE, PREVIOUS, announcement, fake_transport, make_release
+
+    release = make_release(tmp_path)
+    gateway = loopback_gateway(28947)
+    service = ReadService(gateway.address)
+
+    async def calls(client):
+        service.collector.state.observe(announcement(PREVIOUS))
+        arguments = {"release": str(release.root), "device_ids": [f"0x{DEVICE:016x}"], "verification_seconds": 5}
+        plan = data(await client.call_tool("infuse_update_plan", arguments))
+        assert plan["devices"][0]["status"] == "ready" and plan["allow_downgrade"] is False
+        assert plan["devices"][0]["firmware_age_seconds"] < 60
+        transport = fake_transport(monkeypatch, plan["devices"][0], [ClientNotificationEpacketReceived(announcement())])
+        started = data(await client.call_tool("infuse_update_start", {"plan_id": plan["plan_id"], "request_key": "a"}))
+        for _ in range(200):
+            job = data(await client.call_tool("infuse_job_status", {"job_id": started["id"]}))
+            if job["state"] not in ("queued", "running"):
+                break
+            await asyncio.sleep(0.02)
+        missing = await client.call_tool("infuse_update_start", {"plan_id": "0" * 64, "request_key": "b"})
+        return job, transport, missing
+
+    async def main():
+        state = tmp_path / "state"
+        async with Client(create_server(service.address, service, allow_writes=True, state_directory=state)) as c:
+            return await calls(c)
+
+    job, transport, missing = asyncio.run(main())
+    assert job["state"] == "completed", job
+    assert job["result"]["devices"][0]["status"] == "version_verified"
+    assert transport.sent == [release.patch]
+    assert (error(missing)["code"], error(missing)["retryable"]) == ("plan_not_found", False)
+    assert str(tmp_path) not in error(missing)["message"]
