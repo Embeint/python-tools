@@ -153,6 +153,12 @@ def _register_device_id_converters(module: types.ModuleType) -> None:
 
 TOOLS = (
     ToolSpec(
+        name="mcp",
+        help="Serve Infuse tools over MCP",
+        description="Serve local device tools over stdio MCP",
+        module="infuse_iot.tools.mcp",
+    ),
+    ToolSpec(
         name="scan",
         help="Observe raw Bluetooth advertisements",
         description="Collect bounded raw Bluetooth evidence",

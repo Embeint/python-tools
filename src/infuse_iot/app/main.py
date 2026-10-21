@@ -7,6 +7,7 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
+import contextlib
 import importlib
 import importlib.util
 import os
@@ -168,9 +169,14 @@ class InfuseApp:
 
 def main(argv=None):
     """Create the InfuseApp instance and let it run"""
-    app = InfuseApp()
+    arguments = argv or sys.argv[1:]
+    if arguments and arguments[0] == "mcp":
+        with contextlib.redirect_stdout(sys.stderr):
+            app = InfuseApp()
+    else:
+        app = InfuseApp()
     try:
-        app.run(argv or sys.argv[1:])
+        app.run(arguments)
     except KeyboardInterrupt:
         pass
 

@@ -79,3 +79,9 @@ def test_completion_loads_selected_tool(monkeypatch):
 
     app._load_selected_completion_tool()
     assert "infuse_iot.tools.profile" in sys.modules
+
+
+def test_mcp_help_does_not_require_the_optional_sdk():
+    output = subprocess.check_output(["infuse", "mcp", "--help"]).decode()
+    assert "--transport" in output
+    assert "--server-port" in output
