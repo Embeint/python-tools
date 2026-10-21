@@ -120,12 +120,29 @@ class RttPort(SerialLike):
         self._jlink = pylink.JLink()
         self._name = rtt_device
         self._serial_number = serial_number
+        self._opened = False
+        self._rtt_started = False
         self._stack = ExitStack()
         self._modem_trace: BufferedWriter | None = None
         self._modem_trace_buf = 0
 
     def open(self, timeout: float | None = None):
-        self._jlink.open(serial_no=self._serial_number)
+        # JLINKARM_OpenEx can leave the native library in a state that
+        # segfaults during process shutdown when no probe is connected.  USB
+        # enumeration is safe, and selecting the enumerated serial number also
+        # handles a probe disappearing before open without calling OpenEx.
+        emulators = self._jlink.connected_emulators()
+        if self._serial_number is None:
+            if not emulators:
+                raise pylink.errors.JLinkException("No J-Link probe connected.")
+            serial_number = emulators[0].SerialNumber
+        else:
+            serial_number = int(self._serial_number)
+            if not any(emulator.SerialNumber == serial_number for emulator in emulators):
+                raise pylink.errors.JLinkException(f"No J-Link probe with serial number {serial_number} connected.")
+
+        self._jlink.open(serial_no=serial_number)
+        self._opened = True
         self._jlink.set_tif(pylink.enums.JLinkInterfaces.SWD)
         try:
             self._jlink.connect(self._name, 4000)
@@ -144,6 +161,7 @@ class RttPort(SerialLike):
             raise SerialBadNameException(self._name, options) from e
 
         self._jlink.rtt_start()
+        self._rtt_started = True
 
         end_time = time.time() + timeout if timeout else None
 
@@ -193,10 +211,16 @@ class RttPort(SerialLike):
 
     def close(self):
         try:
-            self._jlink.rtt_stop()
-            self._jlink.close()
+            if self._rtt_started:
+                self._jlink.rtt_stop()
         finally:
-            self._stack.close()
+            self._rtt_started = False
+            try:
+                if self._opened:
+                    self._jlink.close()
+            finally:
+                self._opened = False
+                self._stack.close()
 
     def __str__(self) -> str:
         return f"RTT: {self._name}"
