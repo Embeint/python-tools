@@ -5,11 +5,12 @@
 import argparse
 import sys
 
+from infuse_iot.commands import InfuseCommand
 from infuse_iot.task_runner import format_description, format_schedule_python, parse_schedule
 from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 
 
-class SubCommand:
+class SubCommand(InfuseCommand):
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser):
         subcommands = add_subparsers_with_list(
