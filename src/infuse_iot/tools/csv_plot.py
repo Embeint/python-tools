@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.util.argparse import ValidFile
 
-logger = logging.getLogger("infuse.csv_plot")
+logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
