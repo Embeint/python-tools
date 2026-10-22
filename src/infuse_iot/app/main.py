@@ -9,6 +9,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import argparse
 import importlib
 import importlib.util
+import logging
 import os
 import pathlib
 import sys
@@ -28,6 +29,16 @@ from infuse_iot.profile import (
 from infuse_iot.tools.registry import TOOLS, ToolSpec, load_extension_tools
 from infuse_iot.util.argparse import add_subparsers_with_list, print_subcommands_if_missing
 from infuse_iot.version import __version__
+
+
+def _configure_logging():
+    """Print library status messages (`infuse_iot.*` loggers) to stderr"""
+    logger = logging.getLogger("infuse_iot")
+    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 @dataclass(frozen=True)
@@ -60,6 +71,7 @@ class InfuseApp:
         if print_subcommands_if_missing(self.args):
             return
 
+        _configure_logging()
         self._print_profile_banner(self.args)
 
         tool = self.args.tool_class(self.args)

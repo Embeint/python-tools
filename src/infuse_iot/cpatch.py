@@ -4,9 +4,12 @@ import argparse
 import binascii
 import ctypes
 import enum
+import logging
 from collections import defaultdict
 
 from typing_extensions import Self
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationError(Exception):
@@ -851,19 +854,19 @@ class cpatch:
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
 
-        print(f"Original File: {meta['original']['len']:6d} bytes")
-        print(f"     New File: {meta['new']['len']:6d} bytes")
-        print(f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)")
+        logger.info(f"Original File: {meta['original']['len']:6d} bytes")
+        logger.info(f"     New File: {meta['new']['len']:6d} bytes")
+        logger.info(f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)")
 
         if verbose:
             class_count: dict[OpCode, int] = defaultdict(int)
             for instr in instructions:
                 class_count[instr.ctypes_class().op] += 1
 
-            print("")
-            print("Instructions:")
+            logger.info("")
+            logger.info("Instructions:")
             for instr_cls, instr_count in sorted(class_count.items()):
-                print(f"{instr_cls.name:>16s}: {instr_count}")
+                logger.info(f"{instr_cls.name:>16s}: {instr_count}")
 
         # Validate that file can be reconstructed
         patched = cls.patch(bin_original, bin_patch)
@@ -1046,6 +1049,7 @@ if __name__ == "__main__":
 
     # Parse args
     args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     # Run requested command
     if args.command == "generate":

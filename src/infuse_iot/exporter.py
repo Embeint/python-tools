@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import logging
 from collections.abc import Callable
 from contextlib import ExitStack
 from io import TextIOWrapper
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class Exporter:
@@ -23,7 +26,7 @@ class Exporter:
 
         if full_path not in self._files:
             exists = full_path.exists()
-            print(f"Appending to existing {full_path}" if exists else f"Opening new {full_path}")
+            logger.info(f"Appending to existing {full_path}" if exists else f"Opening new {full_path}")
             self._files[full_path] = self._stack.enter_context(open(full_path, "a", encoding="utf-8"))  # noqa: SIM115
             if header and not exists:
                 self._files[full_path].write(header() + '\n')

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import time
 from abc import ABCMeta, abstractmethod
 from contextlib import ExitStack
@@ -9,6 +10,8 @@ import pylink
 import serial
 from pyocd.core.helpers import ConnectHelper
 from pyocd.debug.rtt import GenericRTTControlBlock
+
+logger = logging.getLogger(__name__)
 
 
 class SerialBadNameException(Exception):
@@ -181,7 +184,7 @@ class RttPort(SerialLike):
             desc = self._jlink.rtt_get_buf_descriptor(i, True)
             if desc.name == "modem_trace":
                 f = f"{int(time.time())}_nrf_modem_trace.bin"
-                print(f"Found nRF LTE modem trace channel (opening {f:s})")
+                logger.info(f"Found nRF LTE modem trace channel (opening {f:s})")
                 self._modem_trace = self._stack.enter_context(open(f, mode="wb"))  # noqa: SIM115
                 self._modem_trace_buf = desc.BufferIndex
 
