@@ -62,6 +62,10 @@ class InfuseCommand(metaclass=ABCMeta):
     def run(self) -> None:
         """Run the subcommand"""
 
+    def close(self) -> None:
+        """Close any resources held by the tool"""
+        return
+
 
 class InfuseRpcCommand:
     RPC_DATA_SEND: bool = False
