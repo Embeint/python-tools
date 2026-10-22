@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import os
+from unittest.mock import Mock
+
+import pytest
 
 import infuse_iot.socket_comms as comms
 
@@ -37,6 +40,22 @@ def test_socket_comms():
     # Client receives the response
     recv_rsp = client.receive()
     assert isinstance(recv_rsp, comms.ClientNotificationCommsCheck)
+    client.close()
+    server.close()
+
+
+def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._connection_id = 0
+    client._input_sock = Mock()
+    client._output_sock = Mock()
+    send = Mock(side_effect=OSError)
+    monkeypatch.setattr(client, "send", send)
+    with pytest.raises(OSError):
+        client.close()
+    assert send.call_args.args[0].infuse_id == 0
+    client._input_sock.close.assert_called_once()
+    client._output_sock.close.assert_called_once()
 
 
 def test_connection_failed_notification_json_round_trip():

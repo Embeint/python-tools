@@ -389,14 +389,13 @@ class LocalClient:
             self.connection_release()
 
     def close(self):
-        # Cleanup any lingering connection context
-        if self._connection_id:
-            req = GatewayRequestConnectionRelease(
-                self._connection_id,
-            )
-            self.send(req)
-        # Close the socket
-        self._input_sock.close()
+        try:
+            # Cleanup any lingering connection context
+            if self._connection_id is not None:
+                self.connection_release()
+        finally:
+            self._input_sock.close()
+            self._output_sock.close()
 
     def receive_tdf(self) -> ClientNotificationEpacketReceived | None:
         msg = self.receive()
