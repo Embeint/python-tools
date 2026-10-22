@@ -7,6 +7,11 @@ from abc import ABCMeta, abstractmethod
 class ProvisioningInterface(metaclass=ABCMeta):
     "Generic SoC provisioning interface"
 
+    provisioned_device_id: int | None = None
+
+    def provisioning_data_is_blank(self, data: bytes) -> bool:
+        return data == b"\xff" * len(data)
+
     class DefaultProvisioningStruct(ctypes.LittleEndianStructure):
         _fields_ = [
             ("device_id", ctypes.c_uint64),
