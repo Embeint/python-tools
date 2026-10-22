@@ -83,7 +83,7 @@ class SubCommand(InfuseCommand):
                 if hdr.return_code == 0:
                     self.updated.add(infuse_id)
 
-        except (ConnectionRefusedError, TimeoutError):
+        except (ConnectionRefusedError, ConnectionAbortedError, TimeoutError):
             self.state_update(live, "Scanning")
             return
         self.state_update(live, "Scanning")

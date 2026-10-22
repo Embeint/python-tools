@@ -114,3 +114,21 @@ def test_unrelated_data_does_not_extend_timeout(rpc_client, monkeypatch):
     callback = Mock()
     assert rpc_client.run_data_recv_cmd(1, Auth.DEVICE, b"", 0, callback, Response.from_buffer_copy) == (None, None)
     callback.assert_not_called()
+
+
+def test_command_response_wait_aborts_on_loss_of_own_connection(monkeypatch):
+    client = comms.LocalClient.__new__(comms.LocalClient)
+    client._connection_id = DEVICE
+    receive = Mock(
+        side_effect=[
+            comms.ClientNotificationConnectionDropped(OTHER),
+            comms.ClientNotificationConnectionDropped(DEVICE),
+        ]
+    )
+    monkeypatch.setattr(client, "send", Mock())
+    monkeypatch.setattr(client, "receive", receive)
+    rpc_client = RpcClient(client, 128, DEVICE)
+    rpc_client.set_timeout(1.0)
+    with pytest.raises(ConnectionAbortedError):
+        rpc_client.run_standard_cmd(1, Auth.DEVICE, b"", Response.from_buffer_copy)
+    assert receive.call_count == 2
