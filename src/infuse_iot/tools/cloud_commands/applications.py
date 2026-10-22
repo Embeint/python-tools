@@ -41,7 +41,7 @@ from infuse_iot.util.argparse import (
 from infuse_iot.util.console import choose_one, user_confirm, user_response
 from infuse_iot.util.version import Version
 
-from .base import CloudSubCommand
+from .base import CloudSubCommand, require_response
 
 
 class Applications(CloudSubCommand):
@@ -74,8 +74,7 @@ class Applications(CloudSubCommand):
         org: UUID
         if self.args.org is None:
             orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = require_response(orgs, "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
@@ -86,9 +85,7 @@ class Applications(CloudSubCommand):
 
         applications = fetch_all(get_applications_by_organisation_id, client=client, id=org)
 
-        if not isinstance(applications, list):
-            print(f"Failed to retrieve application list {applications}")
-            return
+        applications = require_response(applications, "Application query")
 
         app_list = []
         for app in applications:
@@ -112,17 +109,11 @@ class Applications(CloudSubCommand):
             id=UUID(self.args.org),
             application_id=self.args.app,
         )
-        if application is None:
-            sys.exit("Get application: No response")
-        elif isinstance(application, models.Error):
-            sys.exit(f"<{application.code}>: {application.message}")
+        application = require_response(application, "Get application")
         release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
             client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
         )
-        if release is None:
-            sys.exit("Get release: No response")
-        elif isinstance(release, models.Error):
-            sys.exit(f"<{release.code}>: {release.message}")
+        release = require_response(release, "Get release")
         diffs = fetch_all(
             get_diffs_by_organisation_id_and_application_id_and_release_id,
             client=client,
@@ -130,10 +121,7 @@ class Applications(CloudSubCommand):
             application_id=self.args.app,
             release_id=self.args.rel,
         )
-        if diffs is None:
-            sys.exit("Get diffs: No response")
-        elif isinstance(diffs, models.Error):
-            sys.exit(f"<{diffs.code}>: {diffs.message}")
+        diffs = require_response(diffs, "Get diffs")
 
         version = release.version
         version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
@@ -151,7 +139,7 @@ class Applications(CloudSubCommand):
         )
 
         other_apps = fetch_all(get_applications_by_organisation_id, client=client, id=UUID(self.args.org))
-        assert isinstance(other_apps, list)
+        other_apps = require_response(other_apps, "Application query")
 
         diff_info = []
         for diff in diffs:
@@ -194,10 +182,7 @@ class Applications(CloudSubCommand):
             application_id=self.args.app,
         )
 
-        if releases is None:
-            sys.exit("Failed to retrieve release list (No response)")
-        elif isinstance(releases, models.Error):
-            sys.exit(f"<{releases.code}>: {releases.message}")
+        releases = require_response(releases, "Release query")
 
         release_list = []
         for release in releases:
@@ -252,8 +237,7 @@ class Applications(CloudSubCommand):
 
         if self._org is None:
             orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = require_response(orgs, "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
@@ -267,8 +251,7 @@ class Applications(CloudSubCommand):
 
         if self._board is None:
             boards = fetch_all(get_boards, client=client, organisation_id=self._org)
-            if isinstance(boards, models.Error) or boards is None:
-                sys.exit(f"Board query failed {boards}")
+            boards = require_response(boards, "Board query")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
             idx, _val = choose_one("Board", options)
@@ -318,8 +301,7 @@ class Applications(CloudSubCommand):
                 id=org,
                 application_id=app_id,
             )
-            if not isinstance(releases, list):
-                sys.exit(f"Unexpected release query result {releases}")
+            releases = require_response(releases, "Release query")
 
             by_version: dict[Version, models.ApplicationRelease] = {}
             for r in releases:
@@ -361,13 +343,9 @@ class Applications(CloudSubCommand):
                     application_id=app_id,
                     body=release_obj,
                 )
-                if rsp is None:
-                    sys.exit("Create release: No response")
-                elif isinstance(rsp, models.Error):
-                    sys.exit(f"<{rsp.code}>: {rsp.message}")
-                else:
-                    print(f"Release created with ID '{rsp.id}'")
-                    cloud_release = rsp
+                rsp = require_response(rsp, "Create release")
+                print(f"Release created with ID '{rsp.id}'")
+                cloud_release = rsp
 
         def upload_diffs_from_application(
             org: UUID,

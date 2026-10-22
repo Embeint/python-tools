@@ -6,8 +6,6 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 
-import sys
-
 from tabulate import tabulate
 
 import infuse_iot.api_client.models as models
@@ -21,7 +19,7 @@ from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
 
-from .base import CloudSubCommand
+from .base import CloudSubCommand, require_response
 
 
 class Organisations(CloudSubCommand):
@@ -43,8 +41,7 @@ class Organisations(CloudSubCommand):
         org_list = []
 
         orgs = fetch_all(get_all_organisations, client=client)
-        if isinstance(orgs, models.Error) or orgs is None:
-            sys.exit(f"Organisation query failed {orgs}")
+        orgs = require_response(orgs, "Organisation query")
         for o in orgs:
             org_list.append([o.name, o.id])
 
@@ -61,9 +58,5 @@ class Organisations(CloudSubCommand):
             body=models.NewOrganisation(self.args.name),
         )
 
-        if rsp.parsed is None:
-            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
-        elif isinstance(rsp.parsed, models.Error):
-            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
-        else:
-            print(f"Created organisation {rsp.parsed.name} with ID {rsp.parsed.id}")
+        organisation = require_response(rsp, "Create organisation")
+        print(f"Created organisation {organisation.name} with ID {organisation.id}")

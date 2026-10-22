@@ -5,7 +5,6 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
-import sys
 from uuid import UUID
 
 from tabulate import tabulate
@@ -24,7 +23,7 @@ from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
 
-from .base import CloudSubCommand
+from .base import CloudSubCommand, require_response
 
 
 class Boards(CloudSubCommand):
@@ -53,8 +52,7 @@ class Boards(CloudSubCommand):
 
     def list(self, client: Client):
         orgs = fetch_all(get_all_organisations, client=client)
-        if isinstance(orgs, models.Error) or orgs is None:
-            sys.exit(f"Organisation query failed {orgs}")
+        orgs = require_response(orgs, "Organisation query")
         org_names = {o.id: o.name for o in orgs}
 
         boards: dict[UUID, models.Board] = {}
@@ -65,8 +63,7 @@ class Boards(CloudSubCommand):
                 organisation_id=org.id,
                 include_public=not self.args.no_public,
             )
-            if isinstance(found, models.Error) or found is None:
-                sys.exit(f"Boards query failed {found}")
+            found = require_response(found, "Boards query")
             # `include_public` also returns other organisations' public boards,
             # so the same board comes back once per organisation queried
             boards.update({b.id: b for b in found})
@@ -103,9 +100,5 @@ class Boards(CloudSubCommand):
             ),
         )
 
-        if rsp.parsed is None:
-            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
-        elif isinstance(rsp.parsed, models.Error):
-            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
-        else:
-            print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
+        board = require_response(rsp, "Create board")
+        print(f"Created board {board.name} with ID {board.id}")

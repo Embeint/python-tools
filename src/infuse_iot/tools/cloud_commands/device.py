@@ -39,7 +39,7 @@ from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
 
-from .base import CloudSubCommand
+from .base import CloudSubCommand, require_response
 
 
 class Device(CloudSubCommand):
@@ -195,9 +195,7 @@ class Device(CloudSubCommand):
         id_str = f"{self.args.id:016x}"
 
         kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
-        if not isinstance(kv_state, list):
-            print(f"Unable to query KV state for {id_str}")
-            return
+        kv_state = require_response(kv_state, f"KV state query for {id_str}")
 
         table: list[tuple[str, str, Any]] = []
         for element in kv_state:
@@ -240,11 +238,8 @@ class Device(CloudSubCommand):
             key_id=self.args.key,
             body=update,
         )
-        if rsp is None:
-            sys.exit("KV update: No response")
-        elif isinstance(rsp, models.Error):
-            sys.exit(f"<{rsp.code}>: {rsp.message}")
-        elif isinstance(rsp, models.DeviceKVEntry):
+        rsp = require_response(rsp, "KV update")
+        if isinstance(rsp, models.DeviceKVEntry):
             print(f"Device {id_str} key {self.args.key} already has value {self.args.val.hex()}")
         else:
             assert isinstance(rsp, models.DeviceKVEntryUpdate)
@@ -283,10 +278,7 @@ class Device(CloudSubCommand):
                 client=client,
                 device_id=id_str,
             )
-            if updates is None:
-                sys.exit("Get application updates: No response")
-            elif isinstance(updates, models.Error):
-                sys.exit(f"<{updates.code}>: {updates.message}")
+            updates = require_response(updates, "Get application updates")
 
             for update in updates:
                 print(
@@ -313,21 +305,17 @@ class Device(CloudSubCommand):
             index=self.args.logger_idx,
             body=models.DeviceLoggerStateUpdate(self.args.enable),
         )
-        if resp is None:
-            sys.exit("Update logger state: No response")
-        elif isinstance(resp, models.Error):
-            sys.exit(f"<{resp.code}>: {resp.message}")
-        else:
-            name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
-            table = [
-                (f"~~~{name} Logger Sync~~~", ""),
-                ("Enabled", resp.download_enabled),
-                ("Last Report Time", self._val_or_na(resp.last_reported_time)),
-                ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
-                ("Reported Block", self._val_or_na(resp.last_reported_block)),
-                ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
-            ]
-            if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
-                table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
+        resp = require_response(resp, "Update logger state")
+        name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
+        table = [
+            (f"~~~{name} Logger Sync~~~", ""),
+            ("Enabled", resp.download_enabled),
+            ("Last Report Time", self._val_or_na(resp.last_reported_time)),
+            ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
+            ("Reported Block", self._val_or_na(resp.last_reported_block)),
+            ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
+        ]
+        if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
+            table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
 
-            print(tabulate(table))
+        print(tabulate(table))
