@@ -52,6 +52,8 @@ class RpcClient:
         rsp = self._client.receive(timeout=timeout)
         if rsp is not None and self._rx_cb is not None:
             self._rx_cb(rsp)
+        if self._client.connection_dropped(rsp):
+            raise ConnectionAbortedError
         return rsp
 
     def _wait_data_ack(self) -> PacketReceived | None:
@@ -222,8 +224,6 @@ class RpcClient:
             rsp = self._client_recv(remaining)
             if rsp is None:
                 continue
-            if self._client.connection_dropped(rsp):
-                raise ConnectionAbortedError
             if not isinstance(rsp, ClientNotificationEpacketReceived):
                 continue
             if rsp.epacket.ptype == InfuseType.RPC_RSP:
