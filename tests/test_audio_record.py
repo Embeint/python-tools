@@ -18,6 +18,7 @@ def test_recording_survives_idle_and_unrelated_disconnect(tmp_path, monkeypatch)
     client = LocalClient.__new__(LocalClient)
     # Recording runs inside the connection context for this device.
     client._connection_id = 123
+    client._request_id = 0
     client.receive = Mock()  # type: ignore[method-assign]
     monkeypatch.setattr("infuse_iot.tools.audio_record.LocalClient", lambda *_: client)
     command = SubCommand(SimpleNamespace(server_sock=None, gateway=False, id=123, name="test", conn_timeout=1000))

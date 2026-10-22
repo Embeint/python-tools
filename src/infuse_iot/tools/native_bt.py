@@ -11,6 +11,7 @@ import ctypes
 import json
 import random
 import sys
+from collections import Counter
 from typing import Any, Literal
 
 from bleak import BleakClient, BleakScanner
@@ -204,19 +205,24 @@ class MulticastHandler(asyncio.DatagramProtocol):
             # ATT header uses 3 bytes of the MTU.
             max_payload = client.mtu_size - 3 - ctypes.sizeof(CtypeBtGattFrame) - 16
             self._connected.add(request.infuse_id)
-            self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
+            self.wrapped_broadcast(
+                ClientNotificationConnectionCreated(request.infuse_id, max_payload, request.request_id)
+            )
 
             req: GatewayRequest
-            users = 1
+            users: Counter[int | None] = Counter([request.request_id])
             while req := await queue.get():
                 if isinstance(req, GatewayRequestConnectionRequest):
                     await subscribe(req.data_types)
-                    users += 1
-                    self.wrapped_broadcast(ClientNotificationConnectionCreated(request.infuse_id, max_payload))
+                    users[req.request_id] += 1
+                    self.wrapped_broadcast(
+                        ClientNotificationConnectionCreated(request.infuse_id, max_payload, req.request_id)
+                    )
                     continue
                 if isinstance(req, GatewayRequestConnectionRelease):
-                    users -= 1
-                    if users == 0:
+                    if users[req.request_id] > 0:
+                        users[req.request_id] -= 1
+                    if not +users:
                         break
                     continue
                 assert isinstance(req, GatewayRequestEpacketSend)
@@ -263,17 +269,28 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 self._redispatch(queue)
 
     def _redispatch(self, queue: asyncio.Queue):
-        pending = []
+        pending: list[GatewayRequest] = []
         while not queue.empty():
-            if (item := queue.get_nowait()) is not None:
+            if (item := queue.get_nowait()) is None:
+                continue
+            if isinstance(item, GatewayRequestConnectionRelease):
+                request = next(
+                    (
+                        r
+                        for r in pending
+                        if isinstance(r, GatewayRequestConnectionRequest) and r.request_id == item.request_id
+                    ),
+                    None,
+                )
+                # The client gave up on its queued request. Releases from users of the closed connection have
+                # nothing left to release.
+                if request is not None:
+                    pending.remove(request)
+                continue
+            if isinstance(item, GatewayRequestConnectionRequest) or pending:
+                # Packets queued before the first request were for the closed connection
                 pending.append(item)
-        first = next((i for i, r in enumerate(pending) if isinstance(r, GatewayRequestConnectionRequest)), None)
-        if first is None:
-            return
-        pending = pending[first:]
-        requests = sum(isinstance(r, GatewayRequestConnectionRequest) for r in pending)
-        releases = sum(isinstance(r, GatewayRequestConnectionRelease) for r in pending)
-        if requests <= releases:
+        if not any(isinstance(r, GatewayRequestConnectionRequest) for r in pending):
             # Every client that requested the connection has already given up on it.
             return
         for item in pending:

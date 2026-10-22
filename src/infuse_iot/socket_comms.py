@@ -2,6 +2,7 @@
 
 import enum
 import json
+import random
 import select
 import socket
 import struct
@@ -117,38 +118,64 @@ class ClientNotificationConnection(ClientNotification):
         return cls(values["infuse_id"])
 
 
-class ClientNotificationConnectionFailed(ClientNotificationConnection):
+class ClientNotificationConnectionResult(ClientNotificationConnection):
+    """Result of a connection request.
+
+    `request_id` identifies the request the result applies to. Results without one apply to every pending request
+    for the device.
+    """
+
+    def __init__(self, infuse_id: int, request_id: int | None):
+        super().__init__(infuse_id)
+        self.request_id = request_id
+
+    def answers(self, infuse_id: int, request_id: int) -> bool:
+        """Whether this result applies to a connection request"""
+        return self.infuse_id == infuse_id and self.request_id in (None, request_id)
+
+
+class ClientNotificationConnectionFailed(ClientNotificationConnectionResult):
     """Connection to device failed"""
 
     TYPE = ClientNotificationConnection.Type.CONNECTION_FAILED
 
-    def __init__(self, infuse_id: int, reason: str):
-        super().__init__(infuse_id)
+    def __init__(self, infuse_id: int, reason: str, request_id: int | None = None):
+        super().__init__(infuse_id, request_id)
         self.reason = reason
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "reason": self.reason}
+        return {
+            "type": int(self.TYPE),
+            "infuse_id": self.infuse_id,
+            "reason": self.reason,
+            "request_id": self.request_id,
+        }
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
-        return cls(values["infuse_id"], values["reason"])
+        return cls(values["infuse_id"], values["reason"], values.get("request_id"))
 
 
-class ClientNotificationConnectionCreated(ClientNotificationConnection):
+class ClientNotificationConnectionCreated(ClientNotificationConnectionResult):
     """Connection to device has been created"""
 
     TYPE = ClientNotificationConnection.Type.CONNECTION_CREATED
 
-    def __init__(self, infuse_id: int, max_payload: int):
-        super().__init__(infuse_id)
+    def __init__(self, infuse_id: int, max_payload: int, request_id: int | None = None):
+        super().__init__(infuse_id, request_id)
         self.max_payload = max_payload
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "max_payload": self.max_payload}
+        return {
+            "type": int(self.TYPE),
+            "infuse_id": self.infuse_id,
+            "max_payload": self.max_payload,
+            "request_id": self.request_id,
+        }
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
-        return cls(values["infuse_id"], values["max_payload"])
+        return cls(values["infuse_id"], values["max_payload"], values.get("request_id"))
 
 
 class ClientNotificationConnectionDropped(ClientNotificationConnection):
@@ -257,10 +284,12 @@ class GatewayRequestConnectionRequest(GatewayRequestConnection):
         DATA = 2
         LOGGING = 4
 
-    def __init__(self, infuse_id: int, data_types: DataType, timeout_ms: int):
+    def __init__(self, infuse_id: int, data_types: DataType, timeout_ms: int, request_id: int | None = None):
         super().__init__(infuse_id)
         self.data_types = data_types
         self.timeout_ms = timeout_ms
+        # Identifies the requesting client to the gateway. Requests without one are interchangeable.
+        self.request_id = request_id
 
     def to_json(self) -> dict:
         return {
@@ -268,17 +297,30 @@ class GatewayRequestConnectionRequest(GatewayRequestConnection):
             "infuse_id": self.infuse_id,
             "data_types": self.data_types,
             "timeout": self.timeout_ms,
+            "request_id": self.request_id,
         }
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
-        return cls(values["infuse_id"], values["data_types"], values["timeout"])
+        return cls(values["infuse_id"], values["data_types"], values["timeout"], values.get("request_id"))
 
 
 class GatewayRequestConnectionRelease(GatewayRequestConnection):
     """Release connection context to device"""
 
     TYPE = GatewayRequestConnection.Type.CONNECTION_RELEASE
+
+    def __init__(self, infuse_id: int, request_id: int | None = None):
+        super().__init__(infuse_id)
+        # The `request_id` of the connection request being released
+        self.request_id = request_id
+
+    def to_json(self) -> dict:
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "request_id": self.request_id}
+
+    @classmethod
+    def from_json(cls, values: dict) -> Self:
+        return cls(values["infuse_id"], values.get("request_id"))
 
 
 class LocalServer:
@@ -336,6 +378,7 @@ class LocalClient:
         self._rx_lock = threading.Lock()
         # Connection context
         self._connection_id = None
+        self._request_id = 0
 
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
@@ -391,18 +434,20 @@ class LocalClient:
         if self._connection_id is not None:
             raise RuntimeError("Client already has a connection context")
         self._connection_id = infuse_id
+        # Other clients may be requesting the same device, so the gateway reports results per request.
+        self._request_id = random.getrandbits(48)
 
         # Send the request for the connection
-        req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms)
+        req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms, self._request_id)
         try:
             self.send(req)
             expiry = time.monotonic() + timeout_ms / 1000 + self.CONNECTION_RESPONSE_MARGIN_S
-            # Notifications are broadcast to every client, including other devices' connection results.
+            # Notifications are broadcast to every client, including results of other clients' requests.
             while (remaining := expiry - time.monotonic()) > 0:
                 rsp = self.receive(timeout=remaining)
                 if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
                     continue
-                if rsp.infuse_id != infuse_id:
+                if not rsp.answers(infuse_id, self._request_id):
                     continue
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
@@ -428,9 +473,7 @@ class LocalClient:
     def connection_release(self):
         if self._connection_id is None:
             return
-        req = GatewayRequestConnectionRelease(
-            self._connection_id,
-        )
+        req = GatewayRequestConnectionRelease(self._connection_id, self._request_id)
         self.send(req)
         self._connection_id = None
 
