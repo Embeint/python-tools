@@ -162,10 +162,7 @@ class CommonThreadState:
             except DeviceKeyQueryFailed as e:
                 if self.print_key_params and e.parameters is not None:
                     print(f"get_device_shared_secret parameters:\n{json.dumps(e.parameters, indent=2)}")
-                reason = f"Cloud error while querying device shared keys (HTTP {e.status_code})"
-                if e.content:
-                    reason += f": {e.content}"
-                query_failed(reason)
+                query_failed(f"Cloud error while querying device shared keys: {e.error}")
                 return
             except httpx.RequestError as e:
                 reason = "No response from cloud while querying device shared keys"

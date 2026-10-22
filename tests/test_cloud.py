@@ -4,11 +4,13 @@ import importlib
 import os
 import subprocess
 from contextlib import nullcontext
+from http import HTTPStatus
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+from infuse_iot.api_client.types import Response
 from infuse_iot.app.main import InfuseApp
 from infuse_iot.tools.cloud_commands.base import CloudSubCommand
 
@@ -30,11 +32,11 @@ def cloud_list(request, monkeypatch):
     if resource == "device":
         argv += ["kv_state", "--id", "1"]
         endpoint = module.get_device_kv_entries_by_device_id
-        attribute = "sync"
+        attribute = "sync_detailed"
     elif resource == "coap":
         argv += ["list"]
         endpoint = module.get_coap_files
-        attribute = "sync"
+        attribute = "sync_detailed"
     else:
         argv += ["list"]
         if resource == "apps":
@@ -47,7 +49,8 @@ def cloud_list(request, monkeypatch):
 
 def test_cloud_resource_dispatch(cloud_list, monkeypatch):
     argv, endpoint, attribute = cloud_list
-    response: Any = SimpleNamespace(filenames=[]) if argv[1] == "coap" else []
+    parsed: Any = SimpleNamespace(filenames=[]) if argv[1] == "coap" else []
+    response = Response(status_code=HTTPStatus.OK, content=b"", headers={}, parsed=parsed)
     monkeypatch.setattr(endpoint, attribute, lambda *_args, **_kwargs: response)
     InfuseApp().run(argv)
 
@@ -87,7 +90,8 @@ def test_device_kv_state_preserves_devstate_filter(monkeypatch, capsys, show_dev
 
     monkeypatch.setattr(CloudSubCommand, "client", lambda _: nullcontext(None))
     entries = [SimpleNamespace(key_id=1, key_name="Z_DEVSTATE", data="AQ==", decoded=UNSET)]
-    monkeypatch.setattr(device.get_device_kv_entries_by_device_id, "sync", lambda **_kwargs: entries)
+    response = Response(status_code=HTTPStatus.OK, content=b"", headers={}, parsed=entries)
+    monkeypatch.setattr(device.get_device_kv_entries_by_device_id, "sync_detailed", lambda **_kwargs: response)
     argv = ["cloud", "device", "kv_state", "--id", "1", "--hex"]
     if show_devstate:
         argv.append("--devstate")

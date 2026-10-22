@@ -8,6 +8,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 import glob
 import pathlib
 import sys
+from http import HTTPStatus
 from uuid import UUID
 
 from tabulate import tabulate
@@ -33,7 +34,7 @@ from infuse_iot.api_client.api.organisation import (
     get_organisation_by_id,
 )
 from infuse_iot.api_client.types import File
-from infuse_iot.util.api import fetch_all
+from infuse_iot.util.api import check_api_response, check_api_response_allow_errors, fetch_all, format_api_error
 from infuse_iot.util.argparse import (
     ValidRelease,
     add_subparsers_with_list,
@@ -73,9 +74,7 @@ class Applications(CloudSubCommand):
     def list(self, client: Client):
         org: UUID
         if self.args.org is None:
-            orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = check_api_response(fetch_all(get_all_organisations, client=client), "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
@@ -84,11 +83,9 @@ class Applications(CloudSubCommand):
         else:
             org = UUID(self.args.org)
 
-        applications = fetch_all(get_applications_by_organisation_id, client=client, id=org)
-
-        if not isinstance(applications, list):
-            print(f"Failed to retrieve application list {applications}")
-            return
+        applications = check_api_response(
+            fetch_all(get_applications_by_organisation_id, client=client, id=org), "Application query"
+        )
 
         app_list = []
         for app in applications:
@@ -107,33 +104,30 @@ class Applications(CloudSubCommand):
         )
 
     def _info_one(self, client: Client):
-        application = get_application_by_organisation_id_and_application_id.sync(
-            client=client,
-            id=UUID(self.args.org),
-            application_id=self.args.app,
+        application = check_api_response(
+            get_application_by_organisation_id_and_application_id.sync_detailed(
+                client=client,
+                id=UUID(self.args.org),
+                application_id=self.args.app,
+            ),
+            "Get application",
         )
-        if application is None:
-            sys.exit("Get application: No response")
-        elif isinstance(application, models.Error):
-            sys.exit(f"<{application.code}>: {application.message}")
-        release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
-            client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+        release = check_api_response(
+            get_release_by_organisation_id_and_application_id_and_release_id.sync_detailed(
+                client=client, id=UUID(self.args.org), application_id=self.args.app, release_id=self.args.rel
+            ),
+            "Get release",
         )
-        if release is None:
-            sys.exit("Get release: No response")
-        elif isinstance(release, models.Error):
-            sys.exit(f"<{release.code}>: {release.message}")
-        diffs = fetch_all(
-            get_diffs_by_organisation_id_and_application_id_and_release_id,
-            client=client,
-            id=UUID(self.args.org),
-            application_id=self.args.app,
-            release_id=self.args.rel,
+        diffs = check_api_response(
+            fetch_all(
+                get_diffs_by_organisation_id_and_application_id_and_release_id,
+                client=client,
+                id=UUID(self.args.org),
+                application_id=self.args.app,
+                release_id=self.args.rel,
+            ),
+            "Get diffs",
         )
-        if diffs is None:
-            sys.exit("Get diffs: No response")
-        elif isinstance(diffs, models.Error):
-            sys.exit(f"<{diffs.code}>: {diffs.message}")
 
         version = release.version
         version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
@@ -150,29 +144,43 @@ class Applications(CloudSubCommand):
             )
         )
 
-        other_apps = fetch_all(get_applications_by_organisation_id, client=client, id=UUID(self.args.org))
-        assert isinstance(other_apps, list)
+        other_apps = check_api_response(
+            fetch_all(get_applications_by_organisation_id, client=client, id=UUID(self.args.org)),
+            "Application query",
+        )
 
         diff_info = []
         for diff in diffs:
             source_app_id = self.args.app
-            from_release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+            # Failures specific to this diff, report and continue with the remaining diffs
+            release_rsp = get_release_by_organisation_id_and_application_id_and_release_id.sync_detailed(
                 client=client, id=UUID(self.args.org), application_id=source_app_id, release_id=diff.from_release_id
             )
+            from_release = release_rsp.parsed
             if not isinstance(from_release, models.ApplicationRelease):
                 # Try the other applications in the organisation
                 for other_app in other_apps:
-                    from_release = get_release_by_organisation_id_and_application_id_and_release_id.sync(
+                    other_rsp = get_release_by_organisation_id_and_application_id_and_release_id.sync_detailed(
                         client=client,
                         id=UUID(self.args.org),
                         application_id=other_app.id,
                         release_id=diff.from_release_id,
                     )
+                    from_release = other_rsp.parsed
+                    # Release not existing in other applications is expected, report any other failure
+                    if (
+                        release_rsp.status_code == HTTPStatus.NOT_FOUND
+                        and other_rsp.status_code != HTTPStatus.NOT_FOUND
+                    ):
+                        release_rsp = other_rsp
                     if isinstance(from_release, models.ApplicationRelease):
                         source_app_id = other_app.id
                         break
             if not isinstance(from_release, models.ApplicationRelease):
-                print(f"Failed to query information about source release {diff.from_release_id}")
+                print(
+                    f"Failed to query information about source release {diff.from_release_id}: "
+                    f"{format_api_error(release_rsp)}"
+                )
                 continue
             from_version = from_release.version
             from_version_str = (
@@ -187,17 +195,15 @@ class Applications(CloudSubCommand):
             print(tabulate(diff_info, headers=["From App", "From Version", "Path", "Length", "CRC"]))
 
     def _info_all(self, client: Client):
-        releases = fetch_all(
-            get_releases_by_organisation_id_and_application_id,
-            client=client,
-            id=UUID(self.args.org),
-            application_id=self.args.app,
+        releases = check_api_response(
+            fetch_all(
+                get_releases_by_organisation_id_and_application_id,
+                client=client,
+                id=UUID(self.args.org),
+                application_id=self.args.app,
+            ),
+            "Release query",
         )
-
-        if releases is None:
-            sys.exit("Failed to retrieve release list (No response)")
-        elif isinstance(releases, models.Error):
-            sys.exit(f"<{releases.code}>: {releases.message}")
 
         release_list = []
         for release in releases:
@@ -251,50 +257,49 @@ class Applications(CloudSubCommand):
         version = Version.from_string(release_app_meta["version"])
 
         if self._org is None:
-            orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, models.Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = check_api_response(fetch_all(get_all_organisations, client=client), "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
             self._org = orgs[idx].id
             self._org_name = orgs[idx].name
         else:
-            org = get_organisation_by_id.sync(client=client, id=self._org)
-            if not isinstance(org, models.Organisation):
-                sys.exit(f"Failed to query org for ID {self._org}")
+            org = check_api_response(
+                get_organisation_by_id.sync_detailed(client=client, id=self._org), f"Organisation query ({self._org})"
+            )
             self._org_name = org.name
 
         if self._board is None:
-            boards = fetch_all(get_boards, client=client, organisation_id=self._org)
-            if isinstance(boards, models.Error) or boards is None:
-                sys.exit(f"Board query failed {boards}")
+            boards = check_api_response(fetch_all(get_boards, client=client, organisation_id=self._org), "Board query")
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
             idx, _val = choose_one("Board", options)
             self._board = boards[idx].id
             self._board_name = boards[idx].name
         else:
-            board = get_board_by_id.sync(client=client, id=self._board)
-            if not isinstance(board, models.Board):
-                sys.exit(f"Failed to query board for ID {self._board}")
+            board = check_api_response(
+                get_board_by_id.sync_detailed(client=client, id=self._board), f"Board query ({self._board})"
+            )
             self._board_name = board.name
 
-        application = get_application_by_organisation_id_and_application_id.sync(
-            client=client, id=self._org, application_id=app_id
+        application = check_api_response_allow_errors(
+            get_application_by_organisation_id_and_application_id.sync_detailed(
+                client=client, id=self._org, application_id=app_id
+            ),
+            "Get application",
+            allowed_errors=[HTTPStatus.NOT_FOUND],
         )
 
-        if application is None or (isinstance(application, models.Error) and application.code == 404):
+        if isinstance(application, models.Error):
             dialog = f"Application 0x{app_id:08x} does not exist in organisation {self._org_name}, create?"
             if not user_confirm(dialog):
                 return
             print(f"Creating application 0x{app_id:08x} in organisation {self._org_name}")
             description = user_response("Application description:")
             body = models.NewApplication(id=app_id, name=name, description=description)
-            application = create_application.sync(client=client, id=self._org, body=body)
-
-        if not isinstance(application, models.Application):
-            sys.exit(f"Unexpected internal type {type(application)}")
+            application = check_api_response(
+                create_application.sync_detailed(client=client, id=self._org, body=body), "Create application"
+            )
 
         ota_files = glob.glob(str(release.dir / "ota-*.bin"))
         if len(ota_files) == 0:
@@ -312,14 +317,15 @@ class Applications(CloudSubCommand):
             sys.exit(f"Unexpected OTA file search result {ota_files}")
 
         def get_all_releases(org: UUID, board: UUID, app_id: int) -> dict[Version, models.ApplicationRelease]:
-            releases = fetch_all(
-                get_releases_by_organisation_id_and_application_id,
-                client=client,
-                id=org,
-                application_id=app_id,
+            releases = check_api_response(
+                fetch_all(
+                    get_releases_by_organisation_id_and_application_id,
+                    client=client,
+                    id=org,
+                    application_id=app_id,
+                ),
+                "Release query",
             )
-            if not isinstance(releases, list):
-                sys.exit(f"Unexpected release query result {releases}")
 
             by_version: dict[Version, models.ApplicationRelease] = {}
             for r in releases:
@@ -355,19 +361,16 @@ class Applications(CloudSubCommand):
                     board_target=board_target,
                 )
 
-                rsp = create_release.sync(
-                    client=client,
-                    id=self._org,
-                    application_id=app_id,
-                    body=release_obj,
+                cloud_release = check_api_response(
+                    create_release.sync_detailed(
+                        client=client,
+                        id=self._org,
+                        application_id=app_id,
+                        body=release_obj,
+                    ),
+                    "Create release",
                 )
-                if rsp is None:
-                    sys.exit("Create release: No response")
-                elif isinstance(rsp, models.Error):
-                    sys.exit(f"<{rsp.code}>: {rsp.message}")
-                else:
-                    print(f"Release created with ID '{rsp.id}'")
-                    cloud_release = rsp
+                print(f"Release created with ID '{cloud_release.id}'")
 
         def upload_diffs_from_application(
             org: UUID,
@@ -383,11 +386,12 @@ class Applications(CloudSubCommand):
                     except ValueError:
                         print(f"{path.stem} does not appear to be an application ID")
                         continue
-                    other_application = get_application_by_organisation_id_and_application_id.sync(
+                    other_rsp = get_application_by_organisation_id_and_application_id.sync_detailed(
                         client=client, id=org, application_id=other_app_id
                     )
+                    other_application = other_rsp.parsed
                     if not isinstance(other_application, models.Application):
-                        print(f"Could not retrieve application with ID {path.stem}")
+                        print(f"Could not retrieve application with ID {path.stem}: {format_api_error(other_rsp)}")
                         continue
                     other_application_releases = get_all_releases(org, board, other_application.id)
                     upload_diffs_from_application(org, board, other_application, other_application_releases, path)
@@ -408,7 +412,7 @@ class Applications(CloudSubCommand):
                     diff_file = File(f, str(path), None)
 
                     create_body = models.CreateReleaseDiffBody(file=diff_file, from_release_id=from_version.id)
-                    diff_rsp = create_release_diff.sync(
+                    diff_rsp = create_release_diff.sync_detailed(
                         client=client,
                         id=org,
                         application_id=app_id,
@@ -416,12 +420,12 @@ class Applications(CloudSubCommand):
                         body=create_body,
                     )
                     prefix = f"{str(diff_from_version)} -> {str(version)}"
-                    if isinstance(diff_rsp, models.Error):
-                        print(f"{prefix}: <{diff_rsp.code}> {diff_rsp.message}")
-                    elif isinstance(diff_rsp, models.ApplicationReleaseDiff):
-                        print(f"{prefix}: Diff created with ID '{diff_rsp.id}'")
+                    # Failures specific to this diff, report and continue with the remaining diffs
+                    release_diff = diff_rsp.parsed
+                    if isinstance(release_diff, models.ApplicationReleaseDiff):
+                        print(f"{prefix}: Diff created with ID '{release_diff.id}'")
                     else:
-                        print(f"{prefix}: No response")
+                        print(f"{prefix}: Create diff: {format_api_error(diff_rsp)}")
 
         # Upload any diffs
         diff_folder = release.dir / "diffs"

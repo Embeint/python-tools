@@ -5,7 +5,6 @@
 __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
-import sys
 from uuid import UUID
 
 from tabulate import tabulate
@@ -19,7 +18,7 @@ from infuse_iot.api_client.api.board import (
 from infuse_iot.api_client.api.organisation import (
     get_all_organisations,
 )
-from infuse_iot.util.api import fetch_all
+from infuse_iot.util.api import check_api_response, fetch_all
 from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
@@ -52,21 +51,20 @@ class Boards(CloudSubCommand):
         create_parser.set_defaults(command_fn=cls.create)
 
     def list(self, client: Client):
-        orgs = fetch_all(get_all_organisations, client=client)
-        if isinstance(orgs, models.Error) or orgs is None:
-            sys.exit(f"Organisation query failed {orgs}")
+        orgs = check_api_response(fetch_all(get_all_organisations, client=client), "Organisation query")
         org_names = {o.id: o.name for o in orgs}
 
         boards: dict[UUID, models.Board] = {}
         for org in orgs:
-            found = fetch_all(
-                get_boards,
-                client=client,
-                organisation_id=org.id,
-                include_public=not self.args.no_public,
+            found = check_api_response(
+                fetch_all(
+                    get_boards,
+                    client=client,
+                    organisation_id=org.id,
+                    include_public=not self.args.no_public,
+                ),
+                "Board query",
             )
-            if isinstance(found, models.Error) or found is None:
-                sys.exit(f"Boards query failed {found}")
             # `include_public` also returns other organisations' public boards,
             # so the same board comes back once per organisation queried
             boards.update({b.id: b for b in found})
@@ -103,9 +101,5 @@ class Boards(CloudSubCommand):
             ),
         )
 
-        if rsp.parsed is None:
-            print(f"<{rsp.status_code}>: {rsp.content.decode('utf-8')}")
-        elif isinstance(rsp.parsed, models.Error):
-            print(f"<{rsp.status_code}>: {rsp.parsed.message}")
-        else:
-            print(f"Created board {rsp.parsed.name} with ID {rsp.parsed.id}")
+        board = check_api_response(rsp, "Create board")
+        print(f"Created board {board.name} with ID {board.id}")
