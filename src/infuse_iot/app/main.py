@@ -63,7 +63,10 @@ class InfuseApp:
         self._print_profile_banner(self.args)
 
         tool = self.args.tool_class(self.args)
-        tool.run()
+        try:
+            tool.run()
+        finally:
+            tool.close()
 
     @staticmethod
     def _print_profile_banner(args: argparse.Namespace):
