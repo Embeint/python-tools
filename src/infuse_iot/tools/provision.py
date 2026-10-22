@@ -17,10 +17,10 @@ from infuse_iot.api_client.api.device import (
     get_device_by_soc_and_mcu_id,
 )
 from infuse_iot.api_client.api.organisation import get_all_organisations
-from infuse_iot.api_client.models import Board, Device, DeviceMetadata, Error, NewDevice
+from infuse_iot.api_client.models import Device, DeviceMetadata, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_auth_header
-from infuse_iot.util.api import fetch_all
+from infuse_iot.util.api import check_api_response, check_api_response_allow_errors, fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
 from infuse_iot.util.soc import nrf, soc, stm
@@ -84,25 +84,21 @@ class SubCommand(InfuseCommand):
 
     def create_device(self, client: Client, soc_name: str, hardware_id_str: str):
         if self._org is None:
-            orgs = fetch_all(get_all_organisations, client=client)
-            if isinstance(orgs, Error) or orgs is None:
-                sys.exit(f"Organisation query failed {orgs}")
+            orgs = check_api_response(fetch_all(get_all_organisations, client=client), "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
             idx, _val = choose_one("Organisation", options)
             self._org = orgs[idx].id
 
         if self._board is None:
-            boards = fetch_all(get_boards, client=client, organisation_id=self._org, include_public=True)
-            if isinstance(boards, Error) or boards is None:
-                sys.exit(f"Board query failed {boards}")
+            boards = check_api_response(
+                fetch_all(get_boards, client=client, organisation_id=self._org, include_public=True), "Board query"
+            )
             options = [f"{b.name:20s} ({b.id})" for b in boards]
 
             idx, _val = choose_one("Board", options)
             self._board = boards[idx].id
-        board = get_board_by_id.sync(client=client, id=self._board)
-        if not isinstance(board, Board):
-            sys.exit(f"Board query failed {board}")
+        board = check_api_response(get_board_by_id.sync_detailed(client=client, id=self._board), "Board query")
         if board.soc != soc_name:
             sys.exit(f"Found SoC '{soc_name}' but board '{board.name}' has SoC '{board.soc}'")
 
@@ -119,9 +115,7 @@ class SubCommand(InfuseCommand):
             print(new_board)
             return
 
-        response = create_device.sync_detailed(client=client, body=new_board)
-        if response.status_code != HTTPStatus.CREATED:
-            sys.exit(f"Failed to create device:\n\t<{response.status_code}> {response.content.decode('utf-8')}")
+        check_api_response(create_device.sync_detailed(client=client, body=new_board), "Failed to create device")
 
     def run(self):
         interface: soc.ProvisioningInterface
@@ -140,47 +134,42 @@ class SubCommand(InfuseCommand):
 
         # Get existing device or create new device
         with client as client:
-            response = get_device_by_soc_and_mcu_id.sync_detailed(
-                client=client, soc=interface.soc_name, mcu_id=hardware_id_str
+            device = check_api_response_allow_errors(
+                get_device_by_soc_and_mcu_id.sync_detailed(
+                    client=client, soc=interface.soc_name, mcu_id=hardware_id_str
+                ),
+                "Failed to query device information",
+                allowed_errors=[HTTPStatus.NOT_FOUND],
             )
-            if isinstance(response.parsed, Device):
+            if isinstance(device, Device):
                 # Device found, fall through
-                assert isinstance(response.parsed.device_id, str)
-                self._org = response.parsed.organisation_id
-                self._board = response.parsed.board_id
-                cloud_id = int(response.parsed.device_id, 16)
+                assert isinstance(device.device_id, str)
+                self._org = device.organisation_id
+                self._board = device.board_id
+                cloud_id = int(device.device_id, 16)
                 if self._id and (self._id != cloud_id):
                     # ID provided on the command line but device already provisioned as another ID
                     err = f"HW ID 0x{hardware_id:016x} provisioned as 0x{cloud_id:016x} on the cloud"
                     err += f" but CLI requested 0x{self._id:016x}"
                     sys.exit(err)
                 pass
-            elif response.status_code == HTTPStatus.NOT_FOUND:
+            else:
                 # Create new device here
                 self.create_device(client, interface.soc_name, hardware_id_str)
                 # Exit if dry run only
                 if self._dry_run:
                     return
                 # Query information back out
-                response = get_device_by_soc_and_mcu_id.sync_detailed(
-                    client=client, soc=interface.soc_name, mcu_id=hardware_id_str
+                device = check_api_response(
+                    get_device_by_soc_and_mcu_id.sync_detailed(
+                        client=client, soc=interface.soc_name, mcu_id=hardware_id_str
+                    ),
+                    "Failed to query device after creation",
                 )
-                if isinstance(response.parsed, Error):
-                    err = "Failed to query device after creation:\n"
-                    err += f"\t<{response.status_code}> {response.parsed.message}"
-                    sys.exit(err)
-                elif response.parsed is None:
-                    err = "Failed to query device after creation:\n"
-                    err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
-                    sys.exit(err)
-            else:
-                err = "Failed to query device information:\n"
-                err += f"\t<{response.status_code}> {response.content.decode('utf-8')}"
-                sys.exit(err)
 
-        assert isinstance(response.parsed.device_id, str)
+        assert isinstance(device.device_id, str)
         # Compare current flash contents to desired flash contents
-        cloud_id = int(response.parsed.device_id, 16)
+        cloud_id = int(device.device_id, 16)
         current_bytes = interface.read_provisioned_data(ctypes.sizeof(interface.DefaultProvisioningStruct))
         desired = interface.DefaultProvisioningStruct(cloud_id)
         desired_bytes = bytes(desired)

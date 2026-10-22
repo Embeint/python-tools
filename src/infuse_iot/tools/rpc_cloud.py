@@ -9,12 +9,11 @@ import argparse
 import base64
 import datetime
 import json
-import sys
 from uuid import UUID
 
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.rpc import get_rpc_by_id, send_rpc
-from infuse_iot.api_client.models import Error, NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
+from infuse_iot.api_client.models import NewRPCMessage, NewRPCReq, RPCParams, RPCReqDataHeader, RpcRsp
 from infuse_iot.api_client.models.downlink_message_status import DownlinkMessageStatus
 from infuse_iot.commands import (
     InfuseCommand,
@@ -25,6 +24,7 @@ from infuse_iot.commands import (
 )
 from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import id_type_mapping
+from infuse_iot.util.api import check_api_response
 from infuse_iot.util.argparse import (
     InfuseDeviceId,
     add_subparsers_with_list,
@@ -88,21 +88,14 @@ class SubCommand(InfuseCommand):
         if self._args.print_params:
             print(f"Request: {rpc_msg.to_dict()}")
 
-        rsp = send_rpc.sync(client=client, body=rpc_msg)
-        if rsp is None:
-            sys.exit("Failed to queue RPC (No response)")
-        elif isinstance(rsp, Error) or rsp is None:
-            msg = "Failed to queue RPC\n"
-            msg += f"\t Code: {rsp.code}\n"
-            msg += f"\t  Msg: '{rsp.message}'"
-            sys.exit(msg)
+        rsp = check_api_response(send_rpc.sync_detailed(client=client, body=rpc_msg), "Failed to queue RPC")
         print("Query RPC state with:")
         print(f"\tinfuse rpc_cloud query --id {rsp.id}")
 
     def query(self, client: Client):
-        rsp = get_rpc_by_id.sync(client=client, id=UUID(self._args.id))
-        if isinstance(rsp, Error) or rsp is None:
-            sys.exit(f"Failed to query RPC state ({rsp})")
+        rsp = check_api_response(
+            get_rpc_by_id.sync_detailed(client=client, id=UUID(self._args.id)), "Failed to query RPC state"
+        )
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         downlink = rsp.downlink_message
         rpc_req = downlink.rpc_req

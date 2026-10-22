@@ -7,6 +7,7 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import base64
 import sys
+from http import HTTPStatus
 from typing import Any
 
 from tabulate import tabulate
@@ -32,6 +33,7 @@ from infuse_iot.api_client.api.organisation import (
     get_organisation_by_id,
 )
 from infuse_iot.api_client.types import Unset
+from infuse_iot.util.api import check_api_response, check_api_response_allow_errors, format_api_error
 from infuse_iot.util.argparse import (
     HexString,
     InfuseDeviceId,
@@ -108,21 +110,39 @@ class Device(CloudSubCommand):
 
     def info(self, client: Client):
         id_str = f"{self.args.id:016x}"
-        info = get_device_by_device_id.sync(client=client, device_id=id_str)
-        if info is None:
-            sys.exit(f"No device with Infuse-IoT ID {id_str} found")
-        elif isinstance(info, models.Error):
-            sys.exit(f"<{info.code}>: {info.message}")
+        info = check_api_response(get_device_by_device_id.sync_detailed(client=client, device_id=id_str), "Get device")
         metadata: list[tuple[str, Any]] = []
         if info.metadata:
             metadata = [(f"Metadata.{k}", v) for k, v in info.metadata.additional_properties.items()]
 
-        org = get_organisation_by_id.sync(client=client, id=info.organisation_id)
-        board = get_board_by_id.sync(client=client, id=info.board_id)
-        state = get_device_state_by_id.sync(client=client, id=info.id)
-        route = get_device_last_route_by_device_id.sync(client=client, device_id=id_str)
-        app = get_device_application_state_by_device_id.sync(client=client, device_id=id_str)
-        logger_states = get_device_logger_states_by_device_id.sync(client=client, device_id=id_str)
+        # Supplementary information, displayed only if available
+        accepted_errors = [HTTPStatus.NOT_FOUND, HTTPStatus.FORBIDDEN]
+        org = check_api_response_allow_errors(
+            get_organisation_by_id.sync_detailed(client=client, id=info.organisation_id),
+            "Get organisation",
+            accepted_errors,
+        )
+        board = check_api_response_allow_errors(
+            get_board_by_id.sync_detailed(client=client, id=info.board_id), "Get board", accepted_errors
+        )
+        state = check_api_response_allow_errors(
+            get_device_state_by_id.sync_detailed(client=client, id=info.id), "Get device state", accepted_errors
+        )
+        route = check_api_response_allow_errors(
+            get_device_last_route_by_device_id.sync_detailed(client=client, device_id=id_str),
+            "Get device route",
+            accepted_errors,
+        )
+        app = check_api_response_allow_errors(
+            get_device_application_state_by_device_id.sync_detailed(client=client, device_id=id_str),
+            "Get device application state",
+            accepted_errors,
+        )
+        logger_states = check_api_response_allow_errors(
+            get_device_logger_states_by_device_id.sync_detailed(client=client, device_id=id_str),
+            "Get device logger states",
+            accepted_errors,
+        )
 
         table: list[tuple[str, Any]] = [
             ("Infuse ID", id_str),
@@ -194,10 +214,9 @@ class Device(CloudSubCommand):
     def kv_state(self, client: Client):
         id_str = f"{self.args.id:016x}"
 
-        kv_state = get_device_kv_entries_by_device_id.sync(client=client, device_id=id_str)
-        if not isinstance(kv_state, list):
-            print(f"Unable to query KV state for {id_str}")
-            return
+        kv_state = check_api_response(
+            get_device_kv_entries_by_device_id.sync_detailed(client=client, device_id=id_str), "Get KV state"
+        )
 
         table: list[tuple[str, str, Any]] = []
         for element in kv_state:
@@ -234,21 +253,19 @@ class Device(CloudSubCommand):
         val_encoded = base64.b64encode(self.args.val).decode("utf-8")
         update = models.NewDeviceKVEntryUpdate(data=val_encoded)
 
-        rsp = create_device_kv_entry_update_by_device_id_and_key_id.sync(
+        # Checked here as mypy cannot infer `check_api_response` for responses with multiple success types
+        rsp = create_device_kv_entry_update_by_device_id_and_key_id.sync_detailed(
             client=client,
             device_id=id_str,
             key_id=self.args.key,
             body=update,
         )
-        if rsp is None:
-            sys.exit("KV update: No response")
-        elif isinstance(rsp, models.Error):
-            sys.exit(f"<{rsp.code}>: {rsp.message}")
-        elif isinstance(rsp, models.DeviceKVEntry):
+        if isinstance(rsp.parsed, models.DeviceKVEntry):
             print(f"Device {id_str} key {self.args.key} already has value {self.args.val.hex()}")
+        elif isinstance(rsp.parsed, models.DeviceKVEntryUpdate):
+            print(f"Device {id_str} update scheduled with ID {rsp.parsed.id}")
         else:
-            assert isinstance(rsp, models.DeviceKVEntryUpdate)
-            print(f"Device {id_str} update scheduled with ID {rsp.id}")
+            sys.exit(f"KV update: {format_api_error(rsp)}")
 
     def dfu(self, client: Client):
         if self.args.id is not None:
@@ -266,27 +283,26 @@ class Device(CloudSubCommand):
 
         if self.args.schedule:
             body = models.NewDeviceApplicationUpdate(self.args.schedule)
-            rsp = create_device_application_update_by_device_id.sync(client=client, device_id=id_str, body=body)
-
-            if rsp is None:
-                print(f"{id_str}: Create application updates: No response")
-            elif isinstance(rsp, models.Error):
-                print(f"{id_str}: <{rsp.code}> {rsp.message}")
-            elif isinstance(rsp, models.DeviceApplicationState):
+            # Failures specific to this device, report and continue with the remaining devices
+            rsp = create_device_application_update_by_device_id.sync_detailed(
+                client=client, device_id=id_str, body=body
+            )
+            if isinstance(rsp.parsed, models.DeviceApplicationState):
                 print(f"{id_str}: Device already on release {self.args.schedule}")
-            elif isinstance(rsp, models.DeviceApplicationUpdate):
-                print(f"{id_str}: DFU scheduled with ID {rsp.id}")
+            elif isinstance(rsp.parsed, models.DeviceApplicationUpdate):
+                print(f"{id_str}: DFU scheduled with ID {rsp.parsed.id}")
             else:
-                raise NotImplementedError(f"Unknown response ({rsp})")
+                print(f"{id_str}: Create application update: {format_api_error(rsp)}")
         elif self.args.status:
-            updates = get_device_application_updates_by_device_id.sync(
+            # Failures specific to this device, report and continue with the remaining devices
+            updates_rsp = get_device_application_updates_by_device_id.sync_detailed(
                 client=client,
                 device_id=id_str,
             )
-            if updates is None:
-                sys.exit("Get application updates: No response")
-            elif isinstance(updates, models.Error):
-                sys.exit(f"<{updates.code}>: {updates.message}")
+            if not isinstance(updates_rsp.parsed, list):
+                print(f"{id_str}: Get application updates: {format_api_error(updates_rsp)}")
+                return
+            updates = updates_rsp.parsed
 
             for update in updates:
                 print(
@@ -307,27 +323,25 @@ class Device(CloudSubCommand):
     def logger(self, client: Client):
         id_str = f"{self.args.id:016x}"
 
-        resp = update_device_logger_state_by_device_id_and_index.sync(
-            client=client,
-            device_id=id_str,
-            index=self.args.logger_idx,
-            body=models.DeviceLoggerStateUpdate(self.args.enable),
+        resp = check_api_response(
+            update_device_logger_state_by_device_id_and_index.sync_detailed(
+                client=client,
+                device_id=id_str,
+                index=self.args.logger_idx,
+                body=models.DeviceLoggerStateUpdate(self.args.enable),
+            ),
+            "Update logger state",
         )
-        if resp is None:
-            sys.exit("Update logger state: No response")
-        elif isinstance(resp, models.Error):
-            sys.exit(f"<{resp.code}>: {resp.message}")
-        else:
-            name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
-            table = [
-                (f"~~~{name} Logger Sync~~~", ""),
-                ("Enabled", resp.download_enabled),
-                ("Last Report Time", self._val_or_na(resp.last_reported_time)),
-                ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
-                ("Reported Block", self._val_or_na(resp.last_reported_block)),
-                ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
-            ]
-            if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
-                table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
+        name = self.logger_names.get(self.args.logger_idx, str(self.args.logger_idx))
+        table = [
+            (f"~~~{name} Logger Sync~~~", ""),
+            ("Enabled", resp.download_enabled),
+            ("Last Report Time", self._val_or_na(resp.last_reported_time)),
+            ("Last Downloaded Time", self._val_or_na(resp.last_downloaded_time)),
+            ("Reported Block", self._val_or_na(resp.last_reported_block)),
+            ("Downloaded Block", self._val_or_na(resp.last_downloaded_block)),
+        ]
+        if isinstance(resp.last_reported_block, int) and isinstance(resp.last_downloaded_block, int):
+            table += [("Block Lag", resp.last_reported_block - resp.last_downloaded_block)]
 
-            print(tabulate(table))
+        print(tabulate(table))

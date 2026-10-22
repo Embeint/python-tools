@@ -6,9 +6,9 @@ __author__ = "Jordan Yates"
 __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 
-import infuse_iot.api_client.models as models
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.coap import get_coap_files
+from infuse_iot.util.api import check_api_response
 from infuse_iot.util.argparse import (
     add_subparsers_with_list,
 )
@@ -28,13 +28,8 @@ class Coap(CloudSubCommand):
         list_parser.set_defaults(command_fn=cls.list)
 
     def list(self, client: Client):
-        files = get_coap_files.sync(client=client)
+        files = check_api_response(get_coap_files.sync_detailed(client=client), "Get CoAP files")
 
-        if files is None:
-            print("Failed to retrieve file list (No response)")
-        elif isinstance(files, models.Error):
-            print(f"<{files.code}>: {files.message}")
-        else:
-            sorted_list: list[str] = sorted(files.filenames)
-            print("CoAP Files:")
-            print("\t" + "\n\t".join(sorted_list))
+        sorted_list: list[str] = sorted(files.filenames)
+        print("CoAP Files:")
+        print("\t" + "\n\t".join(sorted_list))
