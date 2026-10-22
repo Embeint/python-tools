@@ -15,7 +15,8 @@ import random
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Hashable
 
 import cryptography
 import cryptography.exceptions
@@ -62,7 +63,7 @@ from infuse_iot.util.os import is_wsl
 from infuse_iot.util.threading import SignaledThread
 
 
-def _decrement(counts: dict[int, int], key: int) -> bool:
+def _decrement(counts: dict, key: Hashable) -> bool:
     """Decrement a positive count, removing it at zero. Returns whether a count was decremented."""
     count = counts.get(key, 0)
     if count == 0:
@@ -354,10 +355,12 @@ class SerialTxThread(SignaledThread):
         common: CommonThreadState,
     ):
         self._common = common
-        self._connected: dict[int, int] = {}
-        # Connection requests awaiting a gateway response, and releases sent by clients that stopped waiting.
-        self._pending: dict[int, int] = {}
-        self._deferred_releases: dict[int, int] = {}
+        # Request IDs of the users of each connection. A connection kept open for pending requests has no users.
+        self._connected: dict[int, Counter[int | None]] = {}
+        # (device, request ID) of connection requests awaiting a gateway response, and of those whose client stopped
+        # waiting for the response.
+        self._pending: Counter[tuple[int, int | None]] = Counter()
+        self._cancelled: Counter[tuple[int, int | None]] = Counter()
         self._connected_lock = threading.Lock()
         self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
@@ -405,23 +408,23 @@ class SerialTxThread(SignaledThread):
         Console.log_tx(routed.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
-    def _connected_notification(self, infuse_id: int):
+    def _connected_notification(self, infuse_id: int, request_id: int | None):
         with self._connected_lock:
-            if infuse_id not in self._connected:
+            if request_id not in self._connected.get(infuse_id, {}):
                 # Released or dropped while the connection was being validated
                 return
-        rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16)
+        rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16, request_id)
         self._common.notification_broadcast(rsp)
 
     def _connection_dropped(self, infuse_id: int):
         with self._connected_lock:
             self._connected.pop(infuse_id, None)
 
-    def _key_query_failed(self, infuse_id: int, reason: str):
-        self._release(infuse_id)
-        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason))
+    def _key_query_failed(self, infuse_id: int, request_id: int | None, reason: str):
+        self._release(infuse_id, request_id)
+        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
 
-    def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, _):
+    def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, request_id: int | None):
         infuse_id = pkt.route[0].infuse_id
         if rc == 0:
             decoded = defs.security_public_keys.response.vla_from_buffer_copy(response)
@@ -430,9 +433,9 @@ class SerialTxThread(SignaledThread):
                     self._common.ddb.observe_secondary_remote_public_key(infuse_id, bytes(key.key))
 
         # Notify connection success
-        self._connected_notification(infuse_id)
+        self._connected_notification(infuse_id, request_id)
 
-    def _bt_connect_cb(self, _pkt: PacketReceived, rc: int, response: bytes, _):
+    def _bt_connect_cb(self, _pkt: PacketReceived, rc: int, response: bytes, request_id: int | None):
         resp = defs.bt_connect_infuse.response.from_buffer_copy(response)
         if_addr = interface.Address.BluetoothLeAddr.from_rpc_struct(resp.peer)
         infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
@@ -441,30 +444,30 @@ class SerialTxThread(SignaledThread):
         assert self._common.server is not None
 
         with self._connected_lock:
-            _decrement(self._pending, infuse_id)
-            deferred_release = _decrement(self._deferred_releases, infuse_id)
+            _decrement(self._pending, (infuse_id, request_id))
+            cancelled = _decrement(self._cancelled, (infuse_id, request_id))
             if rc == 0:
-                self._connected[infuse_id] = self._connected.get(infuse_id, 0) + 1
-            connected = infuse_id in self._connected
+                self._connected.setdefault(infuse_id, Counter())[request_id] += 1
 
         if rc != 0:
-            rsp = ClientNotificationConnectionFailed(infuse_id, f"Bluetooth connection failed (RPC error {rc})")
-            self._common.notification_broadcast(rsp)
-            if deferred_release and connected:
-                # Users are interchangeable, so the release applies to an existing user of the connection.
-                self._release(infuse_id)
+            reason = f"Bluetooth connection failed (RPC error {rc})"
+            self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
+            with self._connected_lock:
+                linked = infuse_id in self._connected
+            if linked:
+                # The connection may have been kept open for this request
+                self._disconnect_unused(infuse_id)
             return
 
-        if deferred_release:
-            self._release(infuse_id)
-            with self._connected_lock:
-                if infuse_id not in self._connected:
-                    return
+        if cancelled:
+            # The client stopped waiting for the connection
+            self._release(infuse_id, request_id)
+            return
 
         if self._common.ddb.has_local_root:
             # Query public keys before running callback
             cmd = self._common.rpc.generate_remote_bt(
-                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, self._pub_keys_cb, None
+                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, self._pub_keys_cb, request_id
             )
             encrypted = cmd.to_serial(self._common.ddb)
             Console.log_tx(cmd.ptype, len(encrypted))
@@ -475,15 +478,15 @@ class SerialTxThread(SignaledThread):
 
         if self._common.ddb.has_shared_key(infuse_id):
             # Notify connection success immediately
-            self._connected_notification(infuse_id)
+            self._connected_notification(infuse_id, request_id)
         else:
             # Pro-actively query key information before notifying
             def notification(success: bool, reason: str | None) -> None:
                 if success:
-                    self._connected_notification(infuse_id)
+                    self._connected_notification(infuse_id, request_id)
                 else:
                     assert reason is not None
-                    self._key_query_failed(infuse_id, reason)
+                    self._key_query_failed(infuse_id, request_id, reason)
 
             self._common.query_device_key(infuse_id, cb=notification)
 
@@ -492,13 +495,15 @@ class SerialTxThread(SignaledThread):
 
         if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
-            self._common.notification_broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512))
+            self._common.notification_broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512, req.request_id))
             return
 
         state = self._common.ddb.devices.get(req.infuse_id, None)
         if state is None or state.bt_addr is None:
             self._common.notification_broadcast(
-                ClientNotificationConnectionFailed(req.infuse_id, "Device has not been observed over Bluetooth")
+                ClientNotificationConnectionFailed(
+                    req.infuse_id, "Device has not been observed over Bluetooth", req.request_id
+                )
             )
             return
 
@@ -513,7 +518,7 @@ class SerialTxThread(SignaledThread):
 
         # Multiple connection users, subscribe all
         with self._connected_lock:
-            connected = req.infuse_id in self._connected
+            connected = bool(self._connected.get(req.infuse_id))
         if connected:
             subs = bt_char.COMMAND | bt_char.DATA | bt_char.LOGGING
 
@@ -524,23 +529,32 @@ class SerialTxThread(SignaledThread):
             0,
         )
         cmd = self._common.rpc.generate_serial(
-            defs.bt_connect_infuse.COMMAND_ID, bytes(connect_args), Auth.DEVICE, self._bt_connect_cb, None
+            defs.bt_connect_infuse.COMMAND_ID, bytes(connect_args), Auth.DEVICE, self._bt_connect_cb, req.request_id
         )
         with self._connected_lock:
-            self._pending[req.infuse_id] = self._pending.get(req.infuse_id, 0) + 1
+            self._pending[(req.infuse_id, req.request_id)] += 1
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
 
     def _handle_conn_release(self, req: GatewayRequestConnectionRelease):
+        key = (req.infuse_id, req.request_id)
         with self._connected_lock:
-            if self._pending.get(req.infuse_id, 0) > self._deferred_releases.get(req.infuse_id, 0):
-                # The client may have stopped waiting for its request, apply the release once the request completes.
-                self._deferred_releases[req.infuse_id] = self._deferred_releases.get(req.infuse_id, 0) + 1
+            if self._pending[key] > self._cancelled[key]:
+                # The client stopped waiting for its request, apply the release once the request completes.
+                self._cancelled[key] += 1
                 return
-        self._release(req.infuse_id)
+        self._release(req.infuse_id, req.request_id)
 
-    def _release(self, infuse_id: int):
+    def _release(self, infuse_id: int, request_id: int | None):
+        with self._connected_lock:
+            users = self._connected.get(infuse_id)
+            if users is not None and not _decrement(users, request_id):
+                # Not a user of the connection
+                return
+        self._disconnect_unused(infuse_id)
+
+    def _disconnect_unused(self, infuse_id: int):
         if infuse_id == InfuseID.GATEWAY or infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
             return
@@ -551,13 +565,10 @@ class SerialTxThread(SignaledThread):
             return
 
         with self._connected_lock:
-            if infuse_id in self._connected:
-                # Decrement reference count
-                self._connected[infuse_id] -= 1
-                if self._connected[infuse_id] > 0:
-                    # Someone is still using the connection
-                    return
-                self._connected.pop(infuse_id)
+            if self._connected.get(infuse_id) or any(device == infuse_id for device, _ in self._pending):
+                # Someone is still using or waiting for the connection
+                return
+            self._connected.pop(infuse_id, None)
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
         cmd = self._common.rpc.generate_serial(

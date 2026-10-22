@@ -48,6 +48,7 @@ def test_socket_comms():
 def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = 0
+    client._request_id = 0
     client._input_sock = Mock()
     client._output_sock = Mock()
     send = Mock(side_effect=OSError)
@@ -63,6 +64,7 @@ def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
 def client(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = None
+    client._request_id = 0
     monkeypatch.setattr(client, "send", Mock())
     monkeypatch.setattr(client, "receive", Mock())
     return client
@@ -80,6 +82,28 @@ def test_connection_ignores_other_devices(client):
     assert len(requests) == 2
     assert isinstance(requests[1], comms.GatewayRequestConnectionRelease)
     assert requests[1].infuse_id == 123
+    assert requests[1].request_id == requests[0].request_id
+
+
+def test_connection_ignores_other_requests_for_device(client, monkeypatch):
+    monkeypatch.setattr(comms.random, "getrandbits", lambda _bits: 7)
+    client.receive.side_effect = [
+        comms.ClientNotificationConnectionFailed(123, "Other client failure", 8),
+        comms.ClientNotificationConnectionCreated(123, 12, 8),
+        comms.ClientNotificationConnectionCreated(123, 128, 7),
+    ]
+    assert client.connection_create(123, comms.GatewayRequestConnectionRequest.DataType.DATA, 1000) == 128
+    assert client._connection_id == 123
+    assert client.send.call_args.args[0].request_id == 7
+
+
+def test_connection_request_ids_are_unique(client):
+    client.receive.return_value = comms.ClientNotificationConnectionCreated(123, 128)
+    request_ids = set()
+    for _ in range(8):
+        with client.connection(123, comms.GatewayRequestConnectionRequest.DataType.DATA):
+            request_ids.add(client._request_id)
+    assert len(request_ids) == 8
 
 
 def test_rejected_connection_is_not_released(client):
@@ -157,10 +181,36 @@ def test_connection_dropped_matches_only_current_connection(client):
 
 
 def test_connection_failed_notification_json_round_trip():
-    notification = comms.ClientNotificationConnectionFailed(0x0123456789ABCDEF, "Failed to query device shared keys")
+    notification = comms.ClientNotificationConnectionFailed(0x0123456789ABCDEF, "Failed to query device shared keys", 7)
 
     decoded = comms.ClientNotification.from_json(notification.to_json())
 
     assert isinstance(decoded, comms.ClientNotificationConnectionFailed)
     assert decoded.infuse_id == notification.infuse_id
     assert decoded.reason == notification.reason
+    assert decoded.request_id == 7
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        comms.GatewayRequestConnectionRequest(123, comms.GatewayRequestConnectionRequest.DataType.DATA, 1000, 7),
+        comms.GatewayRequestConnectionRelease(123, 7),
+    ],
+)
+def test_connection_request_ids_json_round_trip(message):
+    decoded = comms.GatewayRequest.from_json(message.to_json())
+    assert isinstance(decoded, type(message))
+    assert decoded.request_id == 7
+
+
+def test_connection_messages_without_request_ids_are_accepted():
+    # Gateways and clients that predate request IDs omit them.
+    created = comms.ClientNotification.from_json(
+        {"type": comms.ClientNotification.Type.CONNECTION_CREATED, "infuse_id": 123, "max_payload": 128}
+    )
+    assert isinstance(created, comms.ClientNotificationConnectionCreated)
+    assert created.answers(123, 7)
+    release = comms.GatewayRequest.from_json({"type": comms.GatewayRequest.Type.CONNECTION_RELEASE, "infuse_id": 123})
+    assert isinstance(release, comms.GatewayRequestConnectionRelease)
+    assert release.request_id is None

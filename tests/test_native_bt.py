@@ -302,3 +302,69 @@ def test_shutdown_does_not_reconnect_queued_requests(handler, monkeypatch):
     assert len(clients) == 1
     assert not handler._tasks
     assert not handler._queues
+
+
+def test_release_by_user_of_dropped_connection_does_not_cancel_queued_request(handler, monkeypatch):
+    clients = []
+
+    def factory(*args, **kwargs):
+        clients.append(FakeBleakClient(*args, **kwargs))
+        return clients[-1]
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+    data = GatewayRequestConnectionRequest.DataType.DATA
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, data, 1000, 1))
+        datagram(handler, GatewayRequestConnectionRequest(123, data, 1000, 2))
+        first = handler._tasks[123]
+        while handler._server.broadcast.call_count < 2:
+            await asyncio.sleep(0)
+        # The link drops before the connection loop handles a third client's request and a user's release.
+        clients[0].disconnected_callback(clients[0])
+        datagram(handler, GatewayRequestConnectionRequest(123, data, 1000, 3))
+        datagram(handler, GatewayRequestConnectionRelease(123, 2))
+        await first
+        second = handler._tasks[123]
+        await asyncio.sleep(0)
+        datagram(handler, GatewayRequestConnectionRelease(123, 3))
+        await second
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    assert len(clients) == 2
+    notifications = [call.args[0] for call in handler._server.broadcast.call_args_list]
+    assert [(type(n), getattr(n, "request_id", None)) for n in notifications] == [
+        (ClientNotificationConnectionCreated, 1),
+        (ClientNotificationConnectionCreated, 2),
+        (ClientNotificationConnectionDropped, None),
+        (ClientNotificationConnectionCreated, 3),
+        (ClientNotificationConnectionDropped, None),
+    ]
+
+
+def test_cancelled_queued_request_during_teardown_does_not_reconnect(handler, monkeypatch):
+    clients = []
+
+    def factory(*args, **kwargs):
+        clients.append(FakeBleakClient(*args, **kwargs))
+        return clients[-1]
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+    data = GatewayRequestConnectionRequest.DataType.DATA
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, data, 1000, 1))
+        first = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        clients[0].disconnected_callback(clients[0])
+        # The second client gives up on its request, while the first client's release has nothing to release.
+        datagram(handler, GatewayRequestConnectionRequest(123, data, 1000, 2))
+        datagram(handler, GatewayRequestConnectionRelease(123, 1))
+        datagram(handler, GatewayRequestConnectionRelease(123, 2))
+        await first
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    assert len(clients) == 1
+    assert not handler._queues
+    assert not handler._tasks
