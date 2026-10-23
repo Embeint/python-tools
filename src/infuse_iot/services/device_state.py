@@ -111,8 +111,6 @@ class DeviceState:
         # The existing viewer contract is maintained here, rather than decoded a second time.
         self.display_rows: dict[int, dict] = {}
         self.tdf_types: dict[str, Any] = {}
-        self.applications: set[str] = set()
-        self.networks: set[str] = set()
 
     def observe(self, packet: PacketReceived) -> bool:
         if packet.ptype != InfuseType.TDF or not packet.route:
@@ -131,7 +129,11 @@ class DeviceState:
             self._devices[device] = state
             display = self.display_rows.setdefault(
                 device,
-                {"infuse_id": infuse_device_id_to_vendor(device) or f"0x{device:016x}", "application": "Unknown"},
+                {
+                    "infuse_id": infuse_device_id_to_vendor(device) or f"0x{device:016x}",
+                    "application": "Unknown",
+                    "network_id": "None",
+                },
             )
             display["time"] = InfuseTime.utc_time_string(wall)
             if source.interface == interface.ID.BT_ADV:
@@ -142,7 +144,6 @@ class DeviceState:
                 network = f"0x{source.key_identifier:06x}"
                 state.network_id = network
                 display["network_id"] = network
-                self.networks.add(network)
             for reading in decoded:
                 if not reading.data:
                     continue
@@ -158,9 +159,7 @@ class DeviceState:
                 self.tdf_types[value.NAME] = value
                 display[value.NAME] = self._display(value)
                 if value.NAME in FIRMWARE_READINGS:
-                    application = f"0x{value.application:08x}"
-                    display["application"] = application
-                    self.applications.add(application)
+                    display["application"] = f"0x{value.application:08x}"
                 values = {f.field: _value(f.val, f.field) for f in value.iter_fields(nested_iter=False)}
                 units = {f.name: f.postfix for f in value.iter_fields()}
                 state.readings[value.NAME] = _Reading(values, units, wall, mono, sampled)

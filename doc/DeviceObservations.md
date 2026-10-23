@@ -69,7 +69,8 @@ never outranks a later arrival. `firmware_version` comes from the latest announc
 `firmware_age_seconds` and `firmware_stale`, so new sensor data cannot refresh a
 stale announcement. Values are reported as decoded, without validity rules beyond
 the TDF definitions. ID filters accept hexadecimal in either case, with or
-without `0x`.
+without `0x`. The browser viewer uses the same collector through a display
+adapter and retains its existing WebSocket format.
 
 Library callers use the same services. `DeviceState.snapshot(..., paginate=False)`
 returns every match without retaining a cursor, for one-shot lookups. Pagination
