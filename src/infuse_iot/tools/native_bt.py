@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import ctypes
 import json
+import logging
 import random
 import sys
 from collections import Counter
@@ -37,6 +38,7 @@ from infuse_iot.epacket.packet import (
     PacketOutput,
     PacketReceived,
 )
+from infuse_iot.gateway_control import GatewayControl
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
@@ -78,6 +80,9 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._tasks: dict[int, asyncio.Task] = {}
         self._connected: set[int] = set()
         self._rpc = LocalRpcServer(database, native_bt=True)
+        control = getattr(server, "control", None)
+        self._control = control if isinstance(control, GatewayControl) else GatewayControl(server.broadcast)
+        self._control.kind = "native_bt"
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
         try:
@@ -300,7 +305,12 @@ class MulticastHandler(asyncio.DatagramProtocol):
             self._dispatch(item)
 
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
-        self._dispatch(GatewayRequest.from_json(json.loads(data.decode("utf-8"))))
+        try:
+            request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+            if self._control.accept(request):
+                self._dispatch(request)
+        except (ValueError, TypeError, KeyError, AttributeError, NotImplementedError):
+            logging.getLogger(__name__).warning("Ignoring malformed gateway request")
 
     def _dispatch(self, request: GatewayRequest):
         loop = asyncio.get_event_loop()
