@@ -546,6 +546,252 @@ def test_archive_without_extractor_has_actionable_failure(tmp_path, monkeypatch)
         inspect_release(archive, tmp_path / "cache")
 
 
+def observed(value=PREVIOUS, device=DEVICE, application=APP, board=None, rssi=-65):
+    route = announcement(value, device, application, board).route[0]
+    route.rssi = rssi
+    return route, announce_reading(value, application, board)
+
+
+def run_cli(release, tmp_path, monkeypatch, batches, *arguments, capabilities=None, transfer=None):
+    import argparse
+    from unittest.mock import MagicMock
+
+    from infuse_iot.tools.ota_upgrade import SubCommand
+
+    client = MagicMock()
+    client.capabilities.return_value = capabilities or {"protocol_version": 2, "gateway_kind": "native_bt"}
+    # One batch per subscription: the CLI resubscribes after each transfer.
+    client.observe_announce.side_effect = [iter(batch) for batch in batches]
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.LocalClient", Mock(return_value=client))
+    cache = str(tmp_path / "cli-cache")
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.platformdirs.user_cache_dir", lambda *args: cache)
+    if transfer is not None:
+        monkeypatch.setattr("infuse_iot.tools.ota_upgrade.FirmwareService.transfer", transfer)
+    parser = argparse.ArgumentParser()
+    SubCommand.add_parser(parser)
+    log = tmp_path / "updates.csv"
+    command = SubCommand(parser.parse_args(["--release", str(release.root), "--log", str(log), *arguments]))
+    command.run()
+    rows = [line.split(",")[3:] for line in log.read_text().splitlines()] if log.exists() else []
+    return SimpleNamespace(command=command, client=client, rows=rows)
+
+
+def test_cli_plans_from_announcements_and_verifies_later_announcement(release, tmp_path, monkeypatch):
+    transport = fake_transport(monkeypatch, {"method": "patch"}, [])
+    result = run_cli(
+        release,
+        tmp_path,
+        monkeypatch,
+        [[observed(PREVIOUS)], [observed(PREVIOUS), observed(TARGET)]],
+        "--id",
+        f"0x{DEVICE:016x}",
+    )
+    assert transport.sent == [release.patch]
+    assert result.command._updated == 1 and result.rows == [[TARGET, "upgraded"]]
+    # Native Bluetooth has no gateway device to set the time on.
+    result.client.connection.assert_not_called()
+    assert not (tmp_path / "cli-cache" / "plans").exists()
+
+
+@pytest.mark.parametrize(
+    "current,board,arguments,expected",
+    [
+        ("2.0.0+deadbeef", "sr2202/nrf52840", [], "downgrade"),
+        (OLD, None, [], "no_diff"),
+        (OLD, None, ["--full-image"], "board_unknown_for_full_image"),
+        ("2.0.0+deadbeef", "sr2202/nrf52840", ["--allow-downgrade"], "no_diff"),
+        ("2.0.0+deadbeef", "sr2202/nrf52840", ["--allow-downgrade", "--full-image"], "full_image"),
+        (OLD, None, ["--full-image", "--board", "sr2202/nrf52840", "--id", f"0x{DEVICE:016x}"], "full_image"),
+    ],
+)
+def test_cli_only_writes_patches_unless_full_images_and_downgrades_allowed(
+    release, tmp_path, monkeypatch, current, board, arguments, expected
+):
+    transfer = Mock(return_value={"device_id": f"0x{DEVICE:016x}", "status": "transferred"})
+    batches = [[observed(current, board=board)], [observed(TARGET)]]
+    result = run_cli(release, tmp_path, monkeypatch, batches, *arguments, transfer=transfer)
+    if expected == "full_image":
+        assert transfer.call_args.args[0]["method"] == "full_image" and result.command._updated == 1
+    else:
+        transfer.assert_not_called()
+        if expected == "no_diff":
+            assert result.command._no_diff == 1 and result.command._missing_diffs == {current}
+        else:
+            assert result.command._skipped == {f"0x{DEVICE:016x}: {expected}"}
+
+
+def test_cli_retries_connections_and_logs_failures_with_observed_versions(release, tmp_path, monkeypatch):
+    other = DEVICE + 1
+    transfer = Mock(
+        side_effect=[
+            DeviceError("connection_failed", "busy", True),
+            {"status": "transferred"},
+            DeviceError("rpc_rejected", "rejected"),
+        ]
+    )
+    clock = iter(range(0, 100000, 100))
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.time", SimpleNamespace(time=lambda: next(clock)))
+    batches = [
+        [observed(PREVIOUS), observed(PREVIOUS)],
+        [observed(PREVIOUS, device=other), observed(PREVIOUS)],
+    ]
+    result = run_cli(release, tmp_path, monkeypatch, batches, transfer=transfer)
+    assert transfer.call_count == 3
+    # The verification window passed without the new version, and the second device rejected its write.
+    # Rows keep the five CSV columns, and the summary shows why each device failed.
+    assert result.rows == [[PREVIOUS, "failed"], [PREVIOUS, "failed"]]
+    assert result.command._failures == {f"0x{other:016x}": "rpc_rejected", f"0x{DEVICE:016x}": "verification_timeout"}
+    assert result.command._failed == 2
+
+
+def test_cli_release_and_gateway_errors_exit_cleanly(release, tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+
+    from infuse_iot.common import InfuseID
+
+    client = MagicMock()
+    client.capabilities.side_effect = TimeoutError
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.LocalClient", Mock(return_value=client))
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.platformdirs.user_cache_dir", lambda *args: str(tmp_path))
+    import argparse
+
+    from infuse_iot.tools.ota_upgrade import SubCommand
+
+    parser = argparse.ArgumentParser()
+    SubCommand.add_parser(parser)
+    command = SubCommand(parser.parse_args(["--release", str(release.root)]))
+    with pytest.raises(SystemExit, match="No communications gateway detected"):
+        command.run()
+    # Protocol v1 gateways do not report a kind, but still have their time set.
+    set_time = Mock(return_value=True)
+    monkeypatch.setattr(SubCommand, "set_device_time", set_time)
+    run_cli(release, tmp_path, monkeypatch, [[]], capabilities={"protocol_version": 1, "features": []})
+    assert set_time.call_args.args[1] == InfuseID.GATEWAY
+    release.image_path.unlink()
+    with pytest.raises(SystemExit, match="exactly one OTA image"):
+        run_cli(release, tmp_path, monkeypatch, [[]])
+    with pytest.raises(argparse.ArgumentTypeError, match="--board"):
+        SubCommand(parser.parse_args(["--release", str(release.root), "--board", "sr2202/nrf52840"]))
+
+
+def test_cli_migrates_explicit_devices_with_application_diffs(release, tmp_path, monkeypatch):
+    other_application, other_version = APP + 1, "1.0.0+0000abcd"
+    folder = release.root / "diffs" / f"0x{other_application:08x}"
+    folder.mkdir()
+    patch = cpatch.generate(b"other application" * 12, release.image, False)
+    (folder / f"{other_version}.bin").write_bytes(patch)
+    transport = fake_transport(
+        monkeypatch, {"method": "patch"}, [], current=other_version, application=other_application
+    )
+    batches = [[observed(other_version, application=other_application)], [observed(TARGET)]]
+    result = run_cli(release, tmp_path, monkeypatch, batches, "--id", f"0x{DEVICE:016x}")
+    assert transport.sent == [patch] and result.rows == [[TARGET, "upgraded"]]
+    # Scanning by application never selects another application's devices.
+    run_cli(release, tmp_path, monkeypatch, batches[:1])
+    assert transport.sent == [patch]
+
+
+def test_cli_inspects_once_and_skips_devices_whose_plan_fails(release, tmp_path, monkeypatch):
+    import infuse_iot.services.firmware as firmware
+
+    inspections = Mock(side_effect=inspect_release)
+    monkeypatch.setattr(firmware, "inspect_release", inspections)
+    plan = FirmwareService.plan
+    rejected = f"0x{DEVICE + 1:016x}"
+
+    def planning(self, release_dir, device_ids, **options):
+        if device_ids == [rejected]:
+            raise DeviceError("device_response_invalid", "Announcement could not be decoded")
+        return plan(self, release_dir, device_ids, **options)
+
+    monkeypatch.setattr(FirmwareService, "plan", planning)
+    transfer = Mock(return_value={"status": "transferred"})
+    batches = [
+        [observed(PREVIOUS, device=DEVICE + 1), observed(TARGET, device=DEVICE + 2), observed(PREVIOUS)],
+        [observed(PREVIOUS, device=DEVICE + 3)],
+        [observed(TARGET), observed(TARGET, device=DEVICE + 3)],
+    ]
+    result = run_cli(release, tmp_path, monkeypatch, batches, transfer=transfer)
+    # Announcements are planned against the release inspected at startup.
+    assert inspections.call_count == 1 and transfer.call_count == 2
+    assert result.command._skipped == {f"{rejected}: device_response_invalid"}
+    assert (result.command._already, result.command._updated) == (1, 2)
+
+
+def test_cli_rssi_filter_applies_before_transfer_only(release, tmp_path, monkeypatch):
+    transfer = Mock(return_value={"status": "transferred"})
+    batches = [[observed(TARGET, device=DEVICE + 1, rssi=-90), observed(PREVIOUS, rssi=-90), observed(PREVIOUS)], []]
+    result = run_cli(release, tmp_path, monkeypatch, batches, "--rssi", "-80", transfer=transfer)
+    # A weak device is still counted as current, but only written once its signal is strong enough.
+    assert result.command._already == 1 and transfer.call_count == 1
+    # The run ended before the transferred device announced again.
+    assert result.rows == [[TARGET, "already"], [PREVIOUS, "unverified"]]
+
+
+def test_cli_restages_pruned_bytes_and_stops_if_the_release_changed(release, tmp_path, monkeypatch):
+    transfer = Mock(side_effect=[DeviceError("release_changed", "Staged transfer bytes are missing; replan")] * 2)
+    batches = [[observed(PREVIOUS), observed(PREVIOUS)]]
+    image = release.image_path.read_bytes()
+
+    def changed(*args, **kwargs):
+        if transfer.call_count == 2:
+            release.image_path.write_bytes(image[:-1] + bytes([image[-1] ^ 1]))
+        return inspect_release(*args, **kwargs)
+
+    monkeypatch.setattr("infuse_iot.services.firmware.inspect_release", Mock(side_effect=changed))
+    with pytest.raises(SystemExit, match="Release changed during the scan"):
+        run_cli(release, tmp_path, monkeypatch, batches, transfer=transfer)
+    # The first failure restaged the unchanged release and retried on the next announcement.
+    assert transfer.call_count == 2
+
+
+def test_cli_single_copies_one_diff_through_the_gateway(release, tmp_path, monkeypatch):
+    import argparse
+    from unittest.mock import MagicMock
+
+    from infuse_iot.common import InfuseID
+    from infuse_iot.tools.ota_upgrade import SubCommand
+
+    commands: list[tuple] = []
+
+    class Rpc:
+        def __init__(self, client, mtu, target):
+            self.target = target
+
+        def set_timeout(self, value):
+            pass
+
+        def run_standard_cmd(self, command, auth, params, decoder):
+            commands.append((self.target, command))
+            return SimpleNamespace(return_code=0), None
+
+        def run_data_send_cmd(self, command, auth, params, payload, progress, decoder):
+            commands.append((self.target, command, payload))
+            return SimpleNamespace(return_code=0), None
+
+    client = MagicMock()
+    client.comms_check.return_value = True
+    other = DEVICE + 1
+    client.observe_announce.return_value = iter([observed(PREVIOUS), observed(OLD, device=other), observed(TARGET)])
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.LocalClient", Mock(return_value=client))
+    monkeypatch.setattr("infuse_iot.tools.ota_upgrade.RpcClient", Rpc)
+    parser = argparse.ArgumentParser()
+    SubCommand.add_parser(parser)
+    log = tmp_path / "updates.csv"
+    diff = release.root / "diffs" / f"{PREVIOUS}.bin"
+    command = SubCommand(parser.parse_args(["--single", str(diff), "--log", str(log)]))
+    command.run()
+    # The diff is written to the gateway once, which then copies it to each device.
+    assert commands == [
+        (InfuseID.GATEWAY, defs.file_write_basic.COMMAND_ID, release.patch),
+        (InfuseID.GATEWAY, defs.time_set.COMMAND_ID),
+        (DEVICE, defs.time_set.COMMAND_ID),
+        (InfuseID.GATEWAY, defs.bt_file_copy_basic.COMMAND_ID),
+    ]
+    assert (command._updated, command._no_diff, command._missing_diffs) == (1, 1, {OLD})
+    assert [line.split(",")[3:] for line in log.read_text().splitlines()] == [[TARGET, "upgraded"]]
+
+
 def test_cancel_after_last_bytes_verifies_current_device_and_stops_next(release, tmp_path, monkeypatch):
     service = service_for(release, tmp_path, (PREVIOUS, PREVIOUS))
     plan = service.plan(str(release.root), [f"0x{DEVICE:016x}", f"0x{DEVICE + 1:016x}"])

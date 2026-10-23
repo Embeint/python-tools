@@ -7,9 +7,13 @@ __copyright__ = "Copyright 2024, Embeint Holdings Pty Ltd"
 
 import argparse
 import binascii
+import ctypes
 import sys
 import time
+from contextlib import ExitStack
+from pathlib import Path
 
+import platformdirs
 from rich.live import Live
 from rich.progress import (
     DownloadColumn,
@@ -20,15 +24,19 @@ from rich.status import Status
 from rich.table import Table
 
 from infuse_iot.commands import InfuseCommand, rpc_return_code_str
-from infuse_iot.common import InfuseID
+from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.definitions.rpc import bt_file_copy_basic, file_write_basic, rpc_enum_file_action, time_set
-from infuse_iot.epacket.packet import Auth, HopReceived
+from infuse_iot.epacket.packet import Auth, HopReceived, PacketReceived
 from infuse_iot.generated.tdf_definitions import readings
 from infuse_iot.rpc_client import RpcClient
+from infuse_iot.services.device_operations import DeviceError
+from infuse_iot.services.device_state import DeviceState
+from infuse_iot.services.firmware import FirmwareService
 from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     LocalClient,
 )
+from infuse_iot.tdf import TDF
 from infuse_iot.time import InfuseTime
 from infuse_iot.util.argparse import InfuseDeviceId, ValidFile, ValidRelease, add_server_port_parser
 from infuse_iot.util.crc import crc16_ccitt
@@ -36,6 +44,7 @@ from infuse_iot.util.crc import crc16_ccitt
 
 class SubCommand(InfuseCommand):
     def __init__(self, args):
+        self._args = args
         self._client = LocalClient(args.server_sock, 1.0)
         self._conn_timeout = args.conn_timeout
         self._min_rssi: int | None = args.rssi
@@ -85,12 +94,37 @@ class SubCommand(InfuseCommand):
             with args.list.open("r") as f:
                 for line in f.readlines():
                     self._explicit_ids.append(int(line.strip(), 0))
+        if args.release and args.board is not None and not self._explicit_ids:
+            raise argparse.ArgumentTypeError("--board asserts the board of explicit devices, use --id or --list")
+        if args.release and not 5 <= args.verification_seconds <= 600:
+            raise argparse.ArgumentTypeError("--verification-seconds must be between 5 and 600")
+        self._skipped: set[str] = set()
+        self._failures: dict[str, str] = {}
 
     @classmethod
     def add_parser(cls, parser):
         upgrade_type = parser.add_mutually_exclusive_group(required=True)
         upgrade_type.add_argument("--release", "-r", type=ValidRelease, help="Application release to upgrade to")
         upgrade_type.add_argument("--single", type=ValidFile, help="Single diff")
+        parser.add_argument(
+            "--full-image",
+            action="store_true",
+            help="Write the full signed image to devices without a matching diff (requires board evidence)",
+        )
+        parser.add_argument(
+            "--board",
+            help="Assert the board of the --id/--list devices, for full images to devices without board telemetry",
+        )
+        parser.add_argument(
+            "--allow-downgrade", action="store_true", help="Allow releases older than the running version"
+        )
+        parser.add_argument("--trusted-public-key", help="MCUboot RSA public key PEM for host signature verification")
+        parser.add_argument(
+            "--verification-seconds",
+            type=float,
+            default=60,
+            help="Time for a device to announce the new version after its transfer (5..600 seconds)",
+        )
         parser.add_argument("--rssi", type=int, help="Minimum RSSI to attempt upgrade process")
         parser.add_argument("--log", type=str, help="File to write upgrade results to")
         parser.add_argument(
@@ -111,10 +145,18 @@ class SubCommand(InfuseCommand):
         table.add_row("Already", str(self._already))
         table.add_row("Failed", str(self._failed))
         table.add_row("No Diff", str(self._no_diff))
+        if self._skipped:
+            table.add_row("Skipped", str(len(self._skipped)))
 
         if len(self._missing_diffs) > 0:
             table.add_section()
             table.add_row("Missing diffs", "\n".join(self._missing_diffs))
+        if self._skipped:
+            table.add_section()
+            table.add_row("Skipped", "\n".join(sorted(self._skipped)))
+        if self._failures:
+            table.add_section()
+            table.add_row("Failure reasons", "\n".join(f"{k}: {v}" for k, v in sorted(self._failures.items())))
 
         meta = Table(box=None)
         meta.add_column()
@@ -218,6 +260,198 @@ class SubCommand(InfuseCommand):
             self._pending[source.infuse_id] = time.time() + 60
 
     def run(self):
+        with ExitStack() as stack:
+            if self._log_path is not None:
+                self._log = stack.enter_context(
+                    open(self._log_path, "+a", encoding="utf-8")  # noqa: SIM115
+                )
+            if self._single_diff:
+                self._run()
+            else:
+                self._run_release()
+
+    def _log_result(self, infuse_id: int, version: str, result: str, reason: str | None = None):
+        if reason is not None:
+            # The CSV keeps its five columns, so the reason is shown in the summary instead.
+            self._failures[f"0x{infuse_id:016x}"] = reason
+        if self._log:
+            self._log.write(f"{time.time()},0x{infuse_id:016x},0x{self._app_id:08x},{version},{result}\n")
+            self._log.flush()
+
+    def _run_release(self):
+        """Plan and transfer with the inspected release service used by MCP"""
+        state = DeviceState()
+        service = FirmwareService(
+            self._args.server_sock,
+            state,
+            Path(platformdirs.user_cache_dir("infuse-iot", "Embeint")) / "firmware",
+            require_ownership=False,
+            connection_timeout_ms=self._conn_timeout,
+        )
+        # Inspected once: transfers recheck the staged bytes they send.
+        try:
+            package = service.inspect(str(self._release.dir), self._args.trusted_public_key)
+        except (DeviceError, ValueError) as error:
+            sys.exit(f"Release rejected: {error}")
+        # Versions that transferred devices last announced, for devices still awaiting verification
+        transferred_from: dict[int, str] = {}
+        try:
+            capabilities = self._client.capabilities()
+        except TimeoutError:
+            sys.exit("No communications gateway detected (infuse gateway/bt_native)")
+        # Protocol v1 gateways do not report their kind; only serial gateways have a time to set.
+        if capabilities.get("gateway_kind", "serial") == "serial":
+            with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND) as mtu:
+                if not self.set_device_time(mtu, InfuseID.GATEWAY):
+                    sys.exit("Failed to set time on local gateway")
+        boards = {f"0x{i:016x}": self._args.board for i in self._explicit_ids} if self._args.board else {}
+
+        command = self
+
+        class Context:
+            def check_cancelled(self):
+                pass  # KeyboardInterrupt unwinds the owned connection.
+
+            def checkpoint(self, result):
+                pass
+
+            def sending(self):
+                pass
+
+            def wait(self, seconds):
+                time.sleep(seconds)
+
+            def progress(self, phase, **values):
+                command.state_update(live, f"{phase}: {values.get('device_id', '')}")
+                if "bytes_sent" in values:
+                    if command.task is None:
+                        command.task = command.progress.add_task("", total=values["total_bytes"])
+                    command.progress.update(command.task, completed=values["bytes_sent"])
+
+        def handle(source: HopReceived, announce) -> bool:
+            """Process one announcement, returning whether the device now awaits verification"""
+            v = announce.version
+            v_str = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
+            identifier = f"0x{source.infuse_id:016x}"
+            # Check against pending upgrades
+            if source.infuse_id in self._pending:
+                current = v_str == self._new_ver and announce.application == self._app_id
+                if not current and time.time() < self._pending[source.infuse_id]:
+                    # Device could still be applying the upgrade
+                    return False
+                self._pending.pop(source.infuse_id)
+                transferred_from.pop(source.infuse_id, None)
+                self._handled.append(source.infuse_id)
+                if current:
+                    self._updated += 1
+                    self._log_result(source.infuse_id, v_str, "upgraded")
+                else:
+                    self._failed += 1
+                    self._log_result(source.infuse_id, v_str, "failed", "verification_timeout")
+                return False
+            payload = bytes(TDF.CoreHeader(announce.ID, ctypes.sizeof(announce))) + bytes(announce)
+            state.observe(PacketReceived([source], InfuseType.TDF, payload))
+            try:
+                plan = service.plan(
+                    str(self._release.dir),
+                    [identifier],
+                    device_boards={identifier: boards[identifier]} if identifier in boards else None,
+                    trusted_public_key=self._args.trusted_public_key,
+                    verification_seconds=self._args.verification_seconds,
+                    allow_downgrade=self._args.allow_downgrade,
+                    full_image_fallback=self._args.full_image,
+                    allow_application_change=bool(self._explicit_ids),
+                    store=False,
+                    package=package,
+                )
+            except (DeviceError, ValueError) as error:
+                # Only this device's evidence was rejected; keep scanning for others.
+                self._handled.append(source.infuse_id)
+                self._skipped.add(f"{identifier}: {getattr(error, 'code', 'invalid_request')}")
+                return False
+            entry = plan["devices"][0]
+            if entry["status"] == "already_current":
+                self._handled.append(source.infuse_id)
+                self._already += 1
+                self._log_result(source.infuse_id, v_str, "already")
+                return False
+            if entry["status"] == "blocked":
+                self._handled.append(source.infuse_id)
+                if entry["reason"] == "no_matching_patch":
+                    self._no_diff += 1
+                    self._missing_diffs.add(v_str)
+                else:
+                    self._skipped.add(f"{identifier}: {entry['reason'].split(';')[0]}")
+                return False
+            # Is signal strong enough to connect?
+            if self._min_rssi and source.rssi < self._min_rssi:
+                return False
+            try:
+                outcome = service.transfer(entry, plan["package"], Context(), verification_seconds=None)
+            except DeviceError as error:
+                if error.retryable:
+                    # Nothing was written, retry on a later announcement
+                    return False
+                if error.code == "release_changed":
+                    # Staged bytes were pruned or damaged: stage them again, unless the release itself changed.
+                    try:
+                        unchanged = service.inspect(str(self._release.dir), self._args.trusted_public_key) == package
+                    except (DeviceError, ValueError):
+                        unchanged = False
+                    if unchanged:
+                        return False
+                    sys.exit("Release changed during the scan; restart to inspect it again")
+                if error.code != "outcome_unknown":
+                    self._handled.append(source.infuse_id)
+                    self._failed += 1
+                    self._log_result(source.infuse_id, v_str, "failed", error.code)
+                    return False
+                # The device may still apply the image, so verify it like a completed transfer
+                outcome = {"status": "unknown"}
+            finally:
+                if self.task is not None:
+                    self.progress.remove_task(self.task)
+                    self.task = None
+            if outcome["status"] == "already_current":
+                self._handled.append(source.infuse_id)
+                self._already += 1
+                self._log_result(source.infuse_id, outcome["version"], "already")
+                return False
+            # Verified from later announcements, while other devices are upgraded
+            self._pending[source.infuse_id] = time.time() + self._args.verification_seconds
+            transferred_from[source.infuse_id] = v_str
+            return True
+
+        try:
+            with Live(self.progress_table(), refresh_per_second=4) as live:
+                while True:
+                    for source, announce in self._client.observe_announce():
+                        self.state_update(live, "Scanning")
+                        if self._explicit_ids:
+                            if source.infuse_id not in self._explicit_ids:
+                                continue
+                        elif announce.application != self._app_id:
+                            continue
+                        if source.infuse_id in self._handled:
+                            continue
+                        awaiting = handle(source, announce)
+                        self.state_update(live, "Scanning")
+                        if self._explicit_ids and set(self._explicit_ids) <= set(self._handled):
+                            self.state_update(live, "All devices updated")
+                            return
+                        if awaiting:
+                            break
+                    else:
+                        return
+                    # Announcements queued during a transfer predate it; observe from a new subscription.
+                    self._client.close()
+                    self._client = LocalClient(self._args.server_sock, 1.0)
+        finally:
+            # For example after Ctrl+C: these devices may still apply their image.
+            for infuse_id, version in transferred_from.items():
+                self._log_result(infuse_id, version, "unverified")
+
+    def _run(self):
         if not self._client.comms_check():
             sys.exit("No communications gateway detected (infuse gateway/bt_native)")
 
