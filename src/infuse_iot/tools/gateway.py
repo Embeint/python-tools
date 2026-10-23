@@ -128,6 +128,8 @@ class CommonThreadState:
         def query_failed(reason: str) -> None:
             if query_complete(False, reason):
                 Console.log_error(reason)
+            if cb:
+                cb(False, reason)
 
         def query_timed_out() -> None:
             reason = "Device shared key query timed out"
@@ -228,6 +230,7 @@ class SerialRxThread(SignaledThread):
         self._line = ""
         self._log = log
         self._next_ping = 0.0
+        self._key_query_pending = False
         self._startup_disconnect_sent = False
         self._tdf_decoder = tdf.TDF()
         super().__init__(self._iter)
@@ -294,6 +297,9 @@ class SerialRxThread(SignaledThread):
                     self._connection_dropped(infuse_id)
                     self._common.notification_broadcast(ClientNotificationConnectionDropped(infuse_id))
 
+    def _key_query_done(self, _success: bool, _reason: str | None) -> None:
+        self._key_query_pending = False
+
     def _handle_serial_frame(self, frame: bytearray):
         try:
             # Decode the serial packet
@@ -309,9 +315,13 @@ class SerialRxThread(SignaledThread):
                         Console.log_info(f"Dropping {len(frame)} byte packet to query network ID...")
                     else:
                         Console.log_info(f"Dropping {len(frame)} byte packet...")
-                else:
-                    self._common.query_device_key(self._common.ddb.gateway, None)
+                elif not self._key_query_pending:
+                    # Only send a new query once the pending one has finished
+                    self._key_query_pending = True
+                    self._common.query_device_key(self._common.ddb.gateway, cb=self._key_query_done)
                     Console.log_info(f"Dropping {len(frame)} byte packet to query device key...")
+                else:
+                    Console.log_info(f"Dropping {len(frame)} byte packet...")
                 return
             except cryptography.exceptions.InvalidTag as e:
                 Console.log_error(f"Failed to decode {len(frame)} byte packet {e}")
