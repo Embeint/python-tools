@@ -58,6 +58,7 @@ class SubCommand(InfuseCommand):
         parser_query = subparser.add_parser("query", help="Query the state of a previously queued RPC")
         parser_query.set_defaults(_tool_action="query")
         parser_query.add_argument("--id", required=True, type=str, help="RPC ID from `infuse rpc_cloud queue`")
+        parser_query.add_argument("--args", action="store_true", help="Display RPC arguments")
 
     def __init__(self, args: argparse.Namespace):
         self._args = args
@@ -115,6 +116,22 @@ class SubCommand(InfuseCommand):
 
         print(f"   RPC ID: {rpc_req.command_id} ({command_name})")
         print(f"       To: {to_str}")
+        if self._args.args:
+            if rpc_req.params:
+                print("     Args:")
+                print(json.dumps(rpc_req.params.additional_properties, indent=4))
+            elif rpc_req.params_encoded:
+                raw_req = base64.b64decode(rpc_req.params_encoded)
+                print(f" Args Raw: {raw_req.hex()}")
+                if command_wrapper:
+                    try:
+                        req = command_wrapper.request.vla_from_buffer_copy(raw_req)
+                        print("  Decoded")
+                        print(req)
+                    except Exception as _e:
+                        print(f"Failed to decode {command_name} request")
+            else:
+                print("     Args: None")
         # Manually detect downlink expiry, as the API doesn't do it
         if downlink.status == DownlinkMessageStatus.WAITING and downlink.expires_at and now > downlink.expires_at:
             print("    State: expired")
