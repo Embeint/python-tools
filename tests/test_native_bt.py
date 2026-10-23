@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import json
 from types import SimpleNamespace
@@ -5,20 +6,29 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
+from cryptography.exceptions import InvalidTag
 
-from infuse_iot.common import InfuseBluetoothUUID
+from infuse_iot.common import InfuseBluetoothUUID, InfuseType
+from infuse_iot.database import UnknownNetworkError
 from infuse_iot.gateway_control import GatewayControl
+from infuse_iot.services.ble_observations import INFUSE_SERVICE
 from infuse_iot.socket_comms import (
+    ClientNotification,
     ClientNotificationConnection,
     ClientNotificationConnectionCreated,
     ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
+    ClientNotificationEpacketReceived,
+    GatewayRequest,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
     GatewayRequestControl,
 )
 from infuse_iot.tools.native_bt import InfuseGattReadResponse, MulticastHandler
+from infuse_iot.tools.native_bt import SubCommand as NativeBt
 
 
 class FakeBleakClient:
@@ -601,3 +611,85 @@ def test_legacy_reconnect_during_teardown_blocks_operations(owned):
     assert owned.server.results() == [(created, None), (dropped, None), (created, None), (dropped, None)]
     assert all(client.closed for client in owned.clients)
     assert not handler._tasks
+
+
+@pytest.fixture
+def gateway(monkeypatch):
+    """The native Bluetooth gateway command, without sockets, credentials or an adapter."""
+    monkeypatch.setattr("infuse_iot.tools.native_bt.LocalServer", lambda _address: ObservingServer())
+    monkeypatch.setattr("infuse_iot.tools.native_bt.DeviceDatabase", Mock())
+    monkeypatch.setattr("infuse_iot.tools.native_bt.Console.init", lambda: None)
+    return NativeBt(argparse.Namespace(root=None, server_sock=("224.1.1.1", 1), report_interval=0))
+
+
+def advertise(command, address, name=None, manufacturer=None, services=()):
+    device = BLEDevice(address, name, None)
+    data = AdvertisementData(name, manufacturer or {}, {}, list(services), None, -60, ())
+    command.simple_callback(device, data)
+
+
+def query(command, method, parameters):
+    """Send a control request and decode the reply, as datagrams are."""
+    request = json.loads(json.dumps(GatewayRequestControl(method, parameters).to_json()))
+    command.server.control.accept(GatewayRequest.from_json(request))
+    return ClientNotification.from_json(json.loads(json.dumps(command.server.sent[-1].to_json())))
+
+
+def test_gateway_serves_raw_observations(gateway):
+    advertise(gateway, "60:fc:f1:00:61:61", "CT Logger", {0x004C: b"\x01"})
+    advertise(gateway, "60:fc:f1:00:61:61", services=[INFUSE_SERVICE])
+    advertise(gateway, "aa:bb:cc:dd:ee:ff")
+    capabilities = gateway.server.control.capabilities()
+    assert {"raw_observations", "diagnostics"} <= set(capabilities["features"])
+    reply = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": None, "limit": 1})
+    assert reply.ok
+    (row,) = reply.result["items"]
+    assert (row["identifier"], row["name"], row["infuse_candidate"]) == ("60:FC:F1:00:61:61", "CT Logger", True)
+    assert reply.result["gateway"] == {
+        "instance_id": capabilities["instance_id"],
+        "version": capabilities["version"],
+        "gateway_kind": "native_bt",
+        "protocol_version": 2,
+    }
+    following = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": reply.result["next_cursor"]})
+    assert [row["identifier"] for row in following.result["items"]] == ["AA:BB:CC:DD:EE:FF"]
+    expired = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": "deadbeef:1"})
+    assert (expired.ok, expired.code) == (False, "snapshot_expired")
+
+
+@pytest.mark.parametrize(
+    "parameters, code, message",
+    [
+        ({"cursor": 5}, "invalid_cursor", "cursor"),
+        ({"max_age_seconds": 10**400}, "invalid_request", "max_age_seconds"),
+        ({"max_age_seconds": "20"}, "invalid_request", "max_age_seconds"),
+        ({"limit": True}, "invalid_request", "limit"),
+        ({"limit": 201}, "invalid_request", "limit"),
+        ({"infuse_only": "yes"}, "invalid_request", "infuse_only"),
+        ({"max_bytes": 60000}, "invalid_request", "Unknown parameters: max_bytes"),
+    ],
+)
+def test_gateway_rejects_invalid_observation_parameters(gateway, parameters, code, message):
+    reply = query(gateway, "raw_observations", parameters)
+    assert (reply.ok, reply.code) == (False, code)
+    assert message in reply.result["message"]
+
+
+def test_gateway_counts_decryption_failures(gateway, monkeypatch):
+    header = SimpleNamespace(device_id=123, flags=0, key_metadata=0xCE7E50, gps_time=0, sequence=1, type=InfuseType.TDF)
+    decrypt = Mock(side_effect=[UnknownNetworkError(0x123456), InvalidTag(), (header, b"")])
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    for _ in range(3):
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer={0x0DE4: b"\x00" * 16})
+    advertise(gateway, "aa:bb:cc:dd:ee:ff", manufacturer={0x004C: b"\x01"})
+    reply = query(gateway, "diagnostics", {})
+    assert reply.result == {
+        "infuse_advertisements": 3,
+        "decrypted_packets": 1,
+        "unknown_network_packets": 1,
+        "invalid_tag_packets": 1,
+        "advertisements": 4,
+        "gateway_kind": "native_bt",
+    }
+    assert isinstance(gateway.server.sent[0], ClientNotificationEpacketReceived)
+    assert query(gateway, "diagnostics", {"reset": True}).code == "invalid_request"
