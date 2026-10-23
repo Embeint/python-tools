@@ -15,6 +15,7 @@ from infuse_iot.api_client.api.device import (
     get_device_kv_entry_by_device_id_and_key_id,
 )
 from infuse_iot.credentials import get_api_auth_header
+from infuse_iot.util.api import format_api_error
 
 
 class ScriptConfig:
@@ -46,26 +47,25 @@ if __name__ == "__main__":
         for device in config.devices:
             id_str = f"{device:016x}"
 
-            entry = get_device_kv_entry_by_device_id_and_key_id.sync(
+            # Failures are specific to this device, report and continue with the remaining devices.
+            # Key may not have been set on the device yet (404), so only skip on a matching value.
+            entry = get_device_kv_entry_by_device_id_and_key_id.sync_detailed(
                 client=client, device_id=id_str, key_id=config.kv_key
-            )
+            ).parsed
 
             if isinstance(entry, models.DeviceKVEntry) and entry.data == config.kv_value:
                 print(f"{id_str}: Already has desired value")
                 continue
 
-            update = create_device_kv_entry_update_by_device_id_and_key_id.sync(
+            rsp = create_device_kv_entry_update_by_device_id_and_key_id.sync_detailed(
                 client=client,
                 device_id=id_str,
                 key_id=config.kv_key,
                 body=params,
             )
-            if isinstance(update, models.DeviceKVEntry):
+            if isinstance(rsp.parsed, models.DeviceKVEntry):
                 print(f"{id_str}: Already has desired value (not caught above?)")
-            elif isinstance(update, models.DeviceKVEntryUpdate):
-                print(f"{id_str}: Update scheduled ({update.id})")
-            elif isinstance(update, models.Error):
-                print(f"{id_str}: <{update.code}> {update.message}")
+            elif isinstance(rsp.parsed, models.DeviceKVEntryUpdate):
+                print(f"{id_str}: Update scheduled ({rsp.parsed.id})")
             else:
-                assert update is None
-                print(f"{id_str}: No response?")
+                print(f"{id_str}: KV update: {format_api_error(rsp)}")
