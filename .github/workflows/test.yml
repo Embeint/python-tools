@@ -15,9 +15,9 @@ jobs:
       max-parallel: 2
       fail-fast: true
       matrix:
-        # Test the extreme Python versions for now to reduce CI runtime
+        # Test the extreme Python versions for now to reduce CI runtime; the MCP job covers 3.11
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.11', '3.12', '3.15']
+        python-version: ['3.10', '3.12', '3.15']
         # Exclude Windows 3.15 for now as the lack of pre-built wheels blows out test times
         exclude:
           - os: windows-latest
