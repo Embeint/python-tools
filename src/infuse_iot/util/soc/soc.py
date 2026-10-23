@@ -12,6 +12,7 @@ class ProvisioningInterface(metaclass=ABCMeta):
             ("device_id", ctypes.c_uint64),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     @property
     @abstractmethod

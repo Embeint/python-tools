@@ -24,6 +24,7 @@ class challenge_response_header(ctypes.LittleEndianStructure):
         ("challenge_response_type", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class challenge_response_basic_encr(ctypes.LittleEndianStructure):
@@ -35,6 +36,7 @@ class challenge_response_basic_encr(ctypes.LittleEndianStructure):
         ("tag", 16 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class challenge_response_basic(ctypes.LittleEndianStructure):
@@ -44,6 +46,7 @@ class challenge_response_basic(ctypes.LittleEndianStructure):
         ("device_id", ctypes.c_uint64),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class security_state(InfuseRpcCommand, defs.security_state):

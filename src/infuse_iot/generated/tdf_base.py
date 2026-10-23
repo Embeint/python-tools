@@ -121,6 +121,7 @@ class TdfReadingBase(ctypes.LittleEndianStructure):
             ID = cls.ID
             _fields_ = cls._fields_[:-1] + [(var_name, source_var_num * var_type)]  # type: ignore
             _pack_ = 1
+            _layout_ = "ms"
             _postfix_ = cls._postfix_
             _display_fmt_ = cls._display_fmt_
             _vla_field_ = var_name

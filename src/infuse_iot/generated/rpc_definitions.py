@@ -19,6 +19,7 @@ class rpc_struct_mcuboot_img_sem_ver(VLACompatLittleEndianStruct):
         ("build_num", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_kv_store_value(VLACompatLittleEndianStruct):
@@ -31,6 +32,7 @@ class rpc_struct_kv_store_value(VLACompatLittleEndianStruct):
     vla_field = ("data", 0 * ctypes.c_uint8)
     vla_counted_by = "len"
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_kv_store_crc(VLACompatLittleEndianStruct):
@@ -41,6 +43,7 @@ class rpc_struct_kv_store_crc(VLACompatLittleEndianStruct):
         ("crc", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_bt_addr_le(VLACompatLittleEndianStruct):
@@ -51,6 +54,7 @@ class rpc_struct_bt_addr_le(VLACompatLittleEndianStruct):
         ("val", 6 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_ipv4_address(VLACompatLittleEndianStruct):
@@ -60,6 +64,7 @@ class rpc_struct_ipv4_address(VLACompatLittleEndianStruct):
         ("addr", 4 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_ipv6_address(VLACompatLittleEndianStruct):
@@ -69,6 +74,7 @@ class rpc_struct_ipv6_address(VLACompatLittleEndianStruct):
         ("addr", 16 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_network_state(VLACompatLittleEndianStruct):
@@ -83,6 +89,7 @@ class rpc_struct_network_state(VLACompatLittleEndianStruct):
         ("ipv6", rpc_struct_ipv6_address),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_wifi_state(VLACompatLittleEndianStruct):
@@ -102,6 +109,7 @@ class rpc_struct_wifi_state(VLACompatLittleEndianStruct):
         ("twt_capable", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_lte_state(VLACompatLittleEndianStruct):
@@ -124,6 +132,7 @@ class rpc_struct_lte_state(VLACompatLittleEndianStruct):
         ("rsrq", ctypes.c_int8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_lte_state_v2(VLACompatLittleEndianStruct):
@@ -148,6 +157,7 @@ class rpc_struct_lte_state_v2(VLACompatLittleEndianStruct):
         ("cp_rai", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
@@ -164,6 +174,7 @@ class rpc_struct_wifi_scan_result(VLACompatLittleEndianStruct):
     vla_field = ("ssid", 0 * ctypes.c_char)
     vla_counted_by = "ssid_len"
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_xyz_s16(VLACompatLittleEndianStruct):
@@ -175,6 +186,7 @@ class rpc_struct_xyz_s16(VLACompatLittleEndianStruct):
         ("z", ctypes.c_int16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_infuse_state(VLACompatLittleEndianStruct):
@@ -185,6 +197,7 @@ class rpc_struct_infuse_state(VLACompatLittleEndianStruct):
         ("timeout", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_sockaddr(VLACompatLittleEndianStruct):
@@ -197,6 +210,7 @@ class rpc_struct_sockaddr(VLACompatLittleEndianStruct):
         ("scope_id", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_heap_info(VLACompatLittleEndianStruct):
@@ -209,6 +223,7 @@ class rpc_struct_heap_info(VLACompatLittleEndianStruct):
         ("max_allocated_bytes", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_data_logger_chunk(VLACompatLittleEndianStruct):
@@ -220,6 +235,7 @@ class rpc_struct_data_logger_chunk(VLACompatLittleEndianStruct):
         ("num_bytes", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_public_key_info_256bit(VLACompatLittleEndianStruct):
@@ -230,10 +246,11 @@ class rpc_struct_public_key_info_256bit(VLACompatLittleEndianStruct):
         ("key", 32 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_thread_stats(VLACompatLittleEndianStruct):
-    """IPv6 address"""
+    """Thread statistics"""
 
     _fields_ = [
         ("stack_size", ctypes.c_uint32),
@@ -242,6 +259,7 @@ class rpc_struct_thread_stats(VLACompatLittleEndianStruct):
     ]
     vla_field = ("name", 0 * ctypes.c_char)
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_data_logger_flushed(VLACompatLittleEndianStruct):
@@ -252,6 +270,7 @@ class rpc_struct_data_logger_flushed(VLACompatLittleEndianStruct):
         ("num", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_filesystem_file_metadata(VLACompatLittleEndianStruct):
@@ -263,6 +282,7 @@ class rpc_struct_filesystem_file_metadata(VLACompatLittleEndianStruct):
         ("crc", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_struct_filesystem_file_info(VLACompatLittleEndianStruct):
@@ -274,6 +294,7 @@ class rpc_struct_filesystem_file_info(VLACompatLittleEndianStruct):
         ("size", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class rpc_enum_bt_le_addr_type(enum.IntEnum):
@@ -392,12 +413,14 @@ class reboot(RPCDefinitionBase):
             ("delay_ms", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("delay_ms", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class fault(RPCDefinitionBase):
@@ -414,10 +437,12 @@ class fault(RPCDefinitionBase):
             ("zero", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class time_get(RPCDefinitionBase):
@@ -431,6 +456,7 @@ class time_get(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -439,6 +465,7 @@ class time_get(RPCDefinitionBase):
             ("sync_age", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class time_set(RPCDefinitionBase):
@@ -454,10 +481,12 @@ class time_set(RPCDefinitionBase):
             ("epoch_time", ctypes.c_uint64),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class kv_write(RPCDefinitionBase):
@@ -474,11 +503,13 @@ class kv_write(RPCDefinitionBase):
         ]
         vla_field = ("values", 0 * rpc_struct_kv_store_value)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         vla_field = ("rc", 0 * ctypes.c_int16)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class kv_read(RPCDefinitionBase):
@@ -495,11 +526,13 @@ class kv_read(RPCDefinitionBase):
         ]
         vla_field = ("keys", 0 * ctypes.c_uint16)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         vla_field = ("values", 0 * rpc_struct_kv_store_value)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class kv_reflect_crcs(RPCDefinitionBase):
@@ -515,6 +548,7 @@ class kv_reflect_crcs(RPCDefinitionBase):
             ("offset", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -523,6 +557,7 @@ class kv_reflect_crcs(RPCDefinitionBase):
         ]
         vla_field = ("crcs", 0 * rpc_struct_kv_store_crc)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class zbus_channel_state(RPCDefinitionBase):
@@ -538,6 +573,7 @@ class zbus_channel_state(RPCDefinitionBase):
             ("channel_id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -547,6 +583,7 @@ class zbus_channel_state(RPCDefinitionBase):
         ]
         vla_field = ("data", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class application_info(RPCDefinitionBase):
@@ -560,6 +597,7 @@ class application_info(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -573,6 +611,7 @@ class application_info(RPCDefinitionBase):
             ("data_blocks_external", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class wifi_scan(RPCDefinitionBase):
@@ -586,6 +625,7 @@ class wifi_scan(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -593,6 +633,7 @@ class wifi_scan(RPCDefinitionBase):
         ]
         vla_field = ("networks", 0 * rpc_struct_wifi_scan_result)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class wifi_state(RPCDefinitionBase):
@@ -606,6 +647,7 @@ class wifi_state(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -613,6 +655,7 @@ class wifi_state(RPCDefinitionBase):
             ("wifi", rpc_struct_wifi_state),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class last_reboot(RPCDefinitionBase):
@@ -626,6 +669,7 @@ class last_reboot(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -640,6 +684,7 @@ class last_reboot(RPCDefinitionBase):
         ]
         vla_field = ("esf", 0 * ctypes.c_uint32)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_state(RPCDefinitionBase):
@@ -655,6 +700,7 @@ class data_logger_state(RPCDefinitionBase):
             ("logger", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -670,6 +716,7 @@ class data_logger_state(RPCDefinitionBase):
             ("uptime", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_read(RPCDefinitionBase):
@@ -687,6 +734,7 @@ class data_logger_read(RPCDefinitionBase):
             ("last_block", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -694,6 +742,7 @@ class data_logger_read(RPCDefinitionBase):
             ("sent_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class mem_read(RPCDefinitionBase):
@@ -709,6 +758,7 @@ class mem_read(RPCDefinitionBase):
             ("address", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -716,6 +766,7 @@ class mem_read(RPCDefinitionBase):
             ("sent_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class infuse_states_query(RPCDefinitionBase):
@@ -731,6 +782,7 @@ class infuse_states_query(RPCDefinitionBase):
             ("offset", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -738,6 +790,7 @@ class infuse_states_query(RPCDefinitionBase):
         ]
         vla_field = ("states", 0 * rpc_struct_infuse_state)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class infuse_states_update(RPCDefinitionBase):
@@ -754,10 +807,12 @@ class infuse_states_update(RPCDefinitionBase):
         ]
         vla_field = ("states", 0 * rpc_struct_infuse_state)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_erase(RPCDefinitionBase):
@@ -774,10 +829,12 @@ class data_logger_erase(RPCDefinitionBase):
             ("erase_empty", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class heap_stats(RPCDefinitionBase):
@@ -791,11 +848,13 @@ class heap_stats(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         vla_field = ("stats", 0 * rpc_struct_heap_info)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class lte_at_cmd(RPCDefinitionBase):
@@ -810,11 +869,13 @@ class lte_at_cmd(RPCDefinitionBase):
         _fields_ = []
         vla_field = ("cmd", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         vla_field = ("rsp", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class lte_state(RPCDefinitionBase):
@@ -828,6 +889,7 @@ class lte_state(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -835,6 +897,7 @@ class lte_state(RPCDefinitionBase):
             ("lte", rpc_struct_lte_state),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_read_available(RPCDefinitionBase):
@@ -852,6 +915,7 @@ class data_logger_read_available(RPCDefinitionBase):
             ("num_blocks", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -862,6 +926,7 @@ class data_logger_read_available(RPCDefinitionBase):
             ("block_size", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class lte_state_v2(RPCDefinitionBase):
@@ -875,6 +940,7 @@ class lte_state_v2(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -882,6 +948,7 @@ class lte_state_v2(RPCDefinitionBase):
             ("lte", rpc_struct_lte_state_v2),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_state_v2(RPCDefinitionBase):
@@ -897,6 +964,7 @@ class data_logger_state_v2(RPCDefinitionBase):
             ("logger", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -912,6 +980,7 @@ class data_logger_state_v2(RPCDefinitionBase):
             ("uptime", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_logger_read_chunks(RPCDefinitionBase):
@@ -929,6 +998,7 @@ class data_logger_read_chunks(RPCDefinitionBase):
         ]
         vla_field = ("chunks", 0 * rpc_struct_data_logger_chunk)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -938,6 +1008,7 @@ class data_logger_read_chunks(RPCDefinitionBase):
             ("block_size", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class thread_stats(RPCDefinitionBase):
@@ -951,12 +1022,14 @@ class thread_stats(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("num_threads", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class coap_download(RPCDefinitionBase):
@@ -978,6 +1051,7 @@ class coap_download(RPCDefinitionBase):
         ]
         vla_field = ("resource", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -985,6 +1059,7 @@ class coap_download(RPCDefinitionBase):
             ("resource_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class zperf_upload(RPCDefinitionBase):
@@ -1005,6 +1080,7 @@ class zperf_upload(RPCDefinitionBase):
             ("packet_size", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1020,6 +1096,7 @@ class zperf_upload(RPCDefinitionBase):
             ("nb_packets_errors", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class coap_download_v2(RPCDefinitionBase):
@@ -1042,6 +1119,7 @@ class coap_download_v2(RPCDefinitionBase):
         ]
         vla_field = ("resource", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1049,6 +1127,7 @@ class coap_download_v2(RPCDefinitionBase):
             ("resource_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class coap_download_v3(RPCDefinitionBase):
@@ -1074,6 +1153,7 @@ class coap_download_v3(RPCDefinitionBase):
         ]
         vla_field = ("resource", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1081,6 +1161,7 @@ class coap_download_v3(RPCDefinitionBase):
             ("resource_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class file_write_basic(RPCDefinitionBase):
@@ -1097,6 +1178,7 @@ class file_write_basic(RPCDefinitionBase):
             ("file_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1104,6 +1186,7 @@ class file_write_basic(RPCDefinitionBase):
             ("recv_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class annotate(RPCDefinitionBase):
@@ -1121,10 +1204,12 @@ class annotate(RPCDefinitionBase):
         ]
         vla_field = ("annotation", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class tdf_data_logger_flush(RPCDefinitionBase):
@@ -1140,6 +1225,7 @@ class tdf_data_logger_flush(RPCDefinitionBase):
             ("loggers", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1148,6 +1234,7 @@ class tdf_data_logger_flush(RPCDefinitionBase):
         vla_field = ("flushed", 0 * rpc_struct_data_logger_flushed)
         vla_counted_by = "num"
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class shipping_mode(RPCDefinitionBase):
@@ -1163,12 +1250,14 @@ class shipping_mode(RPCDefinitionBase):
             ("enter", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
             ("expected_delay_ms", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class file_write(RPCDefinitionBase):
@@ -1188,6 +1277,7 @@ class file_write(RPCDefinitionBase):
             ("file_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1195,6 +1285,7 @@ class file_write(RPCDefinitionBase):
             ("recv_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class nrf93m1_fota(RPCDefinitionBase):
@@ -1209,6 +1300,7 @@ class nrf93m1_fota(RPCDefinitionBase):
         _fields_ = []
         vla_field = ("url", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1216,6 +1308,7 @@ class nrf93m1_fota(RPCDefinitionBase):
             ("detail", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class bt_connect_infuse(RPCDefinitionBase):
@@ -1234,6 +1327,7 @@ class bt_connect_infuse(RPCDefinitionBase):
             ("inactivity_timeout_ms", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1243,6 +1337,7 @@ class bt_connect_infuse(RPCDefinitionBase):
             ("network_id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class bt_disconnect(RPCDefinitionBase):
@@ -1258,10 +1353,12 @@ class bt_disconnect(RPCDefinitionBase):
             ("peer", rpc_struct_bt_addr_le),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class bt_file_copy_basic(RPCDefinitionBase):
@@ -1283,10 +1380,12 @@ class bt_file_copy_basic(RPCDefinitionBase):
             ("pipelining", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class bt_file_copy_coap(RPCDefinitionBase):
@@ -1313,6 +1412,7 @@ class bt_file_copy_coap(RPCDefinitionBase):
         ]
         vla_field = ("resource", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1320,6 +1420,7 @@ class bt_file_copy_coap(RPCDefinitionBase):
             ("resource_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class bt_mcumgr_reboot(RPCDefinitionBase):
@@ -1336,10 +1437,12 @@ class bt_mcumgr_reboot(RPCDefinitionBase):
             ("conn_timeout_ms", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class gravity_reference_update(RPCDefinitionBase):
@@ -1355,6 +1458,7 @@ class gravity_reference_update(RPCDefinitionBase):
             ("max_variance", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1364,6 +1468,7 @@ class gravity_reference_update(RPCDefinitionBase):
             ("sample_period_us", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class filesystem_ls(RPCDefinitionBase):
@@ -1380,6 +1485,7 @@ class filesystem_ls(RPCDefinitionBase):
             ("skip", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1389,6 +1495,7 @@ class filesystem_ls(RPCDefinitionBase):
         vla_field = ("files", 0 * rpc_struct_filesystem_file_info)
         vla_counted_by = "contained_files"
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class filesystem_rm(RPCDefinitionBase):
@@ -1405,10 +1512,12 @@ class filesystem_rm(RPCDefinitionBase):
             ("file", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class ubx_assist_now_ztp_creds(RPCDefinitionBase):
@@ -1424,6 +1533,7 @@ class ubx_assist_now_ztp_creds(RPCDefinitionBase):
             ("mon_ver_offset", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1431,6 +1541,7 @@ class ubx_assist_now_ztp_creds(RPCDefinitionBase):
         ]
         vla_field = ("ubx_mon_ver", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class security_state(RPCDefinitionBase):
@@ -1446,6 +1557,7 @@ class security_state(RPCDefinitionBase):
             ("challenge", 16 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1456,6 +1568,7 @@ class security_state(RPCDefinitionBase):
         ]
         vla_field = ("challenge_response", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class security_key_update(RPCDefinitionBase):
@@ -1475,10 +1588,12 @@ class security_key_update(RPCDefinitionBase):
             ("reboot_delay", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class security_public_keys(RPCDefinitionBase):
@@ -1494,6 +1609,7 @@ class security_public_keys(RPCDefinitionBase):
             ("skip", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1503,6 +1619,7 @@ class security_public_keys(RPCDefinitionBase):
         vla_field = ("public_keys", 0 * rpc_struct_public_key_info_256bit)
         vla_counted_by = "keys_included"
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_sender(RPCDefinitionBase):
@@ -1516,10 +1633,12 @@ class data_sender(RPCDefinitionBase):
     class request(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class data_receiver(RPCDefinitionBase):
@@ -1535,6 +1654,7 @@ class data_receiver(RPCDefinitionBase):
             ("unaligned_input", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = [
@@ -1542,6 +1662,7 @@ class data_receiver(RPCDefinitionBase):
             ("recv_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class echo(RPCDefinitionBase):
@@ -1556,11 +1677,13 @@ class echo(RPCDefinitionBase):
         _fields_ = []
         vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         _fields_ = []
         vla_field = ("array", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
 
 id_type_mapping: dict[int, type[RPCDefinitionBase]] = {

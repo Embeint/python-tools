@@ -337,11 +337,13 @@ class CtypeForwardHeaderBtGatt(ctypes.LittleEndianStructure):
         ("address", Address.BluetoothLeAddr.CtypesFormat),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class CtypeV0Frame(ctypes.LittleEndianStructure):
     _fields_ = []
     _pack_ = 1
+    _layout_ = "ms"
 
     @property
     def type(self) -> InfuseType:
@@ -386,6 +388,7 @@ class CtypeV0VersionedFrame(CtypeV0Frame):
         ("entropy", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class CtypeV0UnversionedFrame(CtypeV0Frame):
@@ -400,6 +403,7 @@ class CtypeV0UnversionedFrame(CtypeV0Frame):
         ("entropy", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class CtypeSerialFrame(CtypeV0VersionedFrame):
@@ -528,6 +532,7 @@ class CtypePacketReceived:
             ("_if", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def len(self):
@@ -555,6 +560,7 @@ class CtypePacketReceived:
             ("_key_id", 3 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def type(self):

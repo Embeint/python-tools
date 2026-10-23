@@ -19,6 +19,7 @@ class interface_state(ctypes.LittleEndianStructure):
         ("ipv6", 16 * ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
     @property
     def state(self):
@@ -48,6 +49,7 @@ class wifi_state_struct(ctypes.LittleEndianStructure):
         ("twt_capable", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
     @property
     def state(self):
@@ -77,6 +79,7 @@ class wifi_state(InfuseRpcCommand, defs.wifi_state):
             ("wifi", wifi_state_struct),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     @classmethod
     def add_parser(cls, parser):

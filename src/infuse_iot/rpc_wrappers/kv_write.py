@@ -19,6 +19,7 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
             ("num", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         vla_field = ("rc", 0 * ctypes.c_int16)
@@ -32,6 +33,7 @@ class kv_write(InfuseRpcCommand, defs.kv_write):
                 ("data", ctypes.c_ubyte * len(value_bytes)),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         return kv_store_value(id, len(value_bytes), bytes_to_uint8(value_bytes))
 

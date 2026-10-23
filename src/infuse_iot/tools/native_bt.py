@@ -64,6 +64,7 @@ class InfuseGattReadResponse(ctypes.LittleEndianStructure):
         ("network_id", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class MulticastHandler(asyncio.DatagramProtocol):

@@ -18,6 +18,7 @@ class structs:
             ("build_num", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "major": "",
             "minor": "",
@@ -40,6 +41,7 @@ class structs:
             ("z", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "x": "",
             "y": "",
@@ -60,6 +62,7 @@ class structs:
             ("_height", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "latitude": "deg",
             "longitude": "deg",
@@ -91,6 +94,7 @@ class structs:
             ("tac", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "eci": "",
             "tac": "",
@@ -110,6 +114,7 @@ class structs:
             ("tac", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "mcc": "",
             "mnc": "",
@@ -134,6 +139,7 @@ class structs:
             ("rsrq", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "earfcn": "",
             "pci": "",
@@ -165,6 +171,7 @@ class structs:
             ("_val", 6 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "type": "",
             "val": "",
@@ -185,6 +192,7 @@ class structs:
             ("_val", 6 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -211,6 +219,7 @@ class structs:
             ("twt_capable", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "bssid": "",
             "band": "",
@@ -255,6 +264,7 @@ class readings:
             ("flags", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "application": "",
             "version": "",
@@ -285,6 +295,7 @@ class readings:
             ("soc", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "voltage_mv": "mV",
             "current_ua": "uA",
@@ -307,6 +318,7 @@ class readings:
             ("_humidity", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "temperature": "deg",
             "pressure": "kPA",
@@ -339,6 +351,7 @@ class readings:
             ("_temperature", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "temperature": "deg",
         }
@@ -360,6 +373,7 @@ class readings:
             ("_shift", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "source": "",
             "shift": "us",
@@ -388,6 +402,7 @@ class readings:
             ("thread", 8 * ctypes.c_char),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "reason": "",
             "hardware_flags": "",
@@ -423,6 +438,7 @@ class readings:
             ("flags", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "application": "",
             "version": "",
@@ -453,6 +469,7 @@ class readings:
             ("_temperature", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "temperature": "deg",
         }
@@ -473,6 +490,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -489,6 +507,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -505,6 +524,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -521,6 +541,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -537,6 +558,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -553,6 +575,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -569,6 +592,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -585,6 +609,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -601,6 +626,7 @@ class readings:
             ("sample", structs.tdf_struct_xyz_16bit),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "sample": "",
         }
@@ -619,6 +645,7 @@ class readings:
             ("_v_acc", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "location": "",
             "h_acc": "m",
@@ -679,6 +706,7 @@ class readings:
             ("_mag_acc", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "itow": "",
             "year": "",
@@ -832,6 +860,7 @@ class readings:
             ("rsrq", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "cell": "",
             "earfcn": "",
@@ -862,6 +891,7 @@ class readings:
             ("payload", 9 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "payload": "",
         }
@@ -879,6 +909,7 @@ class readings:
             ("std_dev", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "count": "",
             "std_dev": "",
@@ -897,6 +928,7 @@ class readings:
             ("value", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "value": "",
         }
@@ -915,6 +947,7 @@ class readings:
             ("output", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "algorithm_id": "",
             "algorithm_version": "",
@@ -936,6 +969,7 @@ class readings:
             ("error_ctx", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "error_id": "",
             "error_ctx": "",
@@ -954,6 +988,7 @@ class readings:
             ("enabled", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "enabled": "",
         }
@@ -972,6 +1007,7 @@ class readings:
             ("num_sv", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "time_fix": "",
             "location_fix": "",
@@ -993,6 +1029,7 @@ class readings:
             ("connected", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "address": "",
             "connected": "",
@@ -1012,6 +1049,7 @@ class readings:
             ("rssi", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "address": "",
             "rssi": "dBm",
@@ -1031,6 +1069,7 @@ class readings:
             ("throughput", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "address": "",
             "throughput": "B/sec",
@@ -1051,6 +1090,7 @@ class readings:
             ("classes", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "algorithm_id": "",
             "algorithm_version": "",
@@ -1073,6 +1113,7 @@ class readings:
             ("values", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "algorithm_id": "",
             "algorithm_version": "",
@@ -1097,6 +1138,7 @@ class readings:
             ("neighbours", 0 * structs.tdf_struct_lte_cell_neighbour),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "cell": "",
             "earfcn": "",
@@ -1127,6 +1169,7 @@ class readings:
             ("rsrp", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "bssid": "",
             "channel": "",
@@ -1147,6 +1190,7 @@ class readings:
             ("cosine", ctypes.c_float),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "cosine": "",
         }
@@ -1186,6 +1230,7 @@ class readings:
             ("num_sv", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "lat": "deg",
             "lon": "deg",
@@ -1308,6 +1353,7 @@ class readings:
             ("charge", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "charge": "uAs",
         }
@@ -1325,6 +1371,7 @@ class readings:
             ("rssi", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "infuse_id": "",
             "rssi": "dBm",
@@ -1343,6 +1390,7 @@ class readings:
             ("val", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -1359,6 +1407,7 @@ class readings:
             ("val", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -1375,6 +1424,7 @@ class readings:
             ("val", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -1392,6 +1442,7 @@ class readings:
             ("event", 0 * ctypes.c_char),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "timestamp": "",
             "event": "",
@@ -1412,6 +1463,7 @@ class readings:
             ("payload", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "snr": "dB",
             "rssi": "dBm",
@@ -1432,6 +1484,7 @@ class readings:
             ("payload", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "payload": "",
         }
@@ -1449,6 +1502,7 @@ class readings:
             ("frequency", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "tdf_id": "",
             "frequency": "Hz",
@@ -1468,6 +1522,7 @@ class readings:
             ("period", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "tdf_id": "",
             "period": "ns",
@@ -1486,6 +1541,7 @@ class readings:
             ("network", structs.tdf_struct_wifi_network_params),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "network": "",
         }
@@ -1502,6 +1558,7 @@ class readings:
             ("reason", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "reason": "",
         }
@@ -1518,6 +1575,7 @@ class readings:
             ("reason", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "reason": "",
         }
@@ -1535,6 +1593,7 @@ class readings:
             ("num_lte", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "num_wifi": "",
             "num_lte": "",
@@ -1553,6 +1612,7 @@ class readings:
             ("frame", 0 * ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "frame": "",
         }
@@ -1569,6 +1629,7 @@ class readings:
             ("voltage", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "voltage": "mV",
         }
@@ -1585,6 +1646,7 @@ class readings:
             ("soc", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "soc": "%",
         }
@@ -1601,6 +1663,7 @@ class readings:
             ("state", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "state": "",
         }
@@ -1617,6 +1680,7 @@ class readings:
             ("state", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "state": "",
         }
@@ -1634,6 +1698,7 @@ class readings:
             ("duration", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "state": "",
             "duration": "",
@@ -1652,6 +1717,7 @@ class readings:
             ("val", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -1668,6 +1734,7 @@ class readings:
             ("val", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "val": "",
         }
@@ -1685,6 +1752,7 @@ class readings:
             ("right", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "left": "",
             "right": "",
@@ -1704,6 +1772,7 @@ class readings:
             ("value", 0 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "key": "",
             "value": "",
@@ -1722,6 +1791,7 @@ class readings:
             ("_pressure", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "pressure": "kPA",
         }
@@ -1742,6 +1812,7 @@ class readings:
             ("enabled", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "enabled": "",
         }
@@ -1758,6 +1829,7 @@ class readings:
             ("type", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "type": "",
         }
@@ -1775,6 +1847,7 @@ class readings:
             ("duration_s", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "type": "",
             "duration_s": "",
@@ -1794,6 +1867,7 @@ class readings:
             ("name", 0 * ctypes.c_char),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {
             "code": "",
             "name": "",

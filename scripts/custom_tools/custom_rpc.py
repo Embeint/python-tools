@@ -16,10 +16,12 @@ class custom_rpc(InfuseRpcCommand):
     class request(ctypes.LittleEndianStructure):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(ctypes.LittleEndianStructure):
         _fields_ = []
         _pack_ = 1
+        _layout_ = "ms"
 
     @classmethod
     def add_parser(cls, parser):

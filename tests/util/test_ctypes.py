@@ -14,6 +14,7 @@ class VLABase(VLACompatLittleEndianStruct):
     ]
     vla_field = ("vla", 0 * ctypes.c_uint32)
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class VLACountedBy(VLACompatLittleEndianStruct):
@@ -23,6 +24,7 @@ class VLACountedBy(VLACompatLittleEndianStruct):
     vla_field = ("data", 0 * ctypes.c_uint8)
     vla_counted_by = "count"
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class VLANested(VLACompatLittleEndianStruct):
@@ -31,6 +33,7 @@ class VLANested(VLACompatLittleEndianStruct):
     ]
     vla_field = ("vla", VLABase)
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class VLADualNested(VLACompatLittleEndianStruct):
@@ -39,6 +42,7 @@ class VLADualNested(VLACompatLittleEndianStruct):
     ]
     vla_field = ("values", 0 * VLACountedBy)
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class VLANone(VLACompatLittleEndianStruct):
@@ -47,6 +51,7 @@ class VLANone(VLACompatLittleEndianStruct):
         ("second", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 def test_vla_compat_struct():

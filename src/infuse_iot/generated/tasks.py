@@ -47,6 +47,7 @@ class TaskTdfLogger:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskTdfLogger.Args._fields_ = [
@@ -76,15 +77,19 @@ class TaskImu:
 
     class AccelerometerArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class GyroscopeArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class MagnetometerArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskImu.AccelerometerArgs._fields_ = [
@@ -125,6 +130,7 @@ class TaskBattery:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskBattery.Args._fields_ = [
@@ -145,6 +151,7 @@ class TaskEnvironmental:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskEnvironmental.Args._fields_ = []
@@ -197,18 +204,23 @@ class TaskGnss:
 
     class PlateauArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class RunToFixArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class LowPowerArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class ModeArgs(ctypes.Union):
         _pack_ = 1
+        _layout_ = "ms"
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
         _anonymous_ = ("mode",)
 
 
@@ -271,12 +283,15 @@ class TaskNetworkScan:
             """Report networks using locally administered BSSIDs"""
 
         _pack_ = 1
+        _layout_ = "ms"
 
     class LteArgs(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskNetworkScan.WifiArgs._fields_ = [
@@ -311,6 +326,7 @@ class TaskBtScanner:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskBtScanner.Args._fields_ = [
@@ -329,6 +345,7 @@ class TaskSocTemperature:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskSocTemperature.Args._fields_ = []
@@ -345,6 +362,7 @@ class TaskAudioDmic:
 
     class Args(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
 
 TaskAudioDmic.Args._fields_ = [
@@ -397,6 +415,7 @@ class TaskArguments(ctypes.Union):
     }
 
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("raw", ctypes.c_uint8 * 17),
         ("tdf_logger", TaskTdfLogger.Args),

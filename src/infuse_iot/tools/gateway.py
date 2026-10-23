@@ -259,6 +259,7 @@ class SerialRxThread(SignaledThread):
                 ("cnt", ctypes.c_uint8),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         p = pkt.payload
         while len(p) > 0:
