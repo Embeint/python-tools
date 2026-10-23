@@ -29,6 +29,11 @@ INTERRUPTED = {
     "message": "Server stopped while the action may have reached the device; reconcile device state before retrying",
     "retryable": False,
 }
+CANCELLED_AFTER_SENDING = {
+    "code": "interrupted",
+    "message": "Cancelled after the action may have reached the device; reconcile device state before retrying",
+    "retryable": False,
+}
 
 if sys.platform == "win32":
     import msvcrt
@@ -70,6 +75,7 @@ class JobContext:
         self.jobs, self.job_id = jobs, job_id
         self.sent = False
         self.outcome: dict | None = None
+        self.result: dict | None = None
 
     def check_cancelled(self) -> None:
         if self.jobs._stop.is_set() or self.jobs._cancel_requested(self.job_id):
@@ -96,6 +102,15 @@ class JobContext:
         except sqlite3.Error as error:
             # Progress is informational; the outcome is recorded separately.
             self.jobs._report(f"recording progress of {self.job_id}", error)
+
+    def checkpoint(self, result: dict) -> None:
+        """Record a partial result, such as per-device outcomes, which the final outcome keeps."""
+        self.result = result
+        try:
+            self.jobs._update(self.job_id, result=result)
+        except sqlite3.Error as error:
+            # Kept in memory, and recorded with the outcome.
+            self.jobs._report(f"recording results of {self.job_id}", error)
 
 
 class JobManager:
@@ -191,6 +206,8 @@ class JobManager:
             outcome = current.outcome or (
                 {"state": "unknown", "error": INTERRUPTED} if current.sent else {"state": "cancelled", "error": STOPPED}
             )
+            if current.result is not None:
+                outcome = {"result": current.result, **outcome}
             self._set(current.job_id, **outcome)
         statements = (("cancelled", STOPPED, "queued"), ("unknown", INTERRUPTED, "running"))
         for state, error, previous in statements:
@@ -352,7 +369,10 @@ class JobManager:
             context.outcome = {"state": "completed", "result": result}
         except JobCancelled:
             if context.sent:
-                context.outcome = {"state": "unknown", "error": INTERRUPTED}
+                context.outcome = {
+                    "state": "unknown",
+                    "error": INTERRUPTED if self._stop.is_set() else CANCELLED_AFTER_SENDING,
+                }
             elif self._stop.is_set():
                 context.outcome = {"state": "cancelled", "error": STOPPED}
             else:
@@ -381,6 +401,8 @@ class JobManager:
                 "state": state,
                 "error": {"code": code, "message": message, "retryable": retryable, "type": type(error).__name__},
             }
+        if context.result is not None:
+            context.outcome.setdefault("result", context.result)
         self._finish(context)
 
     def _finish(self, context: JobContext) -> None:
