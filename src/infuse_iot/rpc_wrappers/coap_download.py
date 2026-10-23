@@ -2,15 +2,15 @@
 
 import ctypes
 import sys
-from http import HTTPStatus
-from json import loads
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.api_client import Client
 from infuse_iot.api_client.api.coap import get_coap_file_stats
+from infuse_iot.api_client.models import COAPFileStats
 from infuse_iot.commands import InfuseRpcCommand
 from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import rpc_enum_file_action
+from infuse_iot.util.api import format_api_error
 from infuse_iot.util.ctypes import UINT32_MAX
 
 
@@ -24,12 +24,12 @@ def coap_server_file_stats(server: str, resource: str) -> tuple[int, int]:
         client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
         with client as client:
             response = get_coap_file_stats.sync_detailed(client=client, filename=api_filename)
-            decoded = loads(response.content.decode("utf-8"))
-            if response.status_code != HTTPStatus.OK:
-                print(f"Failed to query COAP server: <{response.status_code}>: {decoded['message']}")
+            stats = response.parsed
+            if not isinstance(stats, COAPFileStats):
+                print(f"Failed to query COAP server: {format_api_error(response)}")
                 print("Duplicate file detection disabled")
                 return (UINT32_MAX, UINT32_MAX)
-            return (decoded["len"], decoded["crc"])
+            return (stats.len_, stats.crc)
     else:
         # Unknown, let the COAP download automatically determine
         # This does mean that duplicate file are not detected
