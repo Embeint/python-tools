@@ -140,6 +140,7 @@ class Applications(CloudSubCommand):
 
         version = release.version
         version_str = f"{version.major}.{version.minor}.{version.revision}+{version.build_num:08x}"
+        path_info = f"{release.file.coap_path} ({release.file.len_}, 0x{release.file.crc:08x})"
 
         print(
             tabulate(
@@ -148,6 +149,7 @@ class Applications(CloudSubCommand):
                     ["Application Description", application.description],
                     ["Board Target", release.board_target],
                     ["Version", version_str],
+                    ["Image", path_info],
                 ],
                 tablefmt="simple",
             )
