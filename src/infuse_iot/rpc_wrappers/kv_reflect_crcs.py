@@ -18,6 +18,7 @@ class kv_reflect_crcs(InfuseRpcCommand, defs.kv_reflect_crcs):
         ]
         vla_field = ("crcs", 0 * defs.rpc_struct_kv_store_crc)
         _pack_ = 1
+        _layout_ = "ms"
 
     @classmethod
     def add_parser(cls, parser):

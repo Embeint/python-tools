@@ -12,6 +12,7 @@ from infuse_iot.generated.tasks import TaskArguments
 
 class TaskScheduleTdfLogging(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("loggers", ctypes.c_uint8),
         ("tdf_mask", ctypes.c_uint8),
@@ -20,6 +21,7 @@ class TaskScheduleTdfLogging(ctypes.LittleEndianStructure):
 
 class TaskScheduleStateConditions(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("metadata", ctypes.c_uint8),
         ("states", ctypes.c_uint8 * 4),
@@ -28,6 +30,7 @@ class TaskScheduleStateConditions(ctypes.LittleEndianStructure):
 
 class BatteryStartThresholds(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("lower", ctypes.c_uint8),
         ("upper", ctypes.c_uint8),
@@ -36,6 +39,7 @@ class BatteryStartThresholds(ctypes.LittleEndianStructure):
 
 class BatteryTerminateThresholds(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("lower", ctypes.c_uint8),
         ("upper", ctypes.c_uint8),
@@ -44,6 +48,7 @@ class BatteryTerminateThresholds(ctypes.LittleEndianStructure):
 
 class PeriodicityPeriodic(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("period_s", ctypes.c_uint32),
     ]
@@ -53,6 +58,7 @@ class PeriodicityLockout(ctypes.LittleEndianStructure):
     IGNORE_FIRST = 1 << 31
 
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("lockout_s", ctypes.c_uint32),
     ]
@@ -60,6 +66,7 @@ class PeriodicityLockout(ctypes.LittleEndianStructure):
 
 class PeriodicityAfter(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("schedule_idx", ctypes.c_uint8),
         ("duration_s", ctypes.c_uint16),
@@ -68,6 +75,7 @@ class PeriodicityAfter(ctypes.LittleEndianStructure):
 
 class PeriodicityLockoutDynamicBattery(ctypes.LittleEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("lockout_min", ctypes.c_uint16),
         ("lockout_max", ctypes.c_uint16),
@@ -78,6 +86,7 @@ class PeriodicityLockoutDynamicBattery(ctypes.LittleEndianStructure):
 
 class PeriodicityArgs(ctypes.Union):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("fixed", PeriodicityPeriodic),
         ("lockout", PeriodicityLockout),
@@ -106,6 +115,7 @@ class TaskSchedule(ctypes.LittleEndianStructure):
     EXPECTED_SIZE = 51
 
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("task_id", ctypes.c_uint8),
         ("validity", ctypes.c_uint8),

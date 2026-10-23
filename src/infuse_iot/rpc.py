@@ -11,6 +11,7 @@ class RequestHeader(ctypes.LittleEndianStructure):
         ("command_id", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class RequestDataHeader(ctypes.LittleEndianStructure):
@@ -21,6 +22,7 @@ class RequestDataHeader(ctypes.LittleEndianStructure):
         ("rx_ack_period", ctypes.c_uint8),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class DataHeader(ctypes.LittleEndianStructure):
@@ -31,6 +33,7 @@ class DataHeader(ctypes.LittleEndianStructure):
         ("offset", ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class DataAck(ctypes.LittleEndianStructure):
@@ -41,6 +44,7 @@ class DataAck(ctypes.LittleEndianStructure):
         ("offset", 0 * ctypes.c_uint32),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class ResponseHeader(ctypes.LittleEndianStructure):
@@ -52,3 +56,4 @@ class ResponseHeader(ctypes.LittleEndianStructure):
         ("return_code", ctypes.c_int16),
     ]
     _pack_ = 1
+    _layout_ = "ms"

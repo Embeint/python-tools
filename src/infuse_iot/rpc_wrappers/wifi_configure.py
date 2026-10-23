@@ -20,6 +20,7 @@ class wifi_configure(InfuseRpcCommand, defs.kv_write):
             ("num", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         vla_field = ("rc", 0 * ctypes.c_int16)

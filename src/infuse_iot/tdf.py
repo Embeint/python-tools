@@ -19,6 +19,7 @@ def unknown_tdf_factory(tdf_id: int, tdf_len: int) -> type[tdf_base.TdfReadingBa
             ("data", tdf_len * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
         _postfix_ = {"data": ""}
         _display_fmt_ = {"data": "{}"}
 
@@ -49,6 +50,7 @@ class TDF:
             ("len", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class ArrayHeader(ctypes.LittleEndianStructure):
         _fields_ = [
@@ -56,6 +58,7 @@ class TDF:
             ("period", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class AbsoluteTime(ctypes.LittleEndianStructure):
         _fields_ = [
@@ -63,18 +66,21 @@ class TDF:
             ("subseconds", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class RelativeTime(ctypes.LittleEndianStructure):
         _fields_ = [
             ("offset", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class ExtendedRelativeTime(ctypes.LittleEndianStructure):
         _fields_ = [
             ("_offset", ctypes.c_uint8 * 3),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def offset(self):
@@ -155,14 +161,17 @@ class TDF:
         class _tdf(ctypes.LittleEndianStructure):
             _fields_ = [("data", num_fields * t_in)]
             _pack_ = 1
+            _layout_ = "ms"
 
         class _diff(ctypes.LittleEndianStructure):
             _fields_ = [("data", num_fields * t_diff)]
             _pack_ = 1
+            _layout_ = "ms"
 
         class _complete(ctypes.LittleEndianStructure):
             _fields_ = [("base", _tdf), ("diffs", diff_num * _diff)]
             _pack_ = 1
+            _layout_ = "ms"
 
         raw = _complete.from_buffer_copy(buffer)
         out: list[ctypes.LittleEndianStructure] = [_tdf.from_buffer_copy(buffer)]

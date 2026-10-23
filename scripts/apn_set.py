@@ -58,6 +58,7 @@ class APNSetter:
         _fields_ = []
         vla_field = ("rc", 0 * ctypes.c_int16)
         _pack_ = 1
+        _layout_ = "ms"
 
     def state_update(self, live: Live, state: str):
         self.state = state

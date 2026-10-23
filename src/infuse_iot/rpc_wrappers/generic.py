@@ -16,6 +16,7 @@ class generic(InfuseRpcCommand):
         _fields_ = []
         vla_field = ("val", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
     @classmethod
     def add_parser(cls, parser):
@@ -32,6 +33,7 @@ class generic(InfuseRpcCommand):
                 ("val", len(self._arg_bytes) * ctypes.c_uint8),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         return request(bytes_to_uint8(self._arg_bytes))
 

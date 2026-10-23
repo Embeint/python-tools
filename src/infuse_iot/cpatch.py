@@ -95,6 +95,7 @@ class SetAddrInstr(Instr):
             ("val", ctypes.c_int8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class ShiftAddrS16(ctypes.LittleEndianStructure):
         op = OpCode.ADDR_SHIFT_S16
@@ -103,6 +104,7 @@ class SetAddrInstr(Instr):
             ("val", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class SetAddrU32(ctypes.LittleEndianStructure):
         op = OpCode.ADDR_SET_U32
@@ -111,6 +113,7 @@ class SetAddrInstr(Instr):
             ("val", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     def __init__(self, old_addr, new_addr, cls_override=None):
         self.old = old_addr
@@ -174,6 +177,7 @@ class CopyInstr(Instr):
             ("opcode", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -186,6 +190,7 @@ class CopyInstr(Instr):
             ("_length", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -198,6 +203,7 @@ class CopyInstr(Instr):
             ("_length", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -210,6 +216,7 @@ class CopyInstr(Instr):
             ("length", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     def __init__(self, length: int, original_offset: int = -1, cls_override=None):
         assert length != 0
@@ -279,6 +286,7 @@ class WriteInstr(Instr):
             ("opcode", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -291,6 +299,7 @@ class WriteInstr(Instr):
             ("_length", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -303,6 +312,7 @@ class WriteInstr(Instr):
             ("_length", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
         @property
         def length(self):
@@ -315,6 +325,7 @@ class WriteInstr(Instr):
             ("length", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     def __init__(self, data, cls_override=None):
         assert len(data) != 0
@@ -389,6 +400,7 @@ class PatchInstr(Instr):
         op = OpCode.PATCH
         _fields_ = [("opcode", ctypes.c_uint8)]
         _pack_ = 1
+        _layout_ = "ms"
 
     def __init__(self, operations):
         self.operations = operations
@@ -483,6 +495,7 @@ class cpatch:
                 ("crc", ctypes.c_uint32),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         magic_value = 0xBA854092
         cache_size = 128
@@ -496,6 +509,7 @@ class cpatch:
             ("header_crc", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     @classmethod
     def _naive_diff(cls, old: bytes, new: bytes, hash_len: int = 8):

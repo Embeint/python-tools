@@ -43,6 +43,7 @@ class Address(Serializable):
                 ("addr", 6 * ctypes.c_uint8),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         def __init__(self, addr_type: int, addr_val: int):
             self.addr_type = addr_type

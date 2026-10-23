@@ -10,6 +10,7 @@ from infuse_iot.util.ctypes import VLACompatLittleEndianStruct
 class lte_at_cmd(InfuseRpcCommand, defs.lte_at_cmd):
     class request(ctypes.LittleEndianStructure):
         _pack_ = 1
+        _layout_ = "ms"
 
     class response(VLACompatLittleEndianStruct):
         vla_field = ("rsp", 0 * ctypes.c_char)

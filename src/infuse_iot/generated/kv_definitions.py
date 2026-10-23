@@ -18,6 +18,7 @@ class structs:
             ("height", ctypes.c_int32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class bt_addr_le(VLACompatLittleEndianStruct):
         """Bluetooth address type (bt_addr_le_t)"""
@@ -27,6 +28,7 @@ class structs:
             ("val", 6 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_string(VLACompatLittleEndianStruct):
         """String type"""
@@ -36,6 +38,7 @@ class structs:
         ]
         vla_field = ("value", 0 * ctypes.c_char)
         _pack_ = 1
+        _layout_ = "ms"
 
         def __str__(self) -> str:
             return bytes(self.value).decode("utf-8")
@@ -50,6 +53,7 @@ class structs:
             ("build_num", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_range_u8(VLACompatLittleEndianStruct):
         """Generic range structure"""
@@ -59,6 +63,7 @@ class structs:
             ("upper", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_utc_hms(VLACompatLittleEndianStruct):
         """UTC Hour-Minute-Second"""
@@ -69,6 +74,7 @@ class structs:
             ("second", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_algorithm_logging(VLACompatLittleEndianStruct):
         """Algorithm logging configuration"""
@@ -78,6 +84,7 @@ class structs:
             ("tdf_mask", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_algorithm_stationary_windowed_args(VLACompatLittleEndianStruct):
         """Arguments for 'Stationary Windowed' algorithm"""
@@ -87,6 +94,7 @@ class structs:
             ("std_dev_threshold_ug", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_algorithm_tilt_args(VLACompatLittleEndianStruct):
         """Arguments for 'Tilt' algorithm"""
@@ -96,6 +104,7 @@ class structs:
             ("one_g_percent", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_algorithm_movement_threshold_args(VLACompatLittleEndianStruct):
         """Arguments for 'Shot Triggered' algorithm"""
@@ -105,6 +114,7 @@ class structs:
             ("threshold_ug", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_algorithm_movement_threshold_args_v2(VLACompatLittleEndianStruct):
         """Arguments for 'Shot Triggered' algorithm"""
@@ -115,6 +125,7 @@ class structs:
             ("continue_threshold_ug", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class kv_device_state(VLACompatLittleEndianStruct):
         """Initialisation results for a single device. Matches `struct device_state` from Zephyr"""
@@ -124,6 +135,7 @@ class structs:
             ("initialized", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
 
 class slots:
@@ -137,6 +149,7 @@ class slots:
             ("count", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class bluetooth_addr(VLACompatLittleEndianStruct):
         """Bluetooth advertising address"""
@@ -148,6 +161,7 @@ class slots:
             ("address", structs.bt_addr_le),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class exfat_disk_info(VLACompatLittleEndianStruct):
         """exFAT disk information"""
@@ -160,6 +174,7 @@ class slots:
             ("block_size", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class bluetooth_ctlr_version(VLACompatLittleEndianStruct):
         """External Bluetooth controller version"""
@@ -172,6 +187,7 @@ class slots:
             ("version", structs.kv_mcuboot_img_sem_ver),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class device_name(VLACompatLittleEndianStruct):
         """Personalised name for the device"""
@@ -182,6 +198,7 @@ class slots:
         _fields_ = []
         vla_field = ("name", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class infuse_application_id(VLACompatLittleEndianStruct):
         """CONFIG_INFUSE_APPLICATION_ID, store will be reset if the values don't match"""
@@ -193,6 +210,7 @@ class slots:
             ("application_id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class application_active(VLACompatLittleEndianStruct):
         """Control STATE_APPLICATION_ACTIVE"""
@@ -204,6 +222,7 @@ class slots:
             ("active", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class board_target(VLACompatLittleEndianStruct):
         """Value of CONFIG_BOARD_TARGET"""
@@ -214,6 +233,7 @@ class slots:
         _fields_ = []
         vla_field = ("board_target", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class secondary_remote_public_key(VLACompatLittleEndianStruct):
         """Storage of secondary remote public key"""
@@ -225,6 +245,7 @@ class slots:
             ("public_key", 32 * ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class z_devstate(VLACompatLittleEndianStruct):
         """State of the `z_devstate` section after boot. Requires .map file to assign states to devices"""
@@ -237,6 +258,7 @@ class slots:
         ]
         vla_field = ("remainder", 0 * structs.kv_device_state)
         _pack_ = 1
+        _layout_ = "ms"
 
     class fixed_location(VLACompatLittleEndianStruct):
         """Fixed global location of the device"""
@@ -248,6 +270,7 @@ class slots:
             ("location", structs.gcs_location),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class broadcast_fixed_indoors(VLACompatLittleEndianStruct):
         """Device is fixed indoors and should broadcast the fact"""
@@ -259,6 +282,7 @@ class slots:
             ("indoors", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class littlefs_fs_state(VLACompatLittleEndianStruct):
         """State of LittleFS filesystem"""
@@ -273,6 +297,7 @@ class slots:
             ("blocks_used", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class littlefs_algorithms_state(VLACompatLittleEndianStruct):
         """State of algorithms on the LittleFS filesystem"""
@@ -285,6 +310,7 @@ class slots:
             ("crc_xor", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class network_id_primary(VLACompatLittleEndianStruct):
         """Identifier of the primary network"""
@@ -296,6 +322,7 @@ class slots:
             ("id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class network_id_secondary(VLACompatLittleEndianStruct):
         """Identifier of the secondary network"""
@@ -307,6 +334,7 @@ class slots:
             ("id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class wifi_ssid(VLACompatLittleEndianStruct):
         """WiFi network name"""
@@ -317,6 +345,7 @@ class slots:
         _fields_ = []
         vla_field = ("ssid", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class wifi_psk(VLACompatLittleEndianStruct):
         """WiFi network password"""
@@ -327,6 +356,7 @@ class slots:
         _fields_ = []
         vla_field = ("psk", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class wifi_channels(VLACompatLittleEndianStruct):
         """WiFi band and channel configuration"""
@@ -339,6 +369,7 @@ class slots:
         ]
         vla_field = ("channels", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
     class ntp_server_url(VLACompatLittleEndianStruct):
         """URL of the NTP server to use for time synchronisation"""
@@ -349,6 +380,7 @@ class slots:
         _fields_ = []
         vla_field = ("url", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class epacket_udp_url(VLACompatLittleEndianStruct):
         """ePacket UDP server hostname"""
@@ -359,6 +391,7 @@ class slots:
         _fields_ = []
         vla_field = ("server", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class epacket_udp_port(VLACompatLittleEndianStruct):
         """ePacket UDP server port"""
@@ -370,6 +403,7 @@ class slots:
             ("port", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_modem_model(VLACompatLittleEndianStruct):
         """Modem model as returned by AT+CGMM"""
@@ -380,6 +414,7 @@ class slots:
         _fields_ = []
         vla_field = ("model", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_modem_firmware_revision(VLACompatLittleEndianStruct):
         """Modem firmware revision as returned by AT+CGMR"""
@@ -390,6 +425,7 @@ class slots:
         _fields_ = []
         vla_field = ("revision", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_modem_esn(VLACompatLittleEndianStruct):
         """'Electronic Serial Number' as returned by AT+CGSN=0"""
@@ -400,6 +436,7 @@ class slots:
         _fields_ = []
         vla_field = ("esn", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_modem_imei(VLACompatLittleEndianStruct):
         """'International Modem Equipment Identifier' as returned by AT+CGSN=1"""
@@ -411,6 +448,7 @@ class slots:
             ("imei", ctypes.c_uint64),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_sim_uicc(VLACompatLittleEndianStruct):
         """SIM Universal Identifier (https://www.itu.int/en/ITU-T/inr/forms/Pages/iin.aspx)"""
@@ -421,6 +459,7 @@ class slots:
         _fields_ = []
         vla_field = ("uicc", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_pdp_config(VLACompatLittleEndianStruct):
         """Packet Data Protocol (PDP) default context configuration"""
@@ -433,6 +472,7 @@ class slots:
         ]
         vla_field = ("apn", structs.kv_string)
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_networking_modes(VLACompatLittleEndianStruct):
         """Enabled LTE networking modes and preferences"""
@@ -445,6 +485,7 @@ class slots:
             ("prefer", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class lte_sim_imsi(VLACompatLittleEndianStruct):
         """'International Modem Subscriber Identity' as returned by AT+CIMI"""
@@ -456,6 +497,7 @@ class slots:
             ("imsi", ctypes.c_uint64),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class bluetooth_peer(VLACompatLittleEndianStruct):
         """Bluetooth peer device"""
@@ -467,6 +509,7 @@ class slots:
             ("address", structs.bt_addr_le),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class lora_config(VLACompatLittleEndianStruct):
         """LoRa modem configuration"""
@@ -484,6 +527,7 @@ class slots:
             ("sync_word", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class bluetooth_throughput_limit(VLACompatLittleEndianStruct):
         """Request connected Bluetooth peers to limit throughput"""
@@ -495,6 +539,7 @@ class slots:
             ("limit_kbps", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class led_disable_daily_time_range(VLACompatLittleEndianStruct):
         """Disable LEDs between two UTC times daily"""
@@ -507,6 +552,7 @@ class slots:
             ("disable_end", structs.kv_utc_hms),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class memfault_disable(VLACompatLittleEndianStruct):
         """Disable Memfault reporting at runtime"""
@@ -518,6 +564,7 @@ class slots:
             ("disable", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class gateway_bluetooth_forward_options(VLACompatLittleEndianStruct):
         """Forwarding configuration for Bluetooth advertising packets"""
@@ -530,6 +577,7 @@ class slots:
             ("percent", ctypes.c_uint8),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class nrf_edge_ai_runtime_version(VLACompatLittleEndianStruct):
         """Version of the nRF Edge AI runtime"""
@@ -543,6 +591,7 @@ class slots:
             ("patch", ctypes.c_uint16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class gravity_reference(VLACompatLittleEndianStruct):
         """Reference gravity vector for tilt calculations"""
@@ -556,6 +605,7 @@ class slots:
             ("z", ctypes.c_int16),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class geofence(VLACompatLittleEndianStruct):
         """Array of points defining a closed polygon"""
@@ -568,6 +618,7 @@ class slots:
         ]
         vla_field = ("points", 0 * structs.gcs_location)
         _pack_ = 1
+        _layout_ = "ms"
 
     class alg_stationary_windowed_args(VLACompatLittleEndianStruct):
         """Configuration for the 'Stationary Windowed' algorithm"""
@@ -580,6 +631,7 @@ class slots:
             ("args", structs.kv_algorithm_stationary_windowed_args),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class alg_tilt_args(VLACompatLittleEndianStruct):
         """Configuration for the 'Tilt' algorithm"""
@@ -592,6 +644,7 @@ class slots:
             ("args", structs.kv_algorithm_tilt_args),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class alg_movement_threshold_args(VLACompatLittleEndianStruct):
         """Configuration for the 'Movement Threshold' algorithm"""
@@ -604,6 +657,7 @@ class slots:
             ("args", structs.kv_algorithm_movement_threshold_args),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class alg_movement_threshold_args_v2(VLACompatLittleEndianStruct):
         """Configuration for the 'Movement Threshold' algorithm"""
@@ -616,6 +670,7 @@ class slots:
             ("args", structs.kv_algorithm_movement_threshold_args_v2),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class task_schedules_default_id(VLACompatLittleEndianStruct):
         """Unique identifier for default schedule set"""
@@ -627,6 +682,7 @@ class slots:
             ("set_id", ctypes.c_uint32),
         ]
         _pack_ = 1
+        _layout_ = "ms"
 
     class task_schedules(VLACompatLittleEndianStruct):
         """Task runner task schedule definition (@ref task_schedule)"""
@@ -645,6 +701,7 @@ class slots:
         ]
         vla_field = ("_remainder", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
     class secure_storage_reserved(VLACompatLittleEndianStruct):
         """Keys reserved for secure storage (do not enable)"""
@@ -657,6 +714,7 @@ class slots:
         ]
         vla_field = ("data", 0 * ctypes.c_uint8)
         _pack_ = 1
+        _layout_ = "ms"
 
     ID_MAPPING = {
         0: reboots,

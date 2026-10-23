@@ -93,6 +93,7 @@ class bt_file_copy_coap(InfuseRpcCommand, defs.bt_file_copy_coap):
                 ("resource", (len(self.resource) + 1) * ctypes.c_char),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         return request(
             self.peer,

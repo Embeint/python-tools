@@ -125,6 +125,7 @@ class coap_download(InfuseRpcCommand, defs.coap_download):
                 ("resource", (len(self.resource) + 1) * ctypes.c_char),
             ]
             _pack_ = 1
+            _layout_ = "ms"
 
         return request(
             self.server,

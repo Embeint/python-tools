@@ -15,6 +15,7 @@ class Child(VLACompatLittleEndianStruct):
         ("count", ctypes.c_uint16),
     ]
     _pack_ = 1
+    _layout_ = "ms"
 
 
 class Parent(VLACompatLittleEndianStruct):
@@ -23,6 +24,7 @@ class Parent(VLACompatLittleEndianStruct):
     ]
     vla_field = ("remainder", 0 * Child)
     _pack_ = 1
+    _layout_ = "ms"
 
 
 def test_append_decoded_field_decodes_struct_arrays():
