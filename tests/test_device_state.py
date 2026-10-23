@@ -8,6 +8,7 @@ from infuse_iot.common import InfuseType
 from infuse_iot.definitions.tdf import readings, structs
 from infuse_iot.epacket import interface
 from infuse_iot.epacket.packet import Auth, HopReceived, PacketReceived
+from infuse_iot.services.ble_observations import INFUSE_SERVICE, BleObservations
 from infuse_iot.services.device_state import MAX_SAFE_INTEGER, SAMPLE_ORDER_WINDOW_S, DeviceState, _value
 from infuse_iot.services.pagination import PaginationError, SnapshotPages
 from infuse_iot.socket_comms import GatewayControlError
@@ -61,6 +62,64 @@ def unsafe_integers(value):
     if isinstance(value, list):
         return [n for v in value for n in unsafe_integers(v)]
     return [value] if isinstance(value, int) and abs(value) > MAX_SAFE_INTEGER else []
+
+
+def test_split_advertisements_preserve_marker_and_name():
+    observations = BleObservations()
+    observations.observe("device", "CT Logger", -60, [], [])
+    observations.observe("device", None, -61, [0x0DE4], [INFUSE_SERVICE.upper()])
+    observations.observe("device", None, -62, [], [])
+    result = observations.snapshot()
+    assert result["total"] == 1
+    row = result["items"][0]
+    assert row["name"] == "CT Logger"
+    assert row["manufacturer_ids"] == ["0x0de4"]
+    assert row["infuse_candidate"]
+
+
+def test_old_markers_expire_without_losing_recent_name(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr("infuse_iot.services.ble_observations.time.monotonic", lambda: clock[0])
+    observations = BleObservations()
+    observations.observe("device", None, -60, [0x0DE4], [])
+    clock[0] = 30
+    observations.observe("device", "CT Logger", -60, [], [])
+    row = observations.snapshot(max_age_seconds=20)["items"][0]
+    assert row["name"] == "CT Logger" and not row["infuse_candidate"]
+
+
+def test_least_recently_observed_identifier_is_evicted():
+    observations = BleObservations(max_devices=2)
+    for identifier in ("first", "second", "first", "third"):
+        observations.observe(identifier, None, -60, [], [])
+    result = observations.snapshot()
+    assert [row["identifier"] for row in result["items"]] == ["first", "third"]
+    assert result["evictions"] == observations.evictions == 1
+
+
+def test_markers_keep_the_most_recent_128_per_row(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr("infuse_iot.services.ble_observations.time.monotonic", lambda: clock[0])
+    observations = BleObservations()
+    # Each callback contributes at most 32 markers of each kind
+    for batch in range(5):
+        clock[0] += 1
+        observations.observe("device", None, -60, range(batch * 40, batch * 40 + 40), [])
+    (row,) = observations.snapshot(paginate=False)["items"]
+    assert row["manufacturer_ids"] == [f"0x{batch * 40 + i:04x}" for batch in range(1, 5) for i in range(32)]
+
+
+def test_bluetooth_addresses_share_one_form():
+    observations = BleObservations()
+    observations.observe("60:fc:f1:00:61:61", None, -60, [], [])
+    observations.observe("60-FC-F1-00-61-61", None, -60, [], [])
+    (row,) = observations.snapshot()["items"]
+    assert row["identifier"] == "60:FC:F1:00:61:61"
+    state = DeviceState()
+    state.observe(packet(announce()))
+    assert state.snapshot()["items"][0]["bluetooth"]["address"] == row["identifier"]
+    # The viewer keeps its existing format
+    assert state.display_rows[DEVICE]["bt_addr"] == "60:fc:f1:00:61:61"
 
 
 def test_state_keeps_firmware_freshness_separate_from_temperature(clock):
@@ -371,3 +430,35 @@ def test_one_shot_lookups_do_not_evict_cursors():
     assert state.snapshot(paginate=False, max_bytes=100)["total"] == 60
     with pytest.raises(ValueError):
         state.snapshot(cursor=page["next_cursor"], paginate=False)
+
+
+def test_raw_pages_fit_datagram_budget():
+    observations = BleObservations()
+    for index in range(100):
+        observations.observe(str(index), "CT Logger", -60, [0x0DE4], [INFUSE_SERVICE])
+    result = observations.snapshot(limit=200)
+    assert len(json.dumps(result).encode()) <= 5000
+    assert result["next_cursor"] is not None
+    assert result["total"] == 100
+    assert result["filters"] == {"max_age_seconds": 20, "infuse_only": False}
+
+
+def test_noisy_advertiser_is_truncated_rather_than_failing_the_scan():
+    observations = BleObservations()
+    observations.observe("00:11:22:33:44:55", "\N{GRINNING FACE}" * 300, -70, range(0x0DE0, 0x0E00), [])
+    for batch in range(5):
+        services = [f"{batch:02x}{i:06x}-0000-1000-8000-00805f9b34fb" for i in range(31)]
+        observations.observe("00:11:22:33:44:55", None, -70, [], [INFUSE_SERVICE, *services])
+    observations.observe("AA:BB:CC:DD:EE:FF", "quiet", -60, [], [])
+    result = observations.snapshot(metadata={"gateway": {"instance_id": "abc"}})
+    assert len(json.dumps(result).encode()) <= 5000
+    noisy = result["items"][0]
+    (quiet,) = observations.snapshot(cursor=result["next_cursor"])["items"]
+    assert noisy["truncated"] and not quiet["truncated"]
+    # Infuse markers survive truncation
+    assert "0x0de4" in noisy["manufacturer_ids"] and INFUSE_SERVICE in noisy["service_uuids"]
+    assert noisy["infuse_candidate"]
+    assert result["gateway"] == {"instance_id": "abc"}
+    # Without pagination, nothing is truncated
+    full = observations.snapshot(paginate=False)["items"][0]
+    assert len(full["service_uuids"]) == 128 and not full["truncated"]
