@@ -1,6 +1,7 @@
 # Device observations and snapshots
 
-`DeviceState` records typed TDF state decoded from gateway telemetry.
+`DeviceState` records typed TDF state decoded from gateway telemetry, and
+`TelemetryCollector` keeps it current from a running native or serial gateway.
 
 Device IDs are full hexadecimal strings. Telemetry values retain their numeric
 types and units, except for integers that JavaScript cannot represent exactly.
@@ -24,4 +25,14 @@ Library callers use these services directly. `DeviceState.snapshot(..., paginate
 returns every match without retaining a cursor, for one-shot lookups. Pagination
 failures raise `PaginationError`, a `GatewayControlError` with the error `code`.
 A cursor must be used with the `max_bytes` of its first page, or it is an
-`invalid_cursor`.
+`invalid_cursor`. `TelemetryCollector.start()` attaches or reattaches, keeping its `state`;
+`running`, `error` and `error_code` report whether it is still receiving.
+Unknown or malformed notifications are skipped and counted. The collector's
+socket survives a gateway restart or replacement, so it keeps `capabilities` and
+the `gateway` identity current from any capability reply it receives, including
+replies to other clients. `refresh(capabilities)` applies a probe made
+elsewhere, which also detects a replacement by an older gateway. The socket
+cannot fail when the gateway stops, so callers report probes that no gateway
+answered with `unanswered()`. After 3 in a row, the collector stops receiving,
+with `error_code` `gateway_unavailable` and no `gateway` identity, until
+`start()` attaches to a gateway that answers.
