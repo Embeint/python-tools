@@ -2,7 +2,6 @@
 
 import base64
 import binascii
-import json
 import pathlib
 import shelve
 import threading
@@ -18,6 +17,7 @@ from infuse_iot.api_client.models.get_device_shared_secret_body import GetDevice
 from infuse_iot.api_client.models.security_state import SecurityState
 from infuse_iot.credentials import get_api_auth_header, load_network
 from infuse_iot.epacket.interface import Address as InterfaceAddress
+from infuse_iot.util.api import format_api_error
 from infuse_iot.util.crypto import hkdf_derive
 
 
@@ -64,17 +64,16 @@ class DeviceKeyQueryFailed(Exception):
     def __init__(
         self,
         infuse_id: int,
-        status_code: int,
-        content: str,
+        error: str,
         parameters: Mapping[str, object] | None = None,
     ):
         self.infuse_id = infuse_id
-        self.status_code = status_code
-        self.content = content
+        # Formatted by `format_api_error`, includes the status code
+        self.error = error
         self.parameters = parameters
 
     def __str__(self):
-        return f"{self.infuse_id:016x}: <{self.status_code}> {self.content}"
+        return f"{self.infuse_id:016x}: {self.error}"
 
 
 class DeviceDatabase:
@@ -235,14 +234,7 @@ class DeviceDatabase:
             body = GetDeviceSharedSecretBody(f"{infuse_id:016x}", security_state)
             response = get_device_shared_secret.sync_detailed(client=client, body=body)
             if response.parsed is None:
-                content = response.content.decode("utf-8", errors="replace")
-                try:
-                    content_json = json.loads(response.content)
-                    if isinstance(content_json, dict) and "message" in content_json:
-                        content = str(content_json["message"])
-                except json.JSONDecodeError:
-                    pass
-                raise DeviceKeyQueryFailed(infuse_id, response.status_code, content, body.to_dict())
+                raise DeviceKeyQueryFailed(infuse_id, format_api_error(response), body.to_dict())
             else:
                 key = base64.b64decode(response.parsed.key)
                 self.devices[infuse_id].shared_key = key
