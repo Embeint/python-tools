@@ -27,6 +27,10 @@ def default_multicast_address(port: int = 8751) -> tuple[str, int]:
     return ("224.1.1.1", port)
 
 
+# Operations are renewed by their traffic, so a short idle lease limits how long a crashed owner blocks the gateway.
+DEFAULT_OPERATION_DURATION_S = 60.0
+
+
 class GatewayControlError(RuntimeError):
     """A gateway control request failed with a stable error code."""
 
@@ -55,14 +59,17 @@ class ClientNotification:
 
         if values["type"] == cls.Type.COMMS_CHECK and values.get("control") is True:
             return cast(Self, ClientNotificationControl.from_json(values))
+        if values["type"] in (cls.Type.CONNECTION_CREATED, cls.Type.CONNECTION_FAILED, cls.Type.CONNECTION_DROPPED):
+            classes: dict[int, type[ClientNotificationConnection]] = {
+                cls.Type.CONNECTION_CREATED: ClientNotificationConnectionCreated,
+                cls.Type.CONNECTION_FAILED: ClientNotificationConnectionFailed,
+                cls.Type.CONNECTION_DROPPED: ClientNotificationConnectionDropped,
+            }
+            notification = classes[values["type"]].from_json(values)
+            notification.operation_id = values.get("operation_id")
+            return cast(Self, notification)
         if values["type"] == cls.Type.EPACKET_RECV:
             return cast(Self, ClientNotificationEpacketReceived.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_FAILED:
-            return cast(Self, ClientNotificationConnectionFailed.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_CREATED:
-            return cast(Self, ClientNotificationConnectionCreated.from_json(values))
-        elif values["type"] == cls.Type.CONNECTION_DROPPED:
-            return cast(Self, ClientNotificationConnectionDropped.from_json(values))
         elif values["type"] == cls.Type.KNOWN_DEVICES:
             return cast(Self, ClientNotificationObservedDevices.from_json(values))
         elif values["type"] == cls.Type.COMMS_CHECK:
@@ -147,12 +154,13 @@ class ClientNotificationCommsCheck(ClientNotification):
 
 class ClientNotificationConnection(ClientNotification):
     TYPE = 0
+    operation_id: str | None = None
 
     def __init__(self, infuse_id: int):
         self.infuse_id = infuse_id
 
     def to_json(self) -> dict:
-        return {"type": int(self.TYPE), "infuse_id": self.infuse_id}
+        return {"type": int(self.TYPE), "infuse_id": self.infuse_id, "operation_id": self.operation_id}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -170,6 +178,9 @@ class ClientNotificationConnectionResult(ClientNotificationConnection):
         super().__init__(infuse_id)
         self.request_id = request_id
 
+    def to_json(self) -> dict:
+        return {**super().to_json(), "request_id": self.request_id}
+
     def answers(self, infuse_id: int, request_id: int) -> bool:
         """Whether this result applies to a connection request"""
         return self.infuse_id == infuse_id and self.request_id in (None, request_id)
@@ -185,12 +196,7 @@ class ClientNotificationConnectionFailed(ClientNotificationConnectionResult):
         self.reason = reason
 
     def to_json(self) -> dict:
-        return {
-            "type": int(self.TYPE),
-            "infuse_id": self.infuse_id,
-            "reason": self.reason,
-            "request_id": self.request_id,
-        }
+        return {**super().to_json(), "reason": self.reason}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -207,12 +213,7 @@ class ClientNotificationConnectionCreated(ClientNotificationConnectionResult):
         self.max_payload = max_payload
 
     def to_json(self) -> dict:
-        return {
-            "type": int(self.TYPE),
-            "infuse_id": self.infuse_id,
-            "max_payload": self.max_payload,
-            "request_id": self.request_id,
-        }
+        return {**super().to_json(), "max_payload": self.max_payload}
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -226,6 +227,8 @@ class ClientNotificationConnectionDropped(ClientNotificationConnection):
 
 
 class GatewayRequest:
+    operation_id: str | None = None
+
     class Type(enum.IntEnum):
         EPACKET_SEND = 0
         CONNECTION_REQUEST = 1
@@ -249,7 +252,12 @@ class GatewayRequest:
             cls.Type.COMMS_CHECK: GatewayRequestCommsCheck,
             cls.Type.CONTROL: GatewayRequestControl,
         }
-        return cast(Self, classes[values["type"]].from_json(values))
+        request = classes[values["type"]].from_json(values)
+        owner = values.get("operation_id")
+        if owner is not None and (not isinstance(owner, str) or not 1 <= len(owner) <= 128):
+            raise ValueError("Invalid operation ID")
+        request.operation_id = owner
+        return cast(Self, request)
 
 
 class GatewayRequestEpacketSend(GatewayRequest):
@@ -388,7 +396,8 @@ class LocalServer:
     def __init__(self, multicast_address):
         from infuse_iot.gateway_control import GatewayControl
 
-        self.control = GatewayControl(self.broadcast)
+        self.control = GatewayControl(self._broadcast_raw)
+        self._pending_control: list[GatewayRequest] = []
         # Multicast output socket
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._output_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
@@ -407,9 +416,16 @@ class LocalServer:
         self._input_sock.settimeout(0.2)
 
     def broadcast(self, notification: ClientNotification):
+        self.control.observe(notification)
+        self._broadcast_raw(notification)
+
+    def _broadcast_raw(self, notification: ClientNotification):
         self._output_sock.sendto(json.dumps(notification.to_json()).encode("utf-8"), self._output_addr)
 
     def receive(self) -> GatewayRequest | None:
+        self._pending_control.extend(self.control.cleanup())
+        if self._pending_control:
+            return self._pending_control.pop(0)
         try:
             data, _ = self._input_sock.recvfrom(8192)
         except TimeoutError:
@@ -449,12 +465,16 @@ class LocalClient:
         # Connection context
         self._connection_id = None
         self._request_id = 0
+        self._operation_id: str | None = None
 
     def set_rx_timeout(self, timeout):
         self._input_sock.settimeout(timeout)
 
     def send(self, request: GatewayRequest):
-        self._output_sock.sendto(json.dumps(request.to_json()).encode("utf-8"), self._output_addr)
+        values = request.to_json()
+        if self._operation_id is not None:
+            values["operation_id"] = self._operation_id
+        self._output_sock.sendto(json.dumps(values).encode("utf-8"), self._output_addr)
 
     def receive(self, timeout: float | None = None) -> ClientNotification | None:
         """Receive a notification, optionally limiting the configured socket timeout.
@@ -533,7 +553,7 @@ class LocalClient:
                 rsp = self.receive(timeout=remaining)
                 if not isinstance(rsp, (ClientNotificationConnectionCreated, ClientNotificationConnectionFailed)):
                     continue
-                if not rsp.answers(infuse_id, self._request_id):
+                if not rsp.answers(infuse_id, self._request_id) or rsp.operation_id != self._operation_id:
                     continue
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
@@ -584,6 +604,32 @@ class LocalClient:
                     )
                 return notification.result
         raise TimeoutError(f"Gateway did not answer {method}")
+
+    @contextmanager
+    def operation(self, infuse_id: int, duration_seconds: float = DEFAULT_OPERATION_DURATION_S):
+        """Own operations on a device, until released or idle for the duration."""
+        if self._operation_id is not None or self._connection_id is not None:
+            raise RuntimeError("Client already has an operation or connection")
+        if not 0 <= infuse_id < 2**64:
+            raise ValueError("Operations need a device ID, use the gateway's own ID rather than InfuseID.GATEWAY")
+        if "operation_ownership" not in self.capabilities().get("features", []):
+            raise GatewayControlError("unsupported_capability", "Gateway does not support operation ownership")
+        owner = uuid4().hex
+        try:
+            self.control_request(
+                "acquire_operation",
+                {"device_id": f"0x{infuse_id:016x}", "owner": owner, "duration_seconds": duration_seconds},
+            )
+            self._operation_id = owner
+            yield owner
+        finally:
+            try:
+                self.connection_release()
+                # Also release an acquisition whose response was lost.
+                self.control_request("release_operation", {"owner": owner})
+            except (OSError, RuntimeError, TimeoutError):
+                pass
+            self._operation_id = None
 
     def connection_dropped(self, notification: ClientNotification | None) -> bool:
         """Whether a notification reports the loss of this client's connection."""

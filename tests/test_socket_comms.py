@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 import infuse_iot.socket_comms as comms
+from infuse_iot.common import InfuseID
 from infuse_iot.gateway_control import GatewayControl
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -67,6 +68,7 @@ def client(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = None
     client._request_id = 0
+    client._operation_id = None
     monkeypatch.setattr(client, "send", Mock())
     monkeypatch.setattr(client, "receive", Mock())
     return client
@@ -229,7 +231,7 @@ def test_capability_probe_survives_unknown_gateway_notifications():
     client = comms.LocalClient(address)
     thread.start()
     try:
-        assert client.capabilities(timeout=2.0)["protocol_version"] == 2
+        assert "operation_ownership" in client.capabilities(timeout=2.0)["features"]
         assert client.ignored_notifications == 2
     finally:
         client.close()
@@ -287,6 +289,7 @@ def test_connection_messages_without_request_ids_are_accepted():
 def test_server_ignores_malformed_requests():
     server = comms.LocalServer.__new__(comms.LocalServer)
     server.control = GatewayControl(Mock())
+    server._pending_control = []
     server._input_sock = Mock()
     malformed = [
         {"type": 0, "epacket": {"infuse_id": 1, "auth": 0, "type": 0, "payload": 5}},
@@ -347,6 +350,12 @@ def test_capability_probe_times_out_without_gateway(client, monkeypatch):
         client.capabilities()
 
 
+def test_operation_rejects_gateway_alias(client):
+    with pytest.raises(ValueError, match="InfuseID.GATEWAY"), client.operation(InfuseID.GATEWAY):
+        pytest.fail("Operation acquired without a device ID")
+    client.send.assert_not_called()
+
+
 def test_capability_probe_ignores_buffered_comms_check_reply():
     address = comms.default_multicast_address(28851)
     server = comms.LocalServer(address)
@@ -362,10 +371,11 @@ def test_capability_probe_ignores_buffered_comms_check_reply():
     clients = [comms.LocalClient(address), comms.LocalClient(address)]
     thread.start()
     try:
-        assert clients[0].capabilities()["protocol_version"] == 2
+        assert "operation_ownership" in clients[0].capabilities()["features"]
         # Another tool's comms check leaves a plain reply in every client's socket buffer.
         assert clients[1].comms_check()
-        assert clients[0].capabilities()["protocol_version"] == 2
+        with clients[0].operation(123) as owner:
+            assert owner
     finally:
         for client in clients:
             client.close()

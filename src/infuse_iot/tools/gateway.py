@@ -371,6 +371,11 @@ class SerialTxThread(SignaledThread):
         self._cancelled: Counter[tuple[int, int | None]] = Counter()
         self._connected_lock = threading.Lock()
         self._queue: queue.Queue = queue.Queue()
+        if common.server is not None:
+            # The gateway's own device is always connected, so it is never released or reported dropped.
+            common.server.control.is_local = lambda infuse_id: (
+                infuse_id == InfuseID.GATEWAY or infuse_id == common.ddb.gateway
+            )
         super().__init__(self._iter)
 
     def send(self, pkt):

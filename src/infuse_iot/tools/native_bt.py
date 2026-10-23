@@ -83,6 +83,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         control = getattr(server, "control", None)
         self._control = control if isinstance(control, GatewayControl) else GatewayControl(server.broadcast)
         self._control.kind = "native_bt"
+        self._expiry_timer: asyncio.TimerHandle | None = None
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
         try:
@@ -304,11 +305,23 @@ class MulticastHandler(asyncio.DatagramProtocol):
         for item in pending:
             self._dispatch(item)
 
+    def connection_made(self, transport):
+        self._expire_operations()
+
+    def _expire_operations(self):
+        for request in self._control.cleanup():
+            self._dispatch(request)
+        self._expiry_timer = asyncio.get_running_loop().call_later(0.25, self._expire_operations)
+
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
         try:
             request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+            for cleanup in self._control.cleanup():
+                self._dispatch(cleanup)
             if self._control.accept(request):
                 self._dispatch(request)
+            for cleanup in self._control.cleanup():
+                self._dispatch(cleanup)
         except (ValueError, TypeError, KeyError, AttributeError, NotImplementedError):
             logging.getLogger(__name__).warning("Ignoring malformed gateway request")
 
@@ -354,11 +367,15 @@ class MulticastHandler(asyncio.DatagramProtocol):
         Console.log_error(f"Error received: {exc}")
 
     def connection_lost(self, exc):
+        if self._expiry_timer is not None:
+            self._expiry_timer.cancel()
         Console.log_error("Connection closed")
         for task in self._tasks.values():
             task.cancel()
 
     async def shutdown(self):
+        if self._expiry_timer is not None:
+            self._expiry_timer.cancel()
         tasks = list(self._tasks.values())
         for task in tasks:
             task.cancel()
