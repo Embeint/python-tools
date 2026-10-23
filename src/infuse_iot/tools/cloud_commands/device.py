@@ -19,6 +19,7 @@ from infuse_iot.api_client.api.board import (
 )
 from infuse_iot.api_client.api.device import (
     cancel_pending_device_application_updates_by_device_id,
+    cancel_pending_device_kv_entry_updates_by_device_id_and_key_id,
     create_device_application_update_by_device_id,
     create_device_kv_entry_update_by_device_id_and_key_id,
     get_device_application_state_by_device_id,
@@ -77,7 +78,9 @@ class Device(CloudSubCommand):
         kv_update.set_defaults(command_fn=cls.kv_update)
         kv_update.add_argument("--id", type=InfuseDeviceId, required=True, help="Infuse-IoT device ID")
         kv_update.add_argument("--key", "-k", type=int, required=True, help="Key ID to update")
-        kv_update.add_argument("--val", "-v", type=HexString, required=True, help="Key value as a hex string")
+        kv_action = kv_update.add_mutually_exclusive_group(required=True)
+        kv_action.add_argument("--val", "-v", type=HexString, help="Key value as a hex string")
+        kv_action.add_argument("--cancel", action="store_true", help="Cancel pending key update")
 
         dfu_parser = tool_parser.add_parser("dfu", help="Manage device firmware upgrades")
         dfu_parser.set_defaults(command_fn=cls.dfu)
@@ -251,6 +254,23 @@ class Device(CloudSubCommand):
 
     def kv_update(self, client: Client):
         id_str = f"{self.args.id:016x}"
+
+        if self.args.cancel:
+            # No pending update is reported as an empty 204 response
+            cancelled = check_api_response_allow_errors(
+                cancel_pending_device_kv_entry_updates_by_device_id_and_key_id.sync_detailed(
+                    client=client,
+                    device_id=id_str,
+                    key_id=self.args.key,
+                ),
+                "Cancel KV update",
+                [HTTPStatus.NO_CONTENT],
+            )
+            if isinstance(cancelled, models.DeviceKVEntryUpdate):
+                print(f"Cancelled device {id_str} key {self.args.key} update {cancelled.id}")
+            else:
+                print(f"Device {id_str} key {self.args.key} has no pending update")
+            return
 
         val_encoded = base64.b64encode(self.args.val).decode("utf-8")
         update = models.NewDeviceKVEntryUpdate(data=val_encoded)
