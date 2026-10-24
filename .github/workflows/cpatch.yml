@@ -1,0 +1,61 @@
+---
+name: CPatch Rust
+
+# Only run when either CPatch implementation changes
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/infuse_iot/cpatch/**'
+      - 'rust/cpatch/**'
+      - '.github/workflows/cpatch.yml'
+  pull_request:
+    paths:
+      - 'src/infuse_iot/cpatch/**'
+      - 'rust/cpatch/**'
+      - '.github/workflows/cpatch.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install infuse-iot
+        run: python -m pip install .
+
+      - name: Set up Rust
+        # Keep in sync with `rust-version` in rust/cpatch/Cargo.toml
+        env:
+          RUST_VERSION: '1.99.1'
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy,rustfmt
+          rustup default "$RUST_VERSION"
+      - name: Check formatting
+        working-directory: rust/cpatch
+        run: cargo fmt --check
+      - name: Lint
+        working-directory: rust/cpatch
+        run: cargo clippy --release --all-targets --locked -- -D warnings
+      - name: Test
+        working-directory: rust/cpatch
+        run: cargo test --release --locked
+      - name: Build
+        working-directory: rust/cpatch
+        run: cargo build --release --locked
+
+      - name: Compare with Python implementation
+        run: python rust/cpatch/compare.py --rust rust/cpatch/target/release/cpatch
