@@ -23,6 +23,7 @@ class OpCode(enum.IntEnum):
     ADDR_SHIFT_S16 = 9 << 4
     ADDR_SET_U32 = 10 << 4
     PATCH = 11 << 4
+    PATCH_DELTA = 12 << 4
     OPCODE_MASK = 0xF0
     DATA_MASK = 0x0F
 
@@ -75,6 +76,8 @@ class Instr:
             return SetAddrInstr.from_bytes(b, offset, original_offset)
         if opcode == OpCode.PATCH:
             return PatchInstr.from_bytes(b, offset, original_offset)
+        if opcode == OpCode.PATCH_DELTA:
+            return PatchDeltaInstr.from_bytes(b, offset, original_offset)
 
         raise NotImplementedError
 
@@ -473,4 +476,114 @@ class PatchInstr(Instr):
                 if len(op.data) > 1:
                     length += 1
                 length += len(op.data)
+        return length
+
+
+class DeltaHistory:
+    """Most recently used 16 bit deltas, shared by all PATCH_DELTA instructions in a patch"""
+
+    SIZE = 14
+    INITIAL = [1, 0xFFFF, 2, 0xFFFE, 3, 0xFFFD, 4, 0xFFFC, 5, 0xFFFB, 6, 0xFFFA, 7, 0xFFF9]
+
+    def __init__(self):
+        self.deltas = list(self.INITIAL)
+
+    def find(self, delta: int) -> int | None:
+        """Index of a delta in the history"""
+        try:
+            return self.deltas.index(delta)
+        except ValueError:
+            return None
+
+    def use(self, index: int | None, delta: int) -> int:
+        """Update the history after a delta has been used, returning the delta"""
+        if index is None:
+            self.deltas.pop()
+        else:
+            delta = self.deltas.pop(index)
+        self.deltas.insert(0, delta)
+        return delta
+
+
+class PatchDeltaInstr(Instr):
+    """Sequence of COPY operations, each optionally followed by a 16 bit addition
+
+    Each element is a single byte header, with the COPY length in the upper nibble and the
+    addition in the lower nibble. A COPY length of 15 is followed by a byte containing the
+    length minus 15. An addition of 0-13 adds that entry of the `DeltaHistory` to the next
+    two bytes of the original file (little endian) and writes the result. An addition of 14
+    is followed by an explicit 16 bit delta. An addition of 15 is a COPY only, and with a
+    COPY length of 0 terminates the instruction.
+    """
+
+    class PatchDeltaData(ctypes.LittleEndianStructure):
+        op = OpCode.PATCH_DELTA
+        _fields_ = [("opcode", ctypes.c_uint8)]
+        _pack_ = 1
+        _layout_ = "ms"
+
+    EXPLICIT = 14
+    NONE = 15
+    MAX_COPY = 15 + 255
+
+    def __init__(self, elements: list[tuple[int, int, int]]):
+        # (COPY length, addition, explicit delta)
+        self.elements = elements
+
+    def ctypes_class(self):
+        return self.PatchDeltaData
+
+    @classmethod
+    def from_bytes(cls, b: bytes, offset: int, original_offset: int):
+        assert b[offset] == OpCode.PATCH_DELTA
+        elements = []
+        length = 1
+
+        while True:
+            header = b[offset + length]
+            length += 1
+            if header == cls.NONE:
+                break
+            copy_len = header >> 4
+            addition = header & 0x0F
+            if copy_len == 15:
+                copy_len += b[offset + length]
+                length += 1
+            delta = 0
+            if addition == cls.EXPLICIT:
+                delta = int.from_bytes(b[offset + length : offset + length + 2], "little")
+                length += 2
+            original_offset += copy_len + (2 if addition != cls.NONE else 0)
+            elements.append((copy_len, addition, delta))
+
+        return cls(elements), length, original_offset
+
+    def __bytes__(self):
+        x = bytearray([OpCode.PATCH_DELTA.value])
+        for copy_len, addition, delta in self.elements:
+            assert copy_len <= self.MAX_COPY
+            assert copy_len != 0 or addition != self.NONE
+            x.append((min(copy_len, 15) << 4) | addition)
+            if copy_len >= 15:
+                x.append(copy_len - 15)
+            if addition == self.EXPLICIT:
+                x += delta.to_bytes(2, "little")
+        x.append(self.NONE)
+        return bytes(x)
+
+    def __str__(self):
+        out = []
+        for copy_len, addition, delta in self.elements:
+            if addition == self.NONE:
+                out.append(f"\t COPY: {copy_len:6d} bytes")
+            elif addition == self.EXPLICIT:
+                out.append(f"\t COPY: {copy_len:6d} bytes, ADD: {delta:04x}")
+            else:
+                out.append(f"\t COPY: {copy_len:6d} bytes, ADD: history[{addition}]")
+        return "PATCH_DELTA:\n" + "\n".join(out)
+
+    def __len__(self):
+        length = 2
+        for copy_len, addition, _ in self.elements:
+            length += 1 + (copy_len >= 15) + (2 if addition == self.EXPLICIT else 0)
         return length
