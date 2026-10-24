@@ -73,11 +73,33 @@ def test_patch_rejects_wrong_original_contents(encoder):
         cpatch.patch(bytes(reversed(original)), patch)
 
 
-def test_validation_patch_reconstructs_original():
-    original = bytes(range(256)) * 5
-    patch = cpatch.validation(original, invalid_length=False, invalid_crc=False)
+def validation_original(delta: bool) -> bytes:
+    if not delta:
+        return bytes(range(256)) * 5
+    # PATCH_DELTA validation searches the file for values that exercise each history entry
+    rng = random.Random(0)
+    return bytes(rng.getrandbits(8) for _ in range(16384))
+
+
+@pytest.mark.parametrize(("delta", "version_major"), [(False, 1), (True, 2)], ids=["base", "delta"])
+def test_validation_patch_reconstructs_original(delta, version_major):
+    original = validation_original(delta)
+    patch = cpatch.validation(original, invalid_length=False, invalid_crc=False, delta=delta)
 
     assert cpatch.patch(original, patch) == original
+    assert cpatch.PatchHeader.from_buffer_copy(patch).version_major == version_major
+    _, instructions = cpatch._patch_load(patch)
+    assert any(isinstance(instr, PatchDeltaInstr) for instr in instructions) == delta
+
+
+def test_validation_patch_delta_runs_every_element_type():
+    original = validation_original(True)
+    patch = cpatch.validation(original, invalid_length=False, invalid_crc=False, delta=True)
+    _, instructions = cpatch._patch_load(patch)
+    elements = [e for instr in instructions if isinstance(instr, PatchDeltaInstr) for e in instr.elements]
+
+    assert {addition for _, addition, _ in elements} == set(range(16))
+    assert {copy_len for copy_len, _, _ in elements} >= {*range(15), PatchDeltaInstr.MAX_COPY}
 
 
 @pytest.mark.parametrize(
@@ -87,9 +109,10 @@ def test_validation_patch_reconstructs_original():
         pytest.param(False, True, "CRC does not match", id="invalid-crc"),
     ],
 )
-def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, invalid_crc, message):
-    original = bytes(range(256)) * 5
-    patch = cpatch.validation(original, invalid_length=invalid_length, invalid_crc=invalid_crc)
+@pytest.mark.parametrize("delta", [False, True], ids=["base", "delta"])
+def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, invalid_crc, message, delta):
+    original = validation_original(delta)
+    patch = cpatch.validation(original, invalid_length=invalid_length, invalid_crc=invalid_crc, delta=delta)
 
     with pytest.raises(ValidationError, match=message):
         cpatch.patch(original, patch)

@@ -25,6 +25,9 @@ generate_args.add_argument(
 validation_args = subparser.add_parser("validation", help="Generate a patch file for validating appliers")
 validation_args.add_argument("--invalid-length", action="store_true", help="Incorrect output file length")
 validation_args.add_argument("--invalid-crc", action="store_true", help="Incorrect output file CRC")
+validation_args.add_argument(
+    "--delta", action="store_true", help="Include PATCH_DELTA instructions (patch version 2.0)"
+)
 validation_args.add_argument("input_file", help="File to use as base image and desired output")
 validation_args.add_argument("patch", help="Output patch file name")
 
@@ -55,7 +58,7 @@ if args.command == "generate":
         f_output.write(patch)
 elif args.command == "validation":
     with open(args.input_file, "rb") as f_input:
-        patch = cpatch.validation(f_input.read(-1), args.invalid_length, args.invalid_crc)
+        patch = cpatch.validation(f_input.read(-1), args.invalid_length, args.invalid_crc, args.delta)
     with open(args.patch, "wb") as f_output:
         f_output.write(patch)
 elif args.command == "patch":
