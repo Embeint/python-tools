@@ -91,3 +91,14 @@ def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, i
 
     with pytest.raises(ValidationError, match=message):
         cpatch.patch(original, patch)
+
+
+@pytest.mark.parametrize(("encoder", "version_minor"), [(Encoder.GREEDY, 0), (Encoder.SHORTEST_PATH, 1)])
+def test_patch_version_identifies_encoder(encoder, version_minor):
+    original = bytes(range(64))
+    expected = bytes(range(16)) + b"HELLO" + bytes(range(21, 64))
+    patch = cpatch.generate(original, expected, verbose=False, encoder=encoder)
+    header = cpatch.PatchHeader.from_buffer_copy(patch)
+
+    assert header.version_major == cpatch.PatchHeader.VERSION_MAJOR
+    assert header.version_minor == version_minor
