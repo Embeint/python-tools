@@ -6,7 +6,7 @@ import enum
 import logging
 from collections import defaultdict
 
-from infuse_iot.cpatch import encoder_greedy
+from infuse_iot.cpatch import encoder_greedy, encoder_shortest_path
 from infuse_iot.cpatch.instructions import (
     CopyInstr,
     Instr,
@@ -28,9 +28,18 @@ class Encoder(enum.Enum):
 
     # Greedy longest match with cleanup passes
     GREEDY = "greedy"
+    # Minimum encoded size over candidate matching runs
+    SHORTEST_PATH = "shortest-path"
+
+    @property
+    def version_minor(self) -> int:
+        """Patch minor version, identifying the encoder that generated the patch"""
+        return 1 if self == Encoder.SHORTEST_PATH else 0
 
     def encode(self, bin_original: bytes, bin_new: bytes) -> list[Instr]:
-        return encoder_greedy.encode(bin_original, bin_new)
+        if self == Encoder.GREEDY:
+            return encoder_greedy.encode(bin_original, bin_new)
+        return encoder_shortest_path.encode(bin_original, bin_new)
 
 
 class cpatch:
@@ -74,11 +83,11 @@ class cpatch:
         }
 
     @classmethod
-    def _gen_patch_header(cls, patch_metadata: dict, patch_data: bytes):
+    def _gen_patch_header(cls, patch_metadata: dict, patch_data: bytes, version_minor: int = PatchHeader.VERSION_MINOR):
         hdr = cls.PatchHeader(
             cls.PatchHeader.magic_value,
             cls.PatchHeader.VERSION_MAJOR,
-            cls.PatchHeader.VERSION_MINOR,
+            version_minor,
             cls.PatchHeader.ArrayValidation(
                 patch_metadata["original"]["len"],
                 patch_metadata["original"]["crc"],
@@ -154,12 +163,12 @@ class cpatch:
         bin_original: bytes,
         bin_new: bytes,
         verbose: bool,
-        encoder: Encoder = Encoder.GREEDY,
+        encoder: Encoder = Encoder.SHORTEST_PATH,
     ) -> bytes:
         meta = cls._gen_metadata(bin_original, bin_new)
         instructions = encoder.encode(bin_original, bin_new)
         patch_data = cls._gen_patch_data(instructions)
-        patch_header = cls._gen_patch_header(meta, patch_data)
+        patch_header = cls._gen_patch_header(meta, patch_data, encoder.version_minor)
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
 

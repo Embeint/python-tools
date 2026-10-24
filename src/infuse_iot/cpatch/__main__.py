@@ -17,7 +17,7 @@ generate_args.add_argument("patch", help="Output patch file name")
 generate_args.add_argument(
     "--encoder",
     choices=[e.value for e in Encoder],
-    default=Encoder.GREEDY.value,
+    default=Encoder.SHORTEST_PATH.value,
     help="Patch encoding algorithm",
 )
 
