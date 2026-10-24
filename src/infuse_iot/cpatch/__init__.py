@@ -6,11 +6,13 @@ import enum
 import logging
 from collections import defaultdict
 
-from infuse_iot.cpatch import encoder_greedy, encoder_shortest_path
+from infuse_iot.cpatch import encoder_greedy, encoder_shortest_path, encoder_shortest_path_delta
 from infuse_iot.cpatch.instructions import (
     CopyInstr,
+    DeltaHistory,
     Instr,
     OpCode,
+    PatchDeltaInstr,
     PatchInstr,
     SetAddrInstr,
     WriteInstr,
@@ -30,15 +32,24 @@ class Encoder(enum.Enum):
     GREEDY = "greedy"
     # Minimum encoded size over candidate matching runs
     SHORTEST_PATH = "shortest-path"
+    # As SHORTEST_PATH, additionally using PATCH_DELTA (requires patch format version 2)
+    SHORTEST_PATH_DELTA = "shortest-path-delta"
 
     @property
-    def version_minor(self) -> int:
-        """Patch minor version, identifying the encoder that generated the patch"""
-        return 1 if self == Encoder.SHORTEST_PATH else 0
+    def version(self) -> tuple[int, int]:
+        """Patch (major, minor) version, identifying the encoder that generated the patch"""
+        if self == Encoder.SHORTEST_PATH_DELTA:
+            # Existing appliers reject the newer major version before applying any instructions
+            return (cpatch.PatchHeader.VERSION_MAJOR_DELTA, 0)
+        if self == Encoder.SHORTEST_PATH:
+            return (cpatch.PatchHeader.VERSION_MAJOR, 1)
+        return (cpatch.PatchHeader.VERSION_MAJOR, cpatch.PatchHeader.VERSION_MINOR)
 
     def encode(self, bin_original: bytes, bin_new: bytes) -> list[Instr]:
         if self == Encoder.GREEDY:
             return encoder_greedy.encode(bin_original, bin_new)
+        if self == Encoder.SHORTEST_PATH_DELTA:
+            return encoder_shortest_path_delta.encode(bin_original, bin_new)
         return encoder_shortest_path.encode(bin_original, bin_new)
 
 
@@ -46,6 +57,8 @@ class cpatch:
     class PatchHeader(ctypes.LittleEndianStructure):
         VERSION_MAJOR = 1
         VERSION_MINOR = 0
+        # Patches containing PATCH_DELTA instructions
+        VERSION_MAJOR_DELTA = 2
 
         class ArrayValidation(ctypes.LittleEndianStructure):
             _fields_ = [
@@ -83,11 +96,16 @@ class cpatch:
         }
 
     @classmethod
-    def _gen_patch_header(cls, patch_metadata: dict, patch_data: bytes, version_minor: int = PatchHeader.VERSION_MINOR):
+    def _gen_patch_header(
+        cls,
+        patch_metadata: dict,
+        patch_data: bytes,
+        version: tuple[int, int] = (PatchHeader.VERSION_MAJOR, PatchHeader.VERSION_MINOR),
+    ):
         hdr = cls.PatchHeader(
             cls.PatchHeader.magic_value,
-            cls.PatchHeader.VERSION_MAJOR,
-            version_minor,
+            version[0],
+            version[1],
             cls.PatchHeader.ArrayValidation(
                 patch_metadata["original"]["len"],
                 patch_metadata["original"]["crc"],
@@ -136,6 +154,8 @@ class cpatch:
         header_crc = binascii.crc32(patch_binary[: ctypes.sizeof(hdr) - ctypes.sizeof(ctypes.c_uint32)])
         if header_crc != hdr.header_crc:
             raise ValidationError("Patch header validation failed")
+        if hdr.version_major not in (cls.PatchHeader.VERSION_MAJOR, cls.PatchHeader.VERSION_MAJOR_DELTA):
+            raise ValidationError(f"Unsupported patch version ({hdr.version_major})")
         if len(data) != hdr.patch_file.length:
             raise ValidationError(
                 f"Patch data length does not match header information ({len(data)} != {hdr.patch_file.length})"
@@ -168,7 +188,7 @@ class cpatch:
         meta = cls._gen_metadata(bin_original, bin_new)
         instructions = encoder.encode(bin_original, bin_new)
         patch_data = cls._gen_patch_data(instructions)
-        patch_header = cls._gen_patch_header(meta, patch_data, encoder.version_minor)
+        patch_header = cls._gen_patch_header(meta, patch_data, encoder.version)
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
 
@@ -248,6 +268,7 @@ class cpatch:
         meta, instructions = cls._patch_load(bin_patch)
         patched = b""
         orig_offset = 0
+        history = DeltaHistory()
 
         len_orig = len(bin_original)
         len_expected = meta["original"]["len"]
@@ -281,6 +302,17 @@ class cpatch:
                         orig_offset += len(op.data)
                     else:
                         assert 0
+            elif isinstance(instr, PatchDeltaInstr):
+                for copy_len, addition, delta in instr.elements:
+                    patched += bin_original[orig_offset : orig_offset + copy_len]
+                    orig_offset += copy_len
+                    if addition == PatchDeltaInstr.NONE:
+                        continue
+                    index = None if addition == PatchDeltaInstr.EXPLICIT else addition
+                    delta = history.use(index, delta)
+                    val = int.from_bytes(bin_original[orig_offset : orig_offset + 2], "little")
+                    patched += ((val + delta) & 0xFFFF).to_bytes(2, "little")
+                    orig_offset += 2
             else:
                 assert 0
 

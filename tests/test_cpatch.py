@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import os
+import random
 import subprocess
 import sys
 
 import pytest
 
 from infuse_iot.cpatch import Encoder, ValidationError, cpatch
+from infuse_iot.cpatch.instructions import Instr, PatchDeltaInstr
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -93,12 +95,51 @@ def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, i
         cpatch.patch(original, patch)
 
 
-@pytest.mark.parametrize(("encoder", "version_minor"), [(Encoder.GREEDY, 0), (Encoder.SHORTEST_PATH, 1)])
-def test_patch_version_identifies_encoder(encoder, version_minor):
+@pytest.mark.parametrize(
+    ("encoder", "version_major", "version_minor"),
+    [(Encoder.GREEDY, 1, 0), (Encoder.SHORTEST_PATH, 1, 1), (Encoder.SHORTEST_PATH_DELTA, 2, 0)],
+)
+def test_patch_version_identifies_encoder(encoder, version_major, version_minor):
     original = bytes(range(64))
     expected = bytes(range(16)) + b"HELLO" + bytes(range(21, 64))
     patch = cpatch.generate(original, expected, verbose=False, encoder=encoder)
     header = cpatch.PatchHeader.from_buffer_copy(patch)
 
-    assert header.version_major == cpatch.PatchHeader.VERSION_MAJOR
+    assert header.version_major == version_major
     assert header.version_minor == version_minor
+
+
+def test_patch_delta_instruction_round_trip():
+    elements = [
+        (0, PatchDeltaInstr.EXPLICIT, 0x1234),
+        (5, 0, 0),
+        (14, 13, 0),
+        (15, PatchDeltaInstr.NONE, 0),
+        (PatchDeltaInstr.MAX_COPY, PatchDeltaInstr.EXPLICIT, 0xFFFF),
+    ]
+    instr = PatchDeltaInstr(elements)
+    data = bytes(instr)
+    decoded, length, original_offset = Instr.from_bytes(data, 0, 0)
+
+    assert isinstance(decoded, PatchDeltaInstr)
+    assert decoded.elements == elements
+    assert length == len(data) == len(instr)
+    assert original_offset == sum(c for c, _, _ in elements) + 2 * 4
+
+
+def test_delta_encoder_encodes_relocated_values():
+    rng = random.Random(0)
+    original = bytes(rng.getrandbits(8) for _ in range(8192))
+    # Halfwords throughout the file change by a small number of deltas
+    modified = bytearray(original)
+    for offset in range(0, len(modified) - 2, 32):
+        val = int.from_bytes(modified[offset : offset + 2], "little")
+        delta = (1, 4, 0xFFFC)[offset % 3]
+        modified[offset : offset + 2] = ((val + delta) & 0xFFFF).to_bytes(2, "little")
+    expected = bytes(modified)
+
+    patch_shortest_path = cpatch.generate(original, expected, verbose=False, encoder=Encoder.SHORTEST_PATH)
+    patch_delta = cpatch.generate(original, expected, verbose=False, encoder=Encoder.SHORTEST_PATH_DELTA)
+
+    assert len(patch_delta) < len(patch_shortest_path)
+    assert cpatch.patch(original, patch_delta) == expected
