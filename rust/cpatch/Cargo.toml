@@ -1,0 +1,15 @@
+[package]
+name = "cpatch"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.99"
+description = "Generate and apply CPatch binary patch files (port of `python -m infuse_iot.cpatch`)"
+license-file = "../../LICENSE.md"
+publish = false
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
