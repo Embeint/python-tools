@@ -214,7 +214,79 @@ class cpatch:
         return bin_patch
 
     @classmethod
-    def validation(cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool) -> bytes:
+    def _validation_delta(cls, bin_original: bytes, offset: int) -> list[Instr]:
+        """Instructions that run every PATCH_DELTA element type, reconstructing `bin_original[offset:]`"""
+
+        def val16(o: int) -> int:
+            return bin_original[o] | bin_original[o + 1] << 8
+
+        instructions: list[Instr] = []
+        history = DeltaHistory()
+
+        # Every COPY length encoding on the current offset, where the required delta is 0
+        elements = [(0, PatchDeltaInstr.EXPLICIT, 0)]
+        history.use(None, 0)
+        for copy_len in [*range(1, 15), 15, 100, PatchDeltaInstr.MAX_COPY]:
+            elements.append((copy_len, 0, 0))
+            history.use(0, 0)
+        elements.append((5, PatchDeltaInstr.NONE, 0))
+        elements.append((PatchDeltaInstr.MAX_COPY, PatchDeltaInstr.NONE, 0))
+        instructions.append(PatchDeltaInstr(elements))
+        out = offset + sum(c + (2 if a != PatchDeltaInstr.NONE else 0) for c, a, _ in elements)
+        old = out
+
+        # Additions of non-zero deltas read from a different offset in the original, such that
+        # the output still matches the original.
+        positions: dict[int, list[int]] = defaultdict(list)
+        for o in range(len(bin_original) - 1):
+            positions[val16(o)].append(o)
+
+        def addition(x: int, y: int, index: int, delta: int) -> None:
+            """Output the original at `x` by adding a delta to the original at `y`"""
+            nonlocal out, old
+            if x > out:
+                if old != out:
+                    instructions.append(SetAddrInstr(old, out))
+                instructions.append(CopyInstr(x - out))
+                old = x
+            if old != y:
+                instructions.append(SetAddrInstr(old, y))
+            instructions.append(PatchDeltaInstr([(0, index, delta)]))
+            history.use(None if index == PatchDeltaInstr.EXPLICIT else index, delta)
+            out, old = x + 2, y + 2
+
+        def history_addition(accept) -> None:
+            for x in range(out, len(bin_original) - 1):
+                for index, delta in enumerate(history.deltas):
+                    for y in positions.get((val16(x) - delta) & 0xFFFF, []):
+                        if accept(index, delta, y):
+                            addition(x, y, index, 0)
+                            return
+            raise ValueError("Input file does not contain the values required for PATCH_DELTA validation")
+
+        # Each history index, and at least one addition carrying out of the low byte
+        for target in range(DeltaHistory.SIZE - 1, 0, -1):
+            history_addition(lambda index, delta, y, target=target: index == target and delta != 0)
+        history_addition(lambda index, delta, y: (val16(y) & 0xFF) + (delta & 0xFF) > 0xFF)
+
+        # An explicit delta that is not in the history
+        for x in range(out, len(bin_original) - 2):
+            delta = (val16(x) - val16(x + 1)) & 0xFFFF
+            if history.find(delta) is None:
+                addition(x, x + 1, PatchDeltaInstr.EXPLICIT, delta)
+                break
+        else:
+            raise ValueError("Input file does not contain the values required for PATCH_DELTA validation")
+
+        # Remainder of the file
+        if old != out:
+            instructions.append(SetAddrInstr(old, out))
+        if out < len(bin_original):
+            instructions.append(CopyInstr(len(bin_original) - out))
+        return instructions
+
+    @classmethod
+    def validation(cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool, delta: bool = False) -> bytes:
         assert len(bin_original) > 1024
 
         # Manually construct an instruction set that runs all instructions
@@ -240,7 +312,13 @@ class cpatch:
                 ]
             )
         )
-        instructions.append(CopyInstr(len(bin_original) - 544))
+        if delta:
+            # PATCH_DELTA instructions require version 2 appliers
+            instructions += cls._validation_delta(bin_original, 544)
+            version = (cls.PatchHeader.VERSION_MAJOR_DELTA, 0)
+        else:
+            instructions.append(CopyInstr(len(bin_original) - 544))
+            version = (cls.PatchHeader.VERSION_MAJOR, cls.PatchHeader.VERSION_MINOR)
 
         meta = cls._gen_metadata(bin_original, bin_original)
         if invalid_length:
@@ -249,7 +327,7 @@ class cpatch:
             meta["new"]["crc"] -= 1
 
         patch_data = cls._gen_patch_data(instructions)
-        patch_header = cls._gen_patch_header(meta, patch_data)
+        patch_header = cls._gen_patch_header(meta, patch_data, version)
         bin_patch = patch_header + patch_data
 
         # Validate that file can be reconstructed
