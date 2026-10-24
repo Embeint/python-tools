@@ -6,12 +6,12 @@ import sys
 
 import pytest
 
-from infuse_iot.cpatch import ValidationError, cpatch
+from infuse_iot.cpatch import Encoder, ValidationError, cpatch
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
 
-def apply_generated_patch(tmp_path, original: bytes, expected: bytes) -> bytes:
+def apply_generated_patch(tmp_path, original: bytes, expected: bytes, encoder: Encoder) -> bytes:
     original_file = tmp_path / "original.bin"
     new_file = tmp_path / "new.bin"
     patch_file = tmp_path / "update.cpatch"
@@ -21,7 +21,17 @@ def apply_generated_patch(tmp_path, original: bytes, expected: bytes) -> bytes:
     new_file.write_bytes(expected)
 
     subprocess.run(
-        [sys.executable, "-m", "infuse_iot.cpatch", "generate", original_file, new_file, patch_file],
+        [
+            sys.executable,
+            "-m",
+            "infuse_iot.cpatch",
+            "generate",
+            "--encoder",
+            encoder.value,
+            original_file,
+            new_file,
+            patch_file,
+        ],
         check=True,
         stdout=subprocess.DEVNULL,
     )
@@ -34,6 +44,7 @@ def apply_generated_patch(tmp_path, original: bytes, expected: bytes) -> bytes:
     return output_file.read_bytes()
 
 
+@pytest.mark.parametrize("encoder", list(Encoder), ids=lambda e: e.value)
 @pytest.mark.parametrize(
     ("original", "expected"),
     [
@@ -42,16 +53,19 @@ def apply_generated_patch(tmp_path, original: bytes, expected: bytes) -> bytes:
         pytest.param(bytes(range(64)), bytes(range(64)) + b"TAIL", id="append"),
         pytest.param(bytes(range(64)), bytes(range(16)) + bytes(range(24, 64)), id="delete"),
         pytest.param(b"abcdefgh" * 8 + b"ijklmnop" * 8, b"ijklmnop" * 8 + b"abcdefgh" * 8, id="reuse"),
+        pytest.param(b"abc", b"abd", id="tiny"),
+        pytest.param(bytes(range(64)) + b"\xff" * 32, bytes(range(64)) + b"\xff" * 1000, id="padding"),
     ],
 )
-def test_cli_generates_patch_that_reconstructs_expected_output(tmp_path, original, expected):
-    assert apply_generated_patch(tmp_path, original, expected) == expected
+def test_cli_generates_patch_that_reconstructs_expected_output(tmp_path, original, expected, encoder):
+    assert apply_generated_patch(tmp_path, original, expected, encoder) == expected
 
 
-def test_patch_rejects_wrong_original_contents():
+@pytest.mark.parametrize("encoder", list(Encoder), ids=lambda e: e.value)
+def test_patch_rejects_wrong_original_contents(encoder):
     original = bytes(range(64))
     expected = bytes(range(16)) + b"HELLO" + bytes(range(21, 64))
-    patch = cpatch.generate(original, expected, verbose=False)
+    patch = cpatch.generate(original, expected, verbose=False, encoder=encoder)
 
     with pytest.raises(ValidationError, match="Original file CRC"):
         cpatch.patch(bytes(reversed(original)), patch)
