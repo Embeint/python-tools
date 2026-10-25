@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import ctypes
 import os
 import random
 import subprocess
@@ -7,7 +8,7 @@ import sys
 
 import pytest
 
-from infuse_iot.cpatch import Encoder, ValidationError, cpatch
+from infuse_iot.cpatch import Encoder, ValidationError, cpatch, stream
 from infuse_iot.cpatch.instructions import Instr, PatchDeltaInstr
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
@@ -109,10 +110,16 @@ def test_validation_patch_delta_runs_every_element_type():
         pytest.param(False, True, "CRC does not match", id="invalid-crc"),
     ],
 )
-@pytest.mark.parametrize("delta", [False, True], ids=["base", "delta"])
-def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, invalid_crc, message, delta):
-    original = validation_original(delta)
-    patch = cpatch.validation(original, invalid_length=invalid_length, invalid_crc=invalid_crc, delta=delta)
+@pytest.mark.parametrize(
+    ("delta", "stream_thumb2"), [(False, False), (True, False), (False, True)], ids=["base", "delta", "stream-thumb2"]
+)
+def test_validation_patch_can_generate_invalid_output_metadata(
+    invalid_length, invalid_crc, message, delta, stream_thumb2
+):
+    original = stream_firmware(0, 0) if stream_thumb2 else validation_original(delta)
+    patch = cpatch.validation(
+        original, invalid_length=invalid_length, invalid_crc=invalid_crc, delta=delta, stream_thumb2=stream_thumb2
+    )
 
     with pytest.raises(ValidationError, match=message):
         cpatch.patch(original, patch)
@@ -120,7 +127,12 @@ def test_validation_patch_can_generate_invalid_output_metadata(invalid_length, i
 
 @pytest.mark.parametrize(
     ("encoder", "version_major", "version_minor"),
-    [(Encoder.GREEDY, 1, 0), (Encoder.SHORTEST_PATH, 1, 1), (Encoder.SHORTEST_PATH_DELTA, 2, 0)],
+    [
+        (Encoder.GREEDY, 1, 0),
+        (Encoder.SHORTEST_PATH, 1, 1),
+        (Encoder.SHORTEST_PATH_DELTA, 2, 0),
+        (Encoder.STREAM_THUMB2, 3, 0),
+    ],
 )
 def test_patch_version_identifies_encoder(encoder, version_major, version_minor):
     original = bytes(range(64))
@@ -166,3 +178,115 @@ def test_delta_encoder_encodes_relocated_values():
 
     assert len(patch_delta) < len(patch_shortest_path)
     assert cpatch.patch(original, patch_delta) == expected
+
+
+def test_stream_elements_round_trip():
+    elements = [
+        stream.Element(0, stream.Add(0)),
+        stream.Element(14, stream.Add(stream.HISTORY_SIZE - 1)),
+        stream.Element(15, stream.AddExplicit(0x1234)),
+        stream.Element(142, stream.Literal(b"\x01")),
+        stream.Element(143, stream.Literal(b"\x01\x02")),
+        stream.Element(1 << 20, stream.Literal(b"\x07" * 300)),
+        stream.Element(3, stream.Shift(-64)),
+        stream.Element(0, stream.Shift(1 << 30)),
+        stream.Element(0, stream.LiteralShift(b"\x05", 63)),
+        stream.Element(2, stream.LiteralShift(b"\x09" * 200, -(1 << 20))),
+        stream.Element(1, stream.NoOp()),
+    ]
+    for element in elements:
+        data = bytes(element)
+        assert len(data) == len(element)
+        assert stream.Element.from_bytes(data, 0) == (element, len(data))
+    preamble = stream.Preamble(
+        stream.FLAG_BRANCH | stream.FLAG_POINTER,
+        0x0801_0000,
+        [(0x10, -5), (0x1000, 0x7F_FFFF), (0xFF_FFFF, -0x80_0000)],
+        [stream.Region(0x2000_0000, 0x4_0000, [(0x100, 8)])],
+    )
+    data = stream.encode(preamble, elements)
+    assert len(bytes(preamble)) == len(preamble)
+    assert stream.decode(data) == (preamble, elements)
+
+
+def test_stream_history_move_to_front():
+    history = stream.History()
+    assert history.use(2, 0) == 2
+    assert history.deltas[:3] == [2, 1, 0xFFFF]
+    assert history.use(None, 0x1234) == 0x1234
+    assert history.deltas[0] == 0x1234
+    assert history.use(stream.HISTORY_SIZE - 1, 0) == 5
+
+
+def stream_firmware(inserted: int, ram_shift: int) -> bytes:
+    """Functions that call each other, with literal pools of pointers to functions and RAM
+    variables. `inserted` bytes of new code are placed before function 40."""
+    func_len, base = 256, 0x1_0000
+    rng = random.Random(11)
+    bodies = [bytearray(rng.getrandbits(8) for _ in range(func_len)) for _ in range(100)]
+
+    def start(f: int) -> int:
+        return f * func_len + (inserted if f >= 40 else 0)
+
+    image = bytearray()
+    for f, body in enumerate(bodies):
+        if f == 40:
+            image += b"\xa5" * inserted
+        body = bytearray(body)
+        for i in range(4):
+            # Call to another function
+            at = start(f) + 16 + 32 * i
+            encoded = stream.thumb_branch_encode(0xF800, start((f * 7 + i) % 100) - (at + 4))
+            assert encoded is not None
+            body[16 + 32 * i : 20 + 32 * i] = encoded[0].to_bytes(2, "little") + encoded[1].to_bytes(2, "little")
+            # Pointers to a function and a RAM variable
+            function = base + start((f * 3 + i) % 100) + 1
+            variable = 0x2000_0000 + (f * 4 + i) * 8 + (ram_shift if f >= 50 else 0)
+            body[128 + 8 * i : 132 + 8 * i] = function.to_bytes(4, "little")
+            body[132 + 8 * i : 136 + 8 * i] = variable.to_bytes(4, "little")
+        image += body
+    return bytes(image)
+
+
+def test_stream_thumb2_encoder_relocates_moved_code():
+    original, expected = stream_firmware(0, 0), stream_firmware(100, 16)
+    patch = cpatch.generate(original, expected, verbose=False, encoder=Encoder.STREAM_THUMB2)
+    meta, _ = cpatch._patch_load(patch)
+    preamble = meta["preamble"]
+
+    assert preamble.flags == stream.FLAG_BRANCH | stream.FLAG_POINTER
+    assert preamble.base == 0x1_0000
+    assert len(preamble.regions) == 1
+    assert cpatch.patch(original, patch) == expected
+    # Without relocation every moved call and pointer needs an addition
+    assert len(patch) - ctypes.sizeof(cpatch.PatchHeader) < 400
+
+
+def test_thumb_branches_round_trip():
+    rng = random.Random(7)
+    for _ in range(10_000):
+        offset = rng.randrange(-(1 << 24), 1 << 24) & ~1
+        for h2_original in (0xF800, 0x9000):
+            encoded = stream.thumb_branch_encode(h2_original, offset)
+            assert encoded is not None
+            assert stream.thumb_branch_offset(*encoded) == offset
+    assert stream.thumb_branch_encode(0xF800, 0) == (0xF000, 0xF800)
+    assert stream.thumb_branch_encode(0xF800, 1 << 24) is None
+
+
+def test_validation_patch_stream_thumb2_runs_every_operation_and_relocation():
+    original = stream_firmware(0, 0)
+    patch = cpatch.validation(original, invalid_length=False, invalid_crc=False, stream_thumb2=True)
+    meta, elements = cpatch._patch_load(patch)
+
+    assert cpatch.patch(original, patch) == original
+    assert meta["version"] == (cpatch.PatchHeader.VERSION_MAJOR_STREAM_THUMB2, 0)
+    assert all(count > 0 for _, count in stream.op_counts(elements))
+    assert {e.op.index for e in elements if isinstance(e.op, stream.Add)} == set(range(stream.HISTORY_SIZE))
+    assert {e.copy for e in elements} >= {*range(1, 16), 142, 143}
+    preamble = meta["preamble"]
+    assert preamble.flags == stream.FLAG_BRANCH | stream.FLAG_POINTER
+    assert any(shift for _, shift in preamble.map)
+    assert any(shift for region in preamble.regions for _, shift in region.map)
+    # Sites are relocated by non-zero shifts, so appliers that do not relocate fail
+    assert stream.apply(original, stream.Preamble(), elements) != original

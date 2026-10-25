@@ -5,8 +5,15 @@ import ctypes
 import enum
 import logging
 from collections import defaultdict
+from typing import Any
 
-from infuse_iot.cpatch import encoder_greedy, encoder_shortest_path, encoder_shortest_path_delta
+from infuse_iot.cpatch import (
+    encoder_greedy,
+    encoder_shortest_path,
+    encoder_shortest_path_delta,
+    encoder_stream_thumb2,
+    stream,
+)
 from infuse_iot.cpatch.instructions import (
     CopyInstr,
     DeltaHistory,
@@ -34,10 +41,14 @@ class Encoder(enum.Enum):
     SHORTEST_PATH = "shortest-path"
     # As SHORTEST_PATH, additionally using PATCH_DELTA (requires patch format version 2)
     SHORTEST_PATH_DELTA = "shortest-path-delta"
+    # Element stream with relocation of Thumb-2 branches and pointers (requires patch format version 3)
+    STREAM_THUMB2 = "stream-thumb2"
 
     @property
     def version(self) -> tuple[int, int]:
         """Patch (major, minor) version, identifying the encoder that generated the patch"""
+        if self == Encoder.STREAM_THUMB2:
+            return (cpatch.PatchHeader.VERSION_MAJOR_STREAM_THUMB2, 0)
         if self == Encoder.SHORTEST_PATH_DELTA:
             # Existing appliers reject the newer major version before applying any instructions
             return (cpatch.PatchHeader.VERSION_MAJOR_DELTA, 0)
@@ -46,6 +57,7 @@ class Encoder(enum.Enum):
         return (cpatch.PatchHeader.VERSION_MAJOR, cpatch.PatchHeader.VERSION_MINOR)
 
     def encode(self, bin_original: bytes, bin_new: bytes) -> list[Instr]:
+        assert self != Encoder.STREAM_THUMB2, "Element streams are not instructions, use `encoder_stream_thumb2.encode`"
         if self == Encoder.GREEDY:
             return encoder_greedy.encode(bin_original, bin_new)
         if self == Encoder.SHORTEST_PATH_DELTA:
@@ -59,6 +71,8 @@ class cpatch:
         VERSION_MINOR = 0
         # Patches containing PATCH_DELTA instructions
         VERSION_MAJOR_DELTA = 2
+        # Patches containing an element stream for Thumb-2 images, with a relocation preamble
+        VERSION_MAJOR_STREAM_THUMB2 = 3
 
         class ArrayValidation(ctypes.LittleEndianStructure):
             _fields_ = [
@@ -132,11 +146,12 @@ class cpatch:
         return output_bytes
 
     @classmethod
-    def _patch_load(cls, patch_binary: bytes):
+    def _patch_load(cls, patch_binary: bytes) -> tuple[dict[str, Any], list[Any]]:
+        """Validate a patch, returning its metadata and instructions (elements for version 3)"""
         hdr = cls.PatchHeader.from_buffer_copy(patch_binary)
         data = patch_binary[ctypes.sizeof(cls.PatchHeader) :]
 
-        metadata = {
+        metadata: dict[str, Any] = {
             "original": {
                 "len": hdr.original_file.length,
                 "crc": hdr.original_file.crc,
@@ -154,7 +169,11 @@ class cpatch:
         header_crc = binascii.crc32(patch_binary[: ctypes.sizeof(hdr) - ctypes.sizeof(ctypes.c_uint32)])
         if header_crc != hdr.header_crc:
             raise ValidationError("Patch header validation failed")
-        if hdr.version_major not in (cls.PatchHeader.VERSION_MAJOR, cls.PatchHeader.VERSION_MAJOR_DELTA):
+        if hdr.version_major not in (
+            cls.PatchHeader.VERSION_MAJOR,
+            cls.PatchHeader.VERSION_MAJOR_DELTA,
+            cls.PatchHeader.VERSION_MAJOR_STREAM_THUMB2,
+        ):
             raise ValidationError(f"Unsupported patch version ({hdr.version_major})")
         if len(data) != hdr.patch_file.length:
             raise ValidationError(
@@ -166,6 +185,16 @@ class cpatch:
             raise ValidationError(
                 f"Patch data CRC does not match patch information ({crc_patch:08x} != {crc_expected:08x})"
             )
+
+        metadata["version"] = (hdr.version_major, hdr.version_minor)
+        if hdr.version_major == cls.PatchHeader.VERSION_MAJOR_STREAM_THUMB2:
+            # Version 3 patch data is a relocation preamble and an element stream
+            try:
+                preamble, elements = stream.decode(data)
+            except stream.ValidationError as e:
+                raise ValidationError(str(e)) from e
+            metadata["preamble"] = preamble
+            return metadata, elements
 
         instructions = []
         patch_offset = 0
@@ -186,8 +215,20 @@ class cpatch:
         encoder: Encoder = Encoder.SHORTEST_PATH,
     ) -> bytes:
         meta = cls._gen_metadata(bin_original, bin_new)
-        instructions = encoder.encode(bin_original, bin_new)
-        patch_data = cls._gen_patch_data(instructions)
+        counts: dict[str, int]
+        instructions: list[Instr] | list[stream.Element]
+        if encoder == Encoder.STREAM_THUMB2:
+            preamble, elements = encoder_stream_thumb2.encode(bin_original, bin_new)
+            patch_data = stream.encode(preamble, elements)
+            counts = dict(stream.op_counts(elements))
+            instructions = elements
+        else:
+            instructions = encoder.encode(bin_original, bin_new)
+            patch_data = cls._gen_patch_data(instructions)
+            class_count: dict[OpCode, int] = defaultdict(int)
+            for instr in instructions:
+                class_count[instr.ctypes_class().op] += 1
+            counts = {op.name: count for op, count in sorted(class_count.items())}
         patch_header = cls._gen_patch_header(meta, patch_data, encoder.version)
         bin_patch = patch_header + patch_data
         ratio = 100 * len(bin_patch) / meta["new"]["len"]
@@ -197,14 +238,10 @@ class cpatch:
         logger.info(f"   Patch File: {len(bin_patch):6d} bytes ({ratio:.2f}%) ({len(instructions):5d} instructions)")
 
         if verbose:
-            class_count: dict[OpCode, int] = defaultdict(int)
-            for instr in instructions:
-                class_count[instr.ctypes_class().op] += 1
-
             logger.info("")
             logger.info("Instructions:")
-            for instr_cls, instr_count in sorted(class_count.items()):
-                logger.info(f"{instr_cls.name:>16s}: {instr_count}")
+            for name, instr_count in counts.items():
+                logger.info(f"{name:>16s}: {instr_count}")
 
         # Validate that file can be reconstructed
         patched = cls.patch(bin_original, bin_patch)
@@ -286,8 +323,16 @@ class cpatch:
         return instructions
 
     @classmethod
-    def validation(cls, bin_original: bytes, invalid_length: bool, invalid_crc: bool, delta: bool = False) -> bytes:
+    def validation(
+        cls,
+        bin_original: bytes,
+        invalid_length: bool,
+        invalid_crc: bool,
+        delta: bool = False,
+        stream_thumb2: bool = False,
+    ) -> bytes:
         assert len(bin_original) > 1024
+        assert not (delta and stream_thumb2)
 
         # Manually construct an instruction set that runs all instructions
         instructions: list[Instr] = []
@@ -312,12 +357,19 @@ class cpatch:
                 ]
             )
         )
-        if delta:
+        if stream_thumb2:
+            # Element streams require version 3 appliers, and replace all instructions
+            preamble, elements = stream.validation(bin_original)
+            patch_data = stream.encode(preamble, elements)
+            version = (cls.PatchHeader.VERSION_MAJOR_STREAM_THUMB2, 0)
+        elif delta:
             # PATCH_DELTA instructions require version 2 appliers
             instructions += cls._validation_delta(bin_original, 544)
+            patch_data = cls._gen_patch_data(instructions)
             version = (cls.PatchHeader.VERSION_MAJOR_DELTA, 0)
         else:
             instructions.append(CopyInstr(len(bin_original) - 544))
+            patch_data = cls._gen_patch_data(instructions)
             version = (cls.PatchHeader.VERSION_MAJOR, cls.PatchHeader.VERSION_MINOR)
 
         meta = cls._gen_metadata(bin_original, bin_original)
@@ -326,7 +378,6 @@ class cpatch:
         if invalid_crc:
             meta["new"]["crc"] -= 1
 
-        patch_data = cls._gen_patch_data(instructions)
         patch_header = cls._gen_patch_header(meta, patch_data, version)
         bin_patch = patch_header + patch_data
 
@@ -360,6 +411,13 @@ class cpatch:
             raise ValidationError(
                 f"Original file CRC does not match patch information ({crc_orig:08x} != {crc_expected:08x})"
             )
+
+        if meta["version"][0] == cls.PatchHeader.VERSION_MAJOR_STREAM_THUMB2:
+            try:
+                patched = stream.apply(bin_original, meta["preamble"], instructions)
+            except stream.ValidationError as e:
+                raise ValidationError(str(e)) from e
+            instructions = []
 
         for instr in instructions:
             if isinstance(instr, CopyInstr):
@@ -411,11 +469,46 @@ class cpatch:
         return patched
 
     @classmethod
+    def _dump_stream(cls, bin_patch: bytes, meta: dict, elements: list[stream.Element]):
+        preamble: stream.Preamble = meta["preamble"]
+        total_write_bytes = sum(
+            len(e.op.data) for e in elements if isinstance(e.op, (stream.Literal, stream.LiteralShift))
+        )
+        print(f"Original File: {meta['original']['len']:6d} bytes")
+        print(f"     New File: {meta['new']['len']:6d} bytes")
+        print(f"   Patch File: {len(bin_patch)} bytes ({len(elements):5d} elements)")
+        print(f"   Relocation: flags {preamble.flags:02x}, base {preamble.base:08x}")
+        print(f"Relocation Map: {len(preamble.map)} entries")
+        for start, shift in preamble.map:
+            print(f"\t{start:08x}: {shift:+d}")
+        for region in preamble.regions:
+            print(f"Pointer Region: {region.base:08x}-{region.base + region.length:08x}, {len(region.map)} entries")
+            for start, shift in region.map:
+                print(f"\t{start:08x}: {shift:+d}")
+
+        print("")
+        print("Total WRITE data:")
+        print(f"\t{total_write_bytes} bytes ({100 * total_write_bytes / len(bin_patch):.2f}%)")
+
+        print("")
+        print("Operation Count:")
+        for name, count in stream.op_counts(elements):
+            print(f"{name:>16s}: {count}")
+
+        print("")
+        print("Element List:")
+        for element in elements:
+            print(element)
+
+    @classmethod
     def dump(
         cls,
         bin_patch: bytes,
     ):
         meta, instructions = cls._patch_load(bin_patch)
+        if meta["version"][0] == cls.PatchHeader.VERSION_MAJOR_STREAM_THUMB2:
+            cls._dump_stream(bin_patch, meta, instructions)
+            return
         total_write_bytes = 0
 
         print(f"Original File: {meta['original']['len']:6d} bytes")

@@ -1,7 +1,7 @@
 //! Generate and apply CPatch binary patch files.
 //!
-//! Port of `python -m infuse_iot.cpatch`, supporting the `shortest-path` and
-//! `shortest-path-delta` encoders.
+//! Port of `python -m infuse_iot.cpatch`, supporting the `shortest-path`, `shortest-path-delta`
+//! and `stream-thumb2` encoders.
 
 mod cpatch;
 mod crc;
@@ -9,6 +9,8 @@ mod instructions;
 mod matching;
 mod shortest_path;
 mod shortest_path_delta;
+mod stream;
+mod stream_thumb2;
 
 use std::fs;
 use std::process::ExitCode;
@@ -21,8 +23,8 @@ Usage: cpatch [--verbose|-v] <COMMAND>
 Commands:
   generate [--encoder <ENCODER>] <ORIGINAL> <NEW> <PATCH>
       Generate a patch file
-      --encoder   shortest-path (default) | shortest-path-delta
-  validation [--invalid-length] [--invalid-crc] [--delta] <INPUT_FILE> <PATCH>
+      --encoder   shortest-path (default) | shortest-path-delta | stream-thumb2
+  validation [--invalid-length] [--invalid-crc] [--delta|--stream-thumb2] <INPUT_FILE> <PATCH>
       Generate a patch file for validating appliers
   patch <ORIGINAL> <PATCH> <OUTPUT>
       Apply a patch file
@@ -125,19 +127,23 @@ fn run(args: &[String]) -> Result<(), String> {
             println!(
                 "   Patch File: {:6} bytes ({ratio:.2}%) ({:5} instructions)",
                 generated.patch.len(),
-                generated.instructions.len()
+                generated.count
             );
             if verbose {
                 println!();
                 println!("Instructions:");
-                for (name, count) in cpatch::opcode_counts(&generated.instructions) {
+                for (name, count) in &generated.counts {
                     println!("{name:>16}: {count}");
                 }
             }
             write(patch, &generated.patch)
         }
         "validation" => {
-            let args = parse(rest, &[], &["--invalid-length", "--invalid-crc", "--delta"])?;
+            let args = parse(
+                rest,
+                &[],
+                &["--invalid-length", "--invalid-crc", "--delta", "--stream-thumb2"],
+            )?;
             let [input, patch] = args.positional()?;
             let bin = read(input)?;
             let out = cpatch::validation(
@@ -145,6 +151,7 @@ fn run(args: &[String]) -> Result<(), String> {
                 args.has("--invalid-length"),
                 args.has("--invalid-crc"),
                 args.has("--delta"),
+                args.has("--stream-thumb2"),
             )?;
             write(patch, &out)
         }

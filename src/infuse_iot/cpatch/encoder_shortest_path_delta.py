@@ -387,6 +387,19 @@ def _delta_encode(
     return builder.instructions, builder.additions
 
 
+def _initial_additions(bin_orig: bytes, bin_new: bytes, gaps: list[tuple]) -> list[tuple[int, int]]:
+    """Predicted additions from the gaps of an encoding without additions"""
+    additions = []
+    for start, end, diag_before, diag_after in gaps:
+        if diag_before == diag_after and end - start <= MAX_DELTA_GAP:
+            for pos in range(start, end, 2):
+                o = pos + diag_before
+                if o >= 0 and o + 2 <= len(bin_orig) and pos + 2 <= len(bin_new):
+                    delta = (bin_new[pos] | bin_new[pos + 1] << 8) - (bin_orig[o] | bin_orig[o + 1] << 8)
+                    additions.append((pos, delta & 0xFFFF))
+    return additions
+
+
 def encode(bin_orig: bytes, bin_new: bytes) -> list[Instr]:
     """Encode the new file as instructions applied to the original file"""
     old = np.frombuffer(bin_orig, dtype=np.uint8)
@@ -399,14 +412,7 @@ def encode(bin_orig: bytes, bin_new: bytes) -> list[Instr]:
     best_size = sum(len(i) for i in best)
 
     # Initial prediction from the gaps of the encoding without additions
-    additions = []
-    for start, end, diag_before, diag_after in gaps:
-        if diag_before == diag_after and end - start <= MAX_DELTA_GAP:
-            for pos in range(start, end, 2):
-                o = pos + diag_before
-                if o >= 0 and o + 2 <= len(bin_orig) and pos + 2 <= len(bin_new):
-                    delta = (bin_new[pos] | bin_new[pos + 1] << 8) - (bin_orig[o] | bin_orig[o + 1] << 8)
-                    additions.append((pos, delta & 0xFFFF))
+    additions = _initial_additions(bin_orig, bin_new, gaps)
 
     # Refine the prediction with the additions actually used
     for _ in range(2):

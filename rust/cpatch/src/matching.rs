@@ -22,7 +22,7 @@ fn kgrams(a: &[u8], k: usize) -> Vec<u64> {
 }
 
 /// Start and end indices of runs of `true` values
-fn true_runs(mask: &[bool]) -> Vec<(usize, usize)> {
+pub fn true_runs(mask: &[bool]) -> Vec<(usize, usize)> {
     let mut runs = Vec::new();
     let mut offset = 0;
     for chunk in mask.chunk_by(|a, b| a == b) {
