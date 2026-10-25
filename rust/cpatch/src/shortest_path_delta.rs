@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use crate::instructions::{
     DELTA_EXPLICIT, DELTA_HISTORY_SIZE, DELTA_MAX_COPY, DELTA_NONE, DeltaHistory, Element, Instr,
 };
-use crate::matching::Run;
+use crate::matching::{Gap, Run};
 use crate::shortest_path::{
     Candidates, INF, InstrBuilder, Nodes, addr_size, bisect_right, len_hdr_size, patch_copy_size, refined_runs,
     shortest_path_encode,
@@ -425,15 +425,10 @@ fn encoded_len(instructions: &[Instr]) -> usize {
     instructions.iter().map(Instr::encoded_len).sum()
 }
 
-/// Encode the new file as instructions applied to the original file
-pub fn encode(old: &[u8], new: &[u8]) -> Vec<Instr> {
-    let runs = refined_runs(old, new);
-    let (mut best, gaps) = shortest_path_encode(new, &runs);
-    let mut best_size = encoded_len(&best);
-
-    // Initial prediction from the gaps of the encoding without additions
+/// Predicted additions from the gaps of an encoding without additions
+pub fn initial_additions(old: &[u8], new: &[u8], gaps: &[Gap]) -> Vec<(i64, u16)> {
     let mut additions = Vec::new();
-    for (start, end, diag_before, diag_after) in gaps {
+    for &(start, end, diag_before, diag_after) in gaps {
         if diag_before == diag_after && end - start <= MAX_DELTA_GAP {
             let mut pos = start;
             while pos < end {
@@ -445,6 +440,17 @@ pub fn encode(old: &[u8], new: &[u8]) -> Vec<Instr> {
             }
         }
     }
+    additions
+}
+
+/// Encode the new file as instructions applied to the original file
+pub fn encode(old: &[u8], new: &[u8]) -> Vec<Instr> {
+    let runs = refined_runs(old, new);
+    let (mut best, gaps) = shortest_path_encode(new, &runs);
+    let mut best_size = encoded_len(&best);
+
+    // Initial prediction from the gaps of the encoding without additions
+    let mut additions = initial_additions(old, new, &gaps);
 
     // Refine the prediction with the additions actually used
     for _ in 0..2 {

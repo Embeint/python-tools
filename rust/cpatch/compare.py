@@ -16,7 +16,7 @@ import tempfile
 
 from infuse_iot.cpatch import Encoder, cpatch
 
-ENCODERS = (Encoder.SHORTEST_PATH, Encoder.SHORTEST_PATH_DELTA)
+ENCODERS = (Encoder.SHORTEST_PATH, Encoder.SHORTEST_PATH_DELTA, Encoder.STREAM_THUMB2)
 FLASH_BASE = 0x0800_0000
 
 

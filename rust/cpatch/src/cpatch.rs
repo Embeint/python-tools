@@ -8,13 +8,15 @@ use crate::instructions::{
     AddrSize, DELTA_EXPLICIT, DELTA_HISTORY_SIZE, DELTA_MAX_COPY, DELTA_NONE, DeltaHistory, Instr, LenSize, PatchOp,
     opcode_name,
 };
-use crate::{shortest_path, shortest_path_delta};
+use crate::{shortest_path, shortest_path_delta, stream, stream_thumb2};
 
 const MAGIC: u32 = 0xBA85_4092;
 const VERSION_MAJOR: u8 = 1;
 const VERSION_MINOR: u8 = 0;
 /// Patches containing PATCH_DELTA instructions
 const VERSION_MAJOR_DELTA: u8 = 2;
+/// Patches containing an element stream for Thumb-2 images, with a relocation preamble
+const VERSION_MAJOR_STREAM_THUMB2: u8 = 3;
 pub const HEADER_LEN: usize = 34;
 
 #[derive(Debug)]
@@ -39,6 +41,8 @@ pub enum Encoder {
     ShortestPath,
     /// As ShortestPath, additionally using PATCH_DELTA (requires patch format version 2)
     ShortestPathDelta,
+    /// Element stream with relocation of Thumb-2 branches and pointers (requires patch format version 3)
+    StreamThumb2,
 }
 
 impl Encoder {
@@ -46,6 +50,7 @@ impl Encoder {
         match name {
             "shortest-path" => Some(Encoder::ShortestPath),
             "shortest-path-delta" => Some(Encoder::ShortestPathDelta),
+            "stream-thumb2" => Some(Encoder::StreamThumb2),
             _ => None,
         }
     }
@@ -55,6 +60,7 @@ impl Encoder {
         match self {
             Encoder::ShortestPath => (VERSION_MAJOR, 1),
             Encoder::ShortestPathDelta => (VERSION_MAJOR_DELTA, 0),
+            Encoder::StreamThumb2 => (VERSION_MAJOR_STREAM_THUMB2, 0),
         }
     }
 
@@ -62,6 +68,7 @@ impl Encoder {
         match self {
             Encoder::ShortestPath => shortest_path::encode(original, new),
             Encoder::ShortestPathDelta => shortest_path_delta::encode(original, new),
+            Encoder::StreamThumb2 => unreachable!("element streams are not instructions"),
         }
     }
 }
@@ -114,8 +121,8 @@ fn u32_at(b: &[u8], offset: usize) -> u32 {
     u32::from_le_bytes(b[offset..offset + 4].try_into().unwrap())
 }
 
-/// Validate a patch file and decode its instructions
-pub fn load(patch: &[u8]) -> Result<(Header, Vec<Instr>), ValidationError> {
+/// Validate a patch file header and data, returning the header and the patch data
+fn load_header(patch: &[u8]) -> Result<(Header, &[u8]), ValidationError> {
     if patch.len() < HEADER_LEN {
         return invalid("Patch file too short".into());
     }
@@ -129,7 +136,7 @@ pub fn load(patch: &[u8]) -> Result<(Header, Vec<Instr>), ValidationError> {
     if crc32(&patch[..HEADER_LEN - 4]) != u32_at(patch, 30) {
         return invalid("Patch header validation failed".into());
     }
-    if header.version.0 != VERSION_MAJOR && header.version.0 != VERSION_MAJOR_DELTA {
+    if ![VERSION_MAJOR, VERSION_MAJOR_DELTA, VERSION_MAJOR_STREAM_THUMB2].contains(&header.version.0) {
         return invalid(format!("Unsupported patch version ({})", header.version.0));
     }
     if data.len() != header.patch.0 as usize {
@@ -146,7 +153,15 @@ pub fn load(patch: &[u8]) -> Result<(Header, Vec<Instr>), ValidationError> {
             header.patch.1
         ));
     }
+    Ok((header, data))
+}
 
+/// Validate a patch file and decode its instructions
+pub fn load(patch: &[u8]) -> Result<(Header, Vec<Instr>), ValidationError> {
+    let (header, data) = load_header(patch)?;
+    if header.version.0 == VERSION_MAJOR_STREAM_THUMB2 {
+        return invalid("Version 3 patches contain an element stream, not instructions".into());
+    }
     let mut instructions = Vec::new();
     let mut offset = 0;
     let mut original_offset = 0;
@@ -161,13 +176,29 @@ pub fn load(patch: &[u8]) -> Result<(Header, Vec<Instr>), ValidationError> {
 
 pub struct Generated {
     pub patch: Vec<u8>,
-    pub instructions: Vec<Instr>,
+    /// Number of instructions (elements for version 3)
+    pub count: usize,
+    /// Usage count of each instruction type
+    pub counts: Vec<(&'static str, usize)>,
 }
 
 /// Generate a patch file that constructs `new` from `original`
 pub fn generate(original: &[u8], new: &[u8], encoder: Encoder) -> Result<Generated, ValidationError> {
-    let instructions = encoder.encode(original, new);
-    let data = encode_instructions(&instructions);
+    let (data, count, counts) = if encoder == Encoder::StreamThumb2 {
+        let (preamble, elements) = stream_thumb2::encode(original, new);
+        (
+            stream::encode(&preamble, &elements),
+            elements.len(),
+            stream::op_counts(&elements),
+        )
+    } else {
+        let instructions = encoder.encode(original, new);
+        (
+            encode_instructions(&instructions),
+            instructions.len(),
+            opcode_counts(&instructions),
+        )
+    };
     let mut patch = encode_header(Metadata::new(original, new), &data, encoder.version());
     patch.extend_from_slice(&data);
 
@@ -175,7 +206,7 @@ pub fn generate(original: &[u8], new: &[u8], encoder: Encoder) -> Result<Generat
     if apply(original, &patch)? != new {
         return invalid("Generated patch does not reconstruct the new file".into());
     }
-    Ok(Generated { patch, instructions })
+    Ok(Generated { patch, count, counts })
 }
 
 /// Instructions that run every PATCH_DELTA element type, reconstructing `original[offset..]`
@@ -310,9 +341,18 @@ fn validation_delta(original: &[u8], offset: usize) -> Result<Vec<Instr>, String
 }
 
 /// Generate a patch file that runs all instructions, for validating appliers
-pub fn validation(original: &[u8], invalid_length: bool, invalid_crc: bool, delta: bool) -> Result<Vec<u8>, String> {
+pub fn validation(
+    original: &[u8],
+    invalid_length: bool,
+    invalid_crc: bool,
+    delta: bool,
+    stream_thumb2: bool,
+) -> Result<Vec<u8>, String> {
     if original.len() <= 1024 {
         return Err("Input file must be larger than 1024 bytes".into());
+    }
+    if delta && stream_thumb2 {
+        return Err("PATCH_DELTA instructions and element streams are exclusive".into());
     }
     let write = |range: std::ops::Range<usize>, size| Instr::Write {
         data: original[range].to_vec(),
@@ -361,13 +401,17 @@ pub fn validation(original: &[u8], invalid_length: bool, invalid_crc: bool, delt
             PatchOp::Write(original[512 + 30..512 + 32].to_vec()),
         ]),
     ];
-    let version = if delta {
+    let (data, version) = if stream_thumb2 {
+        // Element streams require version 3 appliers, and replace all instructions
+        let (preamble, elements) = stream::validation(original)?;
+        (stream::encode(&preamble, &elements), (VERSION_MAJOR_STREAM_THUMB2, 0))
+    } else if delta {
         // PATCH_DELTA instructions require version 2 appliers
         instructions.extend(validation_delta(original, 544)?);
-        (VERSION_MAJOR_DELTA, 0)
+        (encode_instructions(&instructions), (VERSION_MAJOR_DELTA, 0))
     } else {
         instructions.push(Instr::copy(original.len() - 544));
-        (VERSION_MAJOR, VERSION_MINOR)
+        (encode_instructions(&instructions), (VERSION_MAJOR, VERSION_MINOR))
     };
 
     let mut meta = Metadata::new(original, original);
@@ -377,7 +421,6 @@ pub fn validation(original: &[u8], invalid_length: bool, invalid_crc: bool, delt
     if invalid_crc {
         meta.new.1 = meta.new.1.wrapping_sub(1);
     }
-    let data = encode_instructions(&instructions);
     let mut patch = encode_header(meta, &data, version);
     patch.extend_from_slice(&data);
 
@@ -390,7 +433,7 @@ pub fn validation(original: &[u8], invalid_length: bool, invalid_crc: bool, delt
 
 /// Apply a patch file to the original file
 pub fn apply(original: &[u8], patch: &[u8]) -> Result<Vec<u8>, ValidationError> {
-    let (header, instructions) = load(patch)?;
+    let (header, data) = load_header(patch)?;
     let (len_expected, crc_expected) = header.original;
     if original.len() != len_expected as usize {
         return invalid(format!(
@@ -406,6 +449,12 @@ pub fn apply(original: &[u8], patch: &[u8]) -> Result<Vec<u8>, ValidationError> 
     }
 
     let mut patched = Vec::with_capacity(header.constructed.0 as usize);
+    if header.version.0 == VERSION_MAJOR_STREAM_THUMB2 {
+        let (preamble, elements) = stream::decode(data).map_err(ValidationError)?;
+        stream::apply(original, &preamble, &elements, &mut patched).map_err(ValidationError)?;
+        return validate_output(&header, patched);
+    }
+    let (header, instructions) = load(patch)?;
     let mut offset = 0i64;
     let mut history = DeltaHistory::default();
     let copy = |patched: &mut Vec<u8>, offset: &mut i64, length: usize| -> Result<(), ValidationError> {
@@ -457,7 +506,11 @@ pub fn apply(original: &[u8], patch: &[u8]) -> Result<Vec<u8>, ValidationError> 
         }
     }
 
-    // Validate generated file matches what was expected
+    validate_output(&header, patched)
+}
+
+/// Validate generated file matches what was expected
+fn validate_output(header: &Header, patched: Vec<u8>) -> Result<Vec<u8>, ValidationError> {
     let (len_expected, crc_expected) = header.constructed;
     if patched.len() != len_expected as usize {
         return invalid(format!(
@@ -483,8 +536,64 @@ pub fn opcode_counts(instructions: &[Instr]) -> Vec<(&'static str, usize)> {
     counts.into_iter().map(|(op, count)| (opcode_name(op), count)).collect()
 }
 
+/// Print a summary of a version 3 patch file and its elements
+fn dump_stream(patch: &[u8], header: &Header, data: &[u8]) -> Result<(), ValidationError> {
+    let (preamble, elements) = stream::decode(data).map_err(ValidationError)?;
+    let total_write: usize = elements
+        .iter()
+        .map(|e| match &e.op {
+            stream::Op::Literal(d) | stream::Op::LiteralShift(d, _) => d.len(),
+            _ => 0,
+        })
+        .sum();
+    println!("Original File: {:6} bytes", header.original.0);
+    println!("     New File: {:6} bytes", header.constructed.0);
+    println!("   Patch File: {} bytes ({:5} elements)", patch.len(), elements.len());
+    println!("      Version: {}.{}", header.version.0, header.version.1);
+    println!(
+        "   Relocation: flags {:02x}, base {:08x}",
+        preamble.flags, preamble.base
+    );
+    println!("Relocation Map: {} entries", preamble.map.len());
+    for &(start, shift) in &preamble.map {
+        println!("\t{start:08x}: {shift:+}");
+    }
+    for region in &preamble.regions {
+        println!(
+            "Pointer Region: {:08x}-{:08x}, {} entries",
+            region.base,
+            region.base as u64 + region.length as u64,
+            region.map.len()
+        );
+        for &(start, shift) in &region.map {
+            println!("\t{start:08x}: {shift:+}");
+        }
+    }
+    println!();
+    println!("Total WRITE data:");
+    println!(
+        "\t{total_write} bytes ({:.2}%)",
+        100.0 * total_write as f64 / patch.len() as f64
+    );
+    println!();
+    println!("Operation Count:");
+    for (name, count) in stream::op_counts(&elements) {
+        println!("{name:>16}: {count}");
+    }
+    println!();
+    println!("Element List:");
+    for element in &elements {
+        println!("{element}");
+    }
+    Ok(())
+}
+
 /// Print a summary of a patch file and its instructions
 pub fn dump(patch: &[u8]) -> Result<(), ValidationError> {
+    let (header, data) = load_header(patch)?;
+    if header.version.0 == VERSION_MAJOR_STREAM_THUMB2 {
+        return dump_stream(patch, &header, data);
+    }
     let (header, instructions) = load(patch)?;
     let total_write: usize = instructions
         .iter()
@@ -562,7 +671,7 @@ mod tests {
             (b"", b"hello"),
             (&original[..100], b""),
         ];
-        for encoder in [Encoder::ShortestPath, Encoder::ShortestPathDelta] {
+        for encoder in [Encoder::ShortestPath, Encoder::ShortestPathDelta, Encoder::StreamThumb2] {
             for (old, new) in &cases {
                 let generated = generate(old, new, encoder).unwrap();
                 assert_eq!(apply(old, &generated.patch).unwrap(), *new);
@@ -574,11 +683,11 @@ mod tests {
     fn validation_patches() {
         let original = pseudo_random(16_384, 3);
         for delta in [false, true] {
-            let patch = validation(&original, false, false, delta).unwrap();
+            let patch = validation(&original, false, false, delta, false).unwrap();
             assert_eq!(apply(&original, &patch).unwrap(), original);
             assert_eq!(patch[4], if delta { 2 } else { 1 });
-            assert!(apply(&original, &validation(&original, true, false, delta).unwrap()).is_err());
-            assert!(apply(&original, &validation(&original, false, true, delta).unwrap()).is_err());
+            assert!(apply(&original, &validation(&original, true, false, delta, false).unwrap()).is_err());
+            assert!(apply(&original, &validation(&original, false, true, delta, false).unwrap()).is_err());
         }
     }
 
