@@ -18,8 +18,13 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
-from bleak.exc import BleakError
+from bleak.exc import BleakBluetoothNotAvailableError, BleakBluetoothNotAvailableReason, BleakError
 from cryptography.exceptions import InvalidTag
+
+if sys.platform == "darwin":
+    from CoreBluetooth import CBManagerStatePoweredOn  # type: ignore[import-untyped]
+elif sys.platform == "win32":
+    from bleak.backends.winrt.util import assert_mta
 
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.commands import InfuseCommand
@@ -53,6 +58,7 @@ from infuse_iot.socket_comms import (
 from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
 from infuse_iot.util.local_rpc_server import LocalRpcServer
+from infuse_iot.util.macos import wake_time
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -356,6 +362,18 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
 
 class SubCommand(InfuseCommand):
+    SCAN_CHECK_INTERVAL = 1.0
+    SCAN_RETRY_DELAY = 5.0
+    SCAN_RETRY_MAX_DELAY = 60.0
+    SCAN_OPERATION_TIMEOUT = 10.0
+    SCAN_PERMANENT_ERRORS = {
+        BleakBluetoothNotAvailableReason.NO_BLE_CENTRAL_ROLE,
+        BleakBluetoothNotAvailableReason.DENIED_BY_USER,
+        BleakBluetoothNotAvailableReason.DENIED_BY_SYSTEM,
+        BleakBluetoothNotAvailableReason.DENIED_BY_UNKNOWN,
+    }
+    wake_time_failed = False
+
     @classmethod
     def add_parser(cls, parser):
         parser.add_argument("--root", type=ValidFile, help="Root identity certificate to use instead of cloud")
@@ -444,25 +462,156 @@ class SubCommand(InfuseCommand):
             self.infuse_report_count = 0
             Console.log_info(f"Observed {count} Bluetooth packets ({infuse_count} Infuse)")
 
-    async def async_bt_receiver(self):
-        loop = asyncio.get_event_loop()
-        handler = loop.create_task(self.server_handler())
-        if self.report_interval > 0.0:
-            loop.create_task(self.report_counter())
+    def _wake_time(self) -> tuple[int, int] | None:
+        """Last macOS wake time, or None when wake detection is unavailable"""
+        if sys.platform != "darwin" or self.wake_time_failed:
+            return None
+        try:
+            return wake_time()
+        except OSError as e:
+            # Scanning still works without wake detection, so a failed query must not stop it
+            self.wake_time_failed = True
+            Console.log_error(f"Unable to read macOS wake time, sleep will not restart the scanner: {e}")
+            return None
 
-        # MacOS does not support passive scanning
-        scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
-        scanner = BleakScanner(
-            self.simple_callback,
-            scanning_mode=scanning_mode,
-            bluez={"filters": {"DuplicateData": True}},
-            cb=dict(use_bdaddr=True),
-        )
-
+    async def _wait_for_scanner_restart(self, scanner: BleakScanner, started_wake: tuple[int, int] | None) -> str:
+        manager = None
+        if sys.platform == "darwin":
+            try:
+                # Bleak does not expose scanning state publicly. Keep CoreBluetooth backend access here; this layout
+                # isScanning is the native scanner state, not a count of devices.
+                manager = scanner._backend._manager.central_manager  # type: ignore[attr-defined]
+            except AttributeError:
+                Console.log_error("Unsupported Bleak version, CoreBluetooth scanning state is not monitored")
+        if manager is None and started_wake is None:
+            # No advertisement-based watchdog: a quiet environment is normal.
+            return await asyncio.Future[str]()
         while True:
-            Console.log_info("Starting scanner")
-            async with scanner:
-                await handler
+            await asyncio.sleep(self.SCAN_CHECK_INTERVAL)
+            if started_wake is not None and self._wake_time() not in (None, started_wake):
+                return "Mac woke from sleep"
+            if sys.platform == "darwin" and manager is not None:
+                if manager.state() != CBManagerStatePoweredOn:
+                    return "Bluetooth adapter state changed"
+                if not manager.isScanning():
+                    return "CoreBluetooth stopped scanning"
+
+    async def _stop_scanner(self, scanner: BleakScanner):
+        backend = getattr(scanner, "_backend", None)
+        if sys.platform == "win32" and backend is not None and hasattr(backend, "watcher"):
+            await self._stop_winrt_scanner(backend)
+            return
+        try:
+            await asyncio.wait_for(scanner.stop(), self.SCAN_OPERATION_TIMEOUT)
+        except Exception as e:
+            Console.log_error(f"Failed to stop Bluetooth scanner: {e!r}")
+
+    async def _stop_winrt_scanner(self, backend: Any):
+        watcher = backend.watcher
+        if watcher is None:
+            return
+        # Bleak's stop() requires both tokens and can swallow removal failures before clearing its fields.
+        # Own the native shutdown here so each registration remains available until it has been released.
+        registrations = (
+            ("_received_token", getattr(backend, "_received_token", None), watcher.remove_received),
+            ("_stopped_token", getattr(backend, "_stopped_token", None), watcher.remove_stopped),
+        )
+        try:
+            watcher.stop()
+            stopped = getattr(backend, "_stopped_event", None)
+            if watcher.status.name == "STOPPING" and stopped is not None:
+                await asyncio.wait_for(stopped.wait(), self.SCAN_OPERATION_TIMEOUT)
+        except Exception as e:
+            Console.log_error(f"Failed to stop Bluetooth watcher: {e!r}")
+        finally:
+            cleanup_error = None
+            for attr, token, remove in registrations:
+                if token is not None:
+                    for attempt in range(2):
+                        try:
+                            remove(token)
+                        except Exception as e:
+                            if attempt == 1:
+                                cleanup_error = e
+                                Console.log_error(f"Failed to remove Bluetooth handler {attr}: {e!r}")
+                        else:
+                            setattr(backend, attr, None)
+                            break
+            if cleanup_error is not None:
+                # Continuing to create scanners would accumulate native registrations that cannot be released.
+                raise BleakError("Unable to release Bluetooth scanner event handlers") from cleanup_error
+            backend.watcher = None
+
+    async def scanner_handler(self):
+        if sys.platform == "win32":
+            # COM apartment configuration cannot be repaired by recreating scanners. Validate it before entering
+            # the retry loop so Bleak's actionable configuration error reaches the caller.
+            await assert_mta()
+        # MacOS does not support passive scanning. BlueZ only supports it with `or_patterns` filters, which need
+        # bluetoothd running with --experimental.
+        scanning_mode: Literal["active", "passive"] = "passive" if sys.platform == "win32" else "active"
+        retry_delay = self.SCAN_RETRY_DELAY
+        last_error = None
+        while True:
+            # CoreBluetooth can silently stop scanning across sleep or a Bluetooth reset. A fresh scanner also
+            # needs fresh BLEDevice objects, rather than references belonging to the previous backend.
+            self.bleak_mapping.clear()
+            # Supported Bleak versions check transient CoreBluetooth state in start(), rather than the constructor.
+            # Invalid constructor arguments must still fail immediately.
+            scanner = BleakScanner(
+                self.simple_callback,
+                scanning_mode=scanning_mode,
+                bluez={"filters": {"DuplicateData": True}},
+                cb=dict(use_bdaddr=True),
+            )
+            # Capture before starting so a wake during scanner startup is not missed.
+            started_wake = self._wake_time()
+            try:
+                if last_error is None:
+                    Console.log_info("Starting scanner")
+                await asyncio.wait_for(scanner.start(), self.SCAN_OPERATION_TIMEOUT)
+                if last_error is not None:
+                    Console.log_info("Bluetooth scanner recovered")
+                retry_delay = self.SCAN_RETRY_DELAY
+                last_error = None
+                reason = await self._wait_for_scanner_restart(scanner, started_wake)
+                Console.log_info(f"{reason}; restarting scanner")
+            except (BleakError, asyncio.TimeoutError, OSError) as e:
+                if isinstance(e, BleakBluetoothNotAvailableError) and e.reason in self.SCAN_PERMANENT_ERRORS:
+                    raise
+                error = str(e) or "timed out starting scanner"
+                # Only report changes, as Bluetooth may stay unavailable for a long time
+                if error != last_error:
+                    Console.log_error(f"Bluetooth scanner unavailable, retrying: {error}")
+                last_error = error
+            finally:
+                # Cleanup may already be running when another receiver task fails. Keep ownership of it if that
+                # causes this task to be cancelled, and let its bounded stop operation finish.
+                cleanup = asyncio.create_task(self._stop_scanner(scanner))
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    await cleanup
+                    raise
+            # Back off while Bluetooth is unavailable, including after wake. Cancellation must bypass retries.
+            await asyncio.sleep(retry_delay)
+            if last_error is not None:
+                retry_delay = min(retry_delay * 2, self.SCAN_RETRY_MAX_DELAY)
+
+    async def async_bt_receiver(self):
+        tasks = [asyncio.create_task(self.server_handler()), asyncio.create_task(self.scanner_handler())]
+        if self.report_interval > 0.0:
+            tasks.append(asyncio.create_task(self.report_counter()))
+        try:
+            # wait() does not propagate receiver cancellation to the children. Cancel each child once below,
+            # allowing a scanner already in its finally block to complete asynchronous cleanup.
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                task.result()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def sync_request_handler(self):
         # Loop while there are packets to send
