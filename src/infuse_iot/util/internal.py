@@ -4,19 +4,11 @@ import importlib.util
 import pathlib
 import types
 
-from keyring.errors import NoKeyringError
-
 import infuse_iot.credentials
-import infuse_iot.profile
 
 
 def extension_load(name: str) -> None | types.ModuleType:
-    defs_path = infuse_iot.profile.get_active_profile_custom_definitions_path()
-    if defs_path is None:
-        try:
-            defs_path = infuse_iot.credentials.get_custom_definitions_path()
-        except NoKeyringError:
-            return None
+    defs_path = infuse_iot.credentials.get_custom_definitions_path()
     if defs_path is None:
         return None
     extensions_file = pathlib.Path(defs_path) / f"{name}.py"
