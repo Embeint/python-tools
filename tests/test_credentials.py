@@ -92,6 +92,12 @@ def test_get_api_key_falls_back_to_env_when_keyring_backend_unavailable(monkeypa
         assert cred.get_api_key() == "env-key"
 
 
+def test_help_without_keyring_backend():
+    env = os.environ | {"PYTHON_KEYRING_BACKEND": "keyring.backends.fail.Keyring"}
+    output = subprocess.check_output(["infuse", "--help"], env=env).decode()
+    assert "usage: infuse" in output
+
+
 def test_get_api_key_missing_key_does_not_fall_back_to_env(monkeypatch):
     monkeypatch.setenv("INFUSE_API_KEY", "env-key")
 

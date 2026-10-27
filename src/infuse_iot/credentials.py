@@ -119,7 +119,10 @@ def get_custom_tool_path() -> str | None:
     if profile_path is not None:
         return profile_path
 
-    return keyring.get_password("infuse-iot", "custom-tools")
+    try:
+        return keyring.get_password("infuse-iot", "custom-tools")
+    except keyring.errors.NoKeyringError:
+        return None
 
 
 def delete_custom_tool_path() -> None:
@@ -146,7 +149,10 @@ def get_custom_definitions_path() -> str | None:
     if profile_path is not None:
         return profile_path
 
-    return keyring.get_password("infuse-iot", "custom-definitions")
+    try:
+        return keyring.get_password("infuse-iot", "custom-definitions")
+    except keyring.errors.NoKeyringError:
+        return None
 
 
 def delete_custom_definitions_path() -> None:
