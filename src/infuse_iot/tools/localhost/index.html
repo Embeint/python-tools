@@ -190,7 +190,7 @@
 
             if (!arraysEqual(currentNetworks, networks)) {
                 // Merge new data with the existing table data
-                const currentRows = shownAppTable.getData();
+                const currentRows = shownNetworkTable.getData();
                 const updatedData = networks.map((str, index) => {
                     const existingRow = currentRows.find(row => row.name === str);
                     return existingRow
@@ -229,14 +229,14 @@
                 });
 
                 // Filter applications and networks as requested
-                appShow = Object.fromEntries(
+                const appShow = Object.fromEntries(
                     shownAppTable.getData().map(row => [row.name, row.checked])
                 );
-                networkShow = Object.fromEntries(
+                const networkShow = Object.fromEntries(
                     shownNetworkTable.getData().map(row => [row.name, row.checked])
                 );
-                enabledApps = currentApps.filter(a => appShow[a]);
-                enabledNetworks = currentNetworks.filter(a => networkShow[a]);
+                const enabledApps = currentApps.filter(a => appShow[a]);
+                const enabledNetworks = currentNetworks.filter(a => networkShow[a]);
 
                 function customFilter(data, filterParams) {
                     return filterParams['apps'].includes(data.application) && filterParams["networks"].includes(data.network_id);
