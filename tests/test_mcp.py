@@ -31,6 +31,7 @@ from infuse_iot.epacket import interface
 from infuse_iot.epacket.packet import Auth, HopReceived, PacketReceived
 from infuse_iot.mcp_server.server import ReadParameters, ReadService, create_server
 from infuse_iot.services.device_operations import READ_COMMANDS, READ_KEYS
+from infuse_iot.services.gateway_launcher import GatewayLauncher
 from infuse_iot.socket_comms import ClientNotificationEpacketReceived, default_multicast_address
 from infuse_iot.tdf import TDF
 
@@ -576,6 +577,112 @@ def test_diagnostics_withhold_counters_across_a_gateway_restart(device_gateway):
     assert result["radio"]["window_counters"] is None
 
 
+class StartsGateway(GatewayLauncher):
+    """Starts a device gateway on the first call that finds none, as a configured launcher does."""
+
+    def __init__(self, start, port: int):
+        self.start, self.port, self.gateway = start, port, None
+        self.startup_seconds = 30.0
+
+    def ensure(self, probe, check=lambda: None) -> bool:
+        if self.gateway is not None:
+            return False
+        gateway = self.start(self.port)
+        gateway.respond = lambda device, command, request: (0, application_info())
+        self.gateway = gateway
+        # Returns once the gateway answers
+        probe()
+        return True
+
+    def status(self) -> dict:
+        running = self.gateway is not None
+        return {"kind": "native_bt", "running": running, "pid": None, "started_at": None, "exit_code": None, "log": ""}
+
+    def close(self):
+        pass
+
+
+def test_started_gateway_is_awaited_until_it_hears_the_device(device_gateway):
+    launcher = StartsGateway(device_gateway, 28949)
+    service = ReadService(default_multicast_address(28949), launcher, scan_seconds=5)
+
+    def advertise():
+        assert launcher.gateway is not None
+        launcher.gateway.server.broadcast(ClientNotificationEpacketReceived(packet()))
+
+    async def calls(client):
+        status = data(await client.call_tool("infuse_status"))
+        # Status reports a missing gateway rather than starting one
+        assert launcher.gateway is None
+        threading.Timer(1, advertise).start()
+        start = time.monotonic()
+        read = await client.call_tool("infuse_rpc_read", {"device_id": DEVICE_ID, "command": "application_info"})
+        return status, data(read), time.monotonic() - start
+
+    status, read, elapsed = run(service, calls)
+    assert status["launcher"]["kind"] == "native_bt" and status["gateway"]["available"] is False
+    assert read["response"]["version"] == "1.3.1+7bee09d5"
+    # Connected once the device was heard, rather than after the whole scan
+    assert 1 <= elapsed < 4
+
+
+def test_started_gateway_scans_before_listing_devices(device_gateway):
+    launcher = StartsGateway(device_gateway, 28951)
+    service = ReadService(default_multicast_address(28951), launcher, scan_seconds=1.5)
+
+    def advertise():
+        assert launcher.gateway is not None
+        launcher.gateway.server.broadcast(ClientNotificationEpacketReceived(packet()))
+
+    async def calls(client):
+        threading.Timer(0.7, advertise).start()
+        return data(await client.call_tool("infuse_devices"))
+
+    assert [row["id"] for row in run(service, calls)["items"]] == [DEVICE_ID]
+
+
+def test_started_gateway_is_collected_from_once_it_answers(device_gateway):
+    service = ReadService(default_multicast_address(28953), StartsGateway(device_gateway, 28953))
+    try:
+        service.require_gateway()
+        # Without the supervisor, which only attaches every few seconds
+        assert service.collector.running
+    finally:
+        service.close()
+
+
+def test_scan_does_not_count_time_the_started_gateway_does_not_answer(device_gateway):
+    def start(port: int):
+        gateway = device_gateway(port)
+        receive, frozen, thawed = gateway.server.receive, time.monotonic() + 0.3, time.monotonic() + 2.3
+
+        def blocked():
+            # As native_bt was while it waited on a keyring prompt, after first answering
+            if time.monotonic() >= frozen:
+                time.sleep(max(0.0, thawed - time.monotonic()))
+            return receive()
+
+        gateway.server.receive = blocked
+        return gateway
+
+    launcher = StartsGateway(start, 28955)
+    service = ReadService(default_multicast_address(28955), launcher, scan_seconds=1)
+
+    def advertise():
+        assert launcher.gateway is not None
+        launcher.gateway.server.broadcast(ClientNotificationEpacketReceived(packet()))
+
+    async def calls(client):
+        threading.Timer(2.5, advertise).start()
+        start = time.monotonic()
+        devices = data(await client.call_tool("infuse_devices"))
+        return devices, time.monotonic() - start
+
+    devices, elapsed = run(service, calls)
+    assert [row["id"] for row in devices["items"]] == [DEVICE_ID]
+    assert 2.5 < elapsed < 5
+
+
 def entry_point() -> str:
     """The `infuse` command installed alongside this interpreter."""
     command = shutil.which("infuse", path=str(Path(sys.executable).parent))
@@ -708,7 +815,8 @@ def test_exit_does_not_wait_for_a_blocked_read(device_gateway, tmp_path):
     gateway = device_gateway(28967)
     # The device never answers, so the read waits for its whole RPC timeout.
     gateway.respond = lambda device, command, request: None
-    server = StdioServer(["--server-port", "28967"], tmp_path)
+    # Without waiting for the unheard device to advertise
+    server = StdioServer(["--server-port", "28967", "--scan-seconds", "0"], tmp_path)
     try:
         server.initialize()
         arguments = {"device_id": DEVICE_ID, "command": "application_info", "timeout_seconds": 30}
@@ -788,7 +896,14 @@ def test_unavailable_job_state_stops_a_write_enabled_server(tmp_path, monkeypatc
     assert b"Traceback" not in process.stderr
 
     monkeypatch.setattr("infuse_iot.services.jobs._lock", lambda descriptor: False)
-    arguments = Namespace(server_sock=default_multicast_address(28977), transport="stdio", allow_writes=True)
+    arguments = Namespace(
+        server_sock=default_multicast_address(28977),
+        transport="stdio",
+        allow_writes=True,
+        start_gateway=None,
+        gateway_serial=None,
+        scan_seconds=0,
+    )
     with pytest.raises(SystemExit, match="unavailable: Could not lock the job instance file"):
         SubCommand(Namespace(**vars(arguments), state_directory=tmp_path / "locked")).run()
     assert capsys.readouterr().out == ""

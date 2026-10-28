@@ -144,6 +144,15 @@ class JobWorker(Open):
     last_error: str | None = Field(description="The worker's last storage or recovery failure")
 
 
+class Launcher(Open):
+    kind: Literal["native_bt", "serial"]
+    running: bool
+    pid: int | None
+    started_at: float | None = Field(description="When this server last started the gateway")
+    exit_code: int | None = Field(description="How the last started gateway exited, if it is not running")
+    log: str = Field(description="The started gateway's output")
+
+
 class Status(Open):
     version: str
     profile: str | None
@@ -152,6 +161,7 @@ class Status(Open):
     credentials: CredentialStatus
     writes_enabled: bool
     jobs: JobWorker | None = Field(None, description="This server's job worker; null without --allow-writes")
+    launcher: Launcher | None = Field(None, description="The gateway this server starts on demand, if configured")
 
 
 class DeviceEvidence(Open):

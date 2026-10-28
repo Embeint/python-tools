@@ -7,15 +7,16 @@ commands still support Python 3.10. CI tests it with Python 3.11 and 3.12:
 python -m pip install '.[mcp]'
 ```
 
-Start `infuse native_bt` or a serial `infuse gateway` separately. Configure your
-MCP host to launch the absolute path to that environment's `infuse` executable:
+Start `infuse native_bt` or a serial `infuse gateway` separately, or let the
+server start one, as described under Gateway. Configure your MCP host to launch
+the absolute path to that environment's `infuse` executable:
 
 ```json
 {
   "mcpServers": {
     "infuse": {
       "command": "/absolute/path/to/.venv/bin/infuse",
-      "args": ["mcp", "--transport", "stdio", "--server-port", "8751"]
+      "args": ["mcp", "--server-port", "8751", "--start-gateway", "native_bt"]
     }
   }
 }
@@ -24,6 +25,30 @@ MCP host to launch the absolute path to that environment's `infuse` executable:
 On Windows use the environment's `Scripts/infuse.exe`. The host must run on the
 machine with the gateway; no remote HTTP endpoint is started. Other `infuse`
 commands do not need the MCP extra.
+
+## Gateway
+
+The server uses an `infuse native_bt` or serial `infuse gateway` that is already
+running on its `--server-port`. With `--start-gateway native_bt`, or
+`--start-gateway serial --gateway-serial <port>`, a tool that needs a gateway
+starts one when none answers. Status and diagnostics only report a missing
+gateway. The started gateway's output goes to a log file named by
+`infuse_status`, and it stops when the server exits, including when the server
+is killed. An OS lock per port lets only one server start a gateway; others
+wait for it. A gateway that exits during startup fails the call with
+`gateway_start_failed` and its last line of output; one that does not answer
+within 30 seconds fails with `gateway_unavailable`.
+
+A gateway can only connect to devices it has heard, so device reads and actions
+first wait up to `--scan-seconds` (default 20, at most 60, 0 to disable) for
+this server to hear the device, continuing as soon as it does. After starting a
+gateway, telemetry tools and update planning also wait until it has scanned for
+that period. Time the started gateway does not answer is not counted, extending
+the scan by up to 30 seconds. On macOS, Bluetooth access for a started
+`native_bt` is granted to the host application; if the host cannot use
+Bluetooth, run `infuse native_bt` in a terminal instead. Its first use of a
+network or device key can also show a Keychain prompt; devices are not heard on
+that network until it is answered.
 
 ## Tools
 
@@ -76,6 +101,7 @@ output schema for its `data`. Failures are MCP error results (`isError`) whose
 | `invalid_request` | Arguments failed validation; `details.fields` names them | no |
 | `unknown_tool` | No tool has this name | no |
 | `gateway_unavailable` | No gateway answered | yes |
+| `gateway_start_failed` | A started gateway exited; see its log | no |
 | `device_busy` | Another operation holds the device | yes |
 | `connection_failed`, `connection_timeout`, `connection_dropped` | Device link | yes |
 | `rpc_timeout` | No RPC response within `timeout_seconds` | yes |
@@ -102,9 +128,10 @@ waits up to 5 seconds for another operation, or for the gateway to finish
 closing a released link, then fails with `device_busy`; at most two calls wait
 at once. A read owns the device at the gateway with a 30 to 40 second lease,
 renewed by its traffic, so an abandoned read stops blocking the gateway soon
-after. Reads finish within about 35 seconds plus `timeout_seconds`, and a
-cancelled call stops its read before the next phase. Allow at least 70 seconds
-for RPC tool calls in a host that configures its own request timeout.
+after. Reads finish within about 35 seconds plus `timeout_seconds`, after any
+wait for the gateway to start and hear the device, and a cancelled call stops
+its read before the next phase. Allow at least 170 seconds for RPC tool calls
+in a host that configures its own request timeout.
 
 ## Isolation
 

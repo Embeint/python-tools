@@ -50,6 +50,7 @@ from infuse_iot.services.device_operations import (
 )
 from infuse_iot.services.device_state import DeviceState
 from infuse_iot.services.firmware import FirmwareService
+from infuse_iot.services.gateway_launcher import GatewayLauncher
 from infuse_iot.services.jobs import JobManager
 from infuse_iot.socket_comms import GatewayControlError, LocalClient
 from infuse_iot.version import __version__
@@ -61,6 +62,10 @@ RETRYABLE = ("gateway_unavailable", "device_busy", "operation_expired")
 # How often a detached collector tries to attach, in addition to attaching on demand, and an attached one checks the
 # gateway's identity.
 ATTACH_INTERVAL_S = 5.0
+# How often a started gateway is probed while it scans, so that time it does not answer is not counted
+SCAN_PROBE_S = 1.0
+# How long callers wait for another caller's probe of a scanning gateway
+SCAN_POLL_S = 0.25
 # Credential stores that can neither prompt nor read stdin, which carries the MCP protocol.
 NON_INTERACTIVE_KEYRINGS = (
     "keyrings.alt.file.PlaintextKeyring",
@@ -224,10 +229,21 @@ class CredentialProbe:
 
 
 class ReadService:
-    """Read tools over a telemetry collector that attaches whenever a gateway answers."""
+    """Read tools over a telemetry collector that attaches whenever a gateway answers.
 
-    def __init__(self, address: tuple[str, int]):
+    With a `launcher`, tools that need a gateway start one when none answers, then scan for `scan_seconds`.
+    Time the started gateway does not answer, such as while it waits on a keyring prompt, extends the scan by up
+    to the launcher's startup time. Device operations wait up to `scan_seconds` for a device the collector has
+    not heard, so that the gateway can reach it.
+    """
+
+    def __init__(self, address: tuple[str, int], launcher: GatewayLauncher | None = None, scan_seconds: float = 0):
         self.address = address
+        self.launcher = launcher
+        self.scan_seconds = scan_seconds
+        self._scan_until = self._scan_limit = self._probed_at = 0.0
+        self._scan_lock = threading.Lock()
+        self._scan_probe = threading.Lock()
         self.collector = TelemetryCollector(address)
         self.operations = DeviceOperations(address)
         self.credentials = CredentialProbe()
@@ -272,6 +288,99 @@ class ReadService:
         if self._supervisor is not None:
             self._supervisor.join(timeout=5)
         self.collector.close()
+        if self.launcher is not None:
+            self.launcher.close()
+
+    def require_gateway(self, check: Callable[[], None] = lambda: None) -> dict:
+        """The gateway's capabilities, starting the configured gateway first if none answers."""
+        if self.launcher is not None and self.launcher.ensure(self.gateway, check):
+            with self._scan_lock:
+                now = time.monotonic()
+                self._scan_until = now + self.scan_seconds
+                self._probed_at = now
+                self._scan_limit = self._scan_until + self.launcher.startup_seconds
+            try:
+                # Collect from its first packets, rather than from the supervisor's next attempt
+                self.attach()
+            except GatewayControlError:
+                pass
+        return self.gateway()
+
+    def _scanning(self) -> float:
+        """Seconds left in the scan of a started gateway, probing it so that time it does not answer is not counted.
+
+        The scan ends once a probe at or after its end is answered, or at its limit.
+        """
+        now = time.monotonic()
+        if self._probed_at >= self._scan_until:
+            return 0.0
+        if now - self._probed_at < SCAN_PROBE_S and now < self._scan_until:
+            return self._scan_until - now
+        # One caller probes at a time; the others wait for its result
+        if not self._scan_probe.acquire(blocking=False):
+            return SCAN_POLL_S
+        try:
+            try:
+                self.gateway()
+                answered = True
+            except (TimeoutError, OSError):
+                answered = False
+            with self._scan_lock:
+                now = time.monotonic()
+                stopped = self.launcher is not None and not self.launcher.status()["running"]
+                if not answered:
+                    # A stopped gateway is reported by the next call that needs it
+                    self._scan_until = (
+                        now if stopped else min(self._scan_until + now - self._probed_at, self._scan_limit)
+                    )
+                self._probed_at = now
+        finally:
+            self._scan_probe.release()
+        return max(0.0, self._scan_until - time.monotonic())
+
+    def prepare(
+        self, check: Callable[[], None] = lambda: None, wait: Callable[[float], Any] = time.sleep
+    ) -> DeviceState:
+        """The collected state, once a gateway this server started has scanned for `scan_seconds`."""
+        if self.launcher is not None:
+            self.require_gateway(check)
+        state = self.attach()
+        while (remaining := self._scanning()) > 0:
+            check()
+            wait(min(remaining, 0.25))
+        return state
+
+    def reach(
+        self, identifier: str, check: Callable[[], None] = lambda: None, wait: Callable[[float], Any] = time.sleep
+    ) -> None:
+        """Wait up to `scan_seconds` for the collector to hear a device, as a gateway connects only to those it has."""
+        if self.launcher is not None:
+            self.require_gateway(check)
+        if self.scan_seconds <= 0:
+            return
+        try:
+            state = self.attach()
+        except GatewayControlError:
+            # The operation reports the missing gateway
+            return
+        target = f"0x{device_id(identifier):016x}"
+        deadline = time.monotonic() + self.scan_seconds
+        while not state.snapshot(ids=[target], max_age_seconds=MAX_SAFE_INTEGER, fields=[], paginate=False)["items"]:
+            check()
+            remaining = max(deadline - time.monotonic(), self._scanning())
+            if remaining <= 0:
+                return
+            wait(min(remaining, 0.25))
+
+    def read(
+        self, identifier: str, command: str, arguments: dict, timeout_seconds: float, cancelled: threading.Event
+    ) -> dict:
+        def check() -> None:
+            if cancelled.is_set():
+                raise DeviceError("cancelled", "The read was cancelled")
+
+        self.reach(identifier, check, cancelled.wait)
+        return self.operations.read(identifier, command, arguments, timeout_seconds, cancelled)
 
     def attach(self) -> DeviceState:
         """The collected state, attaching first if the collector is not receiving."""
@@ -341,6 +450,7 @@ class ReadService:
             "credentials": self.credentials.check(),
             "writes_enabled": self.allow_writes,
             "jobs": None if self.jobs is None else self.jobs.health(),
+            "launcher": None if self.launcher is None else self.launcher.status(),
         }
 
     def submit(self, action: str, identifier: str, parameters: dict, request_key: str) -> dict:
@@ -374,13 +484,13 @@ class ReadService:
     def devices(self, **query) -> dict:
         if query.get("ids") is not None:
             query["ids"] = [f"0x{device_id(value):016x}" for value in query["ids"]]
-        return self.attach().snapshot(**query)
+        return self.prepare().snapshot(**query)
 
     def device(self, identifier: str, fields: list[str] | None = None, max_age_seconds: float | None = None) -> dict:
         target = f"0x{device_id(identifier):016x}"
         limit = MAX_SAFE_INTEGER if max_age_seconds is None else max_age_seconds
         # Unpaginated, so that a lookup never evicts another caller's cursor
-        snapshot = self.attach().snapshot(ids=[target], fields=fields, max_age_seconds=limit, paginate=False)
+        snapshot = self.prepare().snapshot(ids=[target], fields=fields, max_age_seconds=limit, paginate=False)
         if not snapshot["items"]:
             window = "since the collector started" if max_age_seconds is None else f"within {max_age_seconds} s"
             raise DeviceError("device_not_observed", f"Device not observed {window}", True)
@@ -542,7 +652,13 @@ def create_server(
         if len(boards) != len(device_boards or {}) or not boards <= targets:
             raise InvalidRequest("device_boards must map distinct device IDs from device_ids to board names")
         # Plans need fresh announcements, so the collector attaches first, failing without a gateway.
-        service.attach()
+        cancel = options.get("cancel") or threading.Event()
+
+        def check() -> None:
+            if cancel.is_set():
+                raise DeviceError("cancelled", "Planning was cancelled", True)
+
+        service.prepare(check, cancel.wait)
         return firmware.plan(release, device_ids, device_boards=device_boards, **options)
 
     if allow_writes:
@@ -552,11 +668,17 @@ def create_server(
         service.jobs = JobManager(state_directory, gateway=f"{address[0]}:{address[1]}")
 
         def mutate(specification: dict, context) -> dict:
+            service.reach(specification["device_id"], context.check_cancelled, context.wait)
             return service.operations.mutate(
                 specification["device_id"], specification["action"], specification["parameters"], context
             )
 
-        service.jobs.handlers.update(reboot=mutate, kv_write=mutate, firmware_update=firmware.run)
+        def update(specification: dict, context) -> dict:
+            # Each device's transfer reports a gateway that cannot reach it
+            service.prepare(context.check_cancelled, context.wait)
+            return firmware.run(specification, context)
+
+        service.jobs.handlers.update(reboot=mutate, kv_write=mutate, firmware_update=update)
 
     @asynccontextmanager
     async def lifespan(server):
@@ -599,7 +721,7 @@ def create_server(
         """Observe a bounded raw BLE window through the existing scanner; reuse filters when paging its cursor."""
         if cursor is None:
             # Check capability before waiting, and make the observation wait cancellable.
-            probe = await execute(service.gateway)
+            probe = await execute(service.require_gateway)
             if probe.is_error:
                 return probe
             gateway = (probe.structured_content or {})["data"]
@@ -653,7 +775,7 @@ def create_server(
         """Run an allowlisted read RPC; KV names are restricted to REBOOTS, DEVICE_NAME and BLUETOOTH_ADDR.
 
         Fails with device_busy if another operation does not finish within 5 s; finishes within about 35 s
-        plus timeout_seconds.
+        plus timeout_seconds, after any configured wait for a gateway to start and hear the device.
         """
         arguments = parameters.model_dump(exclude_none=True) if parameters else {}
         try:
@@ -663,7 +785,7 @@ def create_server(
             return failure("invalid_request", str(error))
         cancelled = threading.Event()
         try:
-            return await execute(service.operations.read, device_id, command, arguments, timeout_seconds, cancelled)
+            return await execute(service.read, device_id, command, arguments, timeout_seconds, cancelled)
         finally:
             # A cancelled call stops its read before the next phase
             cancelled.set()
