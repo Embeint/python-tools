@@ -602,6 +602,29 @@ class StartsGateway(GatewayLauncher):
         pass
 
 
+def test_started_gateway_is_awaited_until_it_hears_the_device(device_gateway):
+    launcher = StartsGateway(device_gateway, 28949)
+    service = ReadService(default_multicast_address(28949), launcher, scan_seconds=5)
+
+    def advertise():
+        assert launcher.gateway is not None
+        launcher.gateway.server.broadcast(ClientNotificationEpacketReceived(packet()))
+
+    async def calls(client):
+        status = data(await client.call_tool("infuse_status"))
+        # Status reports a missing gateway rather than starting one
+        assert launcher.gateway is None
+        threading.Timer(1, advertise).start()
+        start = time.monotonic()
+        read = await client.call_tool("infuse_rpc_read", {"device_id": DEVICE_ID, "command": "application_info"})
+        return status, data(read), time.monotonic() - start
+
+    status, read, elapsed = run(service, calls)
+    assert status["launcher"]["kind"] == "native_bt" and status["gateway"]["available"] is False
+    assert read["response"]["version"] == "1.3.1+7bee09d5"
+    # Connected once the device was heard, rather than after the whole scan
+    assert 1 <= elapsed < 4
+
 
 def test_started_gateway_scans_before_listing_devices(device_gateway):
     launcher = StartsGateway(device_gateway, 28951)

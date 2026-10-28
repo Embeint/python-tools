@@ -233,7 +233,8 @@ class ReadService:
 
     With a `launcher`, tools that need a gateway start one when none answers, then scan for `scan_seconds`.
     Time the started gateway does not answer, such as while it waits on a keyring prompt, extends the scan by up
-    to the launcher's startup time.
+    to the launcher's startup time. Device operations wait up to `scan_seconds` for a device the collector has
+    not heard, so that the gateway can reach it.
     """
 
     def __init__(self, address: tuple[str, int], launcher: GatewayLauncher | None = None, scan_seconds: float = 0):
@@ -349,6 +350,28 @@ class ReadService:
             wait(min(remaining, 0.25))
         return state
 
+    def reach(
+        self, identifier: str, check: Callable[[], None] = lambda: None, wait: Callable[[float], Any] = time.sleep
+    ) -> None:
+        """Wait up to `scan_seconds` for the collector to hear a device, as a gateway connects only to those it has."""
+        if self.launcher is not None:
+            self.require_gateway(check)
+        if self.scan_seconds <= 0:
+            return
+        try:
+            state = self.attach()
+        except GatewayControlError:
+            # The operation reports the missing gateway
+            return
+        target = f"0x{device_id(identifier):016x}"
+        deadline = time.monotonic() + self.scan_seconds
+        while not state.snapshot(ids=[target], max_age_seconds=MAX_SAFE_INTEGER, fields=[], paginate=False)["items"]:
+            check()
+            remaining = max(deadline - time.monotonic(), self._scanning())
+            if remaining <= 0:
+                return
+            wait(min(remaining, 0.25))
+
     def read(
         self, identifier: str, command: str, arguments: dict, timeout_seconds: float, cancelled: threading.Event
     ) -> dict:
@@ -356,8 +379,7 @@ class ReadService:
             if cancelled.is_set():
                 raise DeviceError("cancelled", "The read was cancelled")
 
-        if self.launcher is not None:
-            self.require_gateway(check)
+        self.reach(identifier, check, cancelled.wait)
         return self.operations.read(identifier, command, arguments, timeout_seconds, cancelled)
 
     def attach(self) -> DeviceState:
@@ -646,8 +668,7 @@ def create_server(
         service.jobs = JobManager(state_directory, gateway=f"{address[0]}:{address[1]}")
 
         def mutate(specification: dict, context) -> dict:
-            if service.launcher is not None:
-                service.require_gateway(context.check_cancelled)
+            service.reach(specification["device_id"], context.check_cancelled, context.wait)
             return service.operations.mutate(
                 specification["device_id"], specification["action"], specification["parameters"], context
             )
@@ -754,7 +775,7 @@ def create_server(
         """Run an allowlisted read RPC; KV names are restricted to REBOOTS, DEVICE_NAME and BLUETOOTH_ADDR.
 
         Fails with device_busy if another operation does not finish within 5 s; finishes within about 35 s
-        plus timeout_seconds, after any configured wait for a gateway to start.
+        plus timeout_seconds, after any configured wait for a gateway to start and hear the device.
         """
         arguments = parameters.model_dump(exclude_none=True) if parameters else {}
         try:

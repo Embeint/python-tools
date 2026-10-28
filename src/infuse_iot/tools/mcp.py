@@ -30,7 +30,8 @@ class SubCommand(InfuseCommand):
             "--scan-seconds",
             type=float,
             default=20.0,
-            help="Scan this long after starting a gateway (default 20)",
+            help="Wait up to this long for an unheard device before connecting, and scan this long after starting "
+            "a gateway (default 20)",
         )
         add_server_port_parser(parser)
 

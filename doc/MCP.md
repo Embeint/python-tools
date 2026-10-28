@@ -39,8 +39,11 @@ wait for it. A gateway that exits during startup fails the call with
 `gateway_start_failed` and its last line of output; one that does not answer
 within 30 seconds fails with `gateway_unavailable`.
 
-After starting a gateway, telemetry tools and update planning wait for
-`--scan-seconds` (default 20, at most 60, 0 to disable). Time the started gateway does not answer is not counted, extending
+A gateway can only connect to devices it has heard, so device reads and actions
+first wait up to `--scan-seconds` (default 20, at most 60, 0 to disable) for
+this server to hear the device, continuing as soon as it does. After starting a
+gateway, telemetry tools and update planning also wait until it has scanned for
+that period. Time the started gateway does not answer is not counted, extending
 the scan by up to 30 seconds. On macOS, Bluetooth access for a started
 `native_bt` is granted to the host application; if the host cannot use
 Bluetooth, run `infuse native_bt` in a terminal instead. Its first use of a
@@ -126,7 +129,7 @@ closing a released link, then fails with `device_busy`; at most two calls wait
 at once. A read owns the device at the gateway with a 30 to 40 second lease,
 renewed by its traffic, so an abandoned read stops blocking the gateway soon
 after. Reads finish within about 35 seconds plus `timeout_seconds`, after any
-wait for the gateway to start, and a cancelled call stops
+wait for the gateway to start and hear the device, and a cancelled call stops
 its read before the next phase. Allow at least 170 seconds for RPC tool calls
 in a host that configures its own request timeout.
 
