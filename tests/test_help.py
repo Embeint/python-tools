@@ -95,7 +95,15 @@ def mcp_command():
     from infuse_iot.tools.mcp import SubCommand
 
     return SubCommand(
-        Namespace(server_sock=("127.0.0.1", 1), transport="stdio", allow_writes=False, state_directory=None)
+        Namespace(
+            server_sock=("127.0.0.1", 1),
+            transport="stdio",
+            allow_writes=False,
+            state_directory=None,
+            start_gateway=None,
+            gateway_serial=None,
+            scan_seconds=20.0,
+        )
     )
 
 
