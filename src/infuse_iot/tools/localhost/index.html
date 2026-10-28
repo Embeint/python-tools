@@ -169,17 +169,31 @@
             a.length === b.length &&
             a.every((element, index) => element === b[index]);
 
+        // Merge new filter options with the existing table data. Unticked options are kept even if the
+        // server no longer reports them (e.g. after a restart), so they stay hidden when seen again.
+        function mergeFilterOptions(table, names) {
+            const currentRows = table.getData();
+            const unticked = currentRows.filter(row => !row.checked).map(row => row.name);
+            const updatedData = [...new Set([...names, ...unticked])].sort().map(str => {
+                const existingRow = currentRows.find(row => row.name === str);
+                return existingRow
+                    ? existingRow // Preserve the existing row if found
+                    : { id: str, name: str, checked: true };
+            });
+            table.replaceData(updatedData);
+        }
+
         function handleMessage(event) {
             const { columns, rows, tdfs, apps, networks } = JSON.parse(event.data);
 
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
                 const currentRows = shownTdfTable.getData();
-                const updatedData = tdfs.map((str, index) => {
+                const updatedData = tdfs.map(str => {
                     const existingRow = currentRows.find(row => row.name === str);
                     return existingRow
                         ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
+                        : { id: str, name: str, checked: true };
                 });
                 // Update table and refresh the checked state map
                 shownTdfTable.replaceData(updatedData);
@@ -194,29 +208,13 @@
             );
 
             if (!arraysEqual(currentApps, apps)) {
-                // Merge new data with the existing table data
-                const currentRows = shownAppTable.getData();
-                const updatedData = apps.map((str, index) => {
-                    const existingRow = currentRows.find(row => row.name === str);
-                    return existingRow
-                        ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
-                });
-                shownAppTable.replaceData(updatedData);
+                mergeFilterOptions(shownAppTable, apps);
                 currentApps = apps
                 filtering_update = true;
             }
 
             if (!arraysEqual(currentNetworks, networks)) {
-                // Merge new data with the existing table data
-                const currentRows = shownNetworkTable.getData();
-                const updatedData = networks.map((str, index) => {
-                    const existingRow = currentRows.find(row => row.name === str);
-                    return existingRow
-                        ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
-                });
-                shownNetworkTable.replaceData(updatedData);
+                mergeFilterOptions(shownNetworkTable, networks);
                 currentNetworks = networks
                 filtering_update = true;
             }

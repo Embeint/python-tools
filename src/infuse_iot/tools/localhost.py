@@ -48,6 +48,9 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._data_lock = threading.Lock()
         self._columns: dict[str, dict] = {}
+        # Only grow, so filter selections are not lost when a value is temporarily unused
+        self._apps: set[str] = set()
+        self._networks: set[str] = set()
         self._data: dict[int, dict] = {}
         self._port: int = args.port
 
@@ -122,14 +125,12 @@ class SubCommand(InfuseCommand):
                     }
                 )
             devices = sorted(self._data.keys())
-            rows = [self._data[d] for d in devices]
-            # Filter options are the values present in the rows, so every row can be shown
             message = {
                 "columns": columns,
-                "rows": rows,
+                "rows": [self._data[d] for d in devices],
                 "tdfs": sorted(list(self._columns.keys())),
-                "apps": sorted({r["application"] for r in rows}),
-                "networks": sorted({r["network_id"] for r in rows}),
+                "apps": sorted(list(self._apps)),
+                "networks": sorted(list(self._networks)),
             }
         return message
 
@@ -215,6 +216,9 @@ class SubCommand(InfuseCommand):
                     "application": "Unknown",
                     "network_id": "None",
                 }
+                # Default values must be filter options, otherwise these devices can never be shown
+                self._apps.add("Unknown")
+                self._networks.add("None")
 
             self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
             if source.interface == interface.ID.BT_ADV:
@@ -224,7 +228,9 @@ class SubCommand(InfuseCommand):
                 self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
             if source.auth == packet.Auth.NETWORK:
-                self._data[source.infuse_id]["network_id"] = f"0x{source.key_identifier:06x}"
+                key_id_str = f"0x{source.key_identifier:06x}"
+                self._data[source.infuse_id]["network_id"] = key_id_str
+                self._networks.add(key_id_str)
 
             for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
@@ -233,7 +239,9 @@ class SubCommand(InfuseCommand):
                 if t.NAME not in self._data[source.infuse_id]:
                     self._data[source.infuse_id][t.NAME] = {}
                 if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
-                    self._data[source.infuse_id]["application"] = f"0x{t.application:08x}"
+                    app_str = f"0x{t.application:08x}"
+                    self._data[source.infuse_id]["application"] = app_str
+                    self._apps.add(app_str)
 
                 for field in t.iter_fields(nested_iter=False):
                     if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
