@@ -16,15 +16,26 @@
         font-family: monospace;
     }
 
+    /* Sidebar sits beside the main content, so opening it shrinks the table */
+    .layout {
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .main {
+        flex: 1;
+        min-width: 0; /* Allow shrinking below the table width */
+    }
+
     .sidebar {
-        height: 100%; /* 100% Full-height */
+        flex: none;
         width: 0; /* 0 width - change this with JavaScript */
-        position: fixed; /* Stay in place */
-        z-index: 1; /* Stay on top */
+        position: sticky; /* Stay visible while scrolling */
         top: 0;
-        right: 0;
-        background-color: #ffffff; /* White */
+        max-height: 100vh;
         overflow-x: hidden; /* Disable horizontal scroll */
+        overflow-y: auto;
+        background-color: #ffffff; /* White */
     }
 
     #tdf-show {
@@ -41,29 +52,35 @@
 
     #data-table {
         width: 100%;
-    };
+        box-sizing: border-box; /* Include the border in the width */
+    }
 </style>
 
 <body>
-    <h1>Infuse-IoT TDF Viewer</h1>
+    <div class="layout">
+        <div class="main">
+            <h1>Infuse-IoT TDF Viewer</h1>
 
-    <div id="filteringSidebar" class="sidebar">
-        <span id="tdf-show"></span>
-        <span id="app-show"></span>
-        <span id="network-show"></span>
-    </div>
-    <div>
-        <b>
-        Filtering:
-        <button class="openbtn" onclick="openFiltering()">&#9776; Options</button>
-        </b>
+            <div>
+                <b>
+                Filtering:
+                <button class="openbtn" onclick="openFiltering()">&#9776; Options</button>
+                </b>
 
-        <b>
-        <label for="update_pause">Pause updating: </label>
-        <input type="checkbox" id="update_pause" name="update_pause" value="pause">
-        </b>
+                <b>
+                <label for="update_pause">Pause updating: </label>
+                <input type="checkbox" id="update_pause" name="update_pause" value="pause">
+                </b>
+            </div>
+            <div id="data-table"></div>
+        </div>
+
+        <div id="filteringSidebar" class="sidebar">
+            <span id="tdf-show"></span>
+            <span id="app-show"></span>
+            <span id="network-show"></span>
+        </div>
     </div>
-    <div id="data-table"></div>
 
     <script>
         // Filtering controls visible or not
@@ -82,7 +99,8 @@
         let filtering_update = false;
         // Initialize the Tabulator table
         const dataTable = new Tabulator("#data-table", {
-            layout: "fitDataTable",
+            // Fill the available width and scroll horizontally, so the table shrinks with the sidebar open
+            layout: "fitData",
             pagination: "local",
             paginationSize: 25,
             paginationSizeSelector: [10, 25, 50, 100],
