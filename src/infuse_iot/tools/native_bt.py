@@ -176,17 +176,19 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 await before_deadline(subscribe(request.DataType.COMMAND))
 
                 security_state_received = asyncio.Event()
+                security_state: list[tuple] = []
 
                 def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
                     decoded = defs.security_state.response.vla_from_buffer_copy(response)
-                    self._db.observe_security_state(
-                        request.infuse_id,
-                        bytes(decoded.cloud_public_key),
-                        bytes(decoded.device_public_key),
-                        decoded.network_id,
-                        challenge,
-                        decoded.challenge_response_type,
-                        bytes(decoded.challenge_response),
+                    security_state.append(
+                        (
+                            bytes(decoded.cloud_public_key),
+                            bytes(decoded.device_public_key),
+                            decoded.network_id,
+                            challenge,
+                            decoded.challenge_response_type,
+                            bytes(decoded.challenge_response),
+                        )
                     )
                     security_state_received.set()
 
@@ -208,6 +210,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
                 # Wait for a response
                 await before_deadline(security_state_received.wait())
+                # Deriving a new shared key reads the API key and queries the cloud, which must not stall the loop
+                await before_deadline(
+                    asyncio.to_thread(self._db.observe_security_state, request.infuse_id, *security_state[0])
+                )
 
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):

@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import ctypes
 import json
+import threading
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, Mock
@@ -11,6 +13,7 @@ from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
 from cryptography.exceptions import InvalidTag
 
+import infuse_iot.definitions.rpc as defs
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
 from infuse_iot.database import UnknownNetworkError
 from infuse_iot.gateway_control import GatewayControl
@@ -100,6 +103,48 @@ def test_repeated_requests_share_connection_and_subscriptions(handler, monkeypat
     ]
     assert not handler._queues
     assert not handler._tasks
+
+
+def test_shared_key_is_derived_off_the_event_loop(handler, monkeypatch):
+    """Deriving a new shared key can wait on a keyring prompt and the cloud, so other connections keep running."""
+    handler._db.has_shared_key.return_value = False
+    threads = []
+    handler._db.observe_security_state.side_effect = lambda *_args: threads.append(threading.current_thread())
+    commands = []
+    handler._rpc = Mock()
+
+    def generate(*args):
+        commands.append(args)
+        return Mock(payload=b"")
+
+    handler._rpc.generate_addressed.side_effect = generate
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtGattFrame.encrypt", Mock(return_value=b"frame"))
+    response = bytes(ctypes.sizeof(defs.security_state.response))
+
+    def factory(*args, **kwargs):
+        client = FakeBleakClient(*args, **kwargs)
+
+        async def respond(*_args, **_kwargs):
+            # The device answers the security state command
+            _, _, _, _, done, challenge = commands[-1]
+            done(None, 0, response, challenge)
+
+        client.write_gatt_char = AsyncMock(side_effect=respond)
+        return client
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 1000))
+        await asyncio.sleep(0.2)
+        datagram(handler, GatewayRequestConnectionRelease(123))
+        await asyncio.wait_for(handler._tasks[123], timeout=1.0)
+
+    asyncio.run(run())
+    assert threads and threads[0] is not threading.main_thread()
+    assert handler._db.observe_security_state.call_args.args[0] == 123
+    notifications = [call.args[0] for call in handler._server.broadcast.call_args_list]
+    assert isinstance(notifications[0], ClientNotificationConnectionCreated)
 
 
 @pytest.mark.parametrize("error", [BleakError("failed"), TimeoutError("failed")])
