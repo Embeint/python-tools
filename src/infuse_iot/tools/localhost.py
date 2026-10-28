@@ -48,8 +48,6 @@ class SubCommand(InfuseCommand):
     def __init__(self, args):
         self._data_lock = threading.Lock()
         self._columns: dict[str, dict] = {}
-        self._apps: set[str] = set()
-        self._networks: set[str] = set()
         self._data: dict[int, dict] = {}
         self._port: int = args.port
 
@@ -124,12 +122,14 @@ class SubCommand(InfuseCommand):
                     }
                 )
             devices = sorted(self._data.keys())
+            rows = [self._data[d] for d in devices]
+            # Filter options are the values present in the rows, so every row can be shown
             message = {
                 "columns": columns,
-                "rows": [self._data[d] for d in devices],
+                "rows": rows,
                 "tdfs": sorted(list(self._columns.keys())),
-                "apps": sorted(list(self._apps)),
-                "networks": sorted(list(self._networks)),
+                "apps": sorted({r["application"] for r in rows}),
+                "networks": sorted({r["network_id"] for r in rows}),
             }
         return message
 
@@ -213,6 +213,7 @@ class SubCommand(InfuseCommand):
                 self._data[source.infuse_id] = {
                     "infuse_id": _display_device_id(source.infuse_id),
                     "application": "Unknown",
+                    "network_id": "None",
                 }
 
             self._data[source.infuse_id]["time"] = InfuseTime.utc_time_string(time.time())
@@ -223,9 +224,7 @@ class SubCommand(InfuseCommand):
                 self._data[source.infuse_id]["bt_rssi"] = source.rssi
 
             if source.auth == packet.Auth.NETWORK:
-                key_id_str = f"0x{source.key_identifier:06x}"
-                self._data[source.infuse_id]["network_id"] = key_id_str
-                self._networks.add(key_id_str)
+                self._data[source.infuse_id]["network_id"] = f"0x{source.key_identifier:06x}"
 
             for tdf in self._decoder.decode(msg.epacket.payload):
                 t = tdf.data[-1]
@@ -234,9 +233,7 @@ class SubCommand(InfuseCommand):
                 if t.NAME not in self._data[source.infuse_id]:
                     self._data[source.infuse_id][t.NAME] = {}
                 if t.NAME in ["ANNOUNCE", "ANNOUNCE_V2"]:
-                    app_str = f"0x{t.application:08x}"
-                    self._data[source.infuse_id]["application"] = app_str
-                    self._apps.add(app_str)
+                    self._data[source.infuse_id]["application"] = f"0x{t.application:08x}"
 
                 for field in t.iter_fields(nested_iter=False):
                     if isinstance(field.val, structs.tdf_struct_mcuboot_img_sem_ver):
