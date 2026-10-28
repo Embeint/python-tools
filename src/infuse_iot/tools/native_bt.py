@@ -12,6 +12,7 @@ import json
 import logging
 import random
 import sys
+import time
 from collections import Counter
 from typing import Any, Literal
 
@@ -62,6 +63,9 @@ from infuse_iot.util.local_rpc_server import LocalRpcServer
 
 # Raw observation pages stay well below the 8 kB datagrams that clients receive.
 RAW_OBSERVATION_BYTES = 5000
+# Advertisements held per network while its key loads, and how long a missing key is not looked up again.
+PENDING_ADVERTISEMENTS = 64
+NETWORK_RETRY_S = 60.0
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -176,17 +180,19 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 await before_deadline(subscribe(request.DataType.COMMAND))
 
                 security_state_received = asyncio.Event()
+                security_state: list[tuple] = []
 
                 def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
                     decoded = defs.security_state.response.vla_from_buffer_copy(response)
-                    self._db.observe_security_state(
-                        request.infuse_id,
-                        bytes(decoded.cloud_public_key),
-                        bytes(decoded.device_public_key),
-                        decoded.network_id,
-                        challenge,
-                        decoded.challenge_response_type,
-                        bytes(decoded.challenge_response),
+                    security_state.append(
+                        (
+                            bytes(decoded.cloud_public_key),
+                            bytes(decoded.device_public_key),
+                            decoded.network_id,
+                            challenge,
+                            decoded.challenge_response_type,
+                            bytes(decoded.challenge_response),
+                        )
                     )
                     security_state_received.set()
 
@@ -208,6 +214,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
                 # Wait for a response
                 await before_deadline(security_state_received.wait())
+                # Deriving a new shared key reads the API key and queries the cloud, which must not stall the loop
+                await before_deadline(
+                    asyncio.to_thread(self._db.observe_security_state, request.infuse_id, *security_state[0])
+                )
 
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):
@@ -417,6 +427,9 @@ class SubCommand(InfuseCommand):
         self.server.control.handlers["raw_observations"] = self.raw_observations
         self.server.control.handlers["diagnostics"] = self.diagnostics
         self.unknown_networks: set[int] = set()
+        # Advertisements waiting for their network key to load, and when keys were last found missing
+        self._pending: dict[int, list[tuple[BLEDevice, AdvertisementData]]] = {}
+        self._missing: dict[int, float] = {}
         self.report_interval: float = args.report_interval
         self.report_count = 0
         self.infuse_report_count = 0
@@ -471,6 +484,55 @@ class SubCommand(InfuseCommand):
             return
         self.infuse_report_count += 1
         self.scan_statistics["infuse_advertisements"] += 1
+        if self._network_key_ready(device, data):
+            self.infuse_callback(device, data)
+
+    def _network_key_ready(self, device: BLEDevice, data: AdvertisementData) -> bool:
+        """Whether the advertisement can be decrypted now, otherwise holding it while its network key loads.
+
+        Loading reads the keyring, which can block on an unlock prompt, so it runs off the event loop.
+        """
+        payload = data.manufacturer_data[self.infuse_manu]
+        if len(payload) < ctypes.sizeof(CtypeBtAdvFrame):
+            return True
+        header = CtypeBtAdvFrame.from_buffer_copy(payload)
+        network_id = header.key_metadata
+        if header.flags & Flags.ENCR_DEVICE or self.database.has_network_key(network_id):
+            return True
+        if time.monotonic() - self._missing.get(network_id, -NETWORK_RETRY_S) < NETWORK_RETRY_S:
+            self._unknown_network(network_id)
+            return False
+        pending = self._pending.get(network_id)
+        if pending is None:
+            pending = self._pending[network_id] = []
+            loading = asyncio.get_running_loop().run_in_executor(None, self.database.load_network_key, network_id)
+            loading.add_done_callback(lambda future: self._network_key_loaded(network_id, future))
+        if len(pending) < PENDING_ADVERTISEMENTS:
+            pending.append((device, data))
+        return False
+
+    def _network_key_loaded(self, network_id: int, loading: asyncio.Future) -> None:
+        pending = self._pending.pop(network_id, [])
+        if loading.cancelled():
+            return
+        error = loading.exception()
+        if error is None:
+            for device, data in pending:
+                self.infuse_callback(device, data)
+            return
+        self._missing[network_id] = time.monotonic()
+        if not isinstance(error, UnknownNetworkError):
+            Console.log_error(f"Failed to load network 0x{network_id:06x} key: {error}")
+        for _ in pending:
+            self._unknown_network(network_id)
+
+    def _unknown_network(self, network_id: int) -> None:
+        self.scan_statistics["unknown_network_packets"] += 1
+        if network_id not in self.unknown_networks:
+            self.unknown_networks.add(network_id)
+            Console.log_info(f"Unknown network 0x{network_id:06x}")
+
+    def infuse_callback(self, device: BLEDevice, data: AdvertisementData):
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
@@ -478,11 +540,7 @@ class SubCommand(InfuseCommand):
         try:
             hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
         except UnknownNetworkError as e:
-            self.scan_statistics["unknown_network_packets"] += 1
-            network_id = e.args[0]
-            if network_id not in self.unknown_networks:
-                self.unknown_networks.add(network_id)
-                Console.log_info(f"Unknown network 0x{network_id:06x}")
+            self._unknown_network(e.args[0])
             return
         except InvalidTag as _e:
             self.scan_statistics["invalid_tag_packets"] += 1
