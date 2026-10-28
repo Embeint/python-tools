@@ -159,6 +159,12 @@ TOOLS = (
         module="infuse_iot.tools.mcp",
     ),
     ToolSpec(
+        name="mcp_setup",
+        help="Register the MCP server with desktop hosts",
+        description="Add the local MCP server to Claude Desktop, Claude Code or Cursor",
+        module="infuse_iot.tools.mcp_setup",
+    ),
+    ToolSpec(
         name="scan",
         help="Observe raw Bluetooth advertisements",
         description="Collect bounded raw Bluetooth evidence",
