@@ -16,6 +16,7 @@ from cryptography.exceptions import InvalidTag
 import infuse_iot.definitions.rpc as defs
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
 from infuse_iot.database import UnknownNetworkError
+from infuse_iot.epacket.packet import CtypeBtAdvFrame
 from infuse_iot.gateway_control import GatewayControl
 from infuse_iot.services.ble_observations import INFUSE_SERVICE
 from infuse_iot.socket_comms import (
@@ -738,3 +739,62 @@ def test_gateway_counts_decryption_failures(gateway, monkeypatch):
     }
     assert isinstance(gateway.server.sent[0], ClientNotificationEpacketReceived)
     assert query(gateway, "diagnostics", {"reset": True}).code == "invalid_request"
+
+
+def network_advertisement(network_id: int) -> bytes:
+    header = CtypeBtAdvFrame()
+    header.key_metadata = network_id
+    return bytes(header) + bytes(16)
+
+
+def test_network_key_loads_without_blocking_advertisements(gateway, monkeypatch):
+    header = SimpleNamespace(device_id=123, flags=0, key_metadata=0x123456, gps_time=0, sequence=1, type=InfuseType.TDF)
+    decrypt = Mock(return_value=(header, b""))
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    database = gateway.database
+    database.has_network_key.return_value = False
+    unlocked = threading.Event()
+    database.load_network_key.side_effect = lambda _network_id: unlocked.wait(5)
+    infuse = {0x0DE4: network_advertisement(0x123456)}
+
+    async def run():
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+        advertise(gateway, "60:fc:f1:00:61:62", manufacturer=infuse)
+        # Held while the keyring waits, with other advertisements still observed
+        await asyncio.sleep(0.05)
+        advertise(gateway, "aa:bb:cc:dd:ee:ff")
+        assert decrypt.call_count == 0 and gateway.observations.advertisements == 3
+        unlocked.set()
+        for _ in range(100):
+            if decrypt.call_count == 2:
+                break
+            await asyncio.sleep(0.01)
+
+    asyncio.run(run())
+    database.load_network_key.assert_called_once_with(0x123456)
+    assert decrypt.call_count == 2
+    assert [type(sent) for sent in gateway.server.sent] == [ClientNotificationEpacketReceived] * 2
+    assert gateway.scan_statistics["infuse_advertisements"] == 2
+
+
+def test_missing_network_key_is_not_looked_up_for_every_advertisement(gateway, monkeypatch):
+    decrypt = Mock()
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    database = gateway.database
+    database.has_network_key.return_value = False
+    database.load_network_key.side_effect = UnknownNetworkError(0x123456)
+    infuse = {0x0DE4: network_advertisement(0x123456)}
+
+    async def run():
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+        for _ in range(100):
+            if gateway.scan_statistics["unknown_network_packets"]:
+                break
+            await asyncio.sleep(0.01)
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+
+    asyncio.run(run())
+    database.load_network_key.assert_called_once_with(0x123456)
+    decrypt.assert_not_called()
+    assert gateway.scan_statistics["unknown_network_packets"] == 2
+    assert gateway.unknown_networks == {0x123456}
