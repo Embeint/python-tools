@@ -7,37 +7,49 @@ commands still support Python 3.10. CI tests it with Python 3.11 and 3.12:
 python -m pip install '.[mcp]'
 ```
 
-Start `infuse native_bt` or a serial `infuse gateway` separately, or let the
-server start one, as described under Gateway. Configure your MCP host to launch
-the absolute path to that environment's `infuse` executable:
+Then register the server with the desktop hosts on this machine:
+
+```sh
+infuse mcp_setup
+```
+
+It configures every host it finds, or those named with `--client`
+(`claude-desktop`, `claude-code` or `cursor`). Claude Desktop and Cursor are
+configured by editing their JSON file, keeping a `.bak` copy and every other
+server; Claude Code is configured with `claude mcp add-json --scope user`.
+Restart the host afterwards. The registered command is the absolute path of
+this environment's `infuse`, since hosts do not use the shell's PATH.
+`--allow-writes` registers a server that also exposes device actions,
+`--remove` unregisters it, and `--print` prints the configuration for another
+host instead of changing anything:
 
 ```json
 {
   "mcpServers": {
     "infuse": {
       "command": "/absolute/path/to/.venv/bin/infuse",
-      "args": ["mcp", "--server-port", "8751", "--start-gateway", "native_bt"]
+      "args": ["mcp", "--server-port", "8751", "--scan-seconds", "20",
+               "--start-gateway", "native_bt"]
     }
   }
 }
 ```
 
-On Windows use the environment's `Scripts/infuse.exe`. The host must run on the
-machine with the gateway; no remote HTTP endpoint is started. Other `infuse`
-commands do not need the MCP extra.
+The host must run on the machine with the gateway; no remote HTTP endpoint is
+started. Other `infuse` commands do not need the MCP extra.
 
 ## Gateway
 
 The server uses an `infuse native_bt` or serial `infuse gateway` that is already
-running on its `--server-port`. With `--start-gateway native_bt`, or
-`--start-gateway serial --gateway-serial <port>`, a tool that needs a gateway
-starts one when none answers. Status and diagnostics only report a missing
-gateway. The started gateway's output goes to a log file named by
-`infuse_status`, and it stops when the server exits, including when the server
-is killed. An OS lock per port lets only one server start a gateway; others
-wait for it. A gateway that exits during startup fails the call with
-`gateway_start_failed` and its last line of output; one that does not answer
-within 30 seconds fails with `gateway_unavailable`.
+running on its `--server-port`. With `--start-gateway native_bt`, which
+`mcp_setup` registers by default, or `--start-gateway serial --gateway-serial
+<port>`, a tool that needs a gateway starts one when none answers. Status and
+diagnostics only report a missing gateway. The started gateway's output goes to
+a log file named by `infuse_status`, and it stops when the server exits,
+including when the server is killed. An OS lock per port lets only one server
+start a gateway; others wait for it. A gateway that exits during startup fails
+the call with `gateway_start_failed` and its last line of output; one that does
+not answer within 30 seconds fails with `gateway_unavailable`.
 
 A gateway can only connect to devices it has heard, so device reads and actions
 first wait up to `--scan-seconds` (default 20, at most 60, 0 to disable) for
