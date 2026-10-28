@@ -101,6 +101,8 @@
         const dataTable = new Tabulator("#data-table", {
             // Fill the available width and scroll horizontally, so the table shrinks with the sidebar open
             layout: "fitData",
+            // Rows are matched by device so they can be updated in place
+            index: "infuse_id",
             pagination: "local",
             paginationSize: 25,
             paginationSizeSelector: [10, 25, 50, 100],
@@ -165,6 +167,30 @@
         let dataRequestId = null;
         let reconnectId = null;
 
+        // Refreshing a row destroys any text selection inside it, so rows in the selection are held
+        // while the other rows keep updating. Everything is held while a selection is being dragged.
+        const dataTableElem = document.getElementById("data-table");
+        let mouseSelecting = false;
+        dataTableElem.addEventListener("mousedown", () => { mouseSelecting = true; });
+        // Dragging selected text or a scrollbar may not produce a mouseup, so also clear on these
+        for (const ev of ["mouseup", "dragend", "pointercancel"]) {
+            document.addEventListener(ev, () => { mouseSelecting = false; });
+        }
+        window.addEventListener("blur", () => { mouseSelecting = false; });
+
+        // Indexes of the rows containing part of the text selection
+        function selectedRowIndexes() {
+            const selection = window.getSelection();
+            if (selection.isCollapsed || !selection.containsNode(dataTableElem, true)) {
+                return new Set();
+            }
+            return new Set(
+                dataTable.getRows("visible")
+                    .filter(row => selection.containsNode(row.getElement(), true))
+                    .map(row => row.getIndex())
+            );
+        }
+
         const arraysEqual = (a, b) =>
             a.length === b.length &&
             a.every((element, index) => element === b[index]);
@@ -219,21 +245,32 @@
                 filtering_update = true;
             }
 
+            // Column, filter and new row changes redraw the whole table, so they wait until nothing is selected
+            const heldRows = selectedRowIndexes();
+            const selecting = mouseSelecting || heldRows.size > 0;
+
             // Update column definitions if new TDFs have appeared
-            if (columns.length != current_num_columns) {
+            if (!selecting && columns.length != current_num_columns) {
                 dataTable.setColumns(columns);
                 current_num_columns = columns.length;
                 filtering_update = true;
             }
 
             // Dynamically set the table content
-            if (current_num_columns > 0) {
-                if (!document.getElementById('update_pause').checked) {
+            if (current_num_columns > 0 && !document.getElementById('update_pause').checked) {
+                if (!selecting) {
                     dataTable.replaceData(rows);
+                } else if (!mouseSelecting) {
+                    // Update the existing rows outside the selection in place
+                    const existingRows = new Set(dataTable.getRows().map(row => row.getIndex()));
+                    const updates = rows.filter(row => !heldRows.has(row.infuse_id) && existingRows.has(row.infuse_id));
+                    if (updates.length > 0) {
+                        dataTable.updateData(updates);
+                    }
                 }
             }
 
-            if (filtering_update) {
+            if (filtering_update && !selecting) {
                 // Hide columns as requested
                 dataTable.getColumns().forEach(column => {
                     // Split field name into [TDF_NAME, subfields]
