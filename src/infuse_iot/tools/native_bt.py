@@ -15,6 +15,8 @@ from collections import Counter
 from typing import Any, Literal
 
 from bleak import BleakClient, BleakScanner
+from bleak.args.bluez import BlueZScannerArgs, OrPattern
+from bleak.assigned_numbers import AdvertisementDataType
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -452,17 +454,41 @@ class SubCommand(InfuseCommand):
 
         # MacOS does not support passive scanning
         scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
-        scanner = BleakScanner(
-            self.simple_callback,
-            scanning_mode=scanning_mode,
-            bluez={"filters": {"DuplicateData": True}},
-            cb=dict(use_bdaddr=True),
-        )
 
         while True:
-            Console.log_info("Starting scanner")
-            async with scanner:
+            Console.log_info(f"Starting scanner ({scanning_mode})")
+            scanner = self._scanner(scanning_mode)
+            try:
+                await scanner.start()
+            except BleakError as e:
+                # Passive scanning on BlueZ needs bluetoothd running with --experimental
+                if scanning_mode == "active" or sys.platform != "linux":
+                    raise
+                Console.log_info(f"Passive scanning unavailable, falling back to active: {e}")
+                scanning_mode = "active"
+                continue
+            try:
                 await handler
+            finally:
+                await scanner.stop()
+
+    def _scanner(self, scanning_mode: Literal["active", "passive"]) -> BleakScanner:
+        bluez: BlueZScannerArgs = {"filters": {"DuplicateData": True}}
+        if scanning_mode == "passive":
+            # BlueZ only scans passively for advertisements matching a pattern
+            bluez["or_patterns"] = [
+                OrPattern(
+                    0,
+                    AdvertisementDataType.MANUFACTURER_SPECIFIC_DATA,
+                    self.infuse_manu.to_bytes(2, "little"),
+                )
+            ]
+        return BleakScanner(
+            self.simple_callback,
+            scanning_mode=scanning_mode,
+            bluez=bluez,
+            cb=dict(use_bdaddr=True),
+        )
 
     def sync_request_handler(self):
         # Loop while there are packets to send
