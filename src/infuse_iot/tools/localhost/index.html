@@ -7,23 +7,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDF Viewer</title>
-    <link href="https://unpkg.com/tabulator-tables@6.7.1/dist/css/tabulator.min.css" rel="stylesheet">
-    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.7.1/dist/js/tabulator.min.js"></script>
+    <!-- Tabulator v6.7.1, bundled locally for offline use -->
+    <link href="/tabulator/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="/tabulator/tabulator.min.js"></script>
 </head>
 <style>
     .tabulator {
         font-family: monospace;
     }
 
+    /* Sidebar sits beside the main content, so opening it shrinks the table */
+    .layout {
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .main {
+        flex: 1;
+        min-width: 0; /* Allow shrinking below the table width */
+    }
+
     .sidebar {
-        height: 100%; /* 100% Full-height */
+        flex: none;
         width: 0; /* 0 width - change this with JavaScript */
-        position: fixed; /* Stay in place */
-        z-index: 1; /* Stay on top */
+        position: sticky; /* Stay visible while scrolling */
         top: 0;
-        right: 0;
-        background-color: #ffffff; /* White */
+        max-height: 100vh;
         overflow-x: hidden; /* Disable horizontal scroll */
+        overflow-y: auto;
+        background-color: #ffffff; /* White */
     }
 
     #tdf-show {
@@ -40,29 +52,35 @@
 
     #data-table {
         width: 100%;
-    };
+        box-sizing: border-box; /* Include the border in the width */
+    }
 </style>
 
 <body>
-    <h1>Infuse-IoT TDF Viewer</h1>
+    <div class="layout">
+        <div class="main">
+            <h1>Infuse-IoT TDF Viewer</h1>
 
-    <div id="filteringSidebar" class="sidebar">
-        <span id="tdf-show"></span>
-        <span id="app-show"></span>
-        <span id="network-show"></span>
-    </div>
-    <div>
-        <b>
-        Filtering:
-        <button class="openbtn" onclick="openFiltering()">&#9776; Options</button>
-        </b>
+            <div>
+                <b>
+                Filtering:
+                <button class="openbtn" onclick="openFiltering()">&#9776; Options</button>
+                </b>
 
-        <b>
-        <label for="update_pause">Pause updating: </label>
-        <input type="checkbox" id="update_pause" name="update_pause" value="pause">
-        </b>
+                <b>
+                <label for="update_pause">Pause updating: </label>
+                <input type="checkbox" id="update_pause" name="update_pause" value="pause">
+                </b>
+            </div>
+            <div id="data-table"></div>
+        </div>
+
+        <div id="filteringSidebar" class="sidebar">
+            <span id="tdf-show"></span>
+            <span id="app-show"></span>
+            <span id="network-show"></span>
+        </div>
     </div>
-    <div id="data-table"></div>
 
     <script>
         // Filtering controls visible or not
@@ -81,7 +99,10 @@
         let filtering_update = false;
         // Initialize the Tabulator table
         const dataTable = new Tabulator("#data-table", {
-            layout: "fitDataTable",
+            // Fill the available width and scroll horizontally, so the table shrinks with the sidebar open
+            layout: "fitData",
+            // Rows are matched by device so they can be updated in place
+            index: "infuse_id",
             pagination: "local",
             paginationSize: 25,
             paginationSizeSelector: [10, 25, 50, 100],
@@ -146,9 +167,47 @@
         let dataRequestId = null;
         let reconnectId = null;
 
+        // Refreshing a row destroys any text selection inside it, so rows in the selection are held
+        // while the other rows keep updating. Everything is held while a selection is being dragged.
+        const dataTableElem = document.getElementById("data-table");
+        let mouseSelecting = false;
+        dataTableElem.addEventListener("mousedown", () => { mouseSelecting = true; });
+        // Dragging selected text or a scrollbar may not produce a mouseup, so also clear on these
+        for (const ev of ["mouseup", "dragend", "pointercancel"]) {
+            document.addEventListener(ev, () => { mouseSelecting = false; });
+        }
+        window.addEventListener("blur", () => { mouseSelecting = false; });
+
+        // Indexes of the rows containing part of the text selection
+        function selectedRowIndexes() {
+            const selection = window.getSelection();
+            if (selection.isCollapsed || !selection.containsNode(dataTableElem, true)) {
+                return new Set();
+            }
+            return new Set(
+                dataTable.getRows("visible")
+                    .filter(row => selection.containsNode(row.getElement(), true))
+                    .map(row => row.getIndex())
+            );
+        }
+
         const arraysEqual = (a, b) =>
             a.length === b.length &&
             a.every((element, index) => element === b[index]);
+
+        // Merge new filter options with the existing table data. Unticked options are kept even if the
+        // server no longer reports them (e.g. after a restart), so they stay hidden when seen again.
+        function mergeFilterOptions(table, names) {
+            const currentRows = table.getData();
+            const unticked = currentRows.filter(row => !row.checked).map(row => row.name);
+            const updatedData = [...new Set([...names, ...unticked])].sort().map(str => {
+                const existingRow = currentRows.find(row => row.name === str);
+                return existingRow
+                    ? existingRow // Preserve the existing row if found
+                    : { id: str, name: str, checked: true };
+            });
+            table.replaceData(updatedData);
+        }
 
         function handleMessage(event) {
             const { columns, rows, tdfs, apps, networks } = JSON.parse(event.data);
@@ -156,11 +215,11 @@
             if (!arraysEqual(currentTDFs, tdfs)) {
                 // Merge new data with the existing table data
                 const currentRows = shownTdfTable.getData();
-                const updatedData = tdfs.map((str, index) => {
+                const updatedData = tdfs.map(str => {
                     const existingRow = currentRows.find(row => row.name === str);
                     return existingRow
                         ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
+                        : { id: str, name: str, checked: true };
                 });
                 // Update table and refresh the checked state map
                 shownTdfTable.replaceData(updatedData);
@@ -175,48 +234,43 @@
             );
 
             if (!arraysEqual(currentApps, apps)) {
-                // Merge new data with the existing table data
-                const currentRows = shownAppTable.getData();
-                const updatedData = apps.map((str, index) => {
-                    const existingRow = currentRows.find(row => row.name === str);
-                    return existingRow
-                        ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
-                });
-                shownAppTable.replaceData(updatedData);
+                mergeFilterOptions(shownAppTable, apps);
                 currentApps = apps
                 filtering_update = true;
             }
 
             if (!arraysEqual(currentNetworks, networks)) {
-                // Merge new data with the existing table data
-                const currentRows = shownNetworkTable.getData();
-                const updatedData = networks.map((str, index) => {
-                    const existingRow = currentRows.find(row => row.name === str);
-                    return existingRow
-                        ? existingRow // Preserve the existing row if found
-                        : { id: `row-${index}`, name: str, checked: true };
-                });
-                shownNetworkTable.replaceData(updatedData);
+                mergeFilterOptions(shownNetworkTable, networks);
                 currentNetworks = networks
                 filtering_update = true;
             }
 
+            // Column, filter and new row changes redraw the whole table, so they wait until nothing is selected
+            const heldRows = selectedRowIndexes();
+            const selecting = mouseSelecting || heldRows.size > 0;
+
             // Update column definitions if new TDFs have appeared
-            if (columns.length != current_num_columns) {
+            if (!selecting && columns.length != current_num_columns) {
                 dataTable.setColumns(columns);
                 current_num_columns = columns.length;
                 filtering_update = true;
             }
 
             // Dynamically set the table content
-            if (current_num_columns > 0) {
-                if (!document.getElementById('update_pause').checked) {
+            if (current_num_columns > 0 && !document.getElementById('update_pause').checked) {
+                if (!selecting) {
                     dataTable.replaceData(rows);
+                } else if (!mouseSelecting) {
+                    // Update the existing rows outside the selection in place
+                    const existingRows = new Set(dataTable.getRows().map(row => row.getIndex()));
+                    const updates = rows.filter(row => !heldRows.has(row.infuse_id) && existingRows.has(row.infuse_id));
+                    if (updates.length > 0) {
+                        dataTable.updateData(updates);
+                    }
                 }
             }
 
-            if (filtering_update) {
+            if (filtering_update && !selecting) {
                 // Hide columns as requested
                 dataTable.getColumns().forEach(column => {
                     // Split field name into [TDF_NAME, subfields]
