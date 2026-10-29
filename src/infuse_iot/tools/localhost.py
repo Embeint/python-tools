@@ -256,6 +256,8 @@ class SubCommand(InfuseCommand):
         app = web.Application()
         # Route for serving the HTML file
         app.router.add_get("/", self.handle_index)
+        # Route for bundled JS libraries
+        app.router.add_static("/tabulator", pathlib.Path(__file__).parent / "localhost" / "tabulator")
         # Route for WebSocket
         app.router.add_get("/ws", self.websocket_handler)
 

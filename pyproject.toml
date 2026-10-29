@@ -63,4 +63,4 @@ where = ["src"]
 namespaces = false
 
 [tool.setuptools.package-data]
-infuse_iot =["tools/localhost/index.html"]
+infuse_iot =["tools/localhost/index.html", "tools/localhost/tabulator/*"]
