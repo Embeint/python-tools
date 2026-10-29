@@ -225,9 +225,13 @@ class SubCommand(InfuseCommand):
             self.gateway_diff_load()
 
         # Set the gateways time at script startup
-        with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as mtu:
-            if not self.set_device_time(mtu, InfuseID.GATEWAY):
-                sys.exit("Failed to set time on local gateway")
+        try:
+            with self._client.connection(InfuseID.GATEWAY, GatewayRequestConnectionRequest.DataType.COMMAND, 10) as mtu:
+                if not self.set_device_time(mtu, InfuseID.GATEWAY):
+                    sys.exit("Failed to set time on local gateway")
+        except ConnectionRefusedError:
+            # native_bt has no gateway device to connect to, and runs on the local clock
+            print("Gateway does not accept connections, skipping gateway time sync")
 
         with Live(self.progress_table(), refresh_per_second=4) as live:
             for source, announce in self._client.observe_announce():
