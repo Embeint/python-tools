@@ -8,7 +8,8 @@ import pytest
 import infuse_iot.socket_comms as comms
 from infuse_iot import rpc
 from infuse_iot.common import InfuseType
-from infuse_iot.epacket.packet import Auth, PacketReceived
+from infuse_iot.epacket import interface
+from infuse_iot.epacket.packet import Auth, HopReceived, PacketReceived
 from infuse_iot.rpc_client import RpcClient
 
 DEVICE = 123
@@ -20,7 +21,17 @@ class Response(ctypes.LittleEndianStructure):
 
 
 def notification(ptype, payload):
-    return comms.ClientNotificationEpacketReceived(PacketReceived([], ptype, payload))
+    hop = HopReceived(
+        DEVICE,
+        interface.ID.BT_ADV,
+        interface.Address(interface.Address.BluetoothLeAddr(0, 0)),
+        Auth.NETWORK,
+        0,
+        0,
+        0,
+        -60,
+    )
+    return comms.ClientNotificationEpacketReceived(PacketReceived([hop], ptype, payload))
 
 
 @pytest.fixture
@@ -132,3 +143,13 @@ def test_command_response_wait_aborts_on_loss_of_own_connection(monkeypatch):
     with pytest.raises(ConnectionAbortedError):
         rpc_client.run_standard_cmd(1, Auth.DEVICE, b"", Response.from_buffer_copy)
     assert receive.call_count == 2
+
+
+def test_matching_request_id_from_another_device_is_ignored(rpc_client):
+    wrong = notification(InfuseType.RPC_RSP, bytes(rpc.ResponseHeader(11, 1, 0)) + bytes(Response(99)))
+    wrong.epacket.route[0].infuse_id = 999
+    right = notification(InfuseType.RPC_RSP, bytes(rpc.ResponseHeader(11, 1, 0)) + bytes(Response(42)))
+    rpc_client._client.receive.side_effect = [wrong, right]
+    header, response = rpc_client.run_standard_cmd(1, Auth.DEVICE, b"", Response.from_buffer_copy)
+    assert header.return_code == 0
+    assert response.value == 42

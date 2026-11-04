@@ -153,6 +153,30 @@ def _register_device_id_converters(module: types.ModuleType) -> None:
 
 TOOLS = (
     ToolSpec(
+        name="mcp",
+        help="Serve Infuse tools over MCP",
+        description="Serve local device tools over stdio MCP",
+        module="infuse_iot.tools.mcp",
+    ),
+    ToolSpec(
+        name="mcp_setup",
+        help="Register the MCP server with desktop hosts",
+        description="Add the local MCP server to Claude Desktop, Claude Code or Cursor",
+        module="infuse_iot.tools.mcp_setup",
+    ),
+    ToolSpec(
+        name="scan",
+        help="Observe raw Bluetooth advertisements",
+        description="Collect bounded raw Bluetooth evidence",
+        module="infuse_iot.tools.scan",
+    ),
+    ToolSpec(
+        name="snapshot",
+        help="Collect typed device telemetry",
+        description="Collect decoded telemetry with freshness",
+        module="infuse_iot.tools.snapshot",
+    ),
+    ToolSpec(
         name="annotate_events",
         help="Annotate events on Infuse Tags",
         description="Save labelled event annotations live on Infuse Tags",

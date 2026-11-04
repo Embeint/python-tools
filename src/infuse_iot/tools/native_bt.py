@@ -9,9 +9,14 @@ import argparse
 import asyncio
 import ctypes
 import json
+import logging
+import queue
 import random
 import sys
-from collections import Counter
+import threading
+import time
+from collections import Counter, OrderedDict
+from collections.abc import Callable
 from typing import Any, Literal
 
 from bleak import BleakClient, BleakScanner
@@ -37,6 +42,9 @@ from infuse_iot.epacket.packet import (
     PacketOutput,
     PacketReceived,
 )
+from infuse_iot.gateway_control import GatewayControl
+from infuse_iot.services.ble_observations import BleObservations
+from infuse_iot.services.collector import gateway_identity
 from infuse_iot.socket_comms import (
     ClientNotification,
     ClientNotificationCommsCheck,
@@ -55,6 +63,78 @@ from infuse_iot.socket_comms import (
 from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
 from infuse_iot.util.console import Console
 from infuse_iot.util.local_rpc_server import LocalRpcServer
+
+# Raw observation pages stay well below the 8 kB datagrams that clients receive.
+RAW_OBSERVATION_BYTES = 5000
+# Advertisements held per network while its key loads, and how long a missing key is not looked up again.
+PENDING_ADVERTISEMENTS = 64
+NETWORK_RETRY_S = 60.0
+# One running lookup plus eight queued networks, independent of the connection worker pool.
+QUEUED_NETWORK_KEYS = 8
+PENDING_NETWORK_KEYS = QUEUED_NETWORK_KEYS + 1
+NETWORK_HISTORY = 128
+
+
+class _NetworkKeyLoader:
+    """A bounded worker for potentially blocking keyring calls.
+
+    A running call cannot be cancelled. The daemon worker drops queued work on close and never
+    publishes a completion after closing, so a keyring prompt cannot hold the event loop open.
+    """
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        load: Callable[[int], None],
+        complete: Callable[[int, Exception | None], None],
+    ):
+        self._loop, self._load, self._complete = loop, load, complete
+        self._queue: queue.Queue[int | None] = queue.Queue(maxsize=QUEUED_NETWORK_KEYS)
+        self._closed = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="infuse-network-keys", daemon=True)
+        self._thread.start()
+
+    def submit(self, network_id: int) -> bool:
+        if self._closed.is_set():
+            return False
+        try:
+            self._queue.put_nowait(network_id)
+        except queue.Full:
+            return False
+        return True
+
+    def _run(self) -> None:
+        while not self._closed.is_set():
+            network_id = self._queue.get()
+            if network_id is None or self._closed.is_set():
+                return
+            error = None
+            try:
+                self._load(network_id)
+            except Exception as caught:
+                error = caught
+            if self._closed.is_set():
+                return
+            try:
+                self._loop.call_soon_threadsafe(self._deliver, network_id, error)
+            except RuntimeError:
+                # The event loop can have closed while a keyring prompt was outstanding.
+                return
+
+    def _deliver(self, network_id: int, error: Exception | None) -> None:
+        if not self._closed.is_set():
+            self._complete(network_id, error)
+
+    def close(self) -> None:
+        if self._closed.is_set():
+            return
+        self._closed.set()
+        while True:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+        self._queue.put_nowait(None)
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -78,6 +158,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._tasks: dict[int, asyncio.Task] = {}
         self._connected: set[int] = set()
         self._rpc = LocalRpcServer(database, native_bt=True)
+        control = getattr(server, "control", None)
+        self._control = control if isinstance(control, GatewayControl) else GatewayControl(server.broadcast)
+        self._control.kind = "native_bt"
+        self._expiry_timer: asyncio.TimerHandle | None = None
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
         try:
@@ -165,17 +249,19 @@ class MulticastHandler(asyncio.DatagramProtocol):
                 await before_deadline(subscribe(request.DataType.COMMAND))
 
                 security_state_received = asyncio.Event()
+                security_state: list[tuple] = []
 
                 def security_state_done(pkt: PacketReceived, _rc: int, response: bytes, challenge):
                     decoded = defs.security_state.response.vla_from_buffer_copy(response)
-                    self._db.observe_security_state(
-                        request.infuse_id,
-                        bytes(decoded.cloud_public_key),
-                        bytes(decoded.device_public_key),
-                        decoded.network_id,
-                        challenge,
-                        decoded.challenge_response_type,
-                        bytes(decoded.challenge_response),
+                    security_state.append(
+                        (
+                            bytes(decoded.cloud_public_key),
+                            bytes(decoded.device_public_key),
+                            decoded.network_id,
+                            challenge,
+                            decoded.challenge_response_type,
+                            bytes(decoded.challenge_response),
+                        )
                     )
                     security_state_received.set()
 
@@ -197,6 +283,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
 
                 # Wait for a response
                 await before_deadline(security_state_received.wait())
+                # Deriving a new shared key reads the API key and queries the cloud, which must not stall the loop
+                await before_deadline(
+                    asyncio.to_thread(self._db.observe_security_state, request.infuse_id, *security_state[0])
+                )
 
                 # Disable the command characteristic if not requested
                 if not (request.data_types & request.DataType.COMMAND):
@@ -299,8 +389,25 @@ class MulticastHandler(asyncio.DatagramProtocol):
         for item in pending:
             self._dispatch(item)
 
+    def connection_made(self, transport):
+        self._expire_operations()
+
+    def _expire_operations(self):
+        for request in self._control.cleanup():
+            self._dispatch(request)
+        self._expiry_timer = asyncio.get_running_loop().call_later(0.25, self._expire_operations)
+
     def datagram_received(self, data: bytes, addr: tuple[str | Any, int]):
-        self._dispatch(GatewayRequest.from_json(json.loads(data.decode("utf-8"))))
+        try:
+            request = GatewayRequest.from_json(json.loads(data.decode("utf-8")))
+            for cleanup in self._control.cleanup():
+                self._dispatch(cleanup)
+            if self._control.accept(request):
+                self._dispatch(request)
+            for cleanup in self._control.cleanup():
+                self._dispatch(cleanup)
+        except (ValueError, TypeError, KeyError, AttributeError, NotImplementedError):
+            logging.getLogger(__name__).warning("Ignoring malformed gateway request")
 
     def _dispatch(self, request: GatewayRequest):
         loop = asyncio.get_event_loop()
@@ -344,11 +451,15 @@ class MulticastHandler(asyncio.DatagramProtocol):
         Console.log_error(f"Error received: {exc}")
 
     def connection_lost(self, exc):
+        if self._expiry_timer is not None:
+            self._expiry_timer.cancel()
         Console.log_error("Connection closed")
         for task in self._tasks.values():
             task.cancel()
 
     async def shutdown(self):
+        if self._expiry_timer is not None:
+            self._expiry_timer.cancel()
         tasks = list(self._tasks.values())
         for task in tasks:
             task.cancel()
@@ -374,11 +485,51 @@ class SubCommand(InfuseCommand):
         self.database = DeviceDatabase(args.root)
         self.server = LocalServer(args.server_sock)
         self.bleak_mapping: dict[int, BLEDevice] = {}
-        self.unknown_networks: set[int] = set()
+        self.observations = BleObservations()
+        self.scan_statistics = {
+            "infuse_advertisements": 0,
+            "decrypted_packets": 0,
+            "unknown_network_packets": 0,
+            "invalid_tag_packets": 0,
+            "network_key_overload_packets": 0,
+        }
+        self.server.control.kind = "native_bt"
+        self.server.control.handlers["raw_observations"] = self.raw_observations
+        self.server.control.handlers["diagnostics"] = self.diagnostics
+        self.unknown_networks: OrderedDict[int, float] = OrderedDict()
+        # Advertisements waiting for their network key to load, and when keys were last found missing
+        self._pending: dict[int, list[tuple[BLEDevice, AdvertisementData]]] = {}
+        self._missing: OrderedDict[int, float] = OrderedDict()
+        self._key_loader: _NetworkKeyLoader | None = None
+        self._key_loading_closed = False
         self.report_interval: float = args.report_interval
         self.report_count = 0
         self.infuse_report_count = 0
         Console.init()
+
+    @staticmethod
+    def _check_parameters(params: dict[str, Any], known: tuple[str, ...]) -> None:
+        unknown = sorted(set(params) - set(known))
+        if unknown:
+            raise ValueError(f"Unknown parameters: {', '.join(unknown)}")
+
+    def raw_observations(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Answer a paginated query of raw advertisement observations, whose values the service validates"""
+        self._check_parameters(params, ("max_age_seconds", "cursor", "limit", "infuse_only"))
+        return self.observations.snapshot(
+            **params,
+            max_bytes=RAW_OBSERVATION_BYTES,
+            metadata={"gateway": gateway_identity(self.server.control.capabilities())},
+        )
+
+    def diagnostics(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Radio and decryption counters since the gateway started"""
+        self._check_parameters(params, ())
+        return {
+            **self.scan_statistics,
+            "advertisements": self.observations.advertisements,
+            "gateway_kind": "native_bt",
+        }
 
     async def server_handler(self):
         sock = self.server._input_sock
@@ -398,9 +549,92 @@ class SubCommand(InfuseCommand):
 
     def simple_callback(self, device: BLEDevice, data: AdvertisementData):
         self.report_count += 1
+        self.observations.observe(
+            device.address, data.local_name or device.name, data.rssi, data.manufacturer_data, data.service_uuids
+        )
         if self.infuse_manu not in data.manufacturer_data:
             return
         self.infuse_report_count += 1
+        self.scan_statistics["infuse_advertisements"] += 1
+        if self._network_key_ready(device, data):
+            self.infuse_callback(device, data)
+
+    def _network_key_ready(self, device: BLEDevice, data: AdvertisementData) -> bool:
+        """Whether the advertisement can be decrypted now, otherwise holding it while its network key loads.
+
+        Loading reads the keyring, which can block on an unlock prompt, so it runs off the event loop.
+        """
+        if self._key_loading_closed:
+            return False
+        payload = data.manufacturer_data[self.infuse_manu]
+        if len(payload) < ctypes.sizeof(CtypeBtAdvFrame):
+            return True
+        header = CtypeBtAdvFrame.from_buffer_copy(payload)
+        network_id = header.key_metadata
+        if header.flags & Flags.ENCR_DEVICE or self.database.has_network_key(network_id):
+            return True
+        self._expire_network_history()
+        if network_id in self._missing:
+            self._unknown_network(network_id)
+            return False
+        pending = self._pending.get(network_id)
+        if pending is None:
+            if len(self._pending) >= PENDING_NETWORK_KEYS:
+                self.scan_statistics["network_key_overload_packets"] += 1
+                return False
+            if self._key_loader is None:
+                self._key_loader = _NetworkKeyLoader(
+                    asyncio.get_running_loop(), self.database.load_network_key, self._network_key_loaded
+                )
+            if not self._key_loader.submit(network_id):
+                self.scan_statistics["network_key_overload_packets"] += 1
+                return False
+            pending = self._pending[network_id] = []
+        if len(pending) < PENDING_ADVERTISEMENTS:
+            pending.append((device, data))
+        else:
+            self.scan_statistics["network_key_overload_packets"] += 1
+        return False
+
+    def _network_key_loaded(self, network_id: int, error: Exception | None) -> None:
+        if self._key_loading_closed:
+            return
+        pending = self._pending.pop(network_id, [])
+        if error is None:
+            for device, data in pending:
+                self.infuse_callback(device, data)
+            return
+        self._expire_network_history()
+        self._missing[network_id] = time.monotonic()
+        if len(self._missing) > NETWORK_HISTORY:
+            self._missing.popitem(last=False)
+        if not isinstance(error, UnknownNetworkError):
+            Console.log_error(f"Failed to load network 0x{network_id:06x} key: {error}")
+        for _ in pending:
+            self._unknown_network(network_id)
+
+    def _expire_network_history(self) -> None:
+        cutoff = time.monotonic() - NETWORK_RETRY_S
+        for history in (self._missing, self.unknown_networks):
+            while history and next(iter(history.values())) <= cutoff:
+                history.popitem(last=False)
+
+    def _unknown_network(self, network_id: int) -> None:
+        self.scan_statistics["unknown_network_packets"] += 1
+        self._expire_network_history()
+        if network_id not in self.unknown_networks:
+            self.unknown_networks[network_id] = time.monotonic()
+            if len(self.unknown_networks) > NETWORK_HISTORY:
+                self.unknown_networks.popitem(last=False)
+            Console.log_info(f"Unknown network 0x{network_id:06x}")
+
+    def _stop_network_key_loading(self) -> None:
+        self._key_loading_closed = True
+        if self._key_loader is not None:
+            self._key_loader.close()
+        self._pending.clear()
+
+    def infuse_callback(self, device: BLEDevice, data: AdvertisementData):
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
         rssi = data.rssi
         payload = data.manufacturer_data[self.infuse_manu]
@@ -408,14 +642,13 @@ class SubCommand(InfuseCommand):
         try:
             hdr, decr = CtypeBtAdvFrame.decrypt(self.database, addr.val, payload)
         except UnknownNetworkError as e:
-            network_id = e.args[0]
-            if network_id not in self.unknown_networks:
-                self.unknown_networks.add(network_id)
-                Console.log_info(f"Unknown network 0x{network_id:06x}")
+            self._unknown_network(e.args[0])
             return
         except InvalidTag as _e:
+            self.scan_statistics["invalid_tag_packets"] += 1
             Console.log_info(f"Failed to decrypt packet from {device}")
             return
+        self.scan_statistics["decrypted_packets"] += 1
         self.bleak_mapping[hdr.device_id] = device
 
         hop = HopReceived(
@@ -452,25 +685,28 @@ class SubCommand(InfuseCommand):
         if self.report_interval > 0.0:
             loop.create_task(self.report_counter())
 
-        # MacOS does not support passive scanning
-        scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
+        try:
+            # MacOS does not support passive scanning
+            scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
 
-        while True:
-            Console.log_info(f"Starting scanner ({scanning_mode})")
-            scanner = self._scanner(scanning_mode)
-            try:
-                await scanner.start()
-            except BleakError as e:
-                # Passive scanning on BlueZ needs bluetoothd running with --experimental
-                if scanning_mode == "active" or sys.platform != "linux":
-                    raise
-                Console.log_info(f"Passive scanning unavailable, falling back to active: {e}")
-                scanning_mode = "active"
-                continue
-            try:
-                await handler
-            finally:
-                await scanner.stop()
+            while True:
+                Console.log_info(f"Starting scanner ({scanning_mode})")
+                scanner = self._scanner(scanning_mode)
+                try:
+                    await scanner.start()
+                except BleakError as e:
+                    # Passive scanning on BlueZ needs bluetoothd running with --experimental
+                    if scanning_mode == "active" or sys.platform != "linux":
+                        raise
+                    Console.log_info(f"Passive scanning unavailable, falling back to active: {e}")
+                    scanning_mode = "active"
+                    continue
+                try:
+                    await handler
+                finally:
+                    await scanner.stop()
+        finally:
+            self._stop_network_key_loading()
 
     def _scanner(self, scanning_mode: Literal["active", "passive"]) -> BleakScanner:
         bluez: BlueZScannerArgs = {"filters": {"DuplicateData": True}}
@@ -499,4 +735,5 @@ class SubCommand(InfuseCommand):
         asyncio.run(self.async_bt_receiver())
 
     def close(self):
+        self._stop_network_key_loading()
         self.server.close()

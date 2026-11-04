@@ -127,8 +127,7 @@ class TDF:
                     time_str = time_fmt(reading_time)
                 line = f"{time_str},{','.join([f.val_fmt() for f in reading.iter_fields()])}"
                 lines.append(line)
-                if self.period is not None:
-                    assert reading_time is not None
+                if self.period is not None and reading_time is not None:
                     reading_time += self.period
             return lines
 
@@ -230,11 +229,6 @@ class TDF:
 
                 total_len, expanded = self._diff_expand(buffer, header.len, self.DiffType(diff_type), diff_num)
                 buffer = buffer[total_len:]
-                if buffer_time is None:
-                    t_now = int(time.time() * 65536)
-                    reading_time = InfuseTime.unix_time_from_epoch(t_now)
-                else:
-                    reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
                     id_type.from_buffer_consume(expanded[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]
@@ -244,11 +238,6 @@ class TDF:
                 total_data = buffer[:total_len]
                 buffer = buffer[total_len:]
 
-                if buffer_time is None:
-                    t_now = int(time.time() * 65536)
-                    reading_time = InfuseTime.unix_time_from_epoch(t_now)
-                else:
-                    reading_time = InfuseTime.unix_time_from_epoch(buffer_time)
                 data = [
                     id_type.from_buffer_consume(total_data[x : x + header.len]) for x in range(0, total_len, header.len)
                 ]

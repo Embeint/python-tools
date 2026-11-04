@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 
 from infuse_iot import rpc
-from infuse_iot.common import InfuseType
+from infuse_iot.common import InfuseID, InfuseType
 from infuse_iot.epacket.packet import Auth, PacketOutput, PacketReceived
 from infuse_iot.socket_comms import (
     ClientNotification,
@@ -54,6 +54,13 @@ class RpcClient:
             self._rx_cb(rsp)
         if self._client.connection_dropped(rsp):
             raise ConnectionAbortedError
+        if (
+            isinstance(rsp, ClientNotificationEpacketReceived)
+            and rsp.epacket.ptype in (InfuseType.RPC_RSP, InfuseType.RPC_DATA, InfuseType.RPC_DATA_ACK)
+            and self._id != InfuseID.GATEWAY
+            and (not rsp.epacket.route or rsp.epacket.route[0].infuse_id != self._id)
+        ):
+            return None
         return rsp
 
     def _wait_data_ack(self) -> PacketReceived | None:

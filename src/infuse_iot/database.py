@@ -245,13 +245,21 @@ class DeviceDatabase:
         """Get device key ID for a given cloud and device public key"""
         return binascii.crc32(cloud_pub_key + device_pub_key) & 0x00FFFFFF
 
-    def _network_key(self, network_id: int, interface: bytes, gps_time: int) -> bytes:
+    def has_network_key(self, network_id: int) -> bool:
+        """Has the key for this network been loaded?"""
+        return network_id in self._network_keys
+
+    def load_network_key(self, network_id: int) -> None:
+        """Load the key for this network from the keyring, which can block on a prompt"""
         if network_id not in self._network_keys:
             try:
                 info = load_network(network_id)
             except FileNotFoundError:
                 raise UnknownNetworkError(network_id) from None
             self._network_keys[network_id] = info["key"]
+
+    def _network_key(self, network_id: int, interface: bytes, gps_time: int) -> bytes:
+        self.load_network_key(network_id)
         base = self._network_keys[network_id]
         time_idx = gps_time // (60 * 60 * 24)
 

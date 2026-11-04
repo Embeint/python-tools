@@ -1,20 +1,48 @@
+import argparse
 import asyncio
+import ctypes
 import json
+import subprocess
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
+from cryptography.exceptions import InvalidTag
 
-from infuse_iot.common import InfuseBluetoothUUID
+import infuse_iot.definitions.rpc as defs
+from infuse_iot.common import InfuseBluetoothUUID, InfuseType
+from infuse_iot.database import UnknownNetworkError
+from infuse_iot.epacket.packet import CtypeBtAdvFrame
+from infuse_iot.gateway_control import GatewayControl
+from infuse_iot.services.ble_observations import INFUSE_SERVICE
 from infuse_iot.socket_comms import (
+    ClientNotification,
+    ClientNotificationConnection,
     ClientNotificationConnectionCreated,
     ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
+    ClientNotificationEpacketReceived,
+    GatewayRequest,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
+    GatewayRequestControl,
 )
-from infuse_iot.tools.native_bt import InfuseGattReadResponse, MulticastHandler
+from infuse_iot.tools.native_bt import (
+    NETWORK_HISTORY,
+    NETWORK_RETRY_S,
+    PENDING_ADVERTISEMENTS,
+    PENDING_NETWORK_KEYS,
+    InfuseGattReadResponse,
+    MulticastHandler,
+)
+from infuse_iot.tools.native_bt import SubCommand as NativeBt
 
 
 class FakeBleakClient:
@@ -86,6 +114,48 @@ def test_repeated_requests_share_connection_and_subscriptions(handler, monkeypat
     ]
     assert not handler._queues
     assert not handler._tasks
+
+
+def test_shared_key_is_derived_off_the_event_loop(handler, monkeypatch):
+    """Deriving a new shared key can wait on a keyring prompt and the cloud, so other connections keep running."""
+    handler._db.has_shared_key.return_value = False
+    threads = []
+    handler._db.observe_security_state.side_effect = lambda *_args: threads.append(threading.current_thread())
+    commands = []
+    handler._rpc = Mock()
+
+    def generate(*args):
+        commands.append(args)
+        return Mock(payload=b"")
+
+    handler._rpc.generate_addressed.side_effect = generate
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtGattFrame.encrypt", Mock(return_value=b"frame"))
+    response = bytes(ctypes.sizeof(defs.security_state.response))
+
+    def factory(*args, **kwargs):
+        client = FakeBleakClient(*args, **kwargs)
+
+        async def respond(*_args, **_kwargs):
+            # The device answers the security state command
+            _, _, _, _, done, challenge = commands[-1]
+            done(None, 0, response, challenge)
+
+        client.write_gatt_char = AsyncMock(side_effect=respond)
+        return client
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+
+    async def run():
+        datagram(handler, GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.DATA, 1000))
+        await asyncio.sleep(0.2)
+        datagram(handler, GatewayRequestConnectionRelease(123))
+        await asyncio.wait_for(handler._tasks[123], timeout=1.0)
+
+    asyncio.run(run())
+    assert threads and threads[0] is not threading.main_thread()
+    assert handler._db.observe_security_state.call_args.args[0] == 123
+    notifications = [call.args[0] for call in handler._server.broadcast.call_args_list]
+    assert isinstance(notifications[0], ClientNotificationConnectionCreated)
 
 
 @pytest.mark.parametrize("error", [BleakError("failed"), TimeoutError("failed")])
@@ -368,3 +438,530 @@ def test_cancelled_queued_request_during_teardown_does_not_reconnect(handler, mo
     assert len(clients) == 1
     assert not handler._queues
     assert not handler._tasks
+
+
+class ObservingServer:
+    """Updates gateway control from each broadcast, as `LocalServer` does."""
+
+    def __init__(self):
+        self.sent: list = []
+        self.control = GatewayControl(self.sent.append)
+
+    def broadcast(self, notification):
+        self.control.observe(notification)
+        self.sent.append(notification)
+
+    def results(self):
+        return [(type(n), n.operation_id) for n in self.sent if isinstance(n, ClientNotificationConnection)]
+
+
+@pytest.fixture
+def owned(monkeypatch):
+    """A gateway with operation control, whose first Bluetooth link is slow to disconnect."""
+    clients: list[FakeBleakClient] = []
+    teardown = asyncio.Event()
+
+    class SlowDisconnectClient(FakeBleakClient):
+        async def __aexit__(self, *_args):
+            if self is clients[0]:
+                await teardown.wait()
+            self.closed = True
+
+    def factory(*args, **kwargs):
+        clients.append(SlowDisconnectClient(*args, **kwargs))
+        return clients[-1]
+
+    monkeypatch.setattr("infuse_iot.tools.native_bt.BleakClient", factory)
+    database = Mock()
+    database.has_shared_key.return_value = True
+    database.get_device_key_id.return_value = 1
+    database.devices = {123: SimpleNamespace(device_key_id=1)}
+    server: Any = ObservingServer()
+    handler = MulticastHandler(database, server, {123: Mock()})
+    return SimpleNamespace(handler=handler, server=server, clients=clients, teardown=teardown)
+
+
+def send(handler, request, owner=None):
+    values = request.to_json()
+    if owner is not None:
+        values["operation_id"] = owner
+    handler.datagram_received(json.dumps(values).encode(), ("localhost", 1))
+
+
+def control(handler, method, **parameters):
+    send(handler, GatewayRequestControl(method, parameters))
+    return handler._server.sent[-1]
+
+
+def acquire(handler, owner, device_id="0x000000000000007b"):
+    return control(handler, "acquire_operation", device_id=device_id, owner=owner, duration_seconds=60)
+
+
+def connect(handler, owner=None, request_id=None):
+    send(
+        handler,
+        GatewayRequestConnectionRequest(123, GatewayRequestConnectionRequest.DataType.COMMAND, 1000, request_id),
+        owner,
+    )
+
+
+def test_operation_cleanup_releases_identified_native_connection(owned):
+    handler = owned.handler
+
+    async def run():
+        assert acquire(handler, "A").ok
+        connect(handler, "A", 7)
+        task = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        owned.teardown.set()
+        assert control(handler, "release_operation", owner="A").ok
+        await task
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    assert owned.clients[0].closed
+    assert not handler._tasks
+
+
+def test_expiry_timer_releases_connection_of_silent_owner(owned, monkeypatch):
+    handler = owned.handler
+    # A fake clock for ownership only, since the event loop's timers also use time.monotonic.
+    clock = [0.0]
+    monkeypatch.setattr("infuse_iot.gateway_control.time", SimpleNamespace(monotonic=lambda: clock[0]))
+
+    async def run():
+        handler.connection_made(Mock())
+        assert control(handler, "acquire_operation", device_id="0x000000000000007b", owner="A", duration_seconds=5).ok
+        connect(handler, "A", 7)
+        task = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        owned.teardown.set()
+        # No further requests arrive, so only the expiry timer can release the owner's connection.
+        clock[0] = 6
+        await task
+        handler._expiry_timer.cancel()
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    created, dropped = ClientNotificationConnectionCreated, ClientNotificationConnectionDropped
+    assert owned.server.results() == [(created, "A"), (dropped, None)]
+    assert owned.clients[0].closed
+    assert not handler._tasks
+    assert acquire(handler, "B").ok
+
+
+def test_owner_reconnect_during_teardown_is_released(owned):
+    handler = owned.handler
+
+    async def run():
+        assert acquire(handler, "A").ok
+        connect(handler, "A")
+        first = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        send(handler, GatewayRequestConnectionRelease(123), "A")
+        while not handler._queues[123].empty():
+            await asyncio.sleep(0)
+        # The owner reconnects while its first link is disconnecting, so native_bt creates a new link.
+        connect(handler, "A")
+        owned.teardown.set()
+        await first
+        second = handler._tasks[123]
+        while 123 not in handler._connected:
+            await asyncio.sleep(0)
+        send(handler, GatewayRequestConnectionRelease(123), "A")
+        await second
+        assert control(handler, "release_operation", owner="A").ok
+        assert acquire(handler, "C", "0x000000000000007c").ok
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    created, dropped = ClientNotificationConnectionCreated, ClientNotificationConnectionDropped
+    assert owned.server.results() == [(created, "A"), (dropped, "A"), (created, "A"), (dropped, "A")]
+    assert len(owned.clients) == 2
+    assert all(client.closed for client in owned.clients)
+    assert not handler._tasks
+
+
+def test_legacy_request_during_drop_keeps_new_link_tracked(owned):
+    handler = owned.handler
+
+    async def run():
+        connect(handler, request_id=1)
+        first = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        # The link drops, and a second client requests the device before the teardown completes.
+        owned.clients[0].disconnected_callback(owned.clients[0])
+        connect(handler, request_id=2)
+        owned.teardown.set()
+        await first
+        second = handler._tasks[123]
+        while 123 not in handler._connected:
+            await asyncio.sleep(0)
+        assert acquire(handler, "A", "0x000000000000007c").code == "device_busy"
+        send(handler, GatewayRequestConnectionRelease(123, 2))
+        await second
+        assert acquire(handler, "A", "0x000000000000007c").ok
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    created, dropped = ClientNotificationConnectionCreated, ClientNotificationConnectionDropped
+    assert owned.server.results() == [(created, None), (dropped, None), (created, None), (dropped, None)]
+    assert all(client.closed for client in owned.clients)
+    assert not handler._tasks
+
+
+def test_operation_waits_for_released_legacy_link(owned):
+    handler = owned.handler
+
+    async def run():
+        connect(handler)
+        first = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        send(handler, GatewayRequestConnectionRelease(123))
+        # Results from the disconnecting link must not reach a new owner.
+        assert acquire(handler, "A").code == "device_busy"
+        owned.teardown.set()
+        await first
+        assert acquire(handler, "A").ok
+        connect(handler, "A")
+        second = handler._tasks[123]
+        while 123 not in handler._connected:
+            await asyncio.sleep(0)
+        send(handler, GatewayRequestConnectionRelease(123), "A")
+        await second
+        assert control(handler, "release_operation", owner="A").ok
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    created, dropped = ClientNotificationConnectionCreated, ClientNotificationConnectionDropped
+    assert owned.server.results() == [(created, None), (dropped, None), (created, "A"), (dropped, "A")]
+    assert all(client.closed for client in owned.clients)
+    assert not handler._tasks
+
+
+def test_legacy_reconnect_during_teardown_blocks_operations(owned):
+    handler = owned.handler
+
+    async def run():
+        connect(handler)
+        first = handler._tasks[123]
+        while not handler._connected:
+            await asyncio.sleep(0)
+        send(handler, GatewayRequestConnectionRelease(123))
+        while not handler._queues[123].empty():
+            await asyncio.sleep(0)
+        # A second legacy client connects while the first link is disconnecting.
+        connect(handler)
+        owned.teardown.set()
+        await first
+        second = handler._tasks[123]
+        while 123 not in handler._connected:
+            await asyncio.sleep(0)
+        assert acquire(handler, "A").code == "device_busy"
+        send(handler, GatewayRequestConnectionRelease(123))
+        await second
+        assert acquire(handler, "A").ok
+
+    asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+    created, dropped = ClientNotificationConnectionCreated, ClientNotificationConnectionDropped
+    assert owned.server.results() == [(created, None), (dropped, None), (created, None), (dropped, None)]
+    assert all(client.closed for client in owned.clients)
+    assert not handler._tasks
+
+
+@pytest.fixture
+def gateway(monkeypatch):
+    """The native Bluetooth gateway command, without sockets, credentials or an adapter."""
+    monkeypatch.setattr("infuse_iot.tools.native_bt.LocalServer", lambda _address: ObservingServer())
+    monkeypatch.setattr("infuse_iot.tools.native_bt.DeviceDatabase", Mock())
+    monkeypatch.setattr("infuse_iot.tools.native_bt.Console.init", lambda: None)
+    command = NativeBt(argparse.Namespace(root=None, server_sock=("224.1.1.1", 1), report_interval=0))
+    try:
+        yield command
+    finally:
+        command._stop_network_key_loading()
+
+
+def advertise(command, address, name=None, manufacturer=None, services=()):
+    device = BLEDevice(address, name, None)
+    data = AdvertisementData(name, manufacturer or {}, {}, list(services), None, -60, ())
+    command.simple_callback(device, data)
+
+
+def query(command, method, parameters):
+    """Send a control request and decode the reply, as datagrams are."""
+    request = json.loads(json.dumps(GatewayRequestControl(method, parameters).to_json()))
+    command.server.control.accept(GatewayRequest.from_json(request))
+    return ClientNotification.from_json(json.loads(json.dumps(command.server.sent[-1].to_json())))
+
+
+def test_gateway_serves_raw_observations(gateway):
+    advertise(gateway, "60:fc:f1:00:61:61", "CT Logger", {0x004C: b"\x01"})
+    advertise(gateway, "60:fc:f1:00:61:61", services=[INFUSE_SERVICE])
+    advertise(gateway, "aa:bb:cc:dd:ee:ff")
+    capabilities = gateway.server.control.capabilities()
+    assert {"raw_observations", "diagnostics"} <= set(capabilities["features"])
+    reply = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": None, "limit": 1})
+    assert reply.ok
+    (row,) = reply.result["items"]
+    assert (row["identifier"], row["name"], row["infuse_candidate"]) == ("60:FC:F1:00:61:61", "CT Logger", True)
+    assert reply.result["gateway"] == {
+        "instance_id": capabilities["instance_id"],
+        "version": capabilities["version"],
+        "gateway_kind": "native_bt",
+        "protocol_version": 2,
+    }
+    following = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": reply.result["next_cursor"]})
+    assert [row["identifier"] for row in following.result["items"]] == ["AA:BB:CC:DD:EE:FF"]
+    expired = query(gateway, "raw_observations", {"max_age_seconds": 20, "cursor": "deadbeef:1"})
+    assert (expired.ok, expired.code) == (False, "snapshot_expired")
+
+
+@pytest.mark.parametrize(
+    "parameters, code, message",
+    [
+        ({"cursor": 5}, "invalid_cursor", "cursor"),
+        ({"max_age_seconds": 10**400}, "invalid_request", "max_age_seconds"),
+        ({"max_age_seconds": "20"}, "invalid_request", "max_age_seconds"),
+        ({"limit": True}, "invalid_request", "limit"),
+        ({"limit": 201}, "invalid_request", "limit"),
+        ({"infuse_only": "yes"}, "invalid_request", "infuse_only"),
+        ({"max_bytes": 60000}, "invalid_request", "Unknown parameters: max_bytes"),
+    ],
+)
+def test_gateway_rejects_invalid_observation_parameters(gateway, parameters, code, message):
+    reply = query(gateway, "raw_observations", parameters)
+    assert (reply.ok, reply.code) == (False, code)
+    assert message in reply.result["message"]
+
+
+def test_gateway_counts_decryption_failures(gateway, monkeypatch):
+    header = SimpleNamespace(device_id=123, flags=0, key_metadata=0xCE7E50, gps_time=0, sequence=1, type=InfuseType.TDF)
+    decrypt = Mock(side_effect=[UnknownNetworkError(0x123456), InvalidTag(), (header, b"")])
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    for _ in range(3):
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer={0x0DE4: b"\x00" * 16})
+    advertise(gateway, "aa:bb:cc:dd:ee:ff", manufacturer={0x004C: b"\x01"})
+    reply = query(gateway, "diagnostics", {})
+    assert reply.result == {
+        "infuse_advertisements": 3,
+        "decrypted_packets": 1,
+        "unknown_network_packets": 1,
+        "invalid_tag_packets": 1,
+        "network_key_overload_packets": 0,
+        "advertisements": 4,
+        "gateway_kind": "native_bt",
+    }
+    assert isinstance(gateway.server.sent[0], ClientNotificationEpacketReceived)
+    assert query(gateway, "diagnostics", {"reset": True}).code == "invalid_request"
+
+
+def network_advertisement(network_id: int) -> bytes:
+    header = CtypeBtAdvFrame()
+    header.key_metadata = network_id
+    return bytes(header) + bytes(16)
+
+
+def test_network_key_loads_without_blocking_advertisements(gateway, monkeypatch):
+    header = SimpleNamespace(device_id=123, flags=0, key_metadata=0x123456, gps_time=0, sequence=1, type=InfuseType.TDF)
+    decrypt = Mock(return_value=(header, b""))
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    database = gateway.database
+    database.has_network_key.return_value = False
+    unlocked = threading.Event()
+    database.load_network_key.side_effect = lambda _network_id: unlocked.wait(5)
+    infuse = {0x0DE4: network_advertisement(0x123456)}
+
+    async def run():
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+        advertise(gateway, "60:fc:f1:00:61:62", manufacturer=infuse)
+        # Held while the keyring waits, with other advertisements still observed
+        await asyncio.sleep(0.05)
+        advertise(gateway, "aa:bb:cc:dd:ee:ff")
+        assert decrypt.call_count == 0 and gateway.observations.advertisements == 3
+        unlocked.set()
+        for _ in range(100):
+            if decrypt.call_count == 2:
+                break
+            await asyncio.sleep(0.01)
+
+    asyncio.run(run())
+    database.load_network_key.assert_called_once_with(0x123456)
+    assert decrypt.call_count == 2
+    assert [type(sent) for sent in gateway.server.sent] == [ClientNotificationEpacketReceived] * 2
+    assert gateway.scan_statistics["infuse_advertisements"] == 2
+
+
+def test_missing_network_key_is_not_looked_up_for_every_advertisement(gateway, monkeypatch):
+    decrypt = Mock()
+    monkeypatch.setattr("infuse_iot.tools.native_bt.CtypeBtAdvFrame.decrypt", decrypt)
+    database = gateway.database
+    database.has_network_key.return_value = False
+    database.load_network_key.side_effect = UnknownNetworkError(0x123456)
+    infuse = {0x0DE4: network_advertisement(0x123456)}
+
+    async def run():
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+        for _ in range(100):
+            if gateway.scan_statistics["unknown_network_packets"]:
+                break
+            await asyncio.sleep(0.01)
+        advertise(gateway, "60:fc:f1:00:61:61", manufacturer=infuse)
+
+    asyncio.run(run())
+    database.load_network_key.assert_called_once_with(0x123456)
+    decrypt.assert_not_called()
+    assert gateway.scan_statistics["unknown_network_packets"] == 2
+    assert set(gateway.unknown_networks) == {0x123456}
+
+
+
+async def wait_for_key_callbacks(gateway):
+    async def finished():
+        while gateway._pending:
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(finished(), timeout=2)
+
+
+def test_network_key_flood_is_bounded_and_does_not_use_connection_workers(gateway, monkeypatch):
+    loading, unlocked = threading.Event(), threading.Event()
+    looked_up = []
+    gateway.database.has_network_key.side_effect = lambda network: network == 0xFFFF
+    replay = Mock()
+    monkeypatch.setattr(gateway, "infuse_callback", replay)
+
+    def load(network):
+        looked_up.append(network)
+        loading.set()
+        assert unlocked.wait(5)
+
+    gateway.database.load_network_key.side_effect = load
+
+    def request(network):
+        data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(network)})
+        return gateway._network_key_ready(Mock(), data)
+
+    async def run():
+        # A single default worker makes interference with the connection pool observable.
+        asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=1))
+        try:
+            assert request(0) is False
+            assert await asyncio.to_thread(loading.wait, 1)
+            for network in range(1, 256):
+                assert request(network) is False
+            assert len(gateway._pending) == PENDING_NETWORK_KEYS
+            assert gateway.scan_statistics["network_key_overload_packets"] == 256 - PENDING_NETWORK_KEYS
+            assert gateway.scan_statistics["unknown_network_packets"] == 0
+            assert not gateway._missing
+            for network in list(gateway._pending):
+                for _ in range(PENDING_ADVERTISEMENTS + 1):
+                    request(network)
+            assert sum(map(len, gateway._pending.values())) == PENDING_NETWORK_KEYS * PENDING_ADVERTISEMENTS
+            assert request(0xFFFF) is True  # Cached networks bypass admission limits.
+            assert await asyncio.wait_for(asyncio.to_thread(lambda: "connection worker available"), 1) == (
+                "connection worker available"
+            )
+            assert looked_up == [0]
+            unlocked.set()
+            await wait_for_key_callbacks(gateway)
+            assert looked_up == list(range(PENDING_NETWORK_KEYS))
+            assert replay.call_count == PENDING_NETWORK_KEYS * PENDING_ADVERTISEMENTS
+            # Overload did not create a missing-key cooldown; a dropped network can retry now.
+            assert request(255) is False
+            await wait_for_key_callbacks(gateway)
+            assert looked_up[-1] == 255
+        finally:
+            unlocked.set()
+
+    asyncio.run(run())
+
+
+def test_network_key_failure_history_expires_and_has_a_global_limit(gateway, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("infuse_iot.tools.native_bt.time", SimpleNamespace(monotonic=lambda: now[0]))
+    monkeypatch.setattr(gateway, "infuse_callback", Mock())
+    gateway.database.has_network_key.return_value = False
+    for network in range(256):
+        gateway._pending[network] = [(Mock(), Mock())]
+        gateway._network_key_loaded(network, UnknownNetworkError(network))
+    assert len(gateway._missing) == len(gateway.unknown_networks) == NETWORK_HISTORY
+    assert 0 not in gateway._missing and 255 in gateway._missing
+    data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(255)})
+    assert gateway._network_key_ready(Mock(), data) is False
+    gateway.database.load_network_key.assert_not_called()
+
+    now[0] += NETWORK_RETRY_S + 1
+
+    async def retry():
+        assert gateway._network_key_ready(Mock(), data) is False
+        await wait_for_key_callbacks(gateway)
+
+    asyncio.run(retry())
+    gateway.database.load_network_key.assert_called_once_with(255)
+    assert not gateway._missing and not gateway.unknown_networks
+
+
+def test_network_key_shutdown_discards_queued_work_and_late_completions(gateway, monkeypatch):
+    loading, unlocked = threading.Event(), threading.Event()
+    looked_up = []
+    replay = Mock()
+    gateway.database.has_network_key.return_value = False
+    monkeypatch.setattr(gateway, "infuse_callback", replay)
+
+    def load(network):
+        looked_up.append(network)
+        loading.set()
+        assert unlocked.wait(5)
+
+    gateway.database.load_network_key.side_effect = load
+
+    async def run():
+        try:
+            for network in range(PENDING_NETWORK_KEYS):
+                data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(network)})
+                gateway._network_key_ready(Mock(), data)
+                if network == 0:
+                    assert await asyncio.to_thread(loading.wait, 1)
+            loader = gateway._key_loader
+            assert loader is not None
+            gateway._stop_network_key_loading()
+            assert not gateway._pending
+            assert not loader.submit(999)
+            assert loader._thread.is_alive()  # Closing cannot cancel the active keyring call.
+            unlocked.set()
+            await asyncio.to_thread(loader._thread.join, 1)
+            await asyncio.sleep(0)
+            assert not loader._thread.is_alive()
+            assert looked_up == [0]
+            replay.assert_not_called()
+            assert not gateway._missing
+        finally:
+            unlocked.set()
+
+    asyncio.run(run())
+
+
+def test_blocked_network_key_worker_does_not_hold_process_exit():
+    code = """
+import asyncio
+import threading
+from infuse_iot.tools.native_bt import _NetworkKeyLoader
+
+started = threading.Event()
+never_unlocked = threading.Event()
+
+def load(network):
+    started.set()
+    never_unlocked.wait()
+
+async def main():
+    loader = _NetworkKeyLoader(asyncio.get_running_loop(), load, lambda *args: None)
+    assert loader.submit(1)
+    while not started.is_set():
+        await asyncio.sleep(0.001)
+    loader.close()
+
+asyncio.run(main())
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, timeout=5)
