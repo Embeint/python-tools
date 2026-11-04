@@ -73,6 +73,17 @@ class ClientNotificationEpacketReceived(ClientNotification):
 
 
 class ClientNotificationObservedDevices(ClientNotification):
+    """Devices known to the gateway, keyed by Infuse ID.
+
+    Each device dictionary contains the following optional keys:
+        network_id: Network key identifier
+        device_key_id: Device key identifier
+        gateway: True for the gateway device
+        last_heard: Unix timestamp of the last packet received from the device
+        application_id: Application ID from the last announce packet
+        application_version: Application version (`major.minor.revision+build`) from the last announce packet
+    """
+
     TYPE = ClientNotification.Type.KNOWN_DEVICES
 
     def __init__(self, devices: dict[int, dict]):

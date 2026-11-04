@@ -285,12 +285,18 @@ class SerialRxThread(SignaledThread):
         self._common.port.write(encrypted)
         self._startup_disconnect_sent = True
 
-    def _handle_local_tdf(self, pkt: PacketReceived):
-        if self._common.server is None:
-            # No-one to broadcast events to
-            return
+    def _handle_tdf(self, pkt: PacketReceived):
+        source = pkt.route[0].infuse_id
+        # Only TDFs from the gateway itself report on gateway connection state
+        local = len(pkt.route) == 1 and self._common.server is not None
         for reading in self._tdf_decoder.decode(pkt.payload):
-            if isinstance(reading.data[0], tdf_defs.readings.bluetooth_connection) and reading.data[0].connected == 0:
+            if isinstance(reading.data[0], (tdf_defs.readings.announce, tdf_defs.readings.announce_v2)):
+                self._common.ddb.observe_announce(source, reading.data[0])
+            elif (
+                local
+                and isinstance(reading.data[0], tdf_defs.readings.bluetooth_connection)
+                and reading.data[0].connected == 0
+            ):
                 if_addr = interface.Address.BluetoothLeAddr.from_tdf_struct(reading.data[0].address)
                 infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
                 if infuse_id:
@@ -330,9 +336,10 @@ class SerialRxThread(SignaledThread):
             # Iterate over all contained subpackets
             for pkt in decoded:
                 Console.log_rx(pkt.ptype, len(frame))
-                # Handle any local TDFs
-                if len(pkt.route) == 1 and pkt.ptype == InfuseType.TDF:
-                    self._handle_local_tdf(pkt)
+                self._common.ddb.observe_heard(pkt.route[0].infuse_id, time.time())
+                # Handle any TDFs
+                if pkt.ptype == InfuseType.TDF:
+                    self._handle_tdf(pkt)
                 # Handle any local RPC responses
                 self._common.rpc.handle(pkt)
                 # Handle any Memfault chunks
@@ -589,16 +596,7 @@ class SerialTxThread(SignaledThread):
     def _handle_observed_devices(self):
         if self._common.server is None:
             raise RuntimeError
-        observed_devices = {}
-        for device, state in self._common.ddb.devices.items():
-            info = {}
-            if state.network_id is not None:
-                info["network_id"] = state.network_id
-            if state.device_key_id is not None:
-                info["device_key_id"] = state.device_key_id
-            if self._common.ddb.gateway == device:
-                info["gateway"] = True
-            observed_devices[device] = info
+        observed_devices = self._common.ddb.known_devices(self._common.ddb.gateway)
         self._common.notification_broadcast(ClientNotificationObservedDevices(observed_devices))
 
     def _handle_comms_check(self):

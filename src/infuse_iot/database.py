@@ -7,6 +7,7 @@ import shelve
 import threading
 from collections.abc import Mapping
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
@@ -19,6 +20,9 @@ from infuse_iot.credentials import get_api_auth_header, load_network
 from infuse_iot.epacket.interface import Address as InterfaceAddress
 from infuse_iot.util.api import format_api_error
 from infuse_iot.util.crypto import hkdf_derive
+
+if TYPE_CHECKING:
+    from infuse_iot.generated.tdf_definitions import readings
 
 
 class NoKeyError(KeyError):
@@ -99,6 +103,11 @@ class DeviceDatabase:
             self.shared_key: bytes | None = None
             self.secondary_device_key_id: int | None = None
             self.local_shared_key: bytes | None = None
+            # Unix timestamp of the last packet received from the device
+            self.last_heard: float | None = None
+            # Application information from the last announce packet
+            self.application_id: int | None = None
+            self.application_version: str | None = None
             self._tx_gatt_seq = 0
 
         def gatt_sequence_num(self):
@@ -161,6 +170,41 @@ class DeviceDatabase:
         if bt_addr is not None:
             self.bt_addr[bt_addr] = infuse_id
             dev.bt_addr = bt_addr
+
+    def observe_heard(self, infuse_id: int, timestamp: float) -> None:
+        """Update the time a packet was last received from a device"""
+        if infuse_id not in self.devices:
+            self.devices[infuse_id] = self.DeviceState(infuse_id)
+        self.devices[infuse_id].last_heard = timestamp
+
+    def observe_announce(self, infuse_id: int, announce: "readings.announce | readings.announce_v2") -> None:
+        """Update the application a device has announced it is running"""
+        if infuse_id not in self.devices:
+            self.devices[infuse_id] = self.DeviceState(infuse_id)
+        dev = self.devices[infuse_id]
+        v = announce.version
+        dev.application_id = announce.application
+        dev.application_version = f"{v.major}.{v.minor}.{v.revision}+{v.build_num:08x}"
+
+    def known_devices(self, gateway: int | None) -> dict[int, dict]:
+        """Summary of known devices for `ClientNotificationObservedDevices`"""
+        known: dict[int, dict] = {}
+        for infuse_id, state in self.devices.items():
+            info: dict[str, int | float | str | bool] = {}
+            if state.network_id is not None:
+                info["network_id"] = state.network_id
+            if state.device_key_id is not None:
+                info["device_key_id"] = state.device_key_id
+            if state.last_heard is not None:
+                info["last_heard"] = state.last_heard
+            if state.application_id is not None:
+                info["application_id"] = state.application_id
+            if state.application_version is not None:
+                info["application_version"] = state.application_version
+            if infuse_id == gateway:
+                info["gateway"] = True
+            known[infuse_id] = info
+        return known
 
     def observe_secondary_remote_public_key(self, infuse_id: int, secondary_pub_key: bytes):
         if not self.is_local_root(secondary_pub_key):
