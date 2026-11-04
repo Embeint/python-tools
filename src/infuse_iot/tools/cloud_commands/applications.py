@@ -295,6 +295,9 @@ class Applications(CloudSubCommand):
             orgs = check_api_response(fetch_all(get_all_organisations, client=client), "Organisation query")
             options = [f"{o.name:20s} ({o.id})" for o in orgs]
 
+            if len(options) == 0:
+                sys.exit("No available organisations")
+
             idx, _val = choose_one("Organisation", options)
             self._org = orgs[idx].id
             self._org_name = orgs[idx].name
