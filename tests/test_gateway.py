@@ -204,3 +204,53 @@ def test_close_leaves_resources_open_for_running_threads():
     command.port.close.assert_called_once()
     log.close.assert_not_called()
     command.server.close.assert_not_called()
+
+
+def test_announce_updates_application_state():
+    from infuse_iot.database import DeviceDatabase
+    from infuse_iot.definitions.tdf import readings
+    from infuse_iot.tools.gateway import SerialRxThread
+
+    ddb = DeviceDatabase(None)
+    rx = SerialRxThread(Mock(ddb=ddb, server=None), Mock(), Mock())
+    announce = readings.announce_v2()
+    announce.application = 0x12345678
+    announce.version.major = 1
+    announce.version.minor = 2
+    announce.version.revision = 3
+    announce.version.build_num = 0xABCD
+    rx._tdf_decoder = Mock()
+    rx._tdf_decoder.decode.return_value = [SimpleNamespace(data=[announce])]
+    # Announce relayed through the gateway is attributed to the original source
+    rx._handle_tdf(Mock(route=[SimpleNamespace(infuse_id=DEVICE), SimpleNamespace(infuse_id=1)]))
+    state = ddb.devices[DEVICE]
+    assert state.application_id == 0x12345678
+    assert state.application_version == "1.2.3+0000abcd"
+
+
+def test_known_devices_reports_activity_and_application(tx):
+    from infuse_iot.database import DeviceDatabase
+    from infuse_iot.definitions.tdf import readings
+    from infuse_iot.socket_comms import ClientNotification, ClientNotificationObservedDevices
+
+    ddb = DeviceDatabase(None)
+    ddb.observe_device(1, network_id=5)
+    ddb.observe_heard(1, 100.0)
+    ddb.observe_heard(DEVICE, 200.5)
+    announce = readings.announce()
+    announce.application = 0x12345678
+    announce.version.major = 1
+    announce.version.minor = 2
+    announce.version.revision = 3
+    announce.version.build_num = 0xABCD
+    ddb.observe_announce(DEVICE, announce)
+    tx._common.ddb = ddb
+    tx._handle_observed_devices()
+    (notification,) = broadcasts(tx)
+    # Values survive the JSON round trip to clients
+    decoded = ClientNotification.from_json(notification.to_json())
+    assert isinstance(decoded, ClientNotificationObservedDevices)
+    assert decoded.devices == {
+        1: {"network_id": 5, "last_heard": 100.0, "gateway": True},
+        DEVICE: {"last_heard": 200.5, "application_id": 0x12345678, "application_version": "1.2.3+0000abcd"},
+    }
