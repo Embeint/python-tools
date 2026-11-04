@@ -87,3 +87,26 @@ cannot fail when the gateway stops, so callers report probes that no gateway
 answered with `unanswered()`. After 3 in a row, the collector stops receiving,
 with `error_code` `gateway_unavailable` and no `gateway` identity, until
 `start()` attaches to a gateway that answers.
+
+## Network-key lookup limits
+
+The native Bluetooth gateway loads uncached advertisement network keys on one
+dedicated worker, separate from the workers used by device connections. At most
+eight additional networks wait in its queue; repeated advertisements for a
+pending network share its lookup. Each admitted network holds at most 64
+advertisements, so at most 576 advertisements wait for keys. Cached keys bypass
+these limits.
+
+Packets dropped when admission or an advertisement buffer is full increment
+`network_key_overload_packets` in gateway diagnostics. They do not imply a
+missing key and do not start a missing-key cooldown; a later advertisement can
+retry when capacity is free. Confirmed missing keys retain a 60-second retry
+cooldown. Missing-key and unknown-network log history each retain at most 128
+network IDs and expire after 60 seconds; eviction can permit an earlier retry
+or repeated log.
+
+Shutdown drops queued work and buffered advertisements and ignores late
+completions. A running keyring call cannot be cancelled: its daemon worker may
+remain blocked until that call returns, but does not hold the event loop or
+process exit open. A continuously full queue can delay discovering an uncached
+network; cached-network reception and connection workers remain independent.

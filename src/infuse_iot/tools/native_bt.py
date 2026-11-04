@@ -10,10 +10,13 @@ import asyncio
 import ctypes
 import json
 import logging
+import queue
 import random
 import sys
+import threading
 import time
-from collections import Counter
+from collections import Counter, OrderedDict
+from collections.abc import Callable
 from typing import Any, Literal
 
 from bleak import BleakClient, BleakScanner
@@ -66,6 +69,72 @@ RAW_OBSERVATION_BYTES = 5000
 # Advertisements held per network while its key loads, and how long a missing key is not looked up again.
 PENDING_ADVERTISEMENTS = 64
 NETWORK_RETRY_S = 60.0
+# One running lookup plus eight queued networks, independent of the connection worker pool.
+QUEUED_NETWORK_KEYS = 8
+PENDING_NETWORK_KEYS = QUEUED_NETWORK_KEYS + 1
+NETWORK_HISTORY = 128
+
+
+class _NetworkKeyLoader:
+    """A bounded worker for potentially blocking keyring calls.
+
+    A running call cannot be cancelled. The daemon worker drops queued work on close and never
+    publishes a completion after closing, so a keyring prompt cannot hold the event loop open.
+    """
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        load: Callable[[int], None],
+        complete: Callable[[int, Exception | None], None],
+    ):
+        self._loop, self._load, self._complete = loop, load, complete
+        self._queue: queue.Queue[int | None] = queue.Queue(maxsize=QUEUED_NETWORK_KEYS)
+        self._closed = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="infuse-network-keys", daemon=True)
+        self._thread.start()
+
+    def submit(self, network_id: int) -> bool:
+        if self._closed.is_set():
+            return False
+        try:
+            self._queue.put_nowait(network_id)
+        except queue.Full:
+            return False
+        return True
+
+    def _run(self) -> None:
+        while not self._closed.is_set():
+            network_id = self._queue.get()
+            if network_id is None or self._closed.is_set():
+                return
+            error = None
+            try:
+                self._load(network_id)
+            except Exception as caught:
+                error = caught
+            if self._closed.is_set():
+                return
+            try:
+                self._loop.call_soon_threadsafe(self._deliver, network_id, error)
+            except RuntimeError:
+                # The event loop can have closed while a keyring prompt was outstanding.
+                return
+
+    def _deliver(self, network_id: int, error: Exception | None) -> None:
+        if not self._closed.is_set():
+            self._complete(network_id, error)
+
+    def close(self) -> None:
+        if self._closed.is_set():
+            return
+        self._closed.set()
+        while True:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+        self._queue.put_nowait(None)
 
 
 class InfuseGattReadResponse(ctypes.LittleEndianStructure):
@@ -422,14 +491,17 @@ class SubCommand(InfuseCommand):
             "decrypted_packets": 0,
             "unknown_network_packets": 0,
             "invalid_tag_packets": 0,
+            "network_key_overload_packets": 0,
         }
         self.server.control.kind = "native_bt"
         self.server.control.handlers["raw_observations"] = self.raw_observations
         self.server.control.handlers["diagnostics"] = self.diagnostics
-        self.unknown_networks: set[int] = set()
+        self.unknown_networks: OrderedDict[int, float] = OrderedDict()
         # Advertisements waiting for their network key to load, and when keys were last found missing
         self._pending: dict[int, list[tuple[BLEDevice, AdvertisementData]]] = {}
-        self._missing: dict[int, float] = {}
+        self._missing: OrderedDict[int, float] = OrderedDict()
+        self._key_loader: _NetworkKeyLoader | None = None
+        self._key_loading_closed = False
         self.report_interval: float = args.report_interval
         self.report_count = 0
         self.infuse_report_count = 0
@@ -492,6 +564,8 @@ class SubCommand(InfuseCommand):
 
         Loading reads the keyring, which can block on an unlock prompt, so it runs off the event loop.
         """
+        if self._key_loading_closed:
+            return False
         payload = data.manufacturer_data[self.infuse_manu]
         if len(payload) < ctypes.sizeof(CtypeBtAdvFrame):
             return True
@@ -499,38 +573,66 @@ class SubCommand(InfuseCommand):
         network_id = header.key_metadata
         if header.flags & Flags.ENCR_DEVICE or self.database.has_network_key(network_id):
             return True
-        if time.monotonic() - self._missing.get(network_id, -NETWORK_RETRY_S) < NETWORK_RETRY_S:
+        self._expire_network_history()
+        if network_id in self._missing:
             self._unknown_network(network_id)
             return False
         pending = self._pending.get(network_id)
         if pending is None:
+            if len(self._pending) >= PENDING_NETWORK_KEYS:
+                self.scan_statistics["network_key_overload_packets"] += 1
+                return False
+            if self._key_loader is None:
+                self._key_loader = _NetworkKeyLoader(
+                    asyncio.get_running_loop(), self.database.load_network_key, self._network_key_loaded
+                )
+            if not self._key_loader.submit(network_id):
+                self.scan_statistics["network_key_overload_packets"] += 1
+                return False
             pending = self._pending[network_id] = []
-            loading = asyncio.get_running_loop().run_in_executor(None, self.database.load_network_key, network_id)
-            loading.add_done_callback(lambda future: self._network_key_loaded(network_id, future))
         if len(pending) < PENDING_ADVERTISEMENTS:
             pending.append((device, data))
+        else:
+            self.scan_statistics["network_key_overload_packets"] += 1
         return False
 
-    def _network_key_loaded(self, network_id: int, loading: asyncio.Future) -> None:
-        pending = self._pending.pop(network_id, [])
-        if loading.cancelled():
+    def _network_key_loaded(self, network_id: int, error: Exception | None) -> None:
+        if self._key_loading_closed:
             return
-        error = loading.exception()
+        pending = self._pending.pop(network_id, [])
         if error is None:
             for device, data in pending:
                 self.infuse_callback(device, data)
             return
+        self._expire_network_history()
         self._missing[network_id] = time.monotonic()
+        if len(self._missing) > NETWORK_HISTORY:
+            self._missing.popitem(last=False)
         if not isinstance(error, UnknownNetworkError):
             Console.log_error(f"Failed to load network 0x{network_id:06x} key: {error}")
         for _ in pending:
             self._unknown_network(network_id)
 
+    def _expire_network_history(self) -> None:
+        cutoff = time.monotonic() - NETWORK_RETRY_S
+        for history in (self._missing, self.unknown_networks):
+            while history and next(iter(history.values())) <= cutoff:
+                history.popitem(last=False)
+
     def _unknown_network(self, network_id: int) -> None:
         self.scan_statistics["unknown_network_packets"] += 1
+        self._expire_network_history()
         if network_id not in self.unknown_networks:
-            self.unknown_networks.add(network_id)
+            self.unknown_networks[network_id] = time.monotonic()
+            if len(self.unknown_networks) > NETWORK_HISTORY:
+                self.unknown_networks.popitem(last=False)
             Console.log_info(f"Unknown network 0x{network_id:06x}")
+
+    def _stop_network_key_loading(self) -> None:
+        self._key_loading_closed = True
+        if self._key_loader is not None:
+            self._key_loader.close()
+        self._pending.clear()
 
     def infuse_callback(self, device: BLEDevice, data: AdvertisementData):
         addr = interface.Address(interface.Address.BluetoothLeAddr(0, BtLeAddress.integer_value(device.address)))
@@ -583,25 +685,28 @@ class SubCommand(InfuseCommand):
         if self.report_interval > 0.0:
             loop.create_task(self.report_counter())
 
-        # MacOS does not support passive scanning
-        scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
+        try:
+            # MacOS does not support passive scanning
+            scanning_mode: Literal["active", "passive"] = "active" if sys.platform == "darwin" else "passive"
 
-        while True:
-            Console.log_info(f"Starting scanner ({scanning_mode})")
-            scanner = self._scanner(scanning_mode)
-            try:
-                await scanner.start()
-            except BleakError as e:
-                # Passive scanning on BlueZ needs bluetoothd running with --experimental
-                if scanning_mode == "active" or sys.platform != "linux":
-                    raise
-                Console.log_info(f"Passive scanning unavailable, falling back to active: {e}")
-                scanning_mode = "active"
-                continue
-            try:
-                await handler
-            finally:
-                await scanner.stop()
+            while True:
+                Console.log_info(f"Starting scanner ({scanning_mode})")
+                scanner = self._scanner(scanning_mode)
+                try:
+                    await scanner.start()
+                except BleakError as e:
+                    # Passive scanning on BlueZ needs bluetoothd running with --experimental
+                    if scanning_mode == "active" or sys.platform != "linux":
+                        raise
+                    Console.log_info(f"Passive scanning unavailable, falling back to active: {e}")
+                    scanning_mode = "active"
+                    continue
+                try:
+                    await handler
+                finally:
+                    await scanner.stop()
+        finally:
+            self._stop_network_key_loading()
 
     def _scanner(self, scanning_mode: Literal["active", "passive"]) -> BleakScanner:
         bluez: BlueZScannerArgs = {"filters": {"DuplicateData": True}}
@@ -630,4 +735,5 @@ class SubCommand(InfuseCommand):
         asyncio.run(self.async_bt_receiver())
 
     def close(self):
+        self._stop_network_key_loading()
         self.server.close()
