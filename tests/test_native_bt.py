@@ -2,7 +2,10 @@ import argparse
 import asyncio
 import ctypes
 import json
+import subprocess
+import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, Mock
@@ -31,7 +34,14 @@ from infuse_iot.socket_comms import (
     GatewayRequestConnectionRequest,
     GatewayRequestControl,
 )
-from infuse_iot.tools.native_bt import InfuseGattReadResponse, MulticastHandler
+from infuse_iot.tools.native_bt import (
+    NETWORK_HISTORY,
+    NETWORK_RETRY_S,
+    PENDING_ADVERTISEMENTS,
+    PENDING_NETWORK_KEYS,
+    InfuseGattReadResponse,
+    MulticastHandler,
+)
 from infuse_iot.tools.native_bt import SubCommand as NativeBt
 
 
@@ -665,7 +675,11 @@ def gateway(monkeypatch):
     monkeypatch.setattr("infuse_iot.tools.native_bt.LocalServer", lambda _address: ObservingServer())
     monkeypatch.setattr("infuse_iot.tools.native_bt.DeviceDatabase", Mock())
     monkeypatch.setattr("infuse_iot.tools.native_bt.Console.init", lambda: None)
-    return NativeBt(argparse.Namespace(root=None, server_sock=("224.1.1.1", 1), report_interval=0))
+    command = NativeBt(argparse.Namespace(root=None, server_sock=("224.1.1.1", 1), report_interval=0))
+    try:
+        yield command
+    finally:
+        command._stop_network_key_loading()
 
 
 def advertise(command, address, name=None, manufacturer=None, services=()):
@@ -734,6 +748,7 @@ def test_gateway_counts_decryption_failures(gateway, monkeypatch):
         "decrypted_packets": 1,
         "unknown_network_packets": 1,
         "invalid_tag_packets": 1,
+        "network_key_overload_packets": 0,
         "advertisements": 4,
         "gateway_kind": "native_bt",
     }
@@ -797,4 +812,156 @@ def test_missing_network_key_is_not_looked_up_for_every_advertisement(gateway, m
     database.load_network_key.assert_called_once_with(0x123456)
     decrypt.assert_not_called()
     assert gateway.scan_statistics["unknown_network_packets"] == 2
-    assert gateway.unknown_networks == {0x123456}
+    assert set(gateway.unknown_networks) == {0x123456}
+
+
+
+async def wait_for_key_callbacks(gateway):
+    async def finished():
+        while gateway._pending:
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(finished(), timeout=2)
+
+
+def test_network_key_flood_is_bounded_and_does_not_use_connection_workers(gateway, monkeypatch):
+    loading, unlocked = threading.Event(), threading.Event()
+    looked_up = []
+    gateway.database.has_network_key.side_effect = lambda network: network == 0xFFFF
+    replay = Mock()
+    monkeypatch.setattr(gateway, "infuse_callback", replay)
+
+    def load(network):
+        looked_up.append(network)
+        loading.set()
+        assert unlocked.wait(5)
+
+    gateway.database.load_network_key.side_effect = load
+
+    def request(network):
+        data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(network)})
+        return gateway._network_key_ready(Mock(), data)
+
+    async def run():
+        # A single default worker makes interference with the connection pool observable.
+        asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=1))
+        try:
+            assert request(0) is False
+            assert await asyncio.to_thread(loading.wait, 1)
+            for network in range(1, 256):
+                assert request(network) is False
+            assert len(gateway._pending) == PENDING_NETWORK_KEYS
+            assert gateway.scan_statistics["network_key_overload_packets"] == 256 - PENDING_NETWORK_KEYS
+            assert gateway.scan_statistics["unknown_network_packets"] == 0
+            assert not gateway._missing
+            for network in list(gateway._pending):
+                for _ in range(PENDING_ADVERTISEMENTS + 1):
+                    request(network)
+            assert sum(map(len, gateway._pending.values())) == PENDING_NETWORK_KEYS * PENDING_ADVERTISEMENTS
+            assert request(0xFFFF) is True  # Cached networks bypass admission limits.
+            assert await asyncio.wait_for(asyncio.to_thread(lambda: "connection worker available"), 1) == (
+                "connection worker available"
+            )
+            assert looked_up == [0]
+            unlocked.set()
+            await wait_for_key_callbacks(gateway)
+            assert looked_up == list(range(PENDING_NETWORK_KEYS))
+            assert replay.call_count == PENDING_NETWORK_KEYS * PENDING_ADVERTISEMENTS
+            # Overload did not create a missing-key cooldown; a dropped network can retry now.
+            assert request(255) is False
+            await wait_for_key_callbacks(gateway)
+            assert looked_up[-1] == 255
+        finally:
+            unlocked.set()
+
+    asyncio.run(run())
+
+
+def test_network_key_failure_history_expires_and_has_a_global_limit(gateway, monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("infuse_iot.tools.native_bt.time", SimpleNamespace(monotonic=lambda: now[0]))
+    monkeypatch.setattr(gateway, "infuse_callback", Mock())
+    gateway.database.has_network_key.return_value = False
+    for network in range(256):
+        gateway._pending[network] = [(Mock(), Mock())]
+        gateway._network_key_loaded(network, UnknownNetworkError(network))
+    assert len(gateway._missing) == len(gateway.unknown_networks) == NETWORK_HISTORY
+    assert 0 not in gateway._missing and 255 in gateway._missing
+    data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(255)})
+    assert gateway._network_key_ready(Mock(), data) is False
+    gateway.database.load_network_key.assert_not_called()
+
+    now[0] += NETWORK_RETRY_S + 1
+
+    async def retry():
+        assert gateway._network_key_ready(Mock(), data) is False
+        await wait_for_key_callbacks(gateway)
+
+    asyncio.run(retry())
+    gateway.database.load_network_key.assert_called_once_with(255)
+    assert not gateway._missing and not gateway.unknown_networks
+
+
+def test_network_key_shutdown_discards_queued_work_and_late_completions(gateway, monkeypatch):
+    loading, unlocked = threading.Event(), threading.Event()
+    looked_up = []
+    replay = Mock()
+    gateway.database.has_network_key.return_value = False
+    monkeypatch.setattr(gateway, "infuse_callback", replay)
+
+    def load(network):
+        looked_up.append(network)
+        loading.set()
+        assert unlocked.wait(5)
+
+    gateway.database.load_network_key.side_effect = load
+
+    async def run():
+        try:
+            for network in range(PENDING_NETWORK_KEYS):
+                data = SimpleNamespace(manufacturer_data={0x0DE4: network_advertisement(network)})
+                gateway._network_key_ready(Mock(), data)
+                if network == 0:
+                    assert await asyncio.to_thread(loading.wait, 1)
+            loader = gateway._key_loader
+            assert loader is not None
+            gateway._stop_network_key_loading()
+            assert not gateway._pending
+            assert not loader.submit(999)
+            assert loader._thread.is_alive()  # Closing cannot cancel the active keyring call.
+            unlocked.set()
+            await asyncio.to_thread(loader._thread.join, 1)
+            await asyncio.sleep(0)
+            assert not loader._thread.is_alive()
+            assert looked_up == [0]
+            replay.assert_not_called()
+            assert not gateway._missing
+        finally:
+            unlocked.set()
+
+    asyncio.run(run())
+
+
+def test_blocked_network_key_worker_does_not_hold_process_exit():
+    code = """
+import asyncio
+import threading
+from infuse_iot.tools.native_bt import _NetworkKeyLoader
+
+started = threading.Event()
+never_unlocked = threading.Event()
+
+def load(network):
+    started.set()
+    never_unlocked.wait()
+
+async def main():
+    loader = _NetworkKeyLoader(asyncio.get_running_loop(), load, lambda *args: None)
+    assert loader.submit(1)
+    while not started.is_set():
+        await asyncio.sleep(0.001)
+    loader.close()
+
+asyncio.run(main())
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, timeout=5)
