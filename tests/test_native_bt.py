@@ -368,3 +368,41 @@ def test_cancelled_queued_request_during_teardown_does_not_reconnect(handler, mo
     assert len(clients) == 1
     assert not handler._queues
     assert not handler._tasks
+
+
+def test_known_devices_reports_heard_devices():
+    from infuse_iot.common import InfuseType
+    from infuse_iot.database import DeviceDatabase
+    from infuse_iot.definitions.tdf import readings
+    from infuse_iot.socket_comms import ClientNotificationObservedDevices, GatewayRequestObservedDevices
+    from infuse_iot.tools.native_bt import observe_packet
+
+    database = DeviceDatabase(None)
+    # Devices are added to the database as their packets are decrypted
+    database.observe_device(123, network_id=5)
+    announce = readings.announce_v2()
+    announce.application = 0x12345678
+    announce.version.major = 1
+    announce.version.minor = 2
+    announce.version.revision = 3
+    announce.version.build_num = 0xABCD
+    decoder = Mock()
+    decoder.decode.return_value = [SimpleNamespace(data=[announce])]
+    observe_packet(database, decoder, Mock(route=[SimpleNamespace(infuse_id=123)], ptype=InfuseType.TDF))
+
+    server = Mock()
+    handler = MulticastHandler(database, server, {})
+
+    async def run():
+        datagram(handler, GatewayRequestObservedDevices())
+
+    asyncio.run(run())
+    (notification,) = [call.args[0] for call in server.broadcast.call_args_list]
+    assert isinstance(notification, ClientNotificationObservedDevices)
+    info = notification.devices[123]
+    # No device is the gateway, even though the database considers the first device observed to be one
+    assert "gateway" not in info
+    assert info["network_id"] == 5
+    assert info["application_id"] == 0x12345678
+    assert info["application_version"] == "1.2.3+0000abcd"
+    assert isinstance(info["last_heard"], float)

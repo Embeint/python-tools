@@ -11,6 +11,7 @@ import ctypes
 import json
 import random
 import sys
+import time
 from collections import Counter
 from typing import Any, Literal
 
@@ -24,6 +25,8 @@ from bleak.exc import BleakError
 from cryptography.exceptions import InvalidTag
 
 import infuse_iot.definitions.rpc as defs
+import infuse_iot.definitions.tdf as tdf_defs
+from infuse_iot import tdf
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.common import InfuseBluetoothUUID, InfuseType
 from infuse_iot.database import DeviceDatabase, UnknownNetworkError
@@ -44,12 +47,14 @@ from infuse_iot.socket_comms import (
     ClientNotificationConnectionDropped,
     ClientNotificationConnectionFailed,
     ClientNotificationEpacketReceived,
+    ClientNotificationObservedDevices,
     GatewayRequest,
     GatewayRequestCommsCheck,
     GatewayRequestConnection,
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
     GatewayRequestEpacketSend,
+    GatewayRequestObservedDevices,
     LocalServer,
 )
 from infuse_iot.util.argparse import BtLeAddress, ValidFile, add_server_port_parser
@@ -69,6 +74,20 @@ class InfuseGattReadResponse(ctypes.LittleEndianStructure):
     _layout_ = "ms"
 
 
+def observe_packet(database: DeviceDatabase, decoder: tdf.TDF, pkt: PacketReceived) -> None:
+    """Update device activity and application state from a received packet"""
+    source = pkt.route[0].infuse_id
+    database.observe_heard(source, time.time())
+    if pkt.ptype != InfuseType.TDF:
+        return
+    try:
+        for reading in decoder.decode(pkt.payload):
+            if isinstance(reading.data[0], (tdf_defs.readings.announce, tdf_defs.readings.announce_v2)):
+                database.observe_announce(source, reading.data[0])
+    except (ValueError, KeyError) as e:
+        Console.log_error(f"Failed to decode TDFs from {source:016x} ({e})")
+
+
 class MulticastHandler(asyncio.DatagramProtocol):
     def __init__(self, database: DeviceDatabase, server: LocalServer, bleak_mapping: dict[int, BLEDevice]):
         self._db = database
@@ -78,6 +97,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
         self._tasks: dict[int, asyncio.Task] = {}
         self._connected: set[int] = set()
         self._rpc = LocalRpcServer(database, native_bt=True)
+        self._tdf_decoder = tdf.TDF()
 
     def wrapped_broadcast(self, notifcation: ClientNotification):
         try:
@@ -110,6 +130,7 @@ class MulticastHandler(asyncio.DatagramProtocol):
             bytes(decr),
         )
         Console.log_rx(pkt.ptype, len(data))
+        observe_packet(self._db, self._tdf_decoder, pkt)
         # Handle any local RPC responses
         self._rpc.handle(pkt)
         # Forward to clients
@@ -308,6 +329,10 @@ class MulticastHandler(asyncio.DatagramProtocol):
         if isinstance(request, GatewayRequestCommsCheck):
             self.wrapped_broadcast(ClientNotificationCommsCheck())
             return
+        if isinstance(request, GatewayRequestObservedDevices):
+            # There is no gateway device when communicating directly over Bluetooth
+            self.wrapped_broadcast(ClientNotificationObservedDevices(self._db.known_devices(None)))
+            return
 
         # If not a connection request, attempt to forward to connection context
         if not isinstance(request, GatewayRequestConnectionRequest):
@@ -378,6 +403,7 @@ class SubCommand(InfuseCommand):
         self.report_interval: float = args.report_interval
         self.report_count = 0
         self.infuse_report_count = 0
+        self.tdf_decoder = tdf.TDF()
         Console.init()
 
     async def server_handler(self):
@@ -431,6 +457,7 @@ class SubCommand(InfuseCommand):
 
         Console.log_rx(hdr.type, len(payload))
         pkt = PacketReceived([hop], hdr.type, decr)
+        observe_packet(self.database, self.tdf_decoder, pkt)
         notification = ClientNotificationEpacketReceived(pkt)
         try:
             self.server.broadcast(notification)
