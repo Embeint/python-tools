@@ -278,4 +278,10 @@ TOOLS = (
         description="Display received TDFs in a list",
         module="infuse_iot.tools.tdf_list",
     ),
+    ToolSpec(
+        name="version_table",
+        help="Display application versions of observed devices",
+        description="Display the applications and versions of observed devices in a table",
+        module="infuse_iot.tools.version_table",
+    ),
 )
