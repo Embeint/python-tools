@@ -48,6 +48,7 @@ commands:
                      Test serial throughput to local gateway
     tdf_csv          Save received TDFs in CSV files
     tdf_list         Display received TDFs in a list
+    version_table    Display application versions of observed devices
 ```
 
 ## Credential Storage
