@@ -207,6 +207,12 @@ TOOLS = (
         module="infuse_iot.tools.data_logger_sync",
     ),
     ToolSpec(
+        name="dataset",
+        help="Dataset helper tools",
+        description="Dataset helper tools",
+        module="infuse_iot.tools.dataset",
+    ),
+    ToolSpec(
         name="gateway",
         help="Connect to a local gateway device",
         description="Connect to a gateway device over serial and route commands to Bluetooth devices",
