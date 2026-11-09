@@ -20,6 +20,7 @@ from infuse_iot.api_client.api.organisation import get_all_organisations
 from infuse_iot.api_client.models import Device, DeviceMetadata, NewDevice
 from infuse_iot.commands import InfuseCommand
 from infuse_iot.credentials import get_api_auth_header
+from infuse_iot.profile import get_active_profile_base_url
 from infuse_iot.util.api import check_api_response, check_api_response_allow_errors, fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
@@ -130,7 +131,7 @@ class SubCommand(InfuseCommand):
         hardware_id = interface.unique_device_id()
         hardware_id_str = f"{hardware_id:0{2 * interface.unique_device_id_len}x}"
 
-        client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
+        client = Client(base_url=get_active_profile_base_url()).with_headers(get_api_auth_header())
 
         # Get existing device or create new device
         with client as client:

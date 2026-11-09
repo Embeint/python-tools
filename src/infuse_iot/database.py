@@ -18,6 +18,7 @@ from infuse_iot.api_client.models.get_device_shared_secret_body import GetDevice
 from infuse_iot.api_client.models.security_state import SecurityState
 from infuse_iot.credentials import get_api_auth_header, load_network
 from infuse_iot.epacket.interface import Address as InterfaceAddress
+from infuse_iot.profile import get_active_profile_base_url
 from infuse_iot.util.api import format_api_error
 from infuse_iot.util.crypto import hkdf_derive
 
@@ -265,7 +266,7 @@ class DeviceDatabase:
             self.devices[infuse_id].shared_key = cache_key
             return
 
-        client = Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header())
+        client = Client(base_url=get_active_profile_base_url()).with_headers(get_api_auth_header())
         with client as client:
             security_state = SecurityState(
                 base64.b64encode(cloud_pub_key).decode("utf-8"),

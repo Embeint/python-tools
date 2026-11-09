@@ -24,6 +24,7 @@ from infuse_iot.commands import (
 )
 from infuse_iot.credentials import get_api_auth_header
 from infuse_iot.definitions.rpc import id_type_mapping
+from infuse_iot.profile import get_active_profile_base_url
 from infuse_iot.util.api import check_api_response
 from infuse_iot.util.argparse import (
     InfuseDeviceId,
@@ -178,7 +179,7 @@ class SubCommand(InfuseCommand):
         if print_subcommands_if_missing(self._args):
             return
 
-        with Client(base_url="https://api.infuse-iot.com").with_headers(get_api_auth_header()) as client:
+        with Client(base_url=get_active_profile_base_url()).with_headers(get_api_auth_header()) as client:
             if self._args._tool_action == "queue":
                 self.queue(client)
             elif self._args._tool_action == "query":
