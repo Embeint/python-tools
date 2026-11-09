@@ -236,7 +236,7 @@ class slots:
         _layout_ = "ms"
 
     class secondary_remote_public_key(VLACompatLittleEndianStruct):
-        """Storage of secondary remote public key"""
+        """Storage of secondary remote public key (update through security_key_update)"""
 
         NAME = "SECONDARY_REMOTE_PUBLIC_KEY"
         BASE_ID = 8

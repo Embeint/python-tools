@@ -1881,6 +1881,36 @@ class readings:
         def code(self):
             return self._code * -1
 
+    class gnss_fix_info_v2(TdfReadingBase):
+        """Metadata about a GNSS location fix"""
+
+        ID = 67
+        NAME = "GNSS_FIX_INFO_V2"
+        _fields_ = [
+            ("time_fix", ctypes.c_uint16),
+            ("location_fix", ctypes.c_uint16),
+            ("num_sv", ctypes.c_uint8),
+            ("_p_dop", ctypes.c_uint16),
+        ]
+        _pack_ = 1
+        _layout_ = "ms"
+        _postfix_ = {
+            "time_fix": "",
+            "location_fix": "",
+            "num_sv": "",
+            "p_dop": "",
+        }
+        _display_fmt_ = {
+            "time_fix": "{}",
+            "location_fix": "{}",
+            "num_sv": "{}",
+            "p_dop": "{}",
+        }
+
+        @property
+        def p_dop(self):
+            return self._p_dop * 0.01
+
 
 id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.announce.ID: readings.announce,
@@ -1948,6 +1978,7 @@ id_type_mapping: dict[int, type[TdfReadingBase]] = {
     readings.lte_sleep_enter.ID: readings.lte_sleep_enter,
     readings.lte_sleep_exit.ID: readings.lte_sleep_exit,
     readings.device_init_error.ID: readings.device_init_error,
+    readings.gnss_fix_info_v2.ID: readings.gnss_fix_info_v2,
 }
 
 __all__ = [
