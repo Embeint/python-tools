@@ -1213,11 +1213,11 @@ class annotate(RPCDefinitionBase):
 
 
 class tdf_data_logger_flush(RPCDefinitionBase):
-    """Write an annotation to the device"""
+    """Flush pending data from TDF data loggers"""
 
     NAME = "tdf_data_logger_flush"
-    HELP = "Write an annotation to the device"
-    DESCRIPTION = "Write an annotation to the device"
+    HELP = "Flush pending data from TDF data loggers"
+    DESCRIPTION = "Flush pending data from TDF data loggers"
     COMMAND_ID = 42
 
     class request(VLACompatLittleEndianStruct):
@@ -1544,6 +1544,34 @@ class ubx_assist_now_ztp_creds(RPCDefinitionBase):
         _layout_ = "ms"
 
 
+class audio_alert(RPCDefinitionBase):
+    """Play an audio alert on the device"""
+
+    NAME = "audio_alert"
+    HELP = "Play an audio alert on the device"
+    DESCRIPTION = "Play an audio alert on the device"
+    COMMAND_ID = 80
+
+    class request(VLACompatLittleEndianStruct):
+        _fields_ = [
+            ("frequency_hz", ctypes.c_uint16),
+            ("duration_ms", ctypes.c_uint32),
+            ("burst_length_ms", ctypes.c_uint16),
+            ("burst_period_ms", ctypes.c_uint16),
+            ("burst_frequency_shift_hz", ctypes.c_int16),
+            ("loop_after", ctypes.c_uint16),
+            ("volume_percent", ctypes.c_uint8),
+            ("wait", ctypes.c_uint8),
+        ]
+        _pack_ = 1
+        _layout_ = "ms"
+
+    class response(VLACompatLittleEndianStruct):
+        _fields_ = []
+        _pack_ = 1
+        _layout_ = "ms"
+
+
 class security_state(RPCDefinitionBase):
     """Query current security state and validate identity"""
 
@@ -1732,6 +1760,7 @@ id_type_mapping: dict[int, type[RPCDefinitionBase]] = {
     filesystem_ls.COMMAND_ID: filesystem_ls,
     filesystem_rm.COMMAND_ID: filesystem_rm,
     ubx_assist_now_ztp_creds.COMMAND_ID: ubx_assist_now_ztp_creds,
+    audio_alert.COMMAND_ID: audio_alert,
     security_state.COMMAND_ID: security_state,
     security_key_update.COMMAND_ID: security_key_update,
     security_public_keys.COMMAND_ID: security_public_keys,
@@ -1818,6 +1847,7 @@ __all__ = [
     "filesystem_ls",
     "filesystem_rm",
     "ubx_assist_now_ztp_creds",
+    "audio_alert",
     "security_state",
     "security_key_update",
     "security_public_keys",

@@ -138,6 +138,10 @@ class RPCError(enum.IntEnum):
     GNSS_POLL_VERSION_FAILED = -1243
     GNSS_UNEXPECTED_PAYLOAD = -1244
 
+    # Audio output errors.
+    AUDIO_VOLUME_SET_FAILED = -1260
+    AUDIO_TONE_FAILED = -1261
+
 
 __all__ = [
     "RPCError",
