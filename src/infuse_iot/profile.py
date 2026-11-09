@@ -12,6 +12,7 @@ from uuid import uuid4
 import platformdirs
 
 PROFILE_STORE_FILENAME = "profiles.json"
+DEFAULT_API_BASE_URL = "https://api.infuse-iot.com"
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class Profile:
     custom_definitions: str | None = None
     api_key_id: str | None = None
     banner: bool = False
+    base_url: str | None = None
 
 
 def profile_store_path() -> Path:
@@ -94,6 +96,7 @@ def configure_profile(
     custom_tools: str | None = None,
     custom_definitions: str | None = None,
     api_key: str | None = None,
+    base_url: str | None = None,
 ) -> tuple[Profile, bool]:
     config = load_profile_config()
     if name in config.profiles:
@@ -105,6 +108,7 @@ def configure_profile(
             custom_definitions=custom_definitions if custom_definitions is not None else profile.custom_definitions,
             api_key_id=api_key_id if api_key_id is not None else profile.api_key_id,
             banner=profile.banner,
+            base_url=base_url if base_url is not None else profile.base_url,
         )
         config.profiles[name] = updated_profile
         save_profile_config(config)
@@ -116,6 +120,7 @@ def configure_profile(
         custom_tools=custom_tools,
         custom_definitions=custom_definitions,
         api_key_id=api_key_id,
+        base_url=base_url,
     )
     config.profiles[name] = profile
     if config.active_profile is None:
@@ -166,6 +171,14 @@ def get_active_profile_api_key_id() -> str | None:
         return None
 
     return active_profile.api_key_id
+
+
+def get_active_profile_base_url() -> str:
+    active_profile = get_active_profile()
+    if active_profile is None or active_profile.base_url is None:
+        return DEFAULT_API_BASE_URL
+
+    return active_profile.base_url
 
 
 def get_active_profile_banner() -> bool:

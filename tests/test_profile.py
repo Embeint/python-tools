@@ -153,6 +153,23 @@ def test_profile_configure_with_api_key(tmp_path, monkeypatch):
     assert cred.get_api_key() == "profile-key"
 
 
+def test_profile_configure_with_base_url(tmp_path):
+    env = profile_test_env(tmp_path)
+    base_url = "https://api.example.com"
+
+    subprocess.check_output(
+        ["infuse", "profile", "configure", "--name", "test", "--base-url", base_url], env=env
+    )
+    subprocess.check_output(["infuse", "profile", "configure", "--name", "test"], env=env)
+
+    store_path = profile_store_path(env)
+    with store_path.open("r", encoding="utf-8") as f:
+        profiles = json.load(f)
+
+    assert profiles["profiles"]["test"]["base_url"] == base_url
+    assert base_url in subprocess.check_output(["infuse", "profile", "list"], env=env).decode()
+
+
 def test_profile_set_active(tmp_path):
     env = profile_test_env(tmp_path)
 
