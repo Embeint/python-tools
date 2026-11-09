@@ -55,6 +55,16 @@ def test_cloud_resource_dispatch(cloud_list, monkeypatch):
     InfuseApp().run(argv)
 
 
+def test_cloud_client_uses_profile_base_url(monkeypatch):
+    base_url = "https://api.example.com"
+    monkeypatch.setattr("infuse_iot.tools.cloud_commands.base.get_active_profile_base_url", lambda: base_url)
+    monkeypatch.setattr("infuse_iot.tools.cloud_commands.base.get_api_auth_header", lambda _api_key: {})
+
+    command = CloudSubCommand(SimpleNamespace(api_key=None))
+
+    assert command.client()._base_url == base_url
+
+
 def _run_cloud_list(resource: str) -> str:
     api_key = os.environ.get("INFUSE_PLATFORM_TEST_API_KEY")
     if not api_key:
