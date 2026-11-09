@@ -36,6 +36,7 @@ class SubCommand(InfuseCommand):
         configure_parser = subcommands.add_parser("configure", help="Create or update a profile")
         configure_parser.add_argument("--name", "-n", required=True, help="Profile name")
         configure_parser.add_argument("--api-key", type=str, help="Set Infuse-IoT API key")
+        configure_parser.add_argument("--base-url", type=str, help="Set Infuse-IoT API base URL")
         configure_parser.add_argument("--custom-tools", type=ValidDir, help="Location of custom tools")
         configure_parser.add_argument("--custom-definitions", type=ValidDir, help="Location of custom definitions")
         configure_parser.set_defaults(profile_command="configure")
@@ -78,12 +79,13 @@ class SubCommand(InfuseCommand):
                 name,
                 "yes" if name == active_profile else "no",
                 "yes" if profile.banner else "no",
+                profile.base_url if profile.base_url is not None else "",
                 profile.custom_tools if profile.custom_tools is not None else "",
                 profile.custom_definitions if profile.custom_definitions is not None else "",
             ]
             for name, profile in sorted(load_profiles().items())
         ]
-        print(tabulate(rows, headers=["Name", "Active", "Banner", "Custom Tools", "Custom Definitions"]))
+        print(tabulate(rows, headers=["Name", "Active", "Banner", "Base URL", "Custom Tools", "Custom Definitions"]))
 
     def _run_configure(self) -> None:
         custom_tools, custom_definitions = self._profile_path_args()
@@ -92,6 +94,7 @@ class SubCommand(InfuseCommand):
             custom_tools=custom_tools,
             custom_definitions=custom_definitions,
             api_key=self._args.api_key,
+            base_url=self._args.base_url,
         )
         action = "Created" if created else "Updated"
         print(f"{action} profile {self._args.name}")
