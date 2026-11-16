@@ -334,6 +334,17 @@ class MulticastHandler(asyncio.DatagramProtocol):
             self.wrapped_broadcast(ClientNotificationObservedDevices(self._db.known_devices(None)))
             return
 
+        # Relays require a gateway device to forward packets through
+        if isinstance(request, GatewayRequestConnectionRequest) and request.relay is not None:
+            self.wrapped_broadcast(
+                ClientNotificationConnectionFailed(
+                    request.infuse_id, "Relays are not supported over native Bluetooth", request.request_id
+                )
+            )
+            return
+        if isinstance(request, GatewayRequestEpacketSend) and request.epacket.relay is not None:
+            return
+
         # If not a connection request, attempt to forward to connection context
         if not isinstance(request, GatewayRequestConnectionRequest):
             if isinstance(request, GatewayRequestEpacketSend):
