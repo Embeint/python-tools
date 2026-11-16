@@ -23,11 +23,13 @@ class RpcClient:
         max_payload: int,
         infuse_id: int,
         rx_cb: Callable[[ClientNotification], None] | None = None,
+        relay: int | None = None,
     ):
         self._request_id = random.randint(0, 2**31 - 1)
         self._timeout = 10.0
         self._client = client
         self._id = infuse_id
+        self._relay = relay
         self._max_payload = max_payload
         self._rx_cb = rx_cb
         self.ack_period = 2
@@ -117,6 +119,7 @@ class RpcClient:
             auth,
             InfuseType.RPC_CMD,
             request_packet,
+            relay=self._relay,
         )
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
@@ -139,6 +142,7 @@ class RpcClient:
                 auth,
                 InfuseType.RPC_DATA,
                 pkt_bytes,
+                relay=self._relay,
             )
             self._client.send(GatewayRequestEpacketSend(pkt))
 
@@ -215,6 +219,7 @@ class RpcClient:
             auth,
             InfuseType.RPC_CMD,
             request_packet,
+            relay=self._relay,
         )
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
@@ -256,6 +261,7 @@ class RpcClient:
             auth,
             InfuseType.RPC_CMD,
             request_packet,
+            relay=self._relay,
         )
         req = GatewayRequestEpacketSend(pkt)
         self._client.send(req)
