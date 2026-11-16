@@ -139,16 +139,20 @@ class PacketReceived(Serializable):
         if header.type != InfuseType.RECEIVED_EPACKET:
             return [cls([header.hop_received()], header.type, decrypted)]
 
-        # Extract packets contained in payload
+        return cls._from_received(database, bytes(decrypted), [header.hop_received()])
+
+    @classmethod
+    def _from_received(cls, database: DeviceDatabase, payload: bytes, route: list[HopReceived]) -> list[Self]:
+        """Extract the packets contained in a `RECEIVED_EPACKET` payload that arrived over `route`"""
         packets = []
-        buffer = bytearray(decrypted)
+        buffer = bytearray(payload)
         while len(buffer) > 0:
             common_header = CtypePacketReceived.CommonHeader.from_buffer_copy(buffer)
             packet_bytes = buffer[: common_header.len]
             del buffer[: common_header.len]
             del packet_bytes[: ctypes.sizeof(common_header)]
 
-            # Only Bluetooth advertising supported for now
+            # Only Bluetooth supported for now
             decode_mapping: dict[Interface, Any] = {
                 Interface.BT_ADV: CtypeBtAdvFrame,
                 Interface.BT_PERIPHERAL: CtypeBtGattFrame,
@@ -179,11 +183,8 @@ class PacketReceived(Serializable):
                     f_header.sequence,
                     common_header.rssi,
                 )
-                packet = cls(
-                    [bt_hop, header.hop_received()],
-                    f_header.type,
-                    bytes(f_decrypted),
-                )
+                ptype = f_header.type
+                packet_payload = bytes(f_decrypted)
             else:
                 # Extract payload metadata
                 decr_header = CtypePacketReceived.DecryptedHeader.from_buffer_copy(packet_bytes)
@@ -205,12 +206,14 @@ class PacketReceived(Serializable):
                     decr_header.sequence,
                     common_header.rssi,
                 )
-                packet = cls(
-                    [bt_hop, header.hop_received()],
-                    decr_header.type,
-                    bytes(packet_bytes),
-                )
-            packets.append(packet)
+                ptype = decr_header.type
+                packet_payload = bytes(packet_bytes)
+
+            if ptype == InfuseType.RECEIVED_EPACKET:
+                # Packets received by a relay and forwarded to us
+                packets.extend(cls._from_received(database, packet_payload, [bt_hop, *route]))
+            else:
+                packets.append(cls([bt_hop, *route], ptype, packet_payload))
 
         return packets
 
