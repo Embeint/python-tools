@@ -11,7 +11,9 @@ from infuse_iot.epacket.interface import Address
 from infuse_iot.epacket.packet import (
     Auth,
     CtypeBtGattFrame,
+    CtypeForwardHeaderBtGatt,
     CtypePacketReceived,
+    CtypeSerialFrame,
     HopOutput,
     PacketOutputRouted,
     PacketReceived,
@@ -32,6 +34,34 @@ def ddb():
     database.observe_device(RELAY, network_id=0, bt_addr=RELAY_ADDR)
     database.observe_device(DEVICE, network_id=0, bt_addr=DEVICE_ADDR)
     return database
+
+
+def unwrap_forward(ddb: DeviceDatabase, payload: bytes, addr: Address.BluetoothLeAddr):
+    """Check the forwarding header of an `EPACKET_FORWARD` payload and decrypt the forwarded frame"""
+    header = CtypeForwardHeaderBtGatt.from_buffer_copy(payload)
+    assert header.total_length == len(payload)
+    assert header.interface == Interface.BT_CENTRAL.value
+    assert Address.from_bytes(Interface.BT_CENTRAL, bytes(header.address)).val == addr
+    return CtypeBtGattFrame.decrypt(ddb, addr, payload[ctypes.sizeof(header) :])
+
+
+def test_relayed_output_is_forwarded_by_each_hop(ddb):
+    route = [
+        HopOutput(GATEWAY, Interface.SERIAL, Auth.NETWORK),
+        HopOutput(RELAY, Interface.BT_CENTRAL, Auth.NETWORK),
+        HopOutput(DEVICE, Interface.BT_CENTRAL, Auth.NETWORK),
+    ]
+    frame = PacketOutputRouted(route, InfuseType.RPC_CMD, b"command").to_serial(ddb)
+
+    serial, payload = CtypeSerialFrame.decrypt(ddb, frame)
+    assert serial.type == InfuseType.EPACKET_FORWARD
+    relay, payload = unwrap_forward(ddb, bytes(payload), RELAY_ADDR)
+    assert relay.device_id == RELAY
+    assert relay.type == InfuseType.EPACKET_FORWARD
+    device, payload = unwrap_forward(ddb, bytes(payload), DEVICE_ADDR)
+    assert device.device_id == DEVICE
+    assert device.type == InfuseType.RPC_CMD
+    assert payload == b"command"
 
 
 def received_entry(interface: Interface, addr: Address.BluetoothLeAddr, body: bytes, encrypted: bool) -> bytes:

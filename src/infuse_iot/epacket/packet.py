@@ -231,15 +231,18 @@ class PacketOutputRouted(Serializable):
         """Encode and encrypt packet for serial transmission"""
         gps_time = InfuseTime.gps_seconds_from_unix(int(time.time()))
 
-        if len(self.route) == 2:
-            # Two hops only supports Bluetooth central for now
-            final = self.route[1]
-            bt_addr = database.devices[final.infuse_id].bt_addr
-            assert final.interface == Interface.BT_CENTRAL
+        ptype = self.ptype
+        payload = self.payload
+        # Wrap the packet for each Bluetooth hop, starting from the final destination.
+        # Each hop forwards the packet it decrypts to the next hop.
+        for hop in reversed(self.route[1:]):
+            if hop.interface != Interface.BT_CENTRAL:
+                raise NotImplementedError("Only Bluetooth central hops are supported")
+            bt_addr = database.devices[hop.infuse_id].bt_addr
             assert bt_addr is not None
 
             # Forwarded payload
-            forward_payload = CtypeBtGattFrame.encrypt(database, final.infuse_id, self.ptype, final.auth, self.payload)
+            forward_payload = CtypeBtGattFrame.encrypt(database, hop.infuse_id, ptype, hop.auth, payload)
 
             # Forwarding header
             forward_hdr = CtypeForwardHeaderBtGatt(
@@ -250,11 +253,6 @@ class PacketOutputRouted(Serializable):
 
             ptype = InfuseType.EPACKET_FORWARD
             payload = bytes(forward_hdr) + forward_payload
-        elif len(self.route) == 1:
-            ptype = self.ptype
-            payload = self.payload
-        else:
-            raise NotImplementedError(">2 hops currently not supported")
 
         serial = self.route[0]
 
