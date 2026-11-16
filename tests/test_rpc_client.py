@@ -36,6 +36,7 @@ def rpc_client():
 def test_data_recv_aborts_only_on_loss_of_own_connection(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = DEVICE
+    client._connection_relay = None
     receive = Mock(
         side_effect=[
             comms.ClientNotificationConnectionDropped(OTHER),
@@ -119,6 +120,7 @@ def test_unrelated_data_does_not_extend_timeout(rpc_client, monkeypatch):
 def test_command_response_wait_aborts_on_loss_of_own_connection(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = DEVICE
+    client._connection_relay = None
     receive = Mock(
         side_effect=[
             comms.ClientNotificationConnectionDropped(OTHER),

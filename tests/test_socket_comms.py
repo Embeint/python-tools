@@ -7,6 +7,8 @@ from unittest.mock import Mock
 import pytest
 
 import infuse_iot.socket_comms as comms
+from infuse_iot.common import InfuseType
+from infuse_iot.epacket.packet import Auth, PacketOutput
 
 assert "TOXTEMPDIR" in os.environ, "you must run these tests using tox"
 
@@ -48,6 +50,7 @@ def test_socket_comms():
 def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = 0
+    client._connection_relay = None
     client._request_id = 0
     client._input_sock = Mock()
     client._output_sock = Mock()
@@ -64,6 +67,7 @@ def test_client_close_releases_zero_id_and_closes_both_sockets(monkeypatch):
 def client(monkeypatch):
     client = comms.LocalClient.__new__(comms.LocalClient)
     client._connection_id = None
+    client._connection_relay = None
     client._request_id = 0
     monkeypatch.setattr(client, "send", Mock())
     monkeypatch.setattr(client, "receive", Mock())
@@ -214,3 +218,44 @@ def test_connection_messages_without_request_ids_are_accepted():
     release = comms.GatewayRequest.from_json({"type": comms.GatewayRequest.Type.CONNECTION_RELEASE, "infuse_id": 123})
     assert isinstance(release, comms.GatewayRequestConnectionRelease)
     assert release.request_id is None
+
+
+def test_connection_dropped_matches_relay_of_current_connection(client):
+    client._connection_id = 123
+    client._connection_relay = 456
+    assert client.connection_dropped(comms.ClientNotificationConnectionDropped(123))
+    assert client.connection_dropped(comms.ClientNotificationConnectionDropped(456))
+    assert not client.connection_dropped(comms.ClientNotificationConnectionDropped(999))
+
+
+def test_relayed_connection_request_and_release(client):
+    client.receive.side_effect = [comms.ClientNotificationConnectionCreated(123, 128, None)]
+    with client.connection(123, comms.GatewayRequestConnectionRequest.DataType.COMMAND, 1000, relay=456):
+        request = client.send.call_args.args[0]
+        assert isinstance(request, comms.GatewayRequestConnectionRequest)
+        assert request.relay == 456
+        assert client._connection_relay == 456
+    assert isinstance(client.send.call_args.args[0], comms.GatewayRequestConnectionRelease)
+    assert client._connection_relay is None
+
+
+def test_relay_json_round_trip():
+    request = comms.GatewayRequestConnectionRequest(
+        123, comms.GatewayRequestConnectionRequest.DataType.DATA, 1000, 7, relay=456
+    )
+    decoded = comms.GatewayRequest.from_json(request.to_json())
+    assert isinstance(decoded, comms.GatewayRequestConnectionRequest)
+    assert decoded.relay == 456
+
+    send = comms.GatewayRequestEpacketSend(PacketOutput(123, Auth.NETWORK, InfuseType.RPC_CMD, b"\x01", relay=456))
+    decoded_send = comms.GatewayRequest.from_json(send.to_json())
+    assert isinstance(decoded_send, comms.GatewayRequestEpacketSend)
+    assert decoded_send.epacket.relay == 456
+
+    # Requests without a relay omit the field, so that they remain compatible with older gateways
+    direct = comms.GatewayRequestConnectionRequest(123, comms.GatewayRequestConnectionRequest.DataType.DATA, 1000, 7)
+    assert "relay" not in direct.to_json()
+    decoded_direct = comms.GatewayRequest.from_json(direct.to_json())
+    assert isinstance(decoded_direct, comms.GatewayRequestConnectionRequest)
+    assert decoded_direct.relay is None
+    assert "relay" not in PacketOutput(123, Auth.NETWORK, InfuseType.RPC_CMD, b"").to_json()

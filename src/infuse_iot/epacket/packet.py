@@ -305,21 +305,28 @@ class PacketOutputRouted(Serializable):
 
 
 class PacketOutput(PacketOutputRouted):
-    """ePacket to be transmitted by gateway"""
+    """ePacket to be transmitted by gateway
 
-    def __init__(self, infuse_id: int, auth: Auth, ptype: InfuseType, payload: bytes):
+    `relay` is the Infuse ID of a device that forwards the packet to `infuse_id` over Bluetooth.
+    """
+
+    def __init__(self, infuse_id: int, auth: Auth, ptype: InfuseType, payload: bytes, relay: int | None = None):
         self.infuse_id = infuse_id
         self.auth = auth
         self.ptype = ptype
         self.payload = payload
+        self.relay = relay
 
     def to_json(self) -> dict:
-        return {
+        values = {
             "infuse_id": self.infuse_id,
             "auth": self.auth,
             "type": self.ptype.value,
             "payload": base64.b64encode(self.payload).decode("utf-8"),
         }
+        if self.relay is not None:
+            values["relay"] = self.relay
+        return values
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
@@ -328,6 +335,7 @@ class PacketOutput(PacketOutputRouted):
             auth=Auth(values["auth"]),
             ptype=InfuseType(values["type"]),
             payload=base64.b64decode(values["payload"].encode("utf-8")),
+            relay=values.get("relay"),
         )
 
 
