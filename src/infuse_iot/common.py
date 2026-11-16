@@ -18,6 +18,9 @@ class InfuseType(enum.IntEnum):
     ACK = 8
     EPACKET_FORWARD = 9
     SERIAL_LOG = 10
+    TDF_REMOTE = 11
+    EPACKET_FORWARD_AUTO_CONN = 12
+    EPACKET_CONN_TERMINATED = 13
     MEMFAULT_CHUNK = 30
 
     KEY_IDS = 127
