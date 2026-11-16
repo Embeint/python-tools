@@ -295,25 +295,43 @@ class GatewayRequestConnectionRequest(GatewayRequestConnection):
         DATA = 2
         LOGGING = 4
 
-    def __init__(self, infuse_id: int, data_types: DataType, timeout_ms: int, request_id: int | None = None):
+    def __init__(
+        self,
+        infuse_id: int,
+        data_types: DataType,
+        timeout_ms: int,
+        request_id: int | None = None,
+        relay: int | None = None,
+    ):
         super().__init__(infuse_id)
         self.data_types = data_types
         self.timeout_ms = timeout_ms
         # Identifies the requesting client to the gateway. Requests without one are interchangeable.
         self.request_id = request_id
+        # Device that connects to `infuse_id` and forwards packets to and from it
+        self.relay = relay
 
     def to_json(self) -> dict:
-        return {
+        values = {
             "type": int(self.TYPE),
             "infuse_id": self.infuse_id,
             "data_types": self.data_types,
             "timeout": self.timeout_ms,
             "request_id": self.request_id,
         }
+        if self.relay is not None:
+            values["relay"] = self.relay
+        return values
 
     @classmethod
     def from_json(cls, values: dict) -> Self:
-        return cls(values["infuse_id"], values["data_types"], values["timeout"], values.get("request_id"))
+        return cls(
+            values["infuse_id"],
+            values["data_types"],
+            values["timeout"],
+            values.get("request_id"),
+            values.get("relay"),
+        )
 
 
 class GatewayRequestConnectionRelease(GatewayRequestConnection):
@@ -388,7 +406,8 @@ class LocalClient:
         self._output_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self._rx_lock = threading.Lock()
         # Connection context
-        self._connection_id = None
+        self._connection_id: int | None = None
+        self._connection_relay: int | None = None
         self._request_id = 0
 
     def set_rx_timeout(self, timeout):
@@ -440,19 +459,28 @@ class LocalClient:
         return False
 
     def connection_create(
-        self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int
+        self,
+        infuse_id: int,
+        data_types: GatewayRequestConnectionRequest.DataType,
+        timeout_ms: int,
+        relay: int | None = None,
     ) -> int:
+        """Create a connection context to a device, optionally through a relay device"""
         if self._connection_id is not None:
             raise RuntimeError("Client already has a connection context")
         self._connection_id = infuse_id
+        self._connection_relay = relay
         # Other clients may be requesting the same device, so the gateway reports results per request.
         self._request_id = random.getrandbits(48)
 
         # Send the request for the connection
-        req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms, self._request_id)
+        req = GatewayRequestConnectionRequest(infuse_id, data_types, timeout_ms, self._request_id, relay)
         try:
             self.send(req)
-            expiry = time.monotonic() + timeout_ms / 1000 + self.CONNECTION_RESPONSE_MARGIN_S
+            # Connecting through a relay requires a connection to the relay, followed by one from the relay to the
+            # device, each of which can take up to `timeout_ms`.
+            connections = 1 if relay is None else 2
+            expiry = time.monotonic() + connections * (timeout_ms / 1000 + self.CONNECTION_RESPONSE_MARGIN_S)
             # Notifications are broadcast to every client, including results of other clients' requests.
             while (remaining := expiry - time.monotonic()) > 0:
                 rsp = self.receive(timeout=remaining)
@@ -463,6 +491,7 @@ class LocalClient:
                 if isinstance(rsp, ClientNotificationConnectionCreated):
                     return rsp.max_payload
                 self._connection_id = None
+                self._connection_relay = None
                 raise ConnectionRefusedError(rsp.reason)
             raise TimeoutError(f"Timed out connecting to {infuse_id:016x}")
         except BaseException:
@@ -474,11 +503,11 @@ class LocalClient:
             raise
 
     def connection_dropped(self, notification: ClientNotification | None) -> bool:
-        """Whether a notification reports the loss of this client's connection."""
+        """Whether a notification reports the loss of this client's connection, or of the relay it goes through."""
         return (
             isinstance(notification, ClientNotificationConnectionDropped)
             and self._connection_id is not None
-            and notification.infuse_id == self._connection_id
+            and notification.infuse_id in (self._connection_id, self._connection_relay)
         )
 
     def connection_release(self):
@@ -487,10 +516,17 @@ class LocalClient:
         req = GatewayRequestConnectionRelease(self._connection_id, self._request_id)
         self.send(req)
         self._connection_id = None
+        self._connection_relay = None
 
     @contextmanager
-    def connection(self, infuse_id: int, data_types: GatewayRequestConnectionRequest.DataType, timeout_ms: int = 10000):
-        max_payload = self.connection_create(infuse_id, data_types, timeout_ms)
+    def connection(
+        self,
+        infuse_id: int,
+        data_types: GatewayRequestConnectionRequest.DataType,
+        timeout_ms: int = 10000,
+        relay: int | None = None,
+    ):
+        max_payload = self.connection_create(infuse_id, data_types, timeout_ms, relay)
         try:
             yield max_payload
         finally:

@@ -32,6 +32,9 @@ class SubCommand(InfuseCommand):
         addr_group = parser.add_mutually_exclusive_group(required=True)
         addr_group.add_argument("--gateway", action="store_true", help="Run command on local gateway")
         addr_group.add_argument("--id", type=InfuseDeviceId, help="Infuse ID to run command on")
+        parser.add_argument(
+            "--relay", type=InfuseDeviceId, help="Infuse ID of a Bluetooth relay to reach the device through"
+        )
         parser.add_argument("--conn-log", action="store_true", help="Request logs from remote device")
         parser.add_argument(
             "--conn-timeout", type=int, default=10000, help="Timeout to wait for a connection to the device (ms)"
@@ -55,6 +58,8 @@ class SubCommand(InfuseCommand):
         if print_subcommands_if_missing(args):
             self._missing_subcommand = True
             return
+        if args.gateway and args.relay is not None:
+            sys.exit("--relay requires --id")
         self._missing_subcommand = False
         self._client = LocalClient(args.server_sock, 1.0)
         self._command: InfuseRpcCommand = args.rpc_class(args)
@@ -64,6 +69,12 @@ class SubCommand(InfuseCommand):
             self._id = InfuseID.GATEWAY
         else:
             self._id = args.id
+
+    @property
+    def _target(self) -> str:
+        if self._args.relay is not None:
+            return f"{self._id:016x} (through relay {self._args.relay:016x})"
+        return f"{self._id:016x}"
 
     def rx_handler(self, pkt: ClientNotification):
         if (
@@ -84,9 +95,9 @@ class SubCommand(InfuseCommand):
             types = GatewayRequestConnectionRequest.DataType.COMMAND
             if self._args.conn_log:
                 types |= GatewayRequestConnectionRequest.DataType.LOGGING
-            with self._client.connection(self._id, types, self._args.conn_timeout) as mtu:
+            with self._client.connection(self._id, types, self._args.conn_timeout, self._args.relay) as mtu:
                 self._max_payload = mtu
-                rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler)
+                rpc_client = RpcClient(self._client, mtu, self._id, self.rx_handler, self._args.relay)
                 rpc_client.set_timeout(self._command.command_timeout_ms() / 1000)
                 params = bytes(self._command.request_struct())
 
@@ -139,13 +150,13 @@ class SubCommand(InfuseCommand):
                         if evt is None:
                             continue
                         if self._client.connection_dropped(evt):
-                            print(f"Connection to {self._id:016x} lost")
+                            print(f"Connection to {self._target} lost")
                             break
                         self.rx_handler(evt)
         except (ConnectionRefusedError, TimeoutError) as e:
-            print(f"Unable to connect to {self._id:016x}: ({e})")
+            print(f"Unable to connect to {self._target}: ({e})")
         except ConnectionAbortedError:
-            print(f"Connection to {self._id:016x} lost")
+            print(f"Connection to {self._target} lost")
 
     def close(self):
         self._client.close()

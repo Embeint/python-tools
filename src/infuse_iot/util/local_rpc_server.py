@@ -79,10 +79,46 @@ class LocalRpcServer:
             cmd_bytes,
         )
 
-    def generate_addressed(
-        self, address: int, command: int, args: bytes, auth: Auth, cb: RpcCallback | None, cb_ctx: typing.Any
+    def generate_remote_bt_relayed(
+        self,
+        remote: int,
+        relay: int,
+        command: int,
+        args: bytes,
+        auth: Auth,
+        cb: RpcCallback | None,
+        cb_ctx: typing.Any,
     ) -> PacketOutputRouted:
-        """Generate RPC packet for explicit address"""
+        """Generate RPC packet for Bluetooth remote that is connected to a Bluetooth relay"""
+        cmd_bytes = bytes(rpc.RequestHeader(self._cnt, command)) + args
+
+        assert self._ddb.gateway is not None
+        serial = HopOutput(self._ddb.gateway, interface.ID.SERIAL, Auth.DEVICE)
+        bt_relay = HopOutput(relay, interface.ID.BT_CENTRAL, Auth.DEVICE)
+        bt = HopOutput(remote, interface.ID.BT_CENTRAL, auth)
+        self._queued[self._cnt] = (cb, cb_ctx)
+        self._cnt += 1
+        return PacketOutputRouted(
+            [serial, bt_relay, bt],
+            InfuseType.RPC_CMD,
+            cmd_bytes,
+        )
+
+    def generate_addressed(
+        self,
+        address: int,
+        command: int,
+        args: bytes,
+        auth: Auth,
+        cb: RpcCallback | None,
+        cb_ctx: typing.Any,
+        relay: int | None = None,
+    ) -> PacketOutputRouted:
+        """Generate RPC packet for explicit address, optionally through a relay"""
+        if relay is not None:
+            if self._native_bt:
+                raise NotImplementedError("Relays are not supported over native Bluetooth")
+            return self.generate_remote_bt_relayed(address, relay, command, args, auth, cb, cb_ctx)
         if self._native_bt:
             return self.generate_remote_bt_direct(address, command, args, auth, cb, cb_ctx)
         if address == self._ddb.gateway:

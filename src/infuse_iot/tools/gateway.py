@@ -17,6 +17,7 @@ import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Hashable
+from typing import Any
 
 import cryptography
 import cryptography.exceptions
@@ -36,6 +37,8 @@ from infuse_iot.database import (
 from infuse_iot.epacket.packet import (
     Auth,
     CtypeBtGattFrame,
+    CtypeForwardHeaderBtGatt,
+    CtypePacketReceived,
     HopOutput,
     PacketOutputRouted,
     PacketReceived,
@@ -101,8 +104,9 @@ class CommonThreadState:
         infuse_id: int,
         cb_event: threading.Event | None = None,
         cb: Callable[[bool, str | None], None] | None = None,
+        relay: int | None = None,
     ) -> bool:
-        """Query device key, returns True on success, False on failure"""
+        """Query device key, optionally through a relay, returns True on success, False on failure"""
 
         completion_lock = threading.Lock()
         complete = False
@@ -195,7 +199,13 @@ class CommonThreadState:
         # Run security_state RPC
         challenge = random.randbytes(16)
         cmd_pkt = self.rpc.generate_addressed(
-            infuse_id, defs.security_state.COMMAND_ID, challenge, Auth.NETWORK, security_state_done, challenge
+            infuse_id,
+            defs.security_state.COMMAND_ID,
+            challenge,
+            Auth.NETWORK,
+            security_state_done,
+            challenge,
+            relay=relay,
         )
         if cb is not None and cb_event is None:
             timeout = threading.Timer(self.KEY_QUERY_TIMEOUT_S, query_timed_out)
@@ -207,7 +217,13 @@ class CommonThreadState:
         if self.ddb.has_local_root:
             # Query other public keys from the device
             cmd_pkt = self.rpc.generate_addressed(
-                infuse_id, defs.security_public_keys.COMMAND_ID, b"\x00", Auth.NETWORK, public_keys_done, None
+                infuse_id,
+                defs.security_public_keys.COMMAND_ID,
+                b"\x00",
+                Auth.NETWORK,
+                public_keys_done,
+                None,
+                relay=relay,
             )
             if not run_cmd_pkt(cmd_pkt):
                 return False
@@ -221,7 +237,7 @@ class SerialRxThread(SignaledThread):
         self,
         common: CommonThreadState,
         log: io.TextIOWrapper,
-        connection_dropped: Callable[[int], None],
+        connection_dropped: Callable[[int, int | None], list[int]],
     ):
         self._common = common
         self._connection_dropped = connection_dropped
@@ -287,21 +303,22 @@ class SerialRxThread(SignaledThread):
 
     def _handle_tdf(self, pkt: PacketReceived):
         source = pkt.route[0].infuse_id
-        # Only TDFs from the gateway itself report on gateway connection state
+        # Only TDFs from the gateway itself, or from a relay directly connected to it, report on connection state
         local = len(pkt.route) == 1 and self._common.server is not None
+        relay = len(pkt.route) == 2 and pkt.route[0].interface == interface.ID.BT_CENTRAL
         for reading in self._tdf_decoder.decode(pkt.payload):
             if isinstance(reading.data[0], (tdf_defs.readings.announce, tdf_defs.readings.announce_v2)):
                 self._common.ddb.observe_announce(source, reading.data[0])
             elif (
-                local
+                (local or relay)
                 and isinstance(reading.data[0], tdf_defs.readings.bluetooth_connection)
                 and reading.data[0].connected == 0
             ):
                 if_addr = interface.Address.BluetoothLeAddr.from_tdf_struct(reading.data[0].address)
                 infuse_id = self._common.ddb.infuse_id_from_bluetooth(if_addr)
                 if infuse_id:
-                    self._connection_dropped(infuse_id)
-                    self._common.notification_broadcast(ClientNotificationConnectionDropped(infuse_id))
+                    for dropped in self._connection_dropped(infuse_id, source if relay else None):
+                        self._common.notification_broadcast(ClientNotificationConnectionDropped(dropped))
 
     def _key_query_done(self, _success: bool, _reason: str | None) -> None:
         self._key_query_pending = False
@@ -365,6 +382,22 @@ class SerialRxThread(SignaledThread):
 class SerialTxThread(SignaledThread):
     """Send serial frames down the serial port"""
 
+    # Maximum payload of packets to a device connected to the gateway
+    MAX_PAYLOAD = 244 - ctypes.sizeof(CtypeBtGattFrame) - 16
+    # Packets to a device connected through a relay are forwarded inside packets to the relay. Packets from the device
+    # are forwarded back inside a received packet header, which relays limit the connection MTU of the device for.
+    RELAYED_MAX_PAYLOAD = (
+        MAX_PAYLOAD
+        - (ctypes.sizeof(CtypeBtGattFrame) + 16)
+        - max(
+            ctypes.sizeof(CtypeForwardHeaderBtGatt),
+            ctypes.sizeof(CtypePacketReceived.CommonHeader)
+            + ctypes.sizeof(interface.Address.BluetoothLeAddr.CtypesFormat),
+        )
+    )
+    # Time to wait for a relay to disconnect from a device before releasing the connection to the relay
+    RELAY_DISCONNECT_TIMEOUT_S = 2.0
+
     def __init__(
         self,
         common: CommonThreadState,
@@ -376,6 +409,13 @@ class SerialTxThread(SignaledThread):
         # waiting for the response.
         self._pending: Counter[tuple[int, int | None]] = Counter()
         self._cancelled: Counter[tuple[int, int | None]] = Counter()
+        # Requests for devices connected through a relay, keyed by the (relay, request ID) of the connection to the
+        # relay, until the relay has been asked to connect to the device.
+        self._relay_requests: dict[tuple[int, int | None], GatewayRequestConnectionRequest] = {}
+        # Relay used by each (device, request ID) of requests for devices connected through a relay
+        self._relay_users: dict[tuple[int, int | None], int] = {}
+        # Relay that devices are connected through
+        self._relay_routes: dict[int, int] = {}
         self._connected_lock = threading.Lock()
         self._queue: queue.Queue = queue.Queue()
         super().__init__(self._iter)
@@ -392,7 +432,18 @@ class SerialTxThread(SignaledThread):
         pkt = req.epacket
 
         # Construct routed output
-        if pkt.infuse_id == InfuseID.GATEWAY or pkt.infuse_id == self._common.ddb.gateway:
+        if pkt.relay is not None:
+            gateway = self._common.ddb.gateway
+            routed = PacketOutputRouted(
+                [
+                    HopOutput(gateway, interface.ID.SERIAL, Auth.DEVICE),
+                    HopOutput(pkt.relay, interface.ID.BT_CENTRAL, Auth.DEVICE),
+                    HopOutput(pkt.infuse_id, interface.ID.BT_CENTRAL, pkt.auth),
+                ],
+                pkt.ptype,
+                pkt.payload,
+            )
+        elif pkt.infuse_id == InfuseID.GATEWAY or pkt.infuse_id == self._common.ddb.gateway:
             routed = PacketOutputRouted(
                 [HopOutput(self._common.ddb.gateway, interface.ID.SERIAL, pkt.auth)],
                 pkt.ptype,
@@ -412,7 +463,9 @@ class SerialTxThread(SignaledThread):
         for hop in routed.route:
             if hop.auth == Auth.DEVICE and not self._common.ddb.has_shared_key(hop.infuse_id):
                 cb_event = threading.Event()
-                if not self._common.query_device_key(hop.infuse_id, cb_event):
+                # The destination of a relayed packet is only reachable through the relay
+                relay = pkt.relay if hop is routed.route[-1] else None
+                if not self._common.query_device_key(hop.infuse_id, cb_event, relay=relay):
                     Console.log_error(f"Failed to query device key for {hop.infuse_id:016x}")
                     return
 
@@ -428,16 +481,60 @@ class SerialTxThread(SignaledThread):
             if request_id not in self._connected.get(infuse_id, {}):
                 # Released or dropped while the connection was being validated
                 return
-        rsp = ClientNotificationConnectionCreated(infuse_id, 244 - ctypes.sizeof(CtypeBtGattFrame) - 16, request_id)
+            relayed = (infuse_id, request_id) in self._relay_requests
+            max_payload = self.RELAYED_MAX_PAYLOAD if infuse_id in self._relay_routes else self.MAX_PAYLOAD
+        if relayed:
+            # The connection to the relay is ready, connect the relay to the device
+            self._relay_connect(infuse_id, request_id)
+            return
+        rsp = ClientNotificationConnectionCreated(infuse_id, max_payload, request_id)
         self._common.notification_broadcast(rsp)
 
-    def _connection_dropped(self, infuse_id: int):
+    def _connection_dropped(self, infuse_id: int, relay: int | None = None) -> list[int]:
+        """Connection to a device lost, as reported by the gateway or by a relay. Returns the devices lost.
+
+        Relays of devices are remembered until the connections are released, so that releases go through the relay.
+        """
         with self._connected_lock:
+            if relay is not None:
+                # Only connections that this gateway made through the relay are relevant
+                if self._relay_routes.get(infuse_id) != relay:
+                    return []
+                self._connected.pop(infuse_id, None)
+                return [infuse_id]
             self._connected.pop(infuse_id, None)
+            # Devices connected through the relay are lost with it
+            relayed = [device for device, route in self._relay_routes.items() if route == infuse_id]
+            for device in relayed:
+                self._connected.pop(device, None)
+        return [infuse_id, *relayed]
+
+    def _connection_failed(self, infuse_id: int, request_id: int | None, reason: str):
+        with self._connected_lock:
+            relay_req = self._relay_requests.pop((infuse_id, request_id), None)
+            if relay_req is not None:
+                device = relay_req.infuse_id
+                _decrement(self._pending, (device, request_id))
+                _decrement(self._cancelled, (device, request_id))
+                self._relay_users.pop((device, request_id), None)
+        if relay_req is None:
+            self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
+            return
+        # Connection to the relay failed, report it as a failure of the request for the device
+        reason = f"Connection to relay {infuse_id:016x} failed: {reason}"
+        self._common.notification_broadcast(ClientNotificationConnectionFailed(device, reason, request_id))
+        self._relay_route_cleanup(device)
+
+    def _relay_route_cleanup(self, infuse_id: int):
+        """Forget the relay of a device that has no users or pending requests"""
+        with self._connected_lock:
+            if self._connected.get(infuse_id) or any(device == infuse_id for device, _ in self._pending):
+                return
+            self._relay_routes.pop(infuse_id, None)
 
     def _key_query_failed(self, infuse_id: int, request_id: int | None, reason: str):
         self._release(infuse_id, request_id)
-        self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
+        self._connection_failed(infuse_id, request_id, reason)
 
     def _pub_keys_cb(self, pkt: PacketReceived, rc: int, response: bytes, request_id: int | None):
         infuse_id = pkt.route[0].infuse_id
@@ -465,8 +562,7 @@ class SerialTxThread(SignaledThread):
                 self._connected.setdefault(infuse_id, Counter())[request_id] += 1
 
         if rc != 0:
-            reason = f"Bluetooth connection failed (RPC error {rc})"
-            self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
+            self._connection_failed(infuse_id, request_id, f"Bluetooth connection failed (RPC error {rc})")
             with self._connected_lock:
                 linked = infuse_id in self._connected
             if linked:
@@ -505,23 +601,8 @@ class SerialTxThread(SignaledThread):
 
             self._common.query_device_key(infuse_id, cb=notification)
 
-    def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
-        assert self._common.server is not None
-
-        if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
-            # Local gateway always connected
-            self._common.notification_broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512, req.request_id))
-            return
-
-        state = self._common.ddb.devices.get(req.infuse_id, None)
-        if state is None or state.bt_addr is None:
-            self._common.notification_broadcast(
-                ClientNotificationConnectionFailed(
-                    req.infuse_id, "Device has not been observed over Bluetooth", req.request_id
-                )
-            )
-            return
-
+    def _subscriptions(self, req: GatewayRequestConnectionRequest) -> int:
+        """Characteristics to subscribe to on the connection for a request"""
         subs = 0
         bt_char = defs.rpc_enum_infuse_bt_characteristic
         if req.data_types & req.DataType.COMMAND or not self._common.ddb.has_shared_key(req.infuse_id):
@@ -536,11 +617,35 @@ class SerialTxThread(SignaledThread):
             connected = bool(self._connected.get(req.infuse_id))
         if connected:
             subs = bt_char.COMMAND | bt_char.DATA | bt_char.LOGGING
+        return subs
+
+    def _handle_conn_request(self, req: GatewayRequestConnectionRequest):
+        assert self._common.server is not None
+
+        if req.relay is not None:
+            self._handle_relay_conn_request(req)
+            return
+
+        if req.infuse_id == InfuseID.GATEWAY or req.infuse_id == self._common.ddb.gateway:
+            # Local gateway always connected
+            self._common.notification_broadcast(ClientNotificationConnectionCreated(req.infuse_id, 512, req.request_id))
+            return
+
+        state = self._common.ddb.devices.get(req.infuse_id, None)
+        if state is None or state.bt_addr is None:
+            self._connection_failed(req.infuse_id, req.request_id, "Device has not been observed over Bluetooth")
+            return
+
+        with self._connected_lock:
+            relay = self._relay_routes.get(req.infuse_id)
+        if relay is not None:
+            self._connection_failed(req.infuse_id, req.request_id, f"Device is connected through relay {relay:016x}")
+            return
 
         connect_args = defs.bt_connect_infuse.request(
             state.bt_addr.to_rpc_struct(),
             req.timeout_ms,
-            subs,
+            self._subscriptions(req),
             0,
         )
         cmd = self._common.rpc.generate_serial(
@@ -551,6 +656,161 @@ class SerialTxThread(SignaledThread):
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
+
+    def _handle_relay_conn_request(self, req: GatewayRequestConnectionRequest):
+        """Connect to a device through a relay.
+
+        The gateway connects to the relay, which is then asked to connect to the device. Clients use the connection to
+        the device, the connection to the relay has a user for each request for the device.
+        """
+        assert req.relay is not None
+        device = req.infuse_id
+        relay = req.relay
+        local = (InfuseID.GATEWAY, self._common.ddb.gateway)
+
+        def failed(reason: str) -> None:
+            self._common.notification_broadcast(ClientNotificationConnectionFailed(device, reason, req.request_id))
+
+        if req.request_id is None:
+            # Requests for the relay and the device are matched by the request ID
+            failed("Connections through a relay require a request ID")
+            return
+        if device in local or relay in local or device == relay:
+            failed("Relay and device must be different remote devices")
+            return
+        for infuse_id, name in ((device, "Device"), (relay, "Relay")):
+            state = self._common.ddb.devices.get(infuse_id, None)
+            if state is None or state.bt_addr is None:
+                failed(f"{name} has not been observed over Bluetooth")
+                return
+
+        with self._connected_lock:
+            route = self._relay_routes.get(device)
+            direct = self._connected.get(device) or any(d == device for d, _ in self._pending)
+            if route is None and direct:
+                conflict = "Device is connected directly"
+            elif route not in (None, relay):
+                conflict = f"Device is connected through relay {route:016x}"
+            else:
+                conflict = None
+                self._relay_routes[device] = relay
+                self._relay_users[(device, req.request_id)] = relay
+                self._relay_requests[(relay, req.request_id)] = req
+                self._pending[(device, req.request_id)] += 1
+        if conflict is not None:
+            failed(conflict)
+            return
+
+        # Relays send packets from the device on the data characteristic, and RPC responses on the command
+        relay_types = GatewayRequestConnectionRequest.DataType.COMMAND | GatewayRequestConnectionRequest.DataType.DATA
+        self._handle_conn_request(GatewayRequestConnectionRequest(relay, relay_types, req.timeout_ms, req.request_id))
+
+    def _relay_connect(self, relay: int, request_id: int | None):
+        """Ask a connected relay to connect to the device of a request"""
+        with self._connected_lock:
+            req = self._relay_requests.pop((relay, request_id), None)
+            if req is None:
+                return
+            key = (req.infuse_id, request_id)
+            cancelled = self._cancelled[key] > 0
+            if cancelled:
+                _decrement(self._pending, key)
+                _decrement(self._cancelled, key)
+                self._relay_users.pop(key, None)
+        if cancelled:
+            # The client stopped waiting for the connection
+            self._release(relay, request_id)
+            self._relay_route_cleanup(req.infuse_id)
+            return
+
+        state = self._common.ddb.devices[req.infuse_id]
+        assert state.bt_addr is not None
+        connect_args = defs.bt_connect_infuse.request(
+            state.bt_addr.to_rpc_struct(),
+            req.timeout_ms,
+            self._subscriptions(req),
+            0,
+        )
+        cmd = self._common.rpc.generate_addressed(
+            relay,
+            defs.bt_connect_infuse.COMMAND_ID,
+            bytes(connect_args),
+            Auth.DEVICE,
+            self._relay_connect_cb,
+            (relay, req),
+        )
+        encrypted = cmd.to_serial(self._common.ddb)
+        Console.log_tx(cmd.ptype, len(encrypted))
+        self._common.port.write(encrypted)
+
+    def _relay_connect_cb(
+        self, _pkt: PacketReceived, rc: int, response: bytes, ctx: tuple[int, GatewayRequestConnectionRequest]
+    ):
+        relay, req = ctx
+        infuse_id = req.infuse_id
+        request_id = req.request_id
+
+        with self._connected_lock:
+            _decrement(self._pending, (infuse_id, request_id))
+            cancelled = _decrement(self._cancelled, (infuse_id, request_id))
+            if rc == 0:
+                self._connected.setdefault(infuse_id, Counter())[request_id] += 1
+            else:
+                self._relay_users.pop((infuse_id, request_id), None)
+
+        if rc != 0:
+            reason = f"Bluetooth connection from relay {relay:016x} failed (RPC error {rc})"
+            self._common.notification_broadcast(ClientNotificationConnectionFailed(infuse_id, reason, request_id))
+            with self._connected_lock:
+                linked = infuse_id in self._connected
+
+            def relay_release() -> None:
+                self._release(relay, request_id)
+                self._relay_route_cleanup(infuse_id)
+
+            if linked:
+                # The connection may have been kept open for this request
+                self._disconnect_unused(infuse_id, relay_release)
+            else:
+                relay_release()
+            return
+
+        if cancelled:
+            # The client stopped waiting for the connection
+            self._release(infuse_id, request_id)
+            return
+
+        resp = defs.bt_connect_infuse.response.from_buffer_copy(response)
+        if self._common.ddb.has_local_root:
+            # Query public keys before running callback
+            cmd = self._common.rpc.generate_addressed(
+                infuse_id,
+                defs.security_public_keys.COMMAND_ID,
+                b"\x00",
+                Auth.NETWORK,
+                self._pub_keys_cb,
+                request_id,
+                relay=relay,
+            )
+            encrypted = cmd.to_serial(self._common.ddb)
+            Console.log_tx(cmd.ptype, len(encrypted))
+            self._common.port.write(encrypted)
+            return
+
+        self._common.ddb.observe_device(infuse_id, device_public_key=bytes(resp.device_public_key))
+
+        if self._common.ddb.has_shared_key(infuse_id):
+            self._connected_notification(infuse_id, request_id)
+        else:
+            # Pro-actively query key information before notifying
+            def notification(success: bool, reason: str | None) -> None:
+                if success:
+                    self._connected_notification(infuse_id, request_id)
+                else:
+                    assert reason is not None
+                    self._key_query_failed(infuse_id, request_id, reason)
+
+            self._common.query_device_key(infuse_id, cb=notification, relay=relay)
 
     def _handle_conn_release(self, req: GatewayRequestConnectionRelease):
         key = (req.infuse_id, req.request_id)
@@ -567,31 +827,83 @@ class SerialTxThread(SignaledThread):
             if users is not None and not _decrement(users, request_id):
                 # Not a user of the connection
                 return
-        self._disconnect_unused(infuse_id)
+        with self._connected_lock:
+            relay = self._relay_users.pop((infuse_id, request_id), None)
+        if relay is None:
+            self._disconnect_unused(infuse_id)
+            return
 
-    def _disconnect_unused(self, infuse_id: int):
+        # Release the connection to the relay that was used for the request, once the relay is no longer connected to
+        # the device. Otherwise the connection to the relay could be terminated before the relay is asked to disconnect.
+        def relay_release() -> None:
+            self._release(relay, request_id)
+            self._relay_route_cleanup(infuse_id)
+
+        self._disconnect_unused(infuse_id, relay_release)
+
+    def _disconnect_unused(self, infuse_id: int, done: Callable[[], None] | None = None):
+        """Disconnect from a device if the connection has no users.
+
+        `done` is run once the connection no longer needs to be routed through a relay.
+        """
+
+        def finish() -> None:
+            if done is not None:
+                done()
+
         if infuse_id == InfuseID.GATEWAY or infuse_id == self._common.ddb.gateway:
             # Local gateway always connected
+            finish()
             return
 
         state = self._common.ddb.devices.get(infuse_id, None)
         if state is None or state.bt_addr is None:
             # Unknown device, nothing to do
+            finish()
             return
 
         with self._connected_lock:
-            if self._connected.get(infuse_id) or any(device == infuse_id for device, _ in self._pending):
-                # Someone is still using or waiting for the connection
-                return
-            self._connected.pop(infuse_id, None)
+            in_use = bool(self._connected.get(infuse_id)) or any(device == infuse_id for device, _ in self._pending)
+            if not in_use:
+                self._connected.pop(infuse_id, None)
+                relay = self._relay_routes.pop(infuse_id, None)
+        if in_use:
+            # Someone is still using or waiting for the connection
+            finish()
+            return
 
         disconnect_args = defs.bt_disconnect.request(state.bt_addr.to_rpc_struct())
-        cmd = self._common.rpc.generate_serial(
-            defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None
-        )
+        if relay is not None:
+            # The relay owns the connection to the device. The response may never arrive if the relay has been lost, so
+            # don't wait for it indefinitely.
+            once_lock = threading.Lock()
+            ran = False
+
+            def complete(*_args: Any) -> None:
+                nonlocal ran
+                with once_lock:
+                    if ran:
+                        return
+                    ran = True
+                timer.cancel()
+                finish()
+
+            timer = threading.Timer(self.RELAY_DISCONNECT_TIMEOUT_S, complete)
+            timer.daemon = True
+            cmd = self._common.rpc.generate_addressed(
+                relay, defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, complete, None
+            )
+        else:
+            cmd = self._common.rpc.generate_serial(
+                defs.bt_disconnect.COMMAND_ID, bytes(disconnect_args), Auth.DEVICE, None, None
+            )
         encrypted = cmd.to_serial(self._common.ddb)
         Console.log_tx(cmd.ptype, len(encrypted))
         self._common.port.write(encrypted)
+        if relay is not None:
+            timer.start()
+        else:
+            finish()
 
     def _handle_observed_devices(self):
         if self._common.server is None:
