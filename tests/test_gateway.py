@@ -12,7 +12,7 @@ from infuse_iot.socket_comms import (
     GatewayRequestConnectionRelease,
     GatewayRequestConnectionRequest,
 )
-from infuse_iot.tools.gateway import SerialTxThread, SubCommand
+from infuse_iot.tools.gateway import SerialRxThread, SerialTxThread, SubCommand
 
 DEVICE = 123
 
@@ -254,3 +254,21 @@ def test_known_devices_reports_activity_and_application(tx):
         1: {"network_id": 5, "last_heard": 100.0, "gateway": True},
         DEVICE: {"last_heard": 200.5, "application_id": 0x12345678, "application_version": "1.2.3+0000abcd"},
     }
+
+
+def test_rx_console_utf8(capsys):
+    """Console lines are decoded as UTF-8, even when characters span multiple reads"""
+    line = "CPU Die temperature[die-temp]: 32.9 °C\n".encode()
+    split = line.index("°".encode()) + 1
+    common = Mock(server=None)
+    common.port.read_bytes.side_effect = [line[:split], line[split:], b"bad \xff\n"]
+    log = Mock()
+    rx = SerialRxThread(common, log, Mock())
+    for _ in range(3):
+        rx._iter()
+
+    assert capsys.readouterr().out == "CPU Die temperature[die-temp]: 32.9 °C\nbad �\n"
+    assert [c.args[0] for c in log.write.call_args_list] == [
+        "CPU Die temperature[die-temp]: 32.9 °C",
+        "bad �",
+    ]
