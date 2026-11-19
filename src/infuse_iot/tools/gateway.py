@@ -227,7 +227,7 @@ class SerialRxThread(SignaledThread):
         self._connection_dropped = connection_dropped
         self._reconstructor = SerialFrame.reconstructor()
         self._reconstructor.send(None)
-        self._line = ""
+        self._line = bytearray()
         self._log = log
         self._next_ping = 0.0
         self._key_query_pending = False
@@ -246,14 +246,15 @@ class SerialRxThread(SignaledThread):
                 self._handle_serial_frame(frame)
 
             if not frame_byte:
-                c = chr(b)
-                if c == "\n":
+                if b == ord("\n"):
+                    # Decode the complete line, as UTF-8 characters can span multiple bytes
+                    line = self._line.decode("utf-8", errors="replace")
                     if self._log is not None:
-                        self._log.write(self._line)
-                    print(self._line)
-                    self._line = ""
+                        self._log.write(line)
+                    print(line)
+                    self._line = bytearray()
                 else:
-                    self._line += c
+                    self._line.append(b)
 
     def _handle_memfault_pkt(self, pkt: PacketReceived):
         class memfault_chunk_header(ctypes.LittleEndianStructure):
