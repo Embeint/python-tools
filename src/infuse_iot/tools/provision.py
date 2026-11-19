@@ -24,7 +24,7 @@ from infuse_iot.profile import get_active_profile_base_url
 from infuse_iot.util.api import check_api_response, check_api_response_allow_errors, fetch_all
 from infuse_iot.util.argparse import InfuseDeviceId
 from infuse_iot.util.console import choose_one
-from infuse_iot.util.soc import nrf, soc, stm
+from infuse_iot.util.soc import nrf, silabs, soc, stm
 
 
 class SubCommand(InfuseCommand):
@@ -36,6 +36,9 @@ class SubCommand(InfuseCommand):
         )
         vendor_group.add_argument(
             "--stm", dest="vendor", action="store_const", const="stm", help="ST Microelectronics SoC"
+        )
+        vendor_group.add_argument(
+            "--silabs", dest="vendor", action="store_const", const="silabs", help="Silicon Labs SoC (J-Link)"
         )
         parser.add_argument(
             "--snr",
@@ -124,6 +127,8 @@ class SubCommand(InfuseCommand):
             interface = nrf.Interface(self._snr)
         elif self._vendor == "stm":
             interface = stm.Interface()
+        elif self._vendor == "silabs":
+            interface = silabs.Interface(self._snr)
         else:
             raise NotImplementedError(f"Unhandled vendor '{self._vendor}'")
         self._interface = interface
