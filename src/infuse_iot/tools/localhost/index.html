@@ -126,10 +126,28 @@
             }
         }
 
-        function createFilterTable(elementId, title, storageKey) {
+        // currentNames returns the options presently reported by the server
+        function createFilterTable(elementId, title, storageKey, currentNames) {
             const hidden = loadHiddenNames(storageKey);
+
+            // Show every option again, forgetting options that are only listed because they were hidden
+            const resetButton = document.createElement("button");
+            resetButton.textContent = "Show all";
+            resetButton.addEventListener("click", function () {
+                const reported = new Set(currentNames());
+                hidden.clear();
+                saveHiddenNames(storageKey, hidden);
+                table.replaceData(
+                    table.getData()
+                        .filter(row => reported.has(row.name))
+                        .map(row => ({ ...row, checked: true }))
+                );
+                filtering_update = true;
+            });
+
             const table = new Tabulator(elementId, {
                 layout: "fitDataTable",
+                footerElement: resetButton,
                 columns: [
                     { title: title, field: "name", width: 200 },
                     {
@@ -156,9 +174,9 @@
             return table;
         }
 
-        const shownTdfTable = createFilterTable("#tdf-show", "TDF", "infuse-localhost-hidden-tdfs");
-        const shownAppTable = createFilterTable("#app-show", "Application", "infuse-localhost-hidden-apps");
-        const shownNetworkTable = createFilterTable("#network-show", "Network ID", "infuse-localhost-hidden-networks");
+        const shownTdfTable = createFilterTable("#tdf-show", "TDF", "infuse-localhost-hidden-tdfs", () => currentTDFs);
+        const shownAppTable = createFilterTable("#app-show", "Application", "infuse-localhost-hidden-apps", () => currentApps);
+        const shownNetworkTable = createFilterTable("#network-show", "Network ID", "infuse-localhost-hidden-networks", () => currentNetworks);
 
         // WebSocket connection and polling state
         let ws = null;
