@@ -108,54 +108,57 @@
             paginationSizeSelector: [10, 25, 50, 100],
             paginationCounter: "rows",
         });
-        const shownTdfTable = new Tabulator("#tdf-show", {
-            layout: "fitDataTable",
-            columns: [
-                { title: "TDF", field: "name", width: 200 },
-                {
-                    title: "Show",
-                    field: "checked",
-                    hozAlign: "center",
-                    formatter: "tickCross",
-                    cellClick: function (ev, cell) {
-                        filtering_update = true;
-                        cell.setValue(!cell.getValue());
+        // Names unticked in a filtering table are saved in the browser, so they stay hidden after a reload.
+        // Storage can be unavailable (e.g. blocked site data), in which case filters only last for the page.
+        function loadHiddenNames(key) {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(key)) ?? []);
+            } catch {
+                return new Set();
+            }
+        }
+
+        function saveHiddenNames(key, names) {
+            try {
+                localStorage.setItem(key, JSON.stringify([...names]));
+            } catch {
+                // Ignore storage failures
+            }
+        }
+
+        function createFilterTable(elementId, title, storageKey) {
+            const hidden = loadHiddenNames(storageKey);
+            const table = new Tabulator(elementId, {
+                layout: "fitDataTable",
+                columns: [
+                    { title: title, field: "name", width: 200 },
+                    {
+                        title: "Show",
+                        field: "checked",
+                        hozAlign: "center",
+                        formatter: "tickCross",
+                        cellClick: function (ev, cell) {
+                            const checked = !cell.getValue();
+                            const name = cell.getRow().getData().name;
+                            filtering_update = true;
+                            cell.setValue(checked);
+                            if (checked) {
+                                hidden.delete(name);
+                            } else {
+                                hidden.add(name);
+                            }
+                            saveHiddenNames(storageKey, hidden);
+                        },
                     },
-                },
-            ]
-        });
-        const shownAppTable = new Tabulator("#app-show", {
-            layout: "fitDataTable",
-            columns: [
-                { title: "Application", field: "name", width: 200 },
-                {
-                    title: "Show",
-                    field: "checked",
-                    hozAlign: "center",
-                    formatter: "tickCross",
-                    cellClick: function (ev, cell) {
-                        filtering_update = true;
-                        cell.setValue(!cell.getValue());
-                    },
-                },
-            ]
-        });
-        const shownNetworkTable = new Tabulator("#network-show", {
-            layout: "fitDataTable",
-            columns: [
-                { title: "Network ID", field: "name", width: 200 },
-                {
-                    title: "Show",
-                    field: "checked",
-                    hozAlign: "center",
-                    formatter: "tickCross",
-                    cellClick: function (ev, cell) {
-                        filtering_update = true;
-                        cell.setValue(!cell.getValue());
-                    },
-                },
-            ]
-        });
+                ]
+            });
+            table.hiddenNames = hidden;
+            return table;
+        }
+
+        const shownTdfTable = createFilterTable("#tdf-show", "TDF", "infuse-localhost-hidden-tdfs");
+        const shownAppTable = createFilterTable("#app-show", "Application", "infuse-localhost-hidden-apps");
+        const shownNetworkTable = createFilterTable("#network-show", "Network ID", "infuse-localhost-hidden-networks");
 
         // WebSocket connection and polling state
         let ws = null;
@@ -199,12 +202,11 @@
         // server no longer reports them (e.g. after a restart), so they stay hidden when seen again.
         function mergeFilterOptions(table, names) {
             const currentRows = table.getData();
-            const unticked = currentRows.filter(row => !row.checked).map(row => row.name);
-            const updatedData = [...new Set([...names, ...unticked])].sort().map(str => {
+            const updatedData = [...new Set([...names, ...table.hiddenNames])].sort().map(str => {
                 const existingRow = currentRows.find(row => row.name === str);
                 return existingRow
                     ? existingRow // Preserve the existing row if found
-                    : { id: str, name: str, checked: true };
+                    : { id: str, name: str, checked: !table.hiddenNames.has(str) };
             });
             table.replaceData(updatedData);
         }
@@ -219,7 +221,7 @@
                     const existingRow = currentRows.find(row => row.name === str);
                     return existingRow
                         ? existingRow // Preserve the existing row if found
-                        : { id: str, name: str, checked: true };
+                        : { id: str, name: str, checked: !shownTdfTable.hiddenNames.has(str) };
                 });
                 // Update table and refresh the checked state map
                 shownTdfTable.replaceData(updatedData);
